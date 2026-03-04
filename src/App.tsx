@@ -43,22 +43,30 @@ function App() {
   useEffect(() => { if (replyTarget) { setSelectedType('comment'); setNewTitle(""); } }, [replyTarget]);
 
   useEffect(() => {
-    const unsubPosts = onSnapshot(collection(db, "posts"), (snapshot) => {
-      const posts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Post));
-      posts.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
-      setAllRootPosts(posts.filter(p => !p.parentId || p.id === "root_post_01"));
-      setAllChildPosts(posts.filter(p => p.parentId && p.id !== "root_post_01"));
-    });
+    try {
+      const unsubPosts = onSnapshot(collection(db, "posts"), (snapshot) => {
+        const posts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Post));
+        posts.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+        setAllRootPosts(posts.filter(p => !p.parentId || p.id === "root_post_01"));
+        setAllChildPosts(posts.filter(p => p.parentId && p.id !== "root_post_01"));
+      }, (error) => {
+        console.error("Firestore Posts Error:", error);
+      });
 
-    const unsubUser = onSnapshot(doc(db, "users", "user_heukmooyoung"), (docSnap) => {
-      if (docSnap.exists()) {
-        const data = docSnap.data();
-        setUserData(prev => ({ ...prev, ...data }));
-        if (data.friendList) setFriends(data.friendList);
-      }
-    });
+      const unsubUser = onSnapshot(doc(db, "users", "user_heukmooyoung"), (docSnap) => {
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          setUserData(prev => ({ ...prev, ...data }));
+          if (data.friendList) setFriends(data.friendList);
+        }
+      }, (error) => {
+        console.error("Firestore User Error:", error);
+      });
 
-    return () => { unsubPosts(); unsubUser(); };
+      return () => { unsubPosts(); unsubUser(); };
+    } catch (e) {
+      console.error("Firebase Initialization Error:", e);
+    }
   }, []);
 
   const filterBySearch = (posts: Post[]) => {
@@ -71,8 +79,8 @@ function App() {
   };
 
   const nowTime = new Date();
-  const oneHourAgo = new Date(nowTime.getTime() - 60 * 60 * 1000);
   const sixHoursAgo = new Date(nowTime.getTime() - 6 * 60 * 60 * 1000);
+  const oneHourAgo = new Date(nowTime.getTime() - 60 * 60 * 1000);
 
   const anyTopics = filterBySearch(allRootPosts.filter(p => {
     const createdAt = p.createdAt?.toDate();
@@ -152,11 +160,12 @@ function App() {
   const renderContent = () => {
     if (selectedTopic) {
       return (
-        <div className="max-w-4xl mx-auto w-full animate-in fade-in slide-in-from-bottom-4">
-          <button onClick={() => setSelectedTopic(null)} className="mb-6 text-sm font-black text-slate-400 hover:text-slate-900 flex items-center gap-2">← 목록으로 돌아가기</button>
+        <div className="w-full animate-in fade-in slide-in-from-bottom-4">
           <DiscussionView 
             rootPost={selectedTopic}
             allPosts={allChildPosts.filter(p => p.parentId === selectedTopic.id)}
+            otherTopics={allRootPosts.filter(p => p.id !== selectedTopic.id)}
+            onTopicChange={setSelectedTopic}
             userData={userData} friends={friends} onToggleFriend={toggleFriend}
             onPostClick={(p) => setSelectedPost(p)} replyTarget={replyTarget} setReplyTarget={setReplyTarget}
             handleSubmit={handleSubmit} selectedSide={selectedSide} setSelectedSide={setSelectedSide}
@@ -170,24 +179,25 @@ function App() {
 
     if (activeMenu === 'home') {
       return (
-        <div className="max-w-4xl mx-auto w-full animate-in fade-in">
+        <div className="w-full animate-in fade-in">
           {isCreateOpen && (
-            <div className="mb-8">
+            <div className="max-w-4xl mx-auto mb-12 shadow-2xl rounded-[2rem]">
               <CreatePostBox userData={userData} onSubmit={handleCreateTopic} />
             </div>
           )}
           {activeTab === 'any' && <AnyTalkList posts={anyTopics} onTopicClick={setSelectedTopic} onLikeClick={handleLike} />}
           {activeTab === 'recent' && <LatestTalkList rootPosts={recentTopics} onTopicClick={setSelectedTopic} />}
           {activeTab === 'best' && <LatestTalkList rootPosts={bestTopics} onTopicClick={setSelectedTopic} />}
-          {activeTab === 'rank' && <div className="py-40 text-center italic text-slate-300 font-[1000] text-2xl">🏆 명예말 랭킹 시스템 준비 중...</div>}
+          {activeTab === 'rank' && <div className="py-40 text-center italic text-slate-300 font-[1000] text-2xl animate-pulse">🏆 명예말 랭킹 시스템 준비 중...</div>}
         </div>
       );
     }
 
     if (activeMenu === 'onecut') {
       return (
-        <div className="max-w-4xl mx-auto w-full py-20 text-center animate-in fade-in">
-          <h2 className="text-3xl font-[1000] text-slate-300 mb-4">📸 한컷 (스카이타워)</h2>
+        <div className="w-full py-20 text-center animate-in fade-in">
+          <div className="text-6xl mb-6">📸</div>
+          <h2 className="text-3xl font-[1000] text-slate-800 mb-4 tracking-tighter">한컷 (스카이타워)</h2>
           <p className="font-bold text-slate-400">이미지 중심의 인기 게시물 피드를 준비 중입니다.</p>
         </div>
       );
@@ -195,8 +205,8 @@ function App() {
 
     if (activeMenu === 'friends') {
       return (
-        <div className="max-w-4xl mx-auto w-full animate-in fade-in">
-          <h2 className="text-2xl font-[1000] mb-6 flex items-center gap-2">🤝 깐부 소식</h2>
+        <div className="w-full animate-in fade-in">
+          <h2 className="text-2xl font-[1000] mb-6 flex items-center gap-2 tracking-tighter text-slate-800">🤝 깐부 소식</h2>
           <LatestTalkList rootPosts={friendTopics} onTopicClick={setSelectedTopic} />
         </div>
       );
@@ -217,16 +227,27 @@ function App() {
     }
   };
 
-  if (allRootPosts.length === 0 && !selectedTopic) return <div className="flex justify-center items-center h-screen bg-slate-50 font-black text-slate-300 text-2xl animate-pulse">데이터를 불러오고 있습니다...</div>;
-
-  return (
-    <div className="flex h-screen bg-[#F8FAFC] font-sans text-slate-900 overflow-hidden">
+  if (allRootPosts.length === 0 && !selectedTopic) return (
+    <div className="flex flex-col justify-center items-center h-screen bg-[#F8FAFC] p-10 text-center">
+      <div className="text-4xl mb-6 animate-bounce">🐎</div>
+      <div className="text-2xl font-[1000] text-slate-800 tracking-tighter mb-2">팔도 할말 모으는 중...</div>
+      <p className="text-slate-400 font-bold mb-10">잠시만 기다려 주시오.</p>
       
-      {/* 🚀 좌측 사이드바 (데스크탑) */}
-      <Sidebar activeMenu={activeMenu} setActiveMenu={(menu) => { setActiveMenu(menu); setSelectedTopic(null); }} />
+      <div className="text-left bg-white p-6 rounded-[2rem] border border-slate-200 shadow-xl max-w-sm w-full font-mono text-[11px] space-y-2">
+        <p className="flex justify-between border-b pb-1"><span>📡 Firebase</span> <span className={db ? "text-emerald-500 font-black" : "text-rose-500"}>{db ? "ON" : "OFF"}</span></p>
+        <p className="flex justify-between border-b pb-1"><span>🔑 API Key</span> <span className={import.meta.env.VITE_FIREBASE_API_KEY ? "text-emerald-500 font-black" : "text-rose-500"}>{import.meta.env.VITE_FIREBASE_API_KEY ? "LOADED" : "MISSING"}</span></p>
+        <p className="flex justify-between border-b pb-1"><span>📦 Posts</span> <span className="font-black">{allRootPosts.length} 개</span></p>
+      </div>
+      <button onClick={() => window.location.reload()} className="mt-8 bg-slate-900 text-white px-6 py-3 rounded-2xl font-black text-sm shadow-lg hover:scale-105 transition-all active:scale-95">다시 시도하기</button>
+    // src/App.tsx
+    ...
+      return (
+        <div className="flex h-screen bg-[#F8FAFC] font-sans text-slate-900 overflow-hidden pt-1.5 md:pt-2">
 
-      <div className="flex-1 flex flex-col h-screen overflow-hidden relative">
-        {/* 🚀 상단 네비게이션 */}
+          <Sidebar activeMenu={activeMenu} setActiveMenu={(menu) => { setActiveMenu(menu); setSelectedTopic(null); }} />
+    ...
+
+      <div className="flex-1 flex flex-col h-full overflow-hidden relative">
         <TopNavbar 
           searchQuery={searchQuery} 
           setSearchQuery={setSearchQuery} 
@@ -234,20 +255,19 @@ function App() {
           onCreateClick={() => setIsCreateOpen(!isCreateOpen)}
         />
 
-        {/* 🚀 서브 네비게이션 (홈 화면에서만 노출) */}
         {activeMenu === 'home' && !selectedTopic && (
           <SubNavbar activeTab={activeTab} setActiveTab={setActiveTab} />
         )}
 
-        {/* 🚀 메인 컨텐츠 영역 */}
-        <main className="flex-1 overflow-y-auto p-4 md:p-8 relative">
-          {renderContent()}
+        <main className="flex-1 overflow-y-auto p-3 md:p-4 relative no-scrollbar">
+          <div className="max-w-[1600px] mx-auto">
+            {renderContent()}
+          </div>
         </main>
       </div>
 
       {selectedPost && <PostDetailModal post={selectedPost} onClose={() => setSelectedPost(null)} />}
 
-      {/* 📱 모바일용 하단 사이드바 대체 네비게이션 */}
       <nav className="md:hidden fixed bottom-0 left-0 w-full bg-white/95 backdrop-blur-md border-t border-slate-200 z-50 h-16 flex justify-around items-center px-2 pb-safe shadow-[0_-10px_15px_-3px_rgba(0,0,0,0.05)]">
         {[
           { id: 'home', icon: '🏠', label: '홈' },
