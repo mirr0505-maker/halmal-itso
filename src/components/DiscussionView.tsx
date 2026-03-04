@@ -18,7 +18,7 @@ interface Props {
   handleSubmit: (e: React.FormEvent) => Promise<void>;
   selectedSide: 'left' | 'right';
   setSelectedSide: (side: 'left' | 'right') => void;
-  selectedType: 'comment' | 'formal'; // 🚀 comment(댓글), formal(연계글)
+  selectedType: 'comment' | 'formal';
   setSelectedType: (type: 'comment' | 'formal') => void;
   newTitle: string;
   setNewTitle: (t: string) => void;
@@ -28,7 +28,7 @@ interface Props {
 }
 
 const DiscussionView = ({
-  rootPost, allPosts, otherTopics, onTopicChange, userData, friends, onToggleFriend, onPostClick, 
+  rootPost, allPosts, otherTopics, onTopicChange, userData, friends, onToggleFriend, 
   replyTarget, setReplyTarget, handleSubmit, selectedSide, setSelectedSide,
   selectedType, setSelectedType, newTitle, setNewTitle, newContent, setNewContent, isSubmitting
 }: Props) => {
@@ -41,6 +41,13 @@ const DiscussionView = ({
     return createdAt.toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' });
   };
 
+  // RootPostCard에 전달할 userData 타입 보정
+  const authorData = rootPost.authorInfo ? {
+    level: rootPost.authorInfo.level,
+    likes: rootPost.authorInfo.totalLikes,
+    bio: "" 
+  } : { level: 1, likes: 0, bio: "" };
+
   return (
     <div className="grid grid-cols-12 gap-6 w-full px-2">
       <div className="col-span-12 lg:col-span-9 flex flex-col gap-6 pb-40">
@@ -52,7 +59,7 @@ const DiscussionView = ({
           uniqueDisagreeCount={new Set(disagreePosts.map(p => p.author)).size}
           isFriend={friends.includes(rootPost.author)}
           onToggleFriend={() => onToggleFriend(rootPost.author)}
-          userData={rootPost.authorInfo || { level: 1, likes: 0, bio: "" }}
+          userData={authorData}
           friendCount={rootPost.authorInfo?.friendCount || 0}
         />
 
@@ -64,7 +71,6 @@ const DiscussionView = ({
           currentUserFriends={friends}
         />
 
-        {/* 🚀 고도화된 의견 입력창 (댓글/연계글 선택 기능) */}
         <div className="mt-10 bg-white border border-slate-100 rounded-2xl p-4 shadow-xl max-w-xl mx-auto w-full">
           <div className="flex gap-4 mb-4 border-b border-slate-50 pb-2">
             <button onClick={() => setSelectedType('comment')} className={`text-[11px] font-black pb-1.5 transition-all ${selectedType === 'comment' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-slate-300'}`}>💬 일반 댓글</button>

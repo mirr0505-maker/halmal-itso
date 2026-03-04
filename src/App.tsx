@@ -239,13 +239,13 @@ function App() {
         <p className="flex justify-between border-b pb-1"><span>📦 Posts</span> <span className="font-black">{allRootPosts.length} 개</span></p>
       </div>
       <button onClick={() => window.location.reload()} className="mt-8 bg-slate-900 text-white px-6 py-3 rounded-2xl font-black text-sm shadow-lg hover:scale-105 transition-all active:scale-95">다시 시도하기</button>
-    // src/App.tsx
-    ...
-      return (
-        <div className="flex h-screen bg-[#F8FAFC] font-sans text-slate-900 overflow-hidden pt-1.5 md:pt-2">
+    </div>
+  );
 
-          <Sidebar activeMenu={activeMenu} setActiveMenu={(menu) => { setActiveMenu(menu); setSelectedTopic(null); }} />
-    ...
+  return (
+    <div className="flex h-screen bg-[#F8FAFC] font-sans text-slate-900 overflow-hidden pt-1.5 md:pt-2">
+      
+      <Sidebar activeMenu={activeMenu} setActiveMenu={(menu) => { setActiveMenu(menu); setSelectedTopic(null); }} />
 
       <div className="flex-1 flex flex-col h-full overflow-hidden relative">
         <TopNavbar 
