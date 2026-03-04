@@ -1,7 +1,7 @@
 // src/components/PostDetailModal.tsx
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { db } from '../firebase';
-import { collection, query, where, onSnapshot, doc, updateDoc, increment, addDoc, serverTimestamp, deleteDoc } from 'firebase/firestore';
+import { collection, query, onSnapshot, doc, updateDoc, addDoc, serverTimestamp, deleteDoc } from 'firebase/firestore';
 import type { Post } from '../types';
 
 interface Props {
@@ -18,7 +18,6 @@ const PostDetailModal = ({ post, onClose }: Props) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    const q = query(collection(db, "posts"), where("parentId", "in", [post.id, ...comments.map(c => c.id)]));
     // 실제로는 post.id를 부모로 가진 모든 자식들을 가져오기 위해 통합 쿼리를 사용합니다.
     const qAll = query(collection(db, "posts")); // 단순화를 위해 전체 로드 후 필터링 (데이터가 많아지면 쿼리 최적화 필요)
     

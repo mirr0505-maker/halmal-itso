@@ -1,5 +1,5 @@
 // src/components/PostCard.tsx
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { db } from '../firebase';
 import { doc, updateDoc, deleteDoc } from 'firebase/firestore'; 
 import type { Post } from '../types';

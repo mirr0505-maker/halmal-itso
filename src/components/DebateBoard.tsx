@@ -1,5 +1,5 @@
 // src/components/DebateBoard.tsx
-import React, { useState } from 'react';
+import { useState } from 'react';
 import type { Post } from '../types';
 import PostCard from './PostCard';
 

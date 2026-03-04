@@ -24,7 +24,7 @@ const MyPage = ({ allUserChildPosts = [], allUserRootPosts = [], userData, frien
   const isUploadingRef = useRef(false);
   const [cardInputs, setCardInputs] = useState({ title: "", desc: "", imageUrl: "" });
 
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);

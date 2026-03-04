@@ -1,5 +1,4 @@
 // src/components/RootPostCard.tsx
-import React from 'react';
 import { db } from '../firebase';
 import { doc, deleteDoc } from 'firebase/firestore';
 import type { Post } from '../types';

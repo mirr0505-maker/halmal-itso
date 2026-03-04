@@ -32,7 +32,7 @@ const MyProfileCard = ({ userData, friendCount }: Props) => {
 
   const calculatedLevel = Math.max(1, Math.min(friendCount, 10));
 
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);

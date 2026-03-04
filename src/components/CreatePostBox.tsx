@@ -1,5 +1,5 @@
 // src/components/CreatePostBox.tsx
-import React, { useState, useRef } from 'react';
+import { useState, useRef } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Link from '@tiptap/extension-link';
@@ -21,7 +21,9 @@ const CreatePostBox = ({ userData, onSubmit }: Props) => {
 
   const editor = useEditor({
     extensions: [
-      StarterKit.configure({ history: true }),
+      StarterKit.configure({
+        // history는 StarterKit에 기본 포함되어 있습니다.
+      }),
       Link.configure({ 
         openOnClick: false, 
         autolink: true, 
