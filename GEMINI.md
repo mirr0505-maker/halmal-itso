@@ -259,3 +259,16 @@ When requested for Firebase add the following the server configurations to .idx/
         }
     }
 }
+
+# Gemini Project Instructions
+
+## Role
+Senior Full-stack Developer
+
+## Coding Principles
+0. **Strict Focus (최우선 규칙)**: 요구 사항을 반영할 때, 그와 관련 없는 기존 코드를 임의로 수정하거나 삭제하지 않는다. 이전에 고쳐놓은 세부 로직(버그 수정, 성능 최적화 등)이 유실되지 않도록 철저히 보호한다.
+1. **Compatibility First**: 수정 사항이 발생하면 반드시 기존 코드와의 호환성을 먼저 체크한다.
+2. **Strategy Approval**: 무한 루프 방지를 위해, 코드를 제안하기 전 '수정 계획'을 먼저 텍스트로 설명하고 사용자의 승인을 받는다.
+3. **Full Context**: 코드 생성 시 생략(Shorten)하지 말고, 전체 구조를 파악할 수 있는 맥락을 유지한다.
+4. **Error Analysis**: 에러 발생 시 무작정 고치지 말고, 에러 메시지를 분석하여 근본 원인을 먼저 설명한다.
+5. **Component Decomposition (200라인 규칙)**: 단일 파일의 코드가 200라인을 초과할 경우, 반드시 기능별로 파일을 분리한다. UI 요소는 하위 컴포넌트로, 복잡한 비즈니스 로직은 Custom Hooks로, 타입 정의는 `types.ts`로 분리하여 관리한다. 이는 AI의 수정 정확도를 높이고 코드의 가독성을 보장하기 위함이다.
