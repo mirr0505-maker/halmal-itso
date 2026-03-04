@@ -99,11 +99,12 @@ function App() {
 
   const friendTopics = filterBySearch(allRootPosts.filter(p => friends.includes(p.author)));
 
-  const handleCreateTopic = async (title: string, content: string, imageUrl?: string, linkUrl?: string) => {
+  const handleCreateTopic = async (title: string, content: string, imageUrl?: string, linkUrl?: string, tags?: string[]) => {
     try {
       await addDoc(collection(db, "posts"), { 
         author: userData.nickname, title, content, 
         imageUrl: imageUrl || null, linkUrl: linkUrl || null,
+        tags: tags || [], // 🚀 태그 데이터 추가
         authorInfo: {
           level: userData.level,
           friendCount: friends.length,
@@ -158,6 +159,20 @@ function App() {
   };
 
   const renderContent = () => {
+    // 🚀 1. 글쓰기 모드 (최우선순위)
+    if (isCreateOpen) {
+      return (
+        <div className="w-full animate-in fade-in zoom-in-95 duration-300">
+          <CreatePostBox 
+            userData={userData} 
+            onSubmit={handleCreateTopic} 
+            onClose={() => setIsCreateOpen(false)} 
+          />
+        </div>
+      );
+    }
+
+    // 🚀 2. 상세 보기 모드
     if (selectedTopic) {
       return (
         <div className="w-full animate-in fade-in slide-in-from-bottom-4">
@@ -177,14 +192,10 @@ function App() {
       );
     }
 
+    // 🚀 3. 메뉴별 모드
     if (activeMenu === 'home') {
       return (
         <div className="w-full animate-in fade-in">
-          {isCreateOpen && (
-            <div className="max-w-4xl mx-auto mb-12 shadow-2xl rounded-[2rem]">
-              <CreatePostBox userData={userData} onSubmit={handleCreateTopic} />
-            </div>
-          )}
           {activeTab === 'any' && <AnyTalkList posts={anyTopics} onTopicClick={setSelectedTopic} onLikeClick={handleLike} />}
           {activeTab === 'recent' && <LatestTalkList rootPosts={recentTopics} onTopicClick={setSelectedTopic} />}
           {activeTab === 'best' && <LatestTalkList rootPosts={bestTopics} onTopicClick={setSelectedTopic} />}
@@ -245,22 +256,22 @@ function App() {
   return (
     <div className="flex h-screen bg-[#F8FAFC] font-sans text-slate-900 overflow-hidden pt-1.5 md:pt-2">
       
-      <Sidebar activeMenu={activeMenu} setActiveMenu={(menu) => { setActiveMenu(menu); setSelectedTopic(null); }} />
+      <Sidebar activeMenu={activeMenu} setActiveMenu={(menu) => { setActiveMenu(menu); setSelectedTopic(null); setIsCreateOpen(false); }} />
 
       <div className="flex-1 flex flex-col h-full overflow-hidden relative">
         <TopNavbar 
           searchQuery={searchQuery} 
           setSearchQuery={setSearchQuery} 
           userData={userData} 
-          onCreateClick={() => setIsCreateOpen(!isCreateOpen)}
+          onCreateClick={() => { setSelectedTopic(null); setIsCreateOpen(!isCreateOpen); }}
         />
 
-        {activeMenu === 'home' && !selectedTopic && (
+        {activeMenu === 'home' && !selectedTopic && !isCreateOpen && (
           <SubNavbar activeTab={activeTab} setActiveTab={setActiveTab} />
         )}
 
         <main className="flex-1 overflow-y-auto p-3 md:p-4 relative no-scrollbar">
-          <div className="max-w-[1600px] mx-auto">
+          <div className="max-w-[1600px] mx-auto h-full">
             {renderContent()}
           </div>
         </main>
@@ -277,7 +288,7 @@ function App() {
         ].map(menu => (
           <button 
             key={menu.id} 
-            onClick={() => {setActiveMenu(menu.id as any); setSelectedTopic(null);}} 
+            onClick={() => {setActiveMenu(menu.id as any); setSelectedTopic(null); setIsCreateOpen(false);}} 
             className={`flex flex-col items-center justify-center p-2 min-w-[60px] transition-all ${
               activeMenu === menu.id ? 'text-blue-600 scale-110' : 'text-slate-400'
             }`}

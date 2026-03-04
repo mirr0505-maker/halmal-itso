@@ -1,5 +1,4 @@
 // src/components/Sidebar.tsx
-import logo from '../assets/logo.png';
 
 interface Props {
   activeMenu: 'home' | 'onecut' | 'friends' | 'mypage';
@@ -49,22 +48,25 @@ const Sidebar = ({ activeMenu, setActiveMenu }: Props) => {
 
   return (
     <aside className="w-36 bg-[#F8FAFC] border-r border-slate-200 hidden md:flex flex-col h-full sticky top-0">
-      <div className="p-3.5">
-        <div 
-          className="cursor-pointer transition-transform active:scale-95" 
-          onClick={() => setActiveMenu('home')}
-        >
-          <img src={logo} alt="HALMAL-ITSO" className="w-full h-auto rounded-lg shadow-sm" />
-        </div>
+      {/* 🚀 원래의 HALMAL-ITSO 텍스트 로고로 복구 */}
+      <div 
+        className="h-[42px] flex items-center px-4 cursor-pointer hover:opacity-70 transition-opacity"
+        onClick={() => setActiveMenu('home')}
+      >
+        <h1 className="text-sm font-[1000] italic text-blue-600 tracking-tighter">
+          HALMAL<span className="text-slate-900">-ITSO</span>
+        </h1>
       </div>
-      <nav className="flex-1 px-2.5 space-y-1">
+      
+      {/* 🚀 통일된 메뉴 영역 유지 */}
+      <nav className="flex-1 px-2.5 pt-0 space-y-0.5">
         {menus.map(menu => (
           <button
             key={menu.id}
             onClick={() => setActiveMenu(menu.id as any)}
-            className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg font-bold text-[11px] transition-all ${
+            className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg font-bold text-[11px] transition-all border-none shadow-none ${
               activeMenu === menu.id
-                ? 'bg-white text-slate-900 shadow-sm border border-slate-200'
+                ? 'bg-white text-blue-600 font-black shadow-sm border border-slate-100'
                 : 'text-slate-400 hover:bg-slate-100 hover:text-slate-900'
             }`}
           >
@@ -73,6 +75,7 @@ const Sidebar = ({ activeMenu, setActiveMenu }: Props) => {
           </button>
         ))}
       </nav>
+      
       <div className="p-4 text-[9px] font-bold text-slate-400">
         © 2026 HALMAL-ITSO.
       </div>

@@ -19,4 +19,5 @@ export interface Post {
   authorInfo?: AuthorInfo;
   imageUrl?: string; // 🚀 이미지 URL 추가
   linkUrl?: string;  // 🚀 링크 URL 추가
+  tags?: string[];   // 🚀 해시태그 목록 추가
 }

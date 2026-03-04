@@ -11,6 +11,13 @@
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1000.0",
+    "@editorjs/editorjs": "^2.31.3",
+    "@editorjs/embed": "^2.7.7",
+    "@editorjs/header": "^2.8.8",
+    "@editorjs/image": "^2.10.3",
+    "@editorjs/inline-code": "^1.5.2",
+    "@editorjs/link": "^2.6.2",
+    "@editorjs/list": "^2.0.9",
     "@tiptap/extension-image": "^3.20.0",
     "@tiptap/extension-link": "^3.20.0",
     "@tiptap/react": "^3.20.0",
