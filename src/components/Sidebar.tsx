@@ -1,4 +1,5 @@
 // src/components/Sidebar.tsx
+import logo from '../assets/logo.png';
 
 interface Props {
   activeMenu: 'home' | 'onecut' | 'friends' | 'mypage';
@@ -49,9 +50,12 @@ const Sidebar = ({ activeMenu, setActiveMenu }: Props) => {
   return (
     <aside className="w-36 bg-[#F8FAFC] border-r border-slate-200 hidden md:flex flex-col h-full sticky top-0">
       <div className="p-3.5">
-        <h1 className="text-base font-[1000] italic text-blue-600 tracking-tighter cursor-pointer" onClick={() => setActiveMenu('home')}>
-          HALMAL<span className="text-slate-900">-ITSO</span>
-        </h1>
+        <div 
+          className="cursor-pointer transition-transform active:scale-95" 
+          onClick={() => setActiveMenu('home')}
+        >
+          <img src={logo} alt="HALMAL-ITSO" className="w-full h-auto rounded-lg shadow-sm" />
+        </div>
       </div>
       <nav className="flex-1 px-2.5 space-y-1">
         {menus.map(menu => (
