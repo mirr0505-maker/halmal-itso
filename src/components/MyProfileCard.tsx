@@ -192,11 +192,15 @@ const MyProfileCard = ({ userData, friendCount }: Props) => {
               </div>
               <p className="text-slate-500 text-sm font-medium leading-relaxed max-w-md italic">"{userData.bio}"</p>
               <div className="flex justify-center md:justify-start gap-4 pt-2">
-                <div className="text-center bg-slate-50 px-5 py-2.5 rounded-2xl border border-slate-100 shadow-sm">
+                <div className="text-center bg-slate-50 px-5 py-2.5 rounded-2xl border border-slate-100 shadow-sm min-w-[80px]">
+                  <span className="block text-[10px] text-slate-400 font-black uppercase tracking-widest mb-0.5">평판</span>
+                  <span className="text-xl font-[1000] text-blue-600">중립</span>
+                </div>
+                <div className="text-center bg-slate-50 px-5 py-2.5 rounded-2xl border border-slate-100 shadow-sm min-w-[80px]">
                   <span className="block text-[10px] text-slate-400 font-black uppercase tracking-widest mb-0.5">깐부</span>
                   <span className="text-xl font-[1000] text-slate-900">{friendCount}</span>
                 </div>
-                <div className="text-center bg-slate-50 px-5 py-2.5 rounded-2xl border border-slate-100 shadow-sm">
+                <div className="text-center bg-slate-50 px-5 py-2.5 rounded-2xl border border-slate-100 shadow-sm min-w-[80px]">
                   <span className="block text-[10px] text-slate-400 font-black uppercase tracking-widest mb-0.5">좋아요</span>
                   <span className="text-xl font-[1000] text-slate-900">{userData.likes.toLocaleString()}</span>
                 </div>

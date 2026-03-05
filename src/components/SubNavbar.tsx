@@ -14,16 +14,16 @@ const SubNavbar = ({ activeTab, setActiveTab }: Props) => {
   ];
 
   return (
-    <nav className="bg-white border-b border-slate-200 sticky top-[42px] z-30">
-      <div className="max-w-[1600px] mx-auto px-4 flex gap-4 overflow-x-auto no-scrollbar">
+    <nav className="bg-white border-b border-slate-200 sticky top-[56px] z-30 h-[48px] flex items-center">
+      <div className="flex gap-10 overflow-x-auto no-scrollbar h-full px-4">
         {tabs.map(tab => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id as any)}
-            className={`py-2 text-[11px] font-black transition-all whitespace-nowrap border-b-2 ${
+            className={`h-full px-1 text-[12.5px] font-[1000] transition-all whitespace-nowrap border-b-2 flex items-center ${
               activeTab === tab.id
                 ? 'border-blue-600 text-blue-600'
-                : 'border-transparent text-slate-500 hover:text-slate-800'
+                : 'border-transparent text-slate-400 hover:text-slate-800'
             }`}
           >
             {tab.label}

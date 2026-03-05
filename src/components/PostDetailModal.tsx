@@ -93,12 +93,28 @@ const PostDetailModal = ({ post, onClose }: Props) => {
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in" onClick={onClose}>
       <div className="bg-white w-full max-w-2xl max-h-[90vh] rounded-[2.5rem] overflow-hidden flex flex-col shadow-2xl" onClick={e => e.stopPropagation()}>
-        <div className="p-6 border-b flex justify-between items-center">
-          <span className="text-xs font-black px-3 py-1 bg-slate-100 rounded-lg uppercase">Discussion</span>
-          <button onClick={onClose} className="font-black text-slate-400">✕</button>
+        <div className="p-6 border-b flex justify-end items-center">
+          <button onClick={onClose} className="font-black text-slate-400 hover:text-slate-900 transition-colors">✕</button>
         </div>
         <div className="flex-1 overflow-y-auto p-6 md:p-8">
-          <h3 className="text-2xl font-black mb-4">{post.title}</h3>
+          <h3 className="text-2xl font-black mb-2">{post.title}</h3>
+          
+          {/* 🚀 해시태그 추가 (모달) */}
+          <div className="flex flex-wrap gap-2 mb-4">
+            {(post.tags || []).map((tag, idx) => (
+              <span key={idx} className="text-xs font-bold text-blue-500">
+                {tag.startsWith('#') ? tag : `#${tag}`}
+              </span>
+            ))}
+          </div>
+
+          {/* 🚀 이미지 추가 (모달) */}
+          {post.imageUrl && (
+            <div className="w-full mb-6 rounded-2xl overflow-hidden border border-slate-100">
+              <img src={post.imageUrl} alt="Post" className="w-full h-auto object-cover" />
+            </div>
+          )}
+
           <p className="text-slate-600 mb-8 whitespace-pre-wrap">{post.content}</p>
           <div className="pt-8 border-t">
             {renderComments(post.id)}

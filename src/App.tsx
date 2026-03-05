@@ -84,12 +84,19 @@ function App() {
 
   const anyTopics = filterBySearch(allRootPosts.filter(p => {
     const createdAt = p.createdAt?.toDate();
-    return createdAt && createdAt > sixHoursAgo;
+    const isNew = createdAt && createdAt > oneHourAgo;
+    const isPopular = (p.likes || 0) >= 3;
+    return isNew || isPopular;
   })); 
 
+  // 🚀 실제 댓글 수 계산 로직
+  const commentCounts = allRootPosts.reduce((acc, post) => {
+    acc[post.id] = allChildPosts.filter(child => child.parentId === post.id).length;
+    return acc;
+  }, {} as Record<string, number>);
+
   const recentTopics = filterBySearch(allRootPosts.filter(p => {
-    const createdAt = p.createdAt?.toDate();
-    return createdAt && createdAt > oneHourAgo && (p.likes || 0) >= 3;
+    return (p.likes || 0) >= 3;
   }));
 
   const bestTopics = filterBySearch(allRootPosts.filter(p => {
@@ -150,9 +157,21 @@ function App() {
     try {
       const postRef = doc(db, "posts", postId);
       const targetPost = [...allRootPosts, ...allChildPosts].find(p => p.id === postId);
-      if (targetPost) {
-        await updateDoc(postRef, { likes: (targetPost.likes || 0) + 1 });
+      if (!targetPost) return;
+
+      // 🚀 중복 좋아요 방지 로직 (likedBy 필드 활용)
+      const likedBy = (targetPost as any).likedBy || [];
+      const myNickname = userData.nickname;
+
+      if (likedBy.includes(myNickname)) {
+        alert("이미 하트를 보내셨소! (1인 1하트 유지)");
+        return;
       }
+
+      await updateDoc(postRef, { 
+        likes: (targetPost.likes || 0) + 1,
+        likedBy: [...likedBy, myNickname]
+      });
     } catch (error) {
       console.error("추천 실패:", error);
     }
@@ -178,7 +197,7 @@ function App() {
         <div className="w-full animate-in fade-in slide-in-from-bottom-4">
           <DiscussionView 
             rootPost={selectedTopic}
-            allPosts={allChildPosts.filter(p => p.parentId === selectedTopic.id)}
+            allPosts={allChildPosts.filter(p => p.parentId === selectedTopic.id && p.id !== selectedTopic.id)}
             otherTopics={allRootPosts.filter(p => p.id !== selectedTopic.id)}
             onTopicChange={setSelectedTopic}
             userData={userData} friends={friends} onToggleFriend={toggleFriend}
@@ -196,9 +215,9 @@ function App() {
     if (activeMenu === 'home') {
       return (
         <div className="w-full animate-in fade-in">
-          {activeTab === 'any' && <AnyTalkList posts={anyTopics} onTopicClick={setSelectedTopic} onLikeClick={handleLike} />}
-          {activeTab === 'recent' && <LatestTalkList rootPosts={recentTopics} onTopicClick={setSelectedTopic} />}
-          {activeTab === 'best' && <LatestTalkList rootPosts={bestTopics} onTopicClick={setSelectedTopic} />}
+          {activeTab === 'any' && <AnyTalkList posts={anyTopics} onTopicClick={setSelectedTopic} onLikeClick={handleLike} commentCounts={commentCounts} />}
+          {activeTab === 'recent' && <LatestTalkList rootPosts={recentTopics} onTopicClick={setSelectedTopic} onLikeClick={handleLike} commentCounts={commentCounts} />}
+          {activeTab === 'best' && <LatestTalkList rootPosts={bestTopics} onTopicClick={setSelectedTopic} onLikeClick={handleLike} commentCounts={commentCounts} />}
           {activeTab === 'rank' && <div className="py-40 text-center italic text-slate-300 font-[1000] text-2xl animate-pulse">🏆 명예말 랭킹 시스템 준비 중...</div>}
         </div>
       );
@@ -218,7 +237,7 @@ function App() {
       return (
         <div className="w-full animate-in fade-in">
           <h2 className="text-2xl font-[1000] mb-6 flex items-center gap-2 tracking-tighter text-slate-800">🤝 깐부 소식</h2>
-          <LatestTalkList rootPosts={friendTopics} onTopicClick={setSelectedTopic} />
+          <LatestTalkList rootPosts={friendTopics} onTopicClick={setSelectedTopic} onLikeClick={handleLike} commentCounts={commentCounts} />
         </div>
       );
     }
@@ -271,7 +290,7 @@ function App() {
         )}
 
         <main className="flex-1 overflow-y-auto p-3 md:p-4 relative no-scrollbar">
-          <div className="max-w-[1600px] mx-auto h-full">
+          <div className="h-full">
             {renderContent()}
           </div>
         </main>

@@ -26,6 +26,9 @@ const RootPostCard = ({
   
   const isMyPost = post.author === "흑무영"; 
 
+  // 🚀 본문에 이미지가 포함되어 있는지 체크 (중복 방지용)
+  const hasImageInContent = post.content.includes('<img');
+
   const formatTime = (timestamp: any) => {
     if (!timestamp) return "";
     const now = new Date();
@@ -48,26 +51,36 @@ const RootPostCard = ({
   };
 
   return (
-    <section className="bg-white border border-slate-100 rounded-xl p-4 mb-4 shadow-sm relative overflow-hidden">
-      <div className="flex items-center justify-end mb-2">
+    <section className="bg-white border border-slate-100 rounded-xl p-3.5 mb-3 shadow-sm relative overflow-hidden">
+      <div className="flex items-center justify-end mb-1">
          <span className="text-[9px] font-bold text-slate-300">{formatTime(post.createdAt)}</span>
       </div>
       
-      <h2 className="text-sm font-[1000] text-slate-900 mb-2 leading-tight tracking-tight">{post.title}</h2>
+      <h2 className="text-sm font-[1000] text-slate-900 mb-1.5 leading-tight tracking-tight">{post.title}</h2>
 
-      {post.imageUrl && (
-        <div className="w-full aspect-video rounded-xl overflow-hidden border border-slate-50 mb-3 shadow-inner">
-          <img src={post.imageUrl} alt="Topic" className="w-full h-full object-cover" />
+      {/* 🚀 해시태그 영역 (슬림화) */}
+      <div className="flex flex-wrap gap-1.5 mb-2.5">
+        {(post.tags || []).map((tag, idx) => (
+          <span key={idx} className="text-[10px] font-bold text-blue-500 bg-blue-50/50 px-1.5 py-0.5 rounded">
+            {tag.startsWith('#') ? tag : `#${tag}`}
+          </span>
+        ))}
+      </div>
+
+      {/* 🚀 본문에 이미지가 없을 때만 별도의 imageUrl 영역 렌더링 (중복 방지 철저) */}
+      {post.imageUrl && !hasImageInContent && (
+        <div className="w-full max-h-[300px] rounded-xl overflow-hidden border border-slate-50 mb-3 shadow-inner flex justify-center bg-slate-50">
+          <img src={post.imageUrl} alt="Content Image" className="w-full h-full object-contain" />
         </div>
       )}
 
       <div 
-        className="text-[11px] text-slate-600 mb-4 leading-relaxed font-medium prose prose-slate max-w-none"
+        className="text-[11px] text-slate-600 mb-3.5 leading-relaxed font-medium prose prose-slate max-w-none"
         dangerouslySetInnerHTML={{ __html: post.content }}
       />
 
       {post.linkUrl && (
-        <div className="mb-4">
+        <div className="mb-3.5">
           <a 
             href={post.linkUrl} 
             target="_blank" 
@@ -79,7 +92,7 @@ const RootPostCard = ({
         </div>
       )}
       
-      <div className="flex items-center justify-between bg-slate-50/50 border border-slate-100 p-2.5 rounded-lg mb-3">
+      <div className="flex items-center justify-between bg-slate-50/50 border border-slate-100 p-2 rounded-lg mb-3">
         <div className="flex items-center gap-2">
           <div className="w-6 h-6 rounded-full bg-slate-200 overflow-hidden border border-slate-200 shrink-0">
              <img src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${post.author}`} alt="avatar" className="w-full h-full object-cover" />

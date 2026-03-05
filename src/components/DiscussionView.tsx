@@ -49,8 +49,8 @@ const DiscussionView = ({
   } : { level: 1, likes: 0, bio: "" };
 
   return (
-    <div className="grid grid-cols-12 gap-6 w-full px-2">
-      <div className="col-span-12 lg:col-span-9 flex flex-col gap-6 pb-40">
+    <div className="max-w-6xl mx-auto grid grid-cols-12 gap-6 w-full px-2">
+      <div className="col-span-12 lg:col-span-8 flex flex-col gap-4 pb-40">
         <RootPostCard 
           post={rootPost} 
           totalComment={allPosts.filter(p => p.type === 'comment').length}
@@ -112,7 +112,7 @@ const DiscussionView = ({
         </div>
       </div>
 
-      <aside className="hidden lg:block lg:col-span-3">
+      <aside className="hidden lg:block lg:col-span-4">
         <div className="sticky top-4 flex flex-col gap-4">
           <div className="flex items-center justify-between px-1">
             <h4 className="text-[10px] font-[1000] text-slate-400 uppercase tracking-widest">Next Halmal</h4>
@@ -127,11 +127,11 @@ const DiscussionView = ({
                   onTopicChange(topic);
                   window.scrollTo({ top: 0, behavior: 'smooth' });
                 }}
-                className="bg-white border border-slate-100 rounded-xl p-2 cursor-pointer hover:border-blue-400 hover:shadow-md transition-all group flex flex-col gap-1.5"
+                className="bg-white border border-slate-200 rounded-xl p-2 cursor-pointer hover:border-blue-400 hover:shadow-md transition-all group flex flex-col gap-1.5 shadow-sm"
               >
                 <div className="flex gap-2 items-start">
                   {topic.imageUrl && (
-                    <div className="w-12 h-12 rounded-lg overflow-hidden shrink-0 border border-slate-50">
+                    <div className="w-12 h-12 rounded-lg overflow-hidden shrink-0 border border-slate-100">
                       <img src={topic.imageUrl} alt="Thumb" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
                     </div>
                   )}

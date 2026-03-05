@@ -47,10 +47,10 @@ const Sidebar = ({ activeMenu, setActiveMenu }: Props) => {
   ];
 
   return (
-    <aside className="w-36 bg-[#F8FAFC] border-r border-slate-200 hidden md:flex flex-col h-full sticky top-0">
+    <aside className="w-32 bg-[#F8FAFC] border-r border-slate-200 hidden md:flex flex-col h-full sticky top-0">
       {/* 🚀 원래의 HALMAL-ITSO 텍스트 로고로 복구 */}
       <div 
-        className="h-[42px] flex items-center px-4 cursor-pointer hover:opacity-70 transition-opacity"
+        className="h-[42px] flex items-center px-3 cursor-pointer hover:opacity-70 transition-opacity"
         onClick={() => setActiveMenu('home')}
       >
         <h1 className="text-sm font-[1000] italic text-blue-600 tracking-tighter">
@@ -59,12 +59,12 @@ const Sidebar = ({ activeMenu, setActiveMenu }: Props) => {
       </div>
       
       {/* 🚀 통일된 메뉴 영역 유지 */}
-      <nav className="flex-1 px-2.5 pt-0 space-y-0.5">
+      <nav className="flex-1 px-2 pt-0 space-y-1">
         {menus.map(menu => (
           <button
             key={menu.id}
             onClick={() => setActiveMenu(menu.id as any)}
-            className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg font-bold text-[11px] transition-all border-none shadow-none ${
+            className={`w-full flex items-center gap-2 px-2.5 py-2.5 rounded-lg font-bold text-[11.5px] transition-all border-none shadow-none ${
               activeMenu === menu.id
                 ? 'bg-white text-blue-600 font-black shadow-sm border border-slate-100'
                 : 'text-slate-400 hover:bg-slate-100 hover:text-slate-900'
