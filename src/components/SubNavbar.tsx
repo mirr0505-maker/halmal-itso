@@ -3,11 +3,10 @@
 interface Props {
   activeTab: 'any' | 'recent' | 'best' | 'rank';
   onTabClick: (tab: 'any' | 'recent' | 'best' | 'rank') => void;
-  onWriteClick: () => void;
   showTabs: boolean;
 }
 
-const SubNavbar = ({ activeTab, onTabClick, onWriteClick, showTabs }: Props) => {
+const SubNavbar = ({ activeTab, onTabClick, showTabs }: Props) => {
   if (!showTabs) return null;
   
   return (

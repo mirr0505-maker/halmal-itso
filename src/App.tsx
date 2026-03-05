@@ -155,7 +155,17 @@ function App() {
   };
 
   const renderContent = () => {
-    if (activeMenu === 'mypage') return <MyPage userData={userData} posts={allRootPosts.filter(p => p.author === userData.nickname)} onBack={() => setActiveMenu('home')} />;
+    if (activeMenu === 'mypage') return (
+      <MyPage 
+        userData={userData} 
+        allUserRootPosts={allRootPosts.filter(p => p.author === userData.nickname)} 
+        allUserChildPosts={allChildPosts.filter(p => p.author === userData.nickname)} 
+        friends={friends}
+        friendCount={friends.length}
+        onPostClick={setSelectedTopic}
+        onToggleFriend={toggleFriend}
+      />
+    );
     if (activeMenu === 'onecut') return (
       <div className="w-full flex flex-col items-center justify-center py-40 gap-4">
         <span className="text-6xl grayscale opacity-50">🖼️</span>
@@ -193,8 +203,8 @@ function App() {
     return (
       <div className="w-full animate-in fade-in">
         {activeTab === 'any' && <AnyTalkList posts={anyTopics} onTopicClick={setSelectedTopic} onLikeClick={handleLike} commentCounts={commentCounts} currentNickname={userData.nickname} />}
-        {activeTab === 'recent' && <LatestTalkList rootPosts={recentTopics} onTopicClick={setSelectedTopic} onLikeClick={handleLike} commentCounts={commentCounts} currentNickname={userData.nickname} />}
-        {activeTab === 'best' && <LatestTalkList rootPosts={bestTopics} onTopicClick={setSelectedTopic} onLikeClick={handleLike} commentCounts={commentCounts} currentNickname={userData.nickname} />}
+        {activeTab === 'recent' && <LatestTalkList rootPosts={recentTopics} onTopicClick={setSelectedTopic} onLikeClick={handleLike} commentCounts={commentCounts} />}
+        {activeTab === 'best' && <LatestTalkList rootPosts={bestTopics} onTopicClick={setSelectedTopic} onLikeClick={handleLike} commentCounts={commentCounts} />}
       </div>
     );
   };
@@ -242,16 +252,16 @@ function App() {
       <div className="flex flex-1 overflow-hidden">
         <Sidebar activeMenu={activeMenu} setActiveMenu={(menu) => { setActiveMenu(menu); setSelectedTopic(null); }} />
         
-        <main className="flex-1 px-4 pt-0 pb-12 overflow-y-auto bg-[#F8FAFC]">
+        <main className="flex-1 px-8 pt-0 pb-12 overflow-y-auto bg-[#F8FAFC]">
           <div className="max-w-[1500px] mx-auto">
             {/* 🚀 상세글 보기(selectedTopic) 중에는 탭을 숨겨서 본문이 위로 바짝 붙게 함 */}
-            <SubNavbar activeTab={activeTab} onTabClick={setActiveTab} onWriteClick={() => setIsCreateOpen(true)} showTabs={activeMenu === 'home' && !selectedTopic} />
+            <SubNavbar activeTab={activeTab} onTabClick={setActiveTab} showTabs={activeMenu === 'home'} />
             {renderContent()}
           </div>
         </main>
       </div>
 
-      {isCreateOpen && <CreatePostBox onClose={() => setIsCreateOpen(false)} onCreate={handleCreateTopic} />}
+      {isCreateOpen && <CreatePostBox userData={userData} onSubmit={handleCreateTopic} onClose={() => setIsCreateOpen(false)} />}
       {selectedPost && <PostDetailModal post={selectedPost} onClose={() => setSelectedPost(null)} />}
     </div>
   );
