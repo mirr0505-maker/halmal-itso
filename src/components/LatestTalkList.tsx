@@ -1,5 +1,5 @@
 // src/components/LatestTalkList.tsx
-import React, { useState } from 'react';
+import React from 'react';
 import type { Post } from '../types';
 
 interface Props {
