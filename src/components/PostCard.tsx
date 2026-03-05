@@ -9,14 +9,27 @@ interface Props {
   onReply: (post: Post) => void;
   currentUserData?: any; 
   currentUserFriends?: string[];
+  level?: number; // 🚀 대댓글 깊이 (0: 댓글, 1 이상: 대댓글)
 }
 
-const PostCard = ({ post, onReply, currentUserData, currentUserFriends }: Props) => {
+const PostCard = ({ post, onReply, currentUserData, currentUserFriends, level = 0 }: Props) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState(post.content);
   
   const isMyPost = post.author === "흑무영"; 
   const isFormal = post.type === 'formal' || (post.title && post.title.trim().length > 0);
+  const isRightSide = post.side === 'right';
+
+  // 🚀 들여쓰기 계산 (깊이당 16px, 최대 3단계까지)
+  const indentSize = Math.min(level, 3) * 16;
+
+  const getReputationLabel = (likes: number) => {
+    if (likes >= 1000) return "확고";
+    if (likes >= 500) return "우호";
+    if (likes >= 100) return "약간 우호";
+    if (likes < 0) return "적대";
+    return "중립";
+  };
 
   const renderAuthorInfo = () => {
     const info = isMyPost && currentUserData ? {
@@ -26,12 +39,12 @@ const PostCard = ({ post, onReply, currentUserData, currentUserFriends }: Props)
     } : (post.authorInfo || { level: 1, friendCount: 2, totalLikes: 123456 });
 
     return (
-      <div className="flex items-center gap-1.5 ml-2">
-        <span className="bg-slate-900 text-white px-1 py-0.5 rounded-[3px] text-[7px] font-black uppercase tracking-tighter">
+      <div className={`flex items-center gap-2 ${isRightSide ? 'mr-2' : 'ml-2'}`}>
+        <span className="bg-slate-900 text-white px-1.5 py-0.5 rounded-[4px] text-[10px] font-black uppercase tracking-tighter">
           Lv.{info.level}
         </span>
-        <span className="text-[8px] font-bold text-slate-400">
-          깐부 {info.friendCount}
+        <span className="text-[11.5px] font-bold text-slate-400">
+          · {getReputationLabel(info.totalLikes)} · 깐부 {info.friendCount}
         </span>
       </div>
     );
@@ -52,53 +65,72 @@ const PostCard = ({ post, onReply, currentUserData, currentUserFriends }: Props)
     }
   };
 
+  // 🚀 진영별 스타일 클래스 정의
+  const sideStyles = isRightSide 
+    ? "text-right items-end border-r-4 border-r-rose-400 border-b-slate-100" 
+    : "text-left items-start border-l-4 border-l-emerald-400 border-b-slate-100";
+
   return (
-    <div className={`p-3 rounded-xl shadow-sm border transition-all ${isFormal ? 'bg-blue-50/30 border-blue-100' : 'bg-white border-slate-100 hover:border-slate-200'}`}>
-      <div className="flex flex-col gap-1 mb-1.5">
-        <div className="flex justify-between items-start">
-          <div className="flex items-center">
-            <span className="font-black text-[9px] text-slate-700">👤 {post.author}</span>
+    <div 
+      className={`p-4 rounded-none shadow-sm border-b transition-all ${isFormal ? 'bg-blue-50/20' : 'bg-white hover:bg-slate-50/50'} ${sideStyles} w-full flex flex-col`}
+      style={{ 
+        paddingLeft: !isRightSide ? `${16 + indentSize}px` : '16px',
+        paddingRight: isRightSide ? `${16 + indentSize}px` : '16px'
+      }}
+    >
+      <div className="flex flex-col gap-1.5 mb-3 w-full">
+        <div className={`flex justify-between items-start ${isRightSide ? 'flex-row-reverse' : 'flex-row'}`}>
+          <div className={`flex items-center ${isRightSide ? 'flex-row-reverse' : 'flex-row'}`}>
+            {/* 🚀 대댓글 표시 아이콘 */}
+            {level > 0 && (
+              <span className={`text-slate-300 font-black text-sm ${isRightSide ? 'ml-2' : 'mr-2'}`}>
+                {isRightSide ? '┒' : 'ㄴ'}
+              </span>
+            )}
+            <span className="font-black text-[11.5px] text-slate-900">👤 {post.author}</span>
             {renderAuthorInfo()}
             {isFormal && (
-              <span className="ml-2 bg-blue-600 text-white px-1.5 py-0.5 rounded-[3px] text-[7px] font-black uppercase">정식연계</span>
+              <span className={`${isRightSide ? 'mr-3' : 'ml-3'} bg-blue-600 text-white px-2 py-0.5 rounded-[4px] text-[9px] font-black uppercase shadow-sm`}>정식연계</span>
             )}
           </div>
           
-          <div className="flex items-center gap-2">
+          <div className={`flex items-center gap-3 ${isRightSide ? 'flex-row-reverse' : 'flex-row'}`}>
             {isMyPost && !isEditing && (
-              <div className="flex gap-1.5">
-                <button onClick={() => setIsEditing(true)} className="text-[8px] font-black text-slate-300 hover:text-blue-500">수정</button>
-                <button onClick={handleDelete} className="text-[8px] font-black text-slate-300 hover:text-rose-500">삭제</button>
+              <div className={`flex gap-3 ${isRightSide ? 'flex-row-reverse' : 'flex-row'}`}>
+                <button onClick={() => setIsEditing(true)} className="text-[11px] font-black text-blue-400 hover:text-blue-600 transition-colors">수정</button>
+                <button onClick={handleDelete} className="text-[11px] font-black text-rose-400 hover:text-rose-600 transition-colors">삭제</button>
               </div>
             )}
-            <span className="text-[8px] font-black text-slate-400">👍 {post.likes || 0}</span>
+            <span className="text-[11.5px] font-black text-slate-400">👍 {post.likes || 0}</span>
           </div>
         </div>
       </div>
       
       {isEditing ? (
-        <div className="flex flex-col gap-1.5 mt-1 animate-in fade-in">
+        <div className="flex flex-col gap-2 mt-1 animate-in fade-in w-full">
           <textarea 
             value={editContent} 
             onChange={(e) => setEditContent(e.target.value)}
-            className="w-full p-2 border border-slate-200 rounded-lg text-xs outline-none focus:border-slate-900 resize-none h-16 transition-all"
+            className="w-full p-3 border border-slate-200 rounded-none text-[11.5px] outline-none focus:border-slate-900 resize-none h-20 transition-all"
           />
-          <div className="flex justify-end gap-1.5">
-            <button onClick={() => { setIsEditing(false); setEditContent(post.content); }} className="text-[9px] bg-slate-50 px-2 py-1 rounded-md font-bold text-slate-400">취소</button>
-            <button onClick={handleUpdate} className="text-[9px] bg-slate-900 text-white px-2.5 py-1 rounded-md font-bold shadow-md">저장</button>
+          <div className={`flex gap-2 ${isRightSide ? 'justify-start' : 'justify-end'}`}>
+            <button onClick={() => { setIsEditing(false); setEditContent(post.content); }} className="text-[11.5px] bg-slate-50 px-3 py-1.5 rounded-none font-bold text-slate-400">취소</button>
+            <button onClick={handleUpdate} className="text-[11.5px] bg-slate-900 text-white px-4 py-1.5 rounded-none font-bold shadow-md">저장</button>
           </div>
         </div>
       ) : (
-        <>
+        <div className="w-full">
           {isFormal && post.title && (
-            <h4 className="text-[11px] font-black text-slate-800 mb-1 leading-tight">{post.title}</h4>
+            <h4 className={`text-[13px] font-[1000] text-slate-900 mb-1.5 leading-tight ${isRightSide ? 'text-right' : 'text-left'}`}>{post.title}</h4>
           )}
           <div 
-            className="text-[10px] text-slate-500 mb-2 leading-relaxed prose prose-slate max-w-none"
+            className={`text-[11.5px] text-slate-600 mb-4 leading-relaxed font-bold prose prose-slate max-w-none ${isRightSide ? 'text-right' : 'text-left'}`}
             dangerouslySetInnerHTML={{ __html: post.content }}
           />
-          <button onClick={() => onReply(post)} className="text-[8px] font-black text-slate-300 hover:text-slate-500 flex items-center gap-1 transition-colors w-fit underline underline-offset-2">💬 답글달기</button>
-        </>
+          <div className={`flex ${isRightSide ? 'justify-end' : 'justify-start'}`}>
+            <button onClick={() => onReply(post)} className="text-[10px] font-black text-slate-300 hover:text-slate-500 flex items-center gap-1 transition-colors w-fit border border-slate-100 px-2.5 py-1 hover:bg-slate-50">💬 답글달기</button>
+          </div>
+        </div>
       )}
     </div>
   );

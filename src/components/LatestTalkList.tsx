@@ -11,9 +11,8 @@ interface Props {
 
 const LatestTalkList = ({ rootPosts, onTopicClick, onLikeClick, commentCounts = {} }: Props) => {
   const formatKoreanNumber = (num: number) => {
-    if (num >= 100000) return Math.floor(num / 100000) + '십만';
     if (num >= 10000) return Math.floor(num / 10000) + '만';
-    if (num >= 1000) return (num / 1000).toFixed(1).replace('.0', '') + '천';
+    if (num >= 1000) return Math.floor(num / 1000) + '천';
     return num.toLocaleString();
   };
 
@@ -80,14 +79,14 @@ const LatestTalkList = ({ rootPosts, onTopicClick, onLikeClick, commentCounts = 
               {stripHtml(post.content)}
             </p>
 
-            {/* 🚀 4. 중단: 이미지 (h-100으로 확대) */}
+            {/* 🚀 4. 중단: 이미지 */}
             {post.imageUrl && (
               <div className="w-full h-[100px] rounded-lg overflow-hidden border border-slate-100 bg-slate-50 mb-1.5 shrink-0">
                 <img src={post.imageUrl} alt="Thumbnail" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
               </div>
             )}
 
-            {/* 🚀 5. 하단 직전: 태그 & 통계 (데이터 노출 전용) */}
+            {/* 🚀 5. 하단 직전: 태그 & 통계 */}
             <div className="flex justify-between items-center mb-2 border-b border-slate-50 pb-1.5">
               <div className="flex gap-1 overflow-hidden">
                 {(post.tags || ['#할말', '#있소']).slice(0, 3).map((tag, i) => (
@@ -112,7 +111,7 @@ const LatestTalkList = ({ rootPosts, onTopicClick, onLikeClick, commentCounts = 
               </div>
             </div>
 
-            {/* 🚀 6. 최하단: 작성자 프로필 & 실제 클릭 가능한 하트 버튼 */}
+            {/* 🚀 6. 최하단: 작성자 프로필 & 추천 버튼 */}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1.5 min-w-0">
                 <div className="w-6 h-6 rounded-full bg-slate-100 overflow-hidden border border-slate-200 shrink-0">
@@ -126,7 +125,6 @@ const LatestTalkList = ({ rootPosts, onTopicClick, onLikeClick, commentCounts = 
                 </div>
               </div>
               
-              {/* 실제 좋아요를 누르는 빨간 하트 버튼 */}
               <button 
                 onClick={(e) => {
                   e.stopPropagation();

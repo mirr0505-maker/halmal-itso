@@ -87,7 +87,11 @@ The AI will use a consistent styling approach, preferring modern solutions like 
 5. Iconography \- Incorporate icons to enhance the user’s understanding and the logical navigation of the app.
 6. Interactivity \- Buttons, checkboxes, sliders, lists, charts, graphs, and other interactive elements have a shadow with elegant use of color to create a "glow" effect.
 
-## **Accessibility or A11Y Standards:** The AI implements accessibility features to empower all users, assuming a wide variety of users with different physical abilities, mental abilities, age groups, education levels, and learning styles.
+## **Database & Data Management**
+
+*   **Human-Readable Naming**: 데이터베이스 컬렉션 및 필드명은 사람이 읽었을 때 의도를 즉시 파악할 수 있도록 직관적인 영어 단어를 사용한다.
+*   **No Auto-Generated IDs**: 새로운 문서를 생성할 때 Firestore의 자동 생성 ID(랜덤 문자열)를 사용하지 않는다. 대신 `post_timestamp_nickname` 또는 `reply_timestamp_id`와 같이 생성 시점과 맥락을 파악할 수 있는 고유 ID를 직접 생성하여 부여한다.
+*   **Hierarchical Structure**: 대댓글 구현을 위해 `parentId` 뿐만 아니라 최상위 게시글을 가리키는 `rootId`를 필수로 포함하여 데이터 간의 계층 관계를 명확히 한다.
 
 ## **Routing and Navigation**
 

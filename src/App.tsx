@@ -1,7 +1,7 @@
 // src/App.tsx
 import { useState, useEffect } from 'react';
 import { db } from './firebase';
-import { collection, onSnapshot, addDoc, serverTimestamp, doc, setDoc, updateDoc } from 'firebase/firestore';
+import { collection, onSnapshot, serverTimestamp, doc, setDoc, updateDoc } from 'firebase/firestore';
 import type { Post } from './types';
 import MyPage from './components/MyPage';
 import PostDetailModal from './components/PostDetailModal';
@@ -10,7 +10,6 @@ import AnyTalkList from './components/AnyTalkList';
 import LatestTalkList from './components/LatestTalkList';
 import CreatePostBox from './components/CreatePostBox';
 import Sidebar from './components/Sidebar';
-import TopNavbar from './components/TopNavbar';
 import SubNavbar from './components/SubNavbar';
 
 function App() {
@@ -47,8 +46,8 @@ function App() {
       const unsubPosts = onSnapshot(collection(db, "posts"), (snapshot) => {
         const posts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Post));
         posts.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
-        setAllRootPosts(posts.filter(p => !p.parentId || p.id === "root_post_01"));
-        setAllChildPosts(posts.filter(p => p.parentId && p.id !== "root_post_01"));
+        setAllRootPosts(posts.filter(p => !p.parentId || p.parentId === "" || p.id === "root_post_01"));
+        setAllChildPosts(posts.filter(p => p.parentId && p.parentId !== "" && p.id !== "root_post_01"));
       }, (error) => {
         console.error("Firestore Posts Error:", error);
       });
@@ -79,8 +78,8 @@ function App() {
   };
 
   const nowTime = new Date();
-  const sixHoursAgo = new Date(nowTime.getTime() - 6 * 60 * 60 * 1000);
   const oneHourAgo = new Date(nowTime.getTime() - 60 * 60 * 1000);
+  const sixHoursAgo = new Date(nowTime.getTime() - 6 * 60 * 60 * 1000);
 
   const anyTopics = filterBySearch(allRootPosts.filter(p => {
     const createdAt = p.createdAt?.toDate();
@@ -89,35 +88,28 @@ function App() {
     return isNew || isPopular;
   })); 
 
-  // 🚀 실제 댓글 수 계산 로직
   const commentCounts = allRootPosts.reduce((acc, post) => {
-    acc[post.id] = allChildPosts.filter(child => child.parentId === post.id).length;
+    acc[post.id] = allChildPosts.filter(child => child.rootId === post.id).length;
     return acc;
   }, {} as Record<string, number>);
 
-  const recentTopics = filterBySearch(allRootPosts.filter(p => {
-    return (p.likes || 0) >= 3;
-  }));
-
+  const recentTopics = filterBySearch(allRootPosts.filter(p => (p.likes || 0) >= 3));
   const bestTopics = filterBySearch(allRootPosts.filter(p => {
     const createdAt = p.createdAt?.toDate();
     return createdAt && createdAt > sixHoursAgo && (p.likes || 0) >= 30;
   }));
-
   const friendTopics = filterBySearch(allRootPosts.filter(p => friends.includes(p.author)));
 
   const handleCreateTopic = async (title: string, content: string, imageUrl?: string, linkUrl?: string, tags?: string[]) => {
     try {
-      await addDoc(collection(db, "posts"), { 
+      const timestamp = Date.now();
+      const customId = `topic_${timestamp}_${userData.nickname}`;
+      await setDoc(doc(db, "posts", customId), { 
         author: userData.nickname, title, content, 
         imageUrl: imageUrl || null, linkUrl: linkUrl || null,
-        tags: tags || [], // 🚀 태그 데이터 추가
-        authorInfo: {
-          level: userData.level,
-          friendCount: friends.length,
-          totalLikes: userData.likes
-        },
-        parentId: "", side: 'left', type: 'formal', 
+        tags: tags || [],
+        authorInfo: { level: userData.level, friendCount: friends.length, totalLikes: userData.likes },
+        parentId: null, rootId: null, side: 'left', type: 'formal', 
         createdAt: serverTimestamp(), likes: 0, dislikes: 0 
       });
       setIsCreateOpen(false);
@@ -129,15 +121,15 @@ function App() {
     if (!newContent.trim()) return alert("내용을 입력하시오!");
     setIsSubmitting(true);
     try {
+      const timestamp = Date.now();
+      const typeLabel = selectedType === 'formal' ? 'formal' : 'reply';
+      const customId = `${typeLabel}_${timestamp}_${userData.nickname}`;
       const parentId = replyTarget ? replyTarget.id : (selectedTopic?.id || "");
-      await addDoc(collection(db, "posts"), { 
+      const rootId = selectedTopic?.id || "";
+      await setDoc(doc(db, "posts", customId), { 
         author: userData.nickname, title: selectedType === 'formal' ? newTitle : null, content: newContent, 
-        parentId: parentId, side: selectedSide, type: selectedType, 
-        authorInfo: {
-          level: userData.level,
-          friendCount: friends.length,
-          totalLikes: userData.likes
-        },
+        parentId, rootId, side: selectedSide, type: selectedType, 
+        authorInfo: { level: userData.level, friendCount: friends.length, totalLikes: userData.likes },
         createdAt: serverTimestamp(), likes: 0, dislikes: 0 
       });
       setNewTitle(""); setNewContent(""); setReplyTarget(null);
@@ -158,165 +150,109 @@ function App() {
       const postRef = doc(db, "posts", postId);
       const targetPost = [...allRootPosts, ...allChildPosts].find(p => p.id === postId);
       if (!targetPost) return;
-
-      // 🚀 중복 좋아요 방지 로직 (likedBy 필드 활용)
-      const likedBy = (targetPost as any).likedBy || [];
-      const myNickname = userData.nickname;
-
-      if (likedBy.includes(myNickname)) {
-        alert("이미 하트를 보내셨소! (1인 1하트 유지)");
-        return;
-      }
-
-      await updateDoc(postRef, { 
-        likes: (targetPost.likes || 0) + 1,
-        likedBy: [...likedBy, myNickname]
-      });
-    } catch (error) {
-      console.error("추천 실패:", error);
-    }
+      await updateDoc(postRef, { likes: (targetPost.likes || 0) + 1 });
+    } catch (e) { console.error("좋아요 실패:", e); }
   };
 
   const renderContent = () => {
-    // 🚀 1. 글쓰기 모드 (최우선순위)
-    if (isCreateOpen) {
-      return (
-        <div className="w-full animate-in fade-in zoom-in-95 duration-300">
-          <CreatePostBox 
-            userData={userData} 
-            onSubmit={handleCreateTopic} 
-            onClose={() => setIsCreateOpen(false)} 
-          />
-        </div>
-      );
-    }
+    if (activeMenu === 'mypage') return <MyPage userData={userData} posts={allRootPosts.filter(p => p.author === userData.nickname)} onBack={() => setActiveMenu('home')} />;
+    if (activeMenu === 'onecut') return (
+      <div className="w-full flex flex-col items-center justify-center py-40 gap-4">
+        <span className="text-6xl grayscale opacity-50">🖼️</span>
+        <p className="text-slate-400 font-black text-xl italic animate-pulse">한컷 시스템 준비 중이오...</p>
+      </div>
+    );
+    if (activeMenu === 'friends') return (
+      <div className="w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 animate-in fade-in">
+        {friendTopics.length > 0 ? (
+          friendTopics.map(post => <AnyTalkList key={post.id} posts={[post]} onTopicClick={setSelectedTopic} onLikeClick={handleLike} commentCounts={commentCounts} currentNickname={userData.nickname} />)
+        ) : (
+          <div className="col-span-full py-40 text-center"><p className="text-slate-400 font-black">깐부를 맺어보시오!</p></div>
+        )}
+      </div>
+    );
 
-    // 🚀 2. 상세 보기 모드
     if (selectedTopic) {
       return (
-        <div className="w-full animate-in fade-in slide-in-from-bottom-4">
-          <DiscussionView 
-            rootPost={selectedTopic}
-            allPosts={allChildPosts.filter(p => p.parentId === selectedTopic.id && p.id !== selectedTopic.id)}
-            otherTopics={allRootPosts.filter(p => p.id !== selectedTopic.id)}
-            onTopicChange={setSelectedTopic}
-            userData={userData} friends={friends} onToggleFriend={toggleFriend}
-            onPostClick={(p) => setSelectedPost(p)} replyTarget={replyTarget} setReplyTarget={setReplyTarget}
-            handleSubmit={handleSubmit} selectedSide={selectedSide} setSelectedSide={setSelectedSide}
-            selectedType={selectedType} setSelectedType={setSelectedType}
-            newTitle={newTitle} setNewTitle={setNewTitle} newContent={newContent} setNewContent={setNewContent}
-            isSubmitting={isSubmitting}
-          />
-        </div>
-      );
-    }
-
-    // 🚀 3. 메뉴별 모드
-    if (activeMenu === 'home') {
-      return (
-        <div className="w-full animate-in fade-in">
-          {activeTab === 'any' && <AnyTalkList posts={anyTopics} onTopicClick={setSelectedTopic} onLikeClick={handleLike} commentCounts={commentCounts} />}
-          {activeTab === 'recent' && <LatestTalkList rootPosts={recentTopics} onTopicClick={setSelectedTopic} onLikeClick={handleLike} commentCounts={commentCounts} />}
-          {activeTab === 'best' && <LatestTalkList rootPosts={bestTopics} onTopicClick={setSelectedTopic} onLikeClick={handleLike} commentCounts={commentCounts} />}
-          {activeTab === 'rank' && <div className="py-40 text-center italic text-slate-300 font-[1000] text-2xl animate-pulse">🏆 명예말 랭킹 시스템 준비 중...</div>}
-        </div>
-      );
-    }
-
-    if (activeMenu === 'onecut') {
-      return (
-        <div className="w-full py-20 text-center animate-in fade-in">
-          <div className="text-6xl mb-6">📸</div>
-          <h2 className="text-3xl font-[1000] text-slate-800 mb-4 tracking-tighter">한컷 (스카이타워)</h2>
-          <p className="font-bold text-slate-400">이미지 중심의 인기 게시물 피드를 준비 중입니다.</p>
-        </div>
-      );
-    }
-
-    if (activeMenu === 'friends') {
-      return (
-        <div className="w-full animate-in fade-in">
-          <h2 className="text-2xl font-[1000] mb-6 flex items-center gap-2 tracking-tighter text-slate-800">🤝 깐부 소식</h2>
-          <LatestTalkList rootPosts={friendTopics} onTopicClick={setSelectedTopic} onLikeClick={handleLike} commentCounts={commentCounts} />
-        </div>
-      );
-    }
-
-    if (activeMenu === 'mypage') {
-      return (
-        <MyPage 
-          allUserChildPosts={allChildPosts.filter(p => p.author === userData.nickname)} 
-          allUserRootPosts={allRootPosts.filter(p => p.author === userData.nickname)} 
-          userData={userData} 
-          friends={friends} 
-          friendCount={friends.length} 
-          onPostClick={(p) => setSelectedPost(p)} 
-          onToggleFriend={toggleFriend}
+        <DiscussionView
+          rootPost={selectedTopic}
+          allPosts={allChildPosts.filter(p => p.rootId === selectedTopic.id)}
+          otherTopics={allRootPosts.filter(p => p.id !== selectedTopic.id).slice(0, 5)}
+          onTopicChange={setSelectedTopic}
+          userData={userData} friends={friends} onToggleFriend={toggleFriend}
+          onPostClick={() => {}} replyTarget={replyTarget} setReplyTarget={setReplyTarget}
+          handleSubmit={handleSubmit} selectedSide={selectedSide} setSelectedSide={setSelectedSide}
+          selectedType={selectedType} setSelectedType={setSelectedType}
+          newTitle={newTitle} setNewTitle={setNewTitle} newContent={newContent} setNewContent={setNewContent}
+          isSubmitting={isSubmitting}
+          commentCounts={commentCounts}
         />
       );
     }
+
+    return (
+      <div className="w-full animate-in fade-in">
+        {activeTab === 'any' && <AnyTalkList posts={anyTopics} onTopicClick={setSelectedTopic} onLikeClick={handleLike} commentCounts={commentCounts} currentNickname={userData.nickname} />}
+        {activeTab === 'recent' && <LatestTalkList rootPosts={recentTopics} onTopicClick={setSelectedTopic} onLikeClick={handleLike} commentCounts={commentCounts} currentNickname={userData.nickname} />}
+        {activeTab === 'best' && <LatestTalkList rootPosts={bestTopics} onTopicClick={setSelectedTopic} onLikeClick={handleLike} commentCounts={commentCounts} currentNickname={userData.nickname} />}
+      </div>
+    );
   };
 
-  if (allRootPosts.length === 0 && !selectedTopic) return (
-    <div className="flex flex-col justify-center items-center h-screen bg-[#F8FAFC] p-10 text-center">
-      <div className="text-4xl mb-6 animate-bounce">🐎</div>
-      <div className="text-2xl font-[1000] text-slate-800 tracking-tighter mb-2">팔도 할말 모으는 중...</div>
-      <p className="text-slate-400 font-bold mb-10">잠시만 기다려 주시오.</p>
-      
-      <div className="text-left bg-white p-6 rounded-[2rem] border border-slate-200 shadow-xl max-w-sm w-full font-mono text-[11px] space-y-2">
-        <p className="flex justify-between border-b pb-1"><span>📡 Firebase</span> <span className={db ? "text-emerald-500 font-black" : "text-rose-500"}>{db ? "ON" : "OFF"}</span></p>
-        <p className="flex justify-between border-b pb-1"><span>🔑 API Key</span> <span className={import.meta.env.VITE_FIREBASE_API_KEY ? "text-emerald-500 font-black" : "text-rose-500"}>{import.meta.env.VITE_FIREBASE_API_KEY ? "LOADED" : "MISSING"}</span></p>
-        <p className="flex justify-between border-b pb-1"><span>📦 Posts</span> <span className="font-black">{allRootPosts.length} 개</span></p>
-      </div>
-      <button onClick={() => window.location.reload()} className="mt-8 bg-slate-900 text-white px-6 py-3 rounded-2xl font-black text-sm shadow-lg hover:scale-105 transition-all active:scale-95">다시 시도하기</button>
-    </div>
-  );
-
   return (
-    <div className="flex h-screen bg-[#F8FAFC] font-sans text-slate-900 overflow-hidden pt-1.5 md:pt-2">
+    <div className="bg-[#F8FAFC] text-slate-900 font-sans h-screen flex flex-col overflow-hidden">
+      {/* 🚀 1. 상단 바 */}
+      <header className="bg-white border-b border-slate-100 h-[64px] flex items-center justify-between px-6 shrink-0 z-50">
+        <div 
+          className="w-40 flex items-center cursor-pointer hover:opacity-80 transition-opacity shrink-0"
+          onClick={() => { setActiveMenu('home'); setSelectedTopic(null); }}
+        >
+          <h1 className="text-[22px] font-[1000] italic tracking-tighter">
+            <span className="text-blue-600">HALMAL</span>
+            <span className="text-slate-900">-ITSO</span>
+          </h1>
+        </div>
+
+        <div className="flex-1 flex justify-center h-full items-center px-4">
+          <div className="relative flex items-center bg-slate-50/80 rounded-full px-4 h-[42px] border border-slate-100 focus-within:border-blue-500 focus-within:bg-white transition-all w-full max-w-sm shadow-inner">
+            <svg className="w-4 h-4 text-slate-400 mr-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+            <input
+              type="text" placeholder="검색어를 입력해 주세요."
+              value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
+              className="bg-transparent outline-none w-full text-[13px] font-bold text-slate-700 placeholder:text-slate-400 leading-normal h-full"
+            />
+          </div>
+        </div>
+
+        <div className="flex items-center gap-4 ml-auto shrink-0">
+          <button onClick={() => setIsCreateOpen(true)} className="bg-blue-600 hover:bg-blue-700 text-white px-5 h-[40px] rounded-xl text-[13px] font-black transition-all shadow-sm">+ 새 포스트</button>
+          <button className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-slate-50 text-slate-400 transition-colors">
+            <svg className="w-[22px] h-[22px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>
+          </button>
+          <div 
+            className="w-[42px] h-[42px] rounded-full border-2 border-slate-100 overflow-hidden cursor-pointer bg-slate-50 shadow-sm"
+            onClick={() => setActiveMenu('mypage')}
+          >
+            <img src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${userData.nickname}`} alt="avatar" className="w-full h-full object-cover" />
+          </div>
+        </div>
+      </header>
       
-      <Sidebar activeMenu={activeMenu} setActiveMenu={(menu) => { setActiveMenu(menu); setSelectedTopic(null); setIsCreateOpen(false); }} />
-
-      <div className="flex-1 flex flex-col h-full overflow-hidden relative">
-        <TopNavbar 
-          searchQuery={searchQuery} 
-          setSearchQuery={setSearchQuery} 
-          userData={userData} 
-          onCreateClick={() => { setSelectedTopic(null); setIsCreateOpen(!isCreateOpen); }}
-        />
-
-        {activeMenu === 'home' && !selectedTopic && !isCreateOpen && (
-          <SubNavbar activeTab={activeTab} setActiveTab={setActiveTab} />
-        )}
-
-        <main className="flex-1 overflow-y-auto p-3 md:p-4 relative no-scrollbar">
-          <div>
+      {/* 🚀 2. 하단 영역: 사이드바와 본문 */}
+      <div className="flex flex-1 overflow-hidden">
+        <Sidebar activeMenu={activeMenu} setActiveMenu={(menu) => { setActiveMenu(menu); setSelectedTopic(null); }} />
+        
+        <main className="flex-1 px-4 pt-0 pb-12 overflow-y-auto bg-[#F8FAFC]">
+          <div className="max-w-[1500px] mx-auto">
+            {/* 🚀 상세글 보기(selectedTopic) 중에는 탭을 숨겨서 본문이 위로 바짝 붙게 함 */}
+            <SubNavbar activeTab={activeTab} onTabClick={setActiveTab} onWriteClick={() => setIsCreateOpen(true)} showTabs={activeMenu === 'home' && !selectedTopic} />
             {renderContent()}
           </div>
         </main>
       </div>
 
+      {isCreateOpen && <CreatePostBox onClose={() => setIsCreateOpen(false)} onCreate={handleCreateTopic} />}
       {selectedPost && <PostDetailModal post={selectedPost} onClose={() => setSelectedPost(null)} />}
-
-      <nav className="md:hidden fixed bottom-0 left-0 w-full bg-white/95 backdrop-blur-md border-t border-slate-200 z-50 h-16 flex justify-around items-center px-2 pb-safe shadow-[0_-10px_15px_-3px_rgba(0,0,0,0.05)]">
-        {[
-          { id: 'home', icon: '🏠', label: '홈' },
-          { id: 'onecut', icon: '📸', label: '한컷' },
-          { id: 'friends', icon: '🤝', label: '깐부' },
-          { id: 'mypage', icon: '👤', label: '내정보' }
-        ].map(menu => (
-          <button 
-            key={menu.id} 
-            onClick={() => {setActiveMenu(menu.id as any); setSelectedTopic(null); setIsCreateOpen(false);}} 
-            className={`flex flex-col items-center justify-center p-2 min-w-[60px] transition-all ${
-              activeMenu === menu.id ? 'text-blue-600 scale-110' : 'text-slate-400'
-            }`}
-          >
-            <span className={`text-xl mb-1 ${activeMenu === menu.id ? 'opacity-100' : 'grayscale-[0.5] opacity-70'}`}>{menu.icon}</span>
-            <span className="text-[10px] font-black">{menu.label}</span>
-          </button>
-        ))}
-      </nav>
     </div>
   );
 }

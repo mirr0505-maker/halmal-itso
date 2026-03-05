@@ -7,13 +7,13 @@ interface Props {
   onTopicClick: (post: Post) => void;
   onLikeClick?: (e: React.MouseEvent, postId: string) => void; 
   commentCounts?: Record<string, number>;
+  currentNickname?: string;
 }
 
-const AnyTalkList = ({ posts, onTopicClick, onLikeClick, commentCounts = {} }: Props) => {
+const AnyTalkList = ({ posts, onTopicClick, onLikeClick, commentCounts = {}, currentNickname }: Props) => {
   const formatKoreanNumber = (num: number) => {
-    if (num >= 100000) return Math.floor(num / 100000) + '십만';
     if (num >= 10000) return Math.floor(num / 10000) + '만';
-    if (num >= 1000) return (num / 1000).toFixed(1).replace('.0', '') + '천';
+    if (num >= 1000) return Math.floor(num / 1000) + '천';
     return num.toLocaleString();
   };
 
@@ -52,6 +52,7 @@ const AnyTalkList = ({ posts, onTopicClick, onLikeClick, commentCounts = {} }: P
           const likes = post.likes || 0;
           const promoLevel = Math.min(likes, 3);
           const commentCount = commentCounts[post.id] || 0;
+          const isLikedByMe = currentNickname && (post as any).likedBy?.includes(currentNickname);
 
           return (
             <div 
@@ -109,7 +110,7 @@ const AnyTalkList = ({ posts, onTopicClick, onLikeClick, commentCounts = {} }: P
                     <span>{formatKoreanNumber(commentCount)}</span>
                   </div>
                   <div className="flex items-center gap-0.5">
-                    <svg className="w-3 h-3 fill-current text-rose-100" viewBox="0 0 24 24">
+                    <svg className={`w-3 h-3 transition-colors ${isLikedByMe ? 'fill-current text-rose-200' : 'text-rose-100'}`} viewBox="0 0 24 24">
                       <path d="M11.645 20.91l-.007-.003-.022-.012a15.247 15.247 0 01-.383-.218 25.18 25.18 0 01-4.244-3.17C4.688 15.36 2.25 12.174 2.25 8.25 2.25 5.322 4.714 3 7.688 3A5.5 5.5 0 0112 5.052 5.5 5.5 0 0116.313 3c2.973 0 5.437 2.322 5.437 5.25 0 3.925-2.438 7.111-4.739 9.256a25.175 25.175 0 01-4.244 3.17 15.247 15.247 0 01-.383.219l-.022.012-.007.004-.003.001a.752.752 0 01-.704 0l-.003-.001z" />
                     </svg>
                     <span>{formatKoreanNumber(likes)}</span>
@@ -117,7 +118,7 @@ const AnyTalkList = ({ posts, onTopicClick, onLikeClick, commentCounts = {} }: P
                 </div>
               </div>
 
-              {/* 🚀 6. 최하단: 작성자 프로필 & 실제 클릭 가능한 하트 버튼 */}
+              {/* 🚀 6. 최하단: 작성자 프로필 & 실제 클릭 가능한 하트 버튼 (토글 아이콘 적용) */}
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5 min-w-0">
                   <div className="w-6 h-6 rounded-full bg-slate-100 overflow-hidden border border-slate-200 shrink-0">
@@ -131,15 +132,15 @@ const AnyTalkList = ({ posts, onTopicClick, onLikeClick, commentCounts = {} }: P
                   </div>
                 </div>
                 
-                {/* 실제 좋아요를 누르는 빨간 하트 버튼 */}
+                {/* 🚀 실제 하트 토글 버튼 */}
                 <button 
                   onClick={(e) => {
                     e.stopPropagation();
                     if (onLikeClick) onLikeClick(e, post.id);
                   }}
-                  className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-rose-50 transition-all active:scale-125 group/like shrink-0 ml-1"
+                  className={`w-7 h-7 flex items-center justify-center rounded-full transition-all active:scale-125 group/like shrink-0 ml-1 ${isLikedByMe ? 'bg-rose-50' : 'hover:bg-rose-50'}`}
                 >
-                  <svg className="w-4 h-4 text-rose-400 group-hover/like:text-rose-600 transition-colors fill-current" viewBox="0 0 24 24">
+                  <svg className={`w-4 h-4 transition-colors ${isLikedByMe ? 'text-rose-500 fill-current' : 'text-rose-200 group-hover/like:text-rose-400 fill-none'}`} viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
                     <path d="M11.645 20.91l-.007-.003-.022-.012a15.247 15.247 0 01-.383-.218 25.18 25.18 0 01-4.244-3.17C4.688 15.36 2.25 12.174 2.25 8.25 2.25 5.322 4.714 3 7.688 3A5.5 5.5 0 0112 5.052 5.5 5.5 0 0116.313 3c2.973 0 5.437 2.322 5.437 5.25 0 3.925-2.438 7.111-4.739 9.256a25.175 25.175 0 01-4.244 3.17 15.247 15.247 0 01-.383.219l-.022.012-.007.004-.003.001a.752.752 0 01-.704 0l-.003-.001z" />
                   </svg>
                 </button>

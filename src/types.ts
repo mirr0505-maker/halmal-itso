@@ -11,13 +11,14 @@ export interface Post {
   title: string | null;
   content: string;
   parentId: string | null;
+  rootId: string | null; // 🚀 최상위 게시글 ID (토론 주제 ID)
   side: 'left' | 'right';
   type: 'comment' | 'formal';
   createdAt: any;
   likes: number;
   dislikes?: number; 
   authorInfo?: AuthorInfo;
-  imageUrl?: string; // 🚀 이미지 URL 추가
-  linkUrl?: string;  // 🚀 링크 URL 추가
-  tags?: string[];   // 🚀 해시태그 목록 추가
+  imageUrl?: string; 
+  linkUrl?: string;  
+  tags?: string[];   
 }
