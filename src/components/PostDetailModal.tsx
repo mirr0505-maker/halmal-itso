@@ -167,7 +167,7 @@ const PostDetailModal = ({ post, onClose, currentNickname, onLikeClick, isFriend
             {/* 🚀 가운데: 모던 핑크 하트 버튼 */}
             <div className="flex-1 flex justify-center items-center px-4">
               <button 
-                onClick={(e) => onLikeClick?.(null, post.id)}
+                onClick={() => onLikeClick?.(null, post.id)}
                 className={`flex items-center gap-2 px-5 py-2 rounded-full transition-all duration-300 active:scale-150 hover:scale-105 shadow-sm border ${isLikedByMe ? 'bg-rose-400 text-white border-rose-400 shadow-rose-100' : 'bg-white text-rose-300 border-rose-100 hover:bg-rose-50'}`}
               >
                 <svg className={`w-5 h-5 transition-colors ${isLikedByMe ? 'fill-current' : 'fill-none'}`} viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">

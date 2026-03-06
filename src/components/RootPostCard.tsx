@@ -129,7 +129,7 @@ const RootPostCard = ({
 
         <div className="flex-1 flex justify-center items-center">
           <button 
-            onClick={(e) => onLikeClick?.(null, post.id)}
+            onClick={() => onLikeClick?.(null, post.id)}
             className={`flex items-center gap-1.5 px-4 py-1.5 rounded-full transition-all duration-300 active:scale-125 hover:scale-105 shadow-sm border ${isLikedByMe ? 'bg-rose-400 text-white border-rose-400 shadow-rose-100' : 'bg-white text-rose-300 border-rose-100 hover:bg-rose-50'}`}
           >
             <svg className={`w-4 h-4 transition-colors ${isLikedByMe ? 'fill-current' : 'fill-none'}`} viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">

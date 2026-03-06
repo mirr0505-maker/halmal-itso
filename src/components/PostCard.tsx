@@ -112,7 +112,7 @@ const PostCard = ({ post, onReply, currentUserData, currentUserFriends, level = 
             )}
             {/* 🚀 통일된 하트 토글 버튼 */}
             <button 
-              onClick={(e) => onLikeClick?.(null, post.id)}
+              onClick={() => onLikeClick?.(null, post.id)}
               className={`flex items-center gap-1.5 px-3 py-1 rounded-full transition-all duration-300 active:scale-125 group/like-post border ${isLikedByMe ? 'bg-rose-50 text-rose-400 border-rose-100 shadow-sm shadow-rose-50' : 'bg-white text-slate-300 border-slate-100 hover:bg-rose-50 hover:text-rose-300 hover:border-rose-100'}`}
             >
               <svg className={`w-3.5 h-3.5 transition-colors ${isLikedByMe ? 'fill-current' : 'fill-none'}`} viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">
