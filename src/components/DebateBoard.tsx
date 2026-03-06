@@ -7,17 +7,20 @@ interface DebateBoardProps {
   agreePosts: Post[];
   disagreePosts: Post[];
   setReplyTarget: (post: Post | null) => void;
-  currentUserData?: any; 
+  currentUserData?: any;
   currentUserFriends?: string[];
   selectedType: 'comment' | 'formal';
   setSelectedType: (type: 'comment' | 'formal') => void;
   selectedSide: 'left' | 'right';
   setSelectedSide: (side: 'left' | 'right') => void;
+  currentNickname?: string;
+  onLikeClick?: (e: React.MouseEvent | null, postId: string) => void;
 }
 
-const DebateBoard = ({ 
+const DebateBoard = ({
   agreePosts, disagreePosts, setReplyTarget, currentUserData, currentUserFriends,
-  selectedType, setSelectedType, selectedSide, setSelectedSide
+  selectedType, setSelectedType, selectedSide, setSelectedSide,
+  currentNickname, onLikeClick
 }: DebateBoardProps) => {
   const [visibleAgree, setVisibleAgree] = useState(5);
   const [visibleDisagree, setVisibleDisagree] = useState(5);
@@ -34,18 +37,19 @@ const DebateBoard = ({
     const children = posts.filter(p => p.parentId === parentId);
     return children.map(post => (
       <div key={post.id} className="flex flex-col w-full">
-        <PostCard 
-          post={post} 
-          onReply={setReplyTarget} 
-          currentUserData={currentUserData} 
+        <PostCard
+          post={post}
+          onReply={setReplyTarget}
+          currentUserData={currentUserData}
           currentUserFriends={currentUserFriends}
-          level={level} 
+          level={level}
+          currentNickname={currentNickname}
+          onLikeClick={onLikeClick}
         />
         {renderPostTree(posts, post.id, level + 1)}
       </div>
     ));
   };
-
   const topAgree = agreePosts.filter(p => agreePosts.every(other => other.id !== p.parentId));
   const topDisagree = disagreePosts.filter(p => disagreePosts.every(other => other.id !== p.parentId));
 

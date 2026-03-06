@@ -26,13 +26,15 @@ interface Props {
   setNewContent: (c: string) => void;
   isSubmitting: boolean;
   commentCounts?: Record<string, number>;
+  onLikeClick?: (e: React.MouseEvent | null, postId: string) => void;
+  currentNickname?: string;
 }
 
 const DiscussionView = ({
   rootPost, allPosts, otherTopics, onTopicChange, userData, friends, onToggleFriend, 
   replyTarget, setReplyTarget, handleSubmit, selectedSide, setSelectedSide,
   selectedType, setSelectedType, newTitle, setNewTitle, newContent, setNewContent, isSubmitting,
-  commentCounts = {}
+  commentCounts = {}, onLikeClick, currentNickname
 }: Props) => {
   const [isInputFocused, setIsInputFocused] = useState(false);
   const agreePosts = allPosts.filter(p => p.side === 'left');
@@ -82,6 +84,8 @@ const DiscussionView = ({
           onToggleFriend={() => onToggleFriend(rootPost.author)}
           userData={authorData}
           friendCount={rootPost.authorInfo?.friendCount || 0}
+          onLikeClick={onLikeClick}
+          currentNickname={currentNickname}
         />
 
         < DebateBoard 
@@ -94,6 +98,8 @@ const DiscussionView = ({
           setSelectedType={setSelectedType}
           selectedSide={selectedSide}
           setSelectedSide={setSelectedSide}
+          onLikeClick={onLikeClick}
+          currentNickname={currentNickname}
         />
 
         {/* 🚀 개편된 동적 입력 영역 (드롭다운 스타일) */}
@@ -220,7 +226,9 @@ const DiscussionView = ({
                         <span className="text-[9.5px] font-black">{formatKoreanNumber(commentCounts[topic.id] || 0)}</span>
                       </div>
                       <div className="flex items-center gap-1 text-slate-300 group-hover:text-rose-400 transition-colors">
-                        <svg className="w-2.5 h-2.5 fill-current" viewBox="0 0 24 24"><path d="M11.645 20.91l-.007-.003-.022-.012 a15.247 15.247 0 01-.383-.218 25.18 25.18 0 01-4.244-3.17C4.688 15.36 2.25 12.174 2.25 8.25 2.25 5.322 4.714 3 7.688 3A5.5 5.5 0 0112 5.052 5.5 5.5 0 0116.313 3c2.973 0 5.437 2.322 5.437 5.25 0 3.925-2.438 7.111-4.739 9.256a25.175 25.175 0 01-4.244 3.17 15.247 15.247 0 01-.383.219l-.022.012-.007.004-.003.001a.752.752 0 01-.704 0l-.003-.001z" /></svg>
+                        <svg className={`w-2.5 h-2.5 transition-colors ${currentNickname && topic.likedBy?.includes(currentNickname) ? 'fill-current text-rose-400' : 'fill-none text-slate-300 group-hover:text-rose-400'}`} viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">
+                          <path d="M11.645 20.91l-.007-.003-.022-.012 a15.247 15.247 0 01-.383-.218 25.18 25.18 0 01-4.244-3.17C4.688 15.36 2.25 12.174 2.25 8.25 2.25 5.322 4.714 3 7.688 3A5.5 5.5 0 0112 5.052 5.5 5.5 0 0116.313 3c2.973 0 5.437 2.322 5.437 5.25 0 3.925-2.438 7.111-4.739 9.256a25.175 25.175 0 01-4.244 3.17 15.247 15.247 0 01-.383.219l-.022.012-.007.004-.003.001a.752.752 0 01-.704 0l-.003-.001z" />
+                        </svg>
                         <span className="text-[9.5px] font-black">{formatKoreanNumber(topic.likes || 0)}</span>
                       </div>
                     </div>

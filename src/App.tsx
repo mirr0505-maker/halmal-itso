@@ -144,14 +144,34 @@ function App() {
     catch (error) { console.error("깐부 명단 저장 실패:", error); }
   };
 
-  const handleLike = async (e: React.MouseEvent, postId: string) => {
-    e.stopPropagation();
+  const handleLike = async (e: React.MouseEvent | null, postId: string) => {
+    if (e) e.stopPropagation();
     try {
       const postRef = doc(db, "posts", postId);
       const targetPost = [...allRootPosts, ...allChildPosts].find(p => p.id === postId);
       if (!targetPost) return;
-      await updateDoc(postRef, { likes: (targetPost.likes || 0) + 1 });
-    } catch (e) { console.error("좋아요 실패:", e); }
+
+      const likedBy = targetPost.likedBy || [];
+      const isLiked = likedBy.includes(userData.nickname);
+      
+      let newLikedBy = [];
+      let newLikesCount = 0;
+
+      if (isLiked) {
+        // 이미 좋아요를 누른 경우 -> 취소 (토글)
+        newLikedBy = likedBy.filter(name => name !== userData.nickname);
+        newLikesCount = Math.max(0, (targetPost.likes || 0) - 1);
+      } else {
+        // 처음 누르는 경우 -> 추가
+        newLikedBy = [...likedBy, userData.nickname];
+        newLikesCount = (targetPost.likes || 0) + 1;
+      }
+
+      await updateDoc(postRef, { 
+        likes: newLikesCount,
+        likedBy: newLikedBy
+      });
+    } catch (e) { console.error("좋아요 처리 실패:", e); }
   };
 
   const renderContent = () => {
@@ -181,11 +201,12 @@ function App() {
         )}
       </div>
     );
-
+// src/App.tsx
     if (selectedTopic) {
+      const latestTopic = allRootPosts.find(p => p.id === selectedTopic.id) || selectedTopic;
       return (
         <DiscussionView
-          rootPost={selectedTopic}
+          rootPost={latestTopic}
           allPosts={allChildPosts.filter(p => p.rootId === selectedTopic.id)}
           otherTopics={allRootPosts.filter(p => p.id !== selectedTopic.id).slice(0, 5)}
           onTopicChange={setSelectedTopic}
@@ -196,6 +217,8 @@ function App() {
           newTitle={newTitle} setNewTitle={setNewTitle} newContent={newContent} setNewContent={setNewContent}
           isSubmitting={isSubmitting}
           commentCounts={commentCounts}
+          onLikeClick={handleLike}
+          currentNickname={userData.nickname}
         />
       );
     }
@@ -203,8 +226,8 @@ function App() {
     return (
       <div className="w-full animate-in fade-in">
         {activeTab === 'any' && <AnyTalkList posts={anyTopics} onTopicClick={setSelectedTopic} onLikeClick={handleLike} commentCounts={commentCounts} currentNickname={userData.nickname} />}
-        {activeTab === 'recent' && <LatestTalkList rootPosts={recentTopics} onTopicClick={setSelectedTopic} onLikeClick={handleLike} commentCounts={commentCounts} />}
-        {activeTab === 'best' && <LatestTalkList rootPosts={bestTopics} onTopicClick={setSelectedTopic} onLikeClick={handleLike} commentCounts={commentCounts} />}
+        {activeTab === 'recent' && <LatestTalkList rootPosts={recentTopics} onTopicClick={setSelectedTopic} onLikeClick={handleLike} commentCounts={commentCounts} currentNickname={userData.nickname} />}
+        {activeTab === 'best' && <LatestTalkList rootPosts={bestTopics} onTopicClick={setSelectedTopic} onLikeClick={handleLike} commentCounts={commentCounts} currentNickname={userData.nickname} />}
       </div>
     );
   };
@@ -262,7 +285,16 @@ function App() {
       </div>
 
       {isCreateOpen && <CreatePostBox userData={userData} onSubmit={handleCreateTopic} onClose={() => setIsCreateOpen(false)} />}
-      {selectedPost && <PostDetailModal post={selectedPost} onClose={() => setSelectedPost(null)} />}
+      {selectedPost && (
+        <PostDetailModal 
+          post={[...allRootPosts, ...allChildPosts].find(p => p.id === selectedPost.id) || selectedPost} 
+          onClose={() => setSelectedPost(null)} 
+          currentNickname={userData.nickname}
+          onLikeClick={handleLike}
+          isFriend={friends.includes(selectedPost.author)}
+          onToggleFriend={toggleFriend}
+        />
+      )}
     </div>
   );
 }

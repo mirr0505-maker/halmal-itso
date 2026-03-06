@@ -10,13 +10,16 @@ interface Props {
   currentUserData?: any; 
   currentUserFriends?: string[];
   level?: number; // 🚀 대댓글 깊이 (0: 댓글, 1 이상: 대댓글)
+  currentNickname?: string;
+  onLikeClick?: (e: React.MouseEvent | null, postId: string) => void;
 }
 
-const PostCard = ({ post, onReply, currentUserData, currentUserFriends, level = 0 }: Props) => {
+const PostCard = ({ post, onReply, currentUserData, currentUserFriends, level = 0, currentNickname, onLikeClick }: Props) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState(post.content);
   
-  const isMyPost = post.author === "흑무영"; 
+  const isMyPost = currentNickname ? post.author === currentNickname : post.author === "흑무영"; 
+  const isLikedByMe = currentNickname && post.likedBy?.includes(currentNickname);
   const isFormal = post.type === 'formal' || (post.title && post.title.trim().length > 0);
   const isRightSide = post.side === 'right';
 
@@ -29,6 +32,12 @@ const PostCard = ({ post, onReply, currentUserData, currentUserFriends, level = 
     if (likes >= 100) return "약간 우호";
     if (likes < 0) return "적대";
     return "중립";
+  };
+
+  const formatKoreanNumber = (num: number) => {
+    if (num >= 10000) return Math.floor(num / 10000) + '만';
+    if (num >= 1000) return Math.floor(num / 1000) + '천';
+    return num.toLocaleString();
   };
 
   const renderAuthorInfo = () => {
@@ -44,7 +53,7 @@ const PostCard = ({ post, onReply, currentUserData, currentUserFriends, level = 
           Lv.{info.level}
         </span>
         <span className="text-[11.5px] font-bold text-slate-400">
-          · {getReputationLabel(info.totalLikes)} · 깐부 {info.friendCount}
+          · {getReputationLabel(info.totalLikes)} · 깐부 {formatKoreanNumber(info.friendCount)}
         </span>
       </div>
     );
@@ -101,7 +110,18 @@ const PostCard = ({ post, onReply, currentUserData, currentUserFriends, level = 
                 <button onClick={handleDelete} className="text-[11px] font-black text-rose-400 hover:text-rose-600 transition-colors">삭제</button>
               </div>
             )}
-            <span className="text-[11.5px] font-black text-slate-400">👍 {post.likes || 0}</span>
+            {/* 🚀 통일된 하트 토글 버튼 */}
+            <button 
+              onClick={(e) => onLikeClick?.(null, post.id)}
+              className={`flex items-center gap-1.5 px-3 py-1 rounded-full transition-all duration-300 active:scale-125 group/like-post border ${isLikedByMe ? 'bg-rose-50 text-rose-400 border-rose-100 shadow-sm shadow-rose-50' : 'bg-white text-slate-300 border-slate-100 hover:bg-rose-50 hover:text-rose-300 hover:border-rose-100'}`}
+            >
+              <svg className={`w-3.5 h-3.5 transition-colors ${isLikedByMe ? 'fill-current' : 'fill-none'}`} viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">
+                <path d="M11.645 20.91l-.007-.003-.022-.012a15.247 15.247 0 01-.383-.218 25.18 25.18 0 01-4.244-3.17C4.688 15.36 2.25 12.174 2.25 8.25 2.25 5.322 4.714 3 7.688 3A5.5 5.5 0 0112 5.052 5.5 5.5 0 0116.313 3c2.973 0 5.437 2.322 5.437 5.25 0 3.925-2.438 7.111-4.739 9.256a25.175 25.175 0 01-4.244 3.17 15.247 15.247 0 01-.383.219l-.022.012-.007.004-.003.001a.752.752 0 01-.704 0l-.003-.001z" />
+              </svg>
+              <span className={`text-[11.5px] font-black ${isLikedByMe ? 'text-rose-500' : 'text-slate-400'}`}>
+                {formatKoreanNumber(post.likes || 0)}
+              </span>
+            </button>
           </div>
         </div>
       </div>

@@ -16,6 +16,7 @@ export interface Post {
   type: 'comment' | 'formal';
   createdAt: any;
   likes: number;
+  likedBy?: string[];
   dislikes?: number; 
   authorInfo?: AuthorInfo;
   imageUrl?: string; 

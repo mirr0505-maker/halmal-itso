@@ -18,13 +18,16 @@ interface Props {
   };
   friendCount: number;
   onDeleteSuccess?: () => void;
+  onLikeClick?: (e: React.MouseEvent | null, postId: string) => void;
+  currentNickname?: string;
 }
 
 const RootPostCard = ({ 
-  post, totalComment, totalFormal, uniqueAgreeCount, uniqueDisagreeCount, isFriend, onToggleFriend, userData, friendCount, onDeleteSuccess
+  post, totalComment, totalFormal, uniqueAgreeCount, uniqueDisagreeCount, isFriend, onToggleFriend, userData, friendCount, onDeleteSuccess, onLikeClick, currentNickname
 }: Props) => {
   
-  const isMyPost = post.author === "흑무영"; 
+  const isMyPost = post.author === currentNickname || post.author === "흑무영"; 
+  const isLikedByMe = currentNickname && post.likedBy?.includes(currentNickname);
 
   const getReputationLabel = (likes: number) => {
     if (likes >= 1000) return "확고";
@@ -40,7 +43,6 @@ const RootPostCard = ({
     return num.toLocaleString();
   };
 
-  // 🚀 본문에 이미지가 포함되어 있는지 체크
   const hasImageInContent = post.content.includes('<img');
 
   const formatTime = (timestamp: any) => {
@@ -62,6 +64,14 @@ const RootPostCard = ({
         else window.location.reload();
       } catch (error) { console.error("삭제 실패:", error); }
     }
+  };
+
+  const handleFriendClick = () => {
+    if (isMyPost) {
+      alert("나 자신과는 이미 영원한 깐부입니다! 🤝");
+      return;
+    }
+    onToggleFriend();
   };
 
   return (
@@ -104,9 +114,8 @@ const RootPostCard = ({
         </div>
       )}
       
-      {/* 🚀 작성자 영역: 내부 패딩 및 외부 여백 최적화 (아바타/폰트 복구) */}
-      <div className="flex items-center justify-between bg-slate-50/80 border border-slate-100 py-2 px-3.5 rounded-2xl mb-2">
-        <div className="flex items-center gap-3">
+      <div className="flex items-center justify-between bg-slate-50/80 border border-slate-100 py-2.5 px-4 rounded-2xl mb-2">
+        <div className="flex items-center gap-3 shrink-0">
           <div className="w-9 h-9 rounded-full bg-white overflow-hidden border border-slate-100 shrink-0 shadow-sm">
              <img src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${post.author}`} alt="avatar" className="w-full h-full object-cover" />
           </div>
@@ -117,25 +126,45 @@ const RootPostCard = ({
             </span>
           </div>
         </div>
-        <div className="flex gap-2">
+
+        <div className="flex-1 flex justify-center items-center">
+          <button 
+            onClick={(e) => onLikeClick?.(null, post.id)}
+            className={`flex items-center gap-1.5 px-4 py-1.5 rounded-full transition-all duration-300 active:scale-125 hover:scale-105 shadow-sm border ${isLikedByMe ? 'bg-rose-400 text-white border-rose-400 shadow-rose-100' : 'bg-white text-rose-300 border-rose-100 hover:bg-rose-50'}`}
+          >
+            <svg className={`w-4 h-4 transition-colors ${isLikedByMe ? 'fill-current' : 'fill-none'}`} viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+              <path d="M11.645 20.91l-.007-.003-.022-.012a15.247 15.247 0 01-.383-.218 25.18 25.18 0 01-4.244-3.17C4.688 15.36 2.25 12.174 2.25 8.25 2.25 5.322 4.714 3 7.688 3A5.5 5.5 0 0112 5.052 5.5 5.5 0 0116.313 3c2.973 0 5.437 2.322 5.437 5.25 0 3.925-2.438 7.111-4.739 9.256a25.175 25.175 0 01-4.244 3.17 15.247 15.247 0 01-.383.219l-.022.012-.007.004-.003.001a.752.752 0 01-.704 0l-.003-.001z" />
+            </svg>
+            <span className="text-[11.5px] font-black">{formatKoreanNumber(post.likes || 0)}</span>
+          </button>
+        </div>
+
+        <div className="flex items-center gap-2 shrink-0">
           {isMyPost && (
             <div className="flex gap-2 mr-2">
               <button className="text-[10px] font-black text-blue-400 hover:text-blue-600 transition-colors">수정</button>
               <button onClick={handleDelete} className="text-[10px] font-black text-rose-400 hover:text-rose-600 transition-colors">삭제</button>
             </div>
           )}
-          <button onClick={onToggleFriend} className={`px-4 py-1.5 text-[10.5px] font-black rounded-full border transition-all ${isFriend ? 'bg-white text-slate-400 border-slate-200 shadow-sm' : 'bg-slate-900 text-white border-slate-900 shadow-lg'}`}>
+          <button 
+            onClick={handleFriendClick} 
+            className={`px-4 py-1.5 text-[10.5px] font-black rounded-full border transition-all ${isFriend ? 'bg-white text-slate-400 border-slate-200 shadow-sm' : 'bg-slate-900 text-white border-slate-900 shadow-lg'}`}
+          >
             {isFriend ? '깐부해제' : '+ 깐부맺기'}
           </button>
         </div>
       </div>
 
       <div className="flex items-center justify-end text-[11.5px] font-black text-slate-300 gap-5 border-t border-slate-50 pt-2">
-        <span className="flex items-center gap-1.5">💬 댓글 {totalComment}</span>
-        <span className="flex items-center gap-1.5">📝 연계글 {totalFormal}</span>
+        <span className="flex items-center gap-1.5">댓글 {totalComment}</span>
+        <span className="flex items-center gap-1.5">연계글 {totalFormal}</span>
         <div className="flex gap-4 ml-2 items-center">
-          <span className="text-emerald-500 flex items-center gap-1">👍 {uniqueAgreeCount}</span>
-          <span className="text-orange-500 flex items-center gap-1">👎 {uniqueDisagreeCount}</span>
+          <span className={`flex items-center gap-1 ${isLikedByMe ? 'text-rose-400' : 'text-slate-300'}`}>
+            동의 {uniqueAgreeCount}
+          </span>
+          <span className="text-slate-300 flex items-center gap-1">
+            비동의 {uniqueDisagreeCount}
+          </span>
         </div>
       </div>
     </section>
