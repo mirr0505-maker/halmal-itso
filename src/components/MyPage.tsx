@@ -1,126 +1,93 @@
 // src/components/MyPage.tsx
-import React, { useState, useEffect } from 'react';
-import { db, auth } from '../firebase';
-import { signOut } from 'firebase/auth';
-import { s3Client, BUCKET_NAME, PUBLIC_URL } from '../s3Client';
-import { PutObjectCommand } from "@aws-sdk/client-s3";
-import { doc, updateDoc } from 'firebase/firestore';
+import { useState } from 'react';
 import type { Post } from '../types';
-import { calculateReputation, getReputationLabel } from '../utils';
-
-import ProfileHeader from './ProfileHeader';
 import ActivityStats from './ActivityStats';
-import AvatarCollection from './AvatarCollection';
-import ActivityMilestones from './ActivityMilestones';
 import MyContentTabs from './MyContentTabs';
+import ProfileHeader from './ProfileHeader';
+import ActivityMilestones from './ActivityMilestones';
+import AvatarCollection from './AvatarCollection';
 
-interface MyPageProps {
-  allUserChildPosts: Post[];
-  allUserRootPosts: Post[];
+interface Props {
   userData: any;
+  allUserRootPosts: Post[];
+  allUserChildPosts: Post[];
   friends: string[];
   friendCount: number;
   onPostClick: (post: Post) => void;
+  onEditPost?: (post: Post) => void; // 🚀 수정 기능 추가
   onToggleFriend: (author: string) => void;
   allUsers: Record<string, any>;
   followerCounts: Record<string, number>;
-  toggleBlock: (author: string) => Promise<void>;
+  toggleBlock: (author: string) => void;
   blocks: string[];
 }
 
 const MyPage = ({ 
-  allUserChildPosts = [], allUserRootPosts = [], userData, 
-  friends = [], friendCount = 0, onPostClick, onToggleFriend,
-  toggleBlock, blocks = []
-}: MyPageProps) => {
-  const [isUploading, setIsUploading] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
-  const [editData, setEditData] = useState({
-    nickname: userData.nickname || "",
-    bio: userData.bio || "",
-    avatarUrl: userData.avatarUrl || ""
-  });
-
-  useEffect(() => {
-    const syncReputation = async () => {
-      if (!userData?.uid) return;
-      const rootCount = allUserRootPosts.length;
-      const formalCount = allUserChildPosts.filter(p => p.type === 'formal').length;
-      const commentCount = allUserChildPosts.filter(p => p.type === 'comment').length;
-      const totalLikesReceived = [...allUserRootPosts, ...allUserChildPosts]
-        .reduce((acc, post) => acc + (post.likes || 0), 0);
-      const realScore = calculateReputation(rootCount, formalCount, commentCount, totalLikesReceived);
-      if (Math.abs(userData.likes - realScore) > 0) {
-        try { await updateDoc(doc(db, "users", userData.uid), { likes: realScore }); } catch (e) { console.error(e); }
-      }
-    };
-    if (allUserRootPosts.length > 0 || allUserChildPosts.length > 0) syncReputation();
-  }, [userData?.uid, allUserRootPosts.length, allUserChildPosts.length, userData.likes]);
-
-  if (!userData || !userData.nickname) return null;
-
-  const handleLogout = async () => {
-    if (window.confirm("정말 로그아웃 하시겠소?")) {
-      try { await signOut(auth); window.location.href = '/'; } catch (e) { console.error(e); }
-    }
-  };
-
-  const handleSaveProfile = async () => {
-    if (!editData.nickname.trim()) { alert("닉네임을 입력해주시오!"); return; }
-    try {
-      await updateDoc(doc(db, "users", userData.uid), { nickname: editData.nickname, bio: editData.bio, avatarUrl: editData.avatarUrl });
-      setIsEditing(false);
-      alert("프로필이 변경되었소!");
-    } catch (e) { console.error(e); alert("저장에 실패했소."); }
-  };
-
-  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !userData.uid) return;
-    if (file.size > 2 * 1024 * 1024) { alert("2MB 이하만 가능하오."); return; }
-    setIsUploading(true);
-    try {
-      const fileName = `avatars/${userData.uid}_${Date.now()}`;
-      await s3Client.send(new PutObjectCommand({ Bucket: BUCKET_NAME, Key: fileName, Body: file, ContentType: file.type }));
-      const newUrl = `${PUBLIC_URL}/${fileName}`;
-      setEditData(prev => ({ ...prev, avatarUrl: newUrl }));
-    } catch (error) { console.error(error); alert("이미지 업로드 실패했소."); }
-    finally { setIsUploading(false); }
-  };
-
-  const reputationLabel = getReputationLabel(userData.likes);
+  userData, allUserRootPosts, allUserChildPosts, friends, friendCount, onPostClick, onEditPost, onToggleFriend, allUsers, followerCounts, toggleBlock, blocks 
+}: Props) => {
+  const [activeTab, setActiveTab] = useState<'posts' | 'comments' | 'avatars' | 'friends'>('posts');
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
 
   return (
-    <div className="w-full max-w-[1000px] mx-auto py-6 px-4 animate-in fade-in duration-500 bg-[#F8FAFC]">
-      <section className="bg-white rounded-2xl p-6 shadow-lg mb-8 relative overflow-hidden border border-slate-100/50">
-        <ProfileHeader userData={userData} isEditing={isEditing} editData={editData} isUploading={isUploading} setEditData={setEditData} setIsEditing={setIsEditing} onAvatarUpload={handleAvatarUpload} onSave={handleSaveProfile} />
-        {!isEditing && <ActivityStats userData={userData} friendCount={friendCount} reputationLabel={reputationLabel} />}
-        {!isEditing && (
-          <button onClick={handleLogout} className="absolute top-4 right-6 p-2 text-slate-300 hover:text-rose-500 transition-all z-20" title="로그아웃">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
-          </button>
-        )}
-      </section>
-      <AvatarCollection cards={[
-        { id: 1, imageUrl: "https://images.unsplash.com/photo-1497366754035-f200968a6e72?auto=format&fit=crop&w=300&q=80" },
-        { id: 2, imageUrl: "https://images.unsplash.com/photo-1497366811353-6870744d04b2?auto=format&fit=crop&w=300&q=80" },
-        { id: 3, isLocked: true, lockLevel: 5 },
-        { id: 4, isLocked: true, lockLevel: 5 },
-        { id: 5, isLocked: true, lockLevel: 5 },
-      ]} />
-      <ActivityMilestones userData={userData} friendCount={friendCount} reputationLabel={reputationLabel} />
-      <div className="border-t border-slate-100 pt-8">
-        <h3 className="text-sm font-[1000] text-slate-900 tracking-tight mb-4 px-1">기록 관리</h3>
-        <div className="bg-white rounded-2xl p-1 shadow-md border border-slate-50/50">
-          <MyContentTabs 
-            myFormalPosts={allUserRootPosts} 
-            myComments={allUserChildPosts.filter(p => p.type === 'comment')} 
-            friends={friends} 
-            onPostClick={onPostClick} 
-            onToggleFriend={onToggleFriend}
-            blocks={blocks}
-            toggleBlock={toggleBlock}
-          />
+    <div className="w-full max-w-6xl mx-auto py-10 px-4 md:px-6 animate-in fade-in duration-700">
+      <div className="flex flex-col gap-8">
+        {/* 🚀 상단 프로필 영역 */}
+        <ProfileHeader userData={userData} isEditing={isEditingProfile} setIsEditing={setIsEditingProfile} friendCount={friendCount} />
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* 🚀 좌측: 활동 통계 및 마일스톤 */}
+          <div className="lg:col-span-1 flex flex-col gap-6">
+            <ActivityStats userData={userData} rootCount={allUserRootPosts.length} childCount={allUserChildPosts.length} />
+            <ActivityMilestones userData={userData} rootCount={allUserRootPosts.length} formalCount={allUserChildPosts.filter(p => p.type === 'formal').length} commentCount={allUserChildPosts.filter(p => p.type === 'comment').length} />
+          </div>
+
+          {/* 🚀 우측: 게시글/댓글/아바타 탭 콘텐츠 */}
+          <div className="lg:col-span-2 flex flex-col gap-6">
+            <div className="bg-white rounded-[2.5rem] p-8 shadow-xl shadow-blue-900/5 border border-slate-100 min-h-[600px] flex flex-col relative overflow-hidden">
+              <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-blue-600 to-indigo-500" />
+              
+              <div className="flex items-center gap-6 mb-10 border-b border-slate-50 pb-2">
+                {(['posts', 'comments', 'avatars', 'friends'] as const).map(tab => (
+                  <button key={tab} onClick={() => setActiveTab(tab)} className={`pb-4 px-2 text-[15px] font-[1000] tracking-tight transition-all relative ${activeTab === tab ? 'text-blue-600' : 'text-slate-300 hover:text-slate-500'}`}>
+                    {tab === 'posts' && '나의 기록'}
+                    {tab === 'comments' && '참여한 토론'}
+                    {tab === 'avatars' && '아바타 수집'}
+                    {tab === 'friends' && '깐부 목록'}
+                    {activeTab === tab && <div className="absolute bottom-0 left-0 w-full h-1 bg-blue-600 rounded-full" />}
+                  </button>
+                ))}
+              </div>
+
+              <div className="flex-1">
+                {activeTab === 'posts' && <MyContentTabs posts={allUserRootPosts} onPostClick={onEditPost || onPostClick} type="posts" />}
+                {activeTab === 'comments' && <MyContentTabs posts={allUserChildPosts} onPostClick={onPostClick} type="comments" />}
+                {activeTab === 'avatars' && <AvatarCollection currentLevel={userData.level} />}
+                {activeTab === 'friends' && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {friends.length === 0 ? (
+                      <div className="col-span-full py-20 text-center text-slate-300 font-bold italic">아직 맺은 깐부가 없소.</div>
+                    ) : (
+                      friends.map(fname => {
+                        const fData = allUsers[`nickname_${fname}`] || allUsers[fname];
+                        return (
+                          <div key={fname} className="bg-slate-50 p-4 rounded-2xl flex items-center justify-between border border-slate-100">
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 rounded-full bg-white overflow-hidden border border-slate-200 shadow-sm"><img src={fData?.avatarUrl || `https://api.dicebear.com/7.x/adventurer/svg?seed=${fname}`} alt="" /></div>
+                              <div className="flex flex-col">
+                                <span className="font-black text-[13px] text-slate-900">{fname}</span>
+                                <span className="text-[10px] font-bold text-slate-400">Lv {fData?.level || 1} · 깐부 {followerCounts[fname] || 0}</span>
+                              </div>
+                            </div>
+                            <button onClick={() => onToggleFriend(fname)} className="text-[10px] font-black text-rose-500 bg-white px-3 py-1.5 rounded-lg border border-rose-100 shadow-sm hover:bg-rose-50 transition-all">깐부해제</button>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>

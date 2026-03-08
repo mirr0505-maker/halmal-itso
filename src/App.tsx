@@ -79,11 +79,12 @@ function App() {
   const [activeMenu, setActiveMenu] = useState<MenuId>('home');
   const [activeTab, setActiveTab] = useState<'any' | 'recent' | 'best' | 'rank' | 'friend'>('any');
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [editingPost, setEditingPost] = useState<Post | null>(null); // 🚀 수정 중인 게시글
 
   useEffect(() => { if (replyTarget) { setSelectedType('comment'); setNewTitle(""); } }, [replyTarget]);
 
   const goHome = () => {
-    setActiveMenu('home'); setSelectedTopic(null); setIsCreateOpen(false); setReplyTarget(null);
+    setActiveMenu('home'); setSelectedTopic(null); setIsCreateOpen(false); setReplyTarget(null); setEditingPost(null);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -242,33 +243,38 @@ function App() {
 
   const renderContent = () => {
     if (isLoading) return <div className="w-full flex flex-col items-center justify-center py-40 gap-4"><div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div><p className="text-slate-400 font-black italic">기록을 불러오고 있소...</p></div>;
-    if (isCreateOpen) return <CreatePostBox userData={userData} onSubmit={async (t, c, img, l, tags, cat) => {
-      if (!userData) return;
-      const customId = `topic_${Date.now()}_${userData.nickname}`;
-      await setDoc(doc(db, "posts", customId), { 
-        author: userData.nickname, 
-        author_id: userData.uid, 
-        title: t, 
-        content: c, 
-        category: cat || "미지정",
-        imageUrl: img || null, 
-        linkUrl: l || null, 
-        tags: tags || [], 
-        authorInfo: { level: userData.level, friendCount: friends.length, totalLikes: userData.likes }, 
-        parentId: null, 
-        rootId: null, 
-        side: 'left', 
-        type: 'formal', 
-        createdAt: serverTimestamp(), 
-        likes: 0, 
-        dislikes: 0 
-      });
-      await updateDoc(doc(db, "users", userData.uid), { likes: increment(5) });
-      setIsCreateOpen(false);
-    }} onClose={() => setIsCreateOpen(false)} />;
+    
+    if (isCreateOpen) return (
+      <CreatePostBox 
+        userData={userData} 
+        editingPost={editingPost}
+        onSubmit={async (t, c, img, l, tags, cat, postId) => {
+          if (!userData) return;
+          if (postId) {
+            // 🚀 수정 모드
+            await updateDoc(doc(db, "posts", postId), {
+              title: t, content: c, imageUrl: img || null, tags: tags || [], category: cat || "나의 이야기"
+            });
+            alert("기록이 수정되었소.");
+          } else {
+            // 🚀 신규 작성 모드
+            const customId = `topic_${Date.now()}_${userData.nickname}`;
+            await setDoc(doc(db, "posts", customId), { 
+              author: userData.nickname, author_id: userData.uid, title: t, content: c, 
+              category: cat || "나의 이야기", imageUrl: img || null, linkUrl: l || null, tags: tags || [], 
+              authorInfo: { level: userData.level, friendCount: friends.length, totalLikes: userData.likes }, 
+              parentId: null, rootId: null, side: 'left', type: 'formal', createdAt: serverTimestamp(), likes: 0, dislikes: 0 
+            });
+            await updateDoc(doc(db, "users", userData.uid), { likes: increment(5) });
+          }
+          setIsCreateOpen(false); setEditingPost(null);
+        }} 
+        onClose={() => { setIsCreateOpen(false); setEditingPost(null); }} 
+      />
+    );
     
     if (activeMenu === 'mypage') {
-      if (userData) return <MyPage userData={userData} allUserRootPosts={allRootPosts.filter(p => p.author_id === userData.uid || p.author === userData.nickname)} allUserChildPosts={allChildPosts.filter(p => p.author_id === userData.uid || p.author === userData.nickname)} friends={friends} friendCount={followerCounts[userData.nickname] || 0} onPostClick={setSelectedTopic} onToggleFriend={toggleFriend} allUsers={allUsers} followerCounts={followerCounts} toggleBlock={toggleBlock} blocks={blocks} />;
+      if (userData) return <MyPage userData={userData} allUserRootPosts={allRootPosts.filter(p => p.author_id === userData.uid || p.author === userData.nickname)} allUserChildPosts={allChildPosts.filter(p => p.author_id === userData.uid || p.author === userData.nickname)} friends={friends} friendCount={followerCounts[userData.nickname] || 0} onPostClick={setSelectedTopic} onEditPost={(post) => { setEditingPost(post); setIsCreateOpen(true); }} onToggleFriend={toggleFriend} allUsers={allUsers} followerCounts={followerCounts} toggleBlock={toggleBlock} blocks={blocks} />;
       return <div className="w-full py-40 text-center"><button onClick={handleLogin} className="bg-slate-900 text-white px-8 py-3 rounded-xl font-black shadow-lg">로그인 해주시오</button></div>;
     }
 
@@ -292,8 +298,7 @@ function App() {
     // New Menu Content Rendering
     if (MENU_MESSAGES[activeMenu]) {
       const menuInfo = MENU_MESSAGES[activeMenu];
-      // 🚀 해당 카테고리에 속하는 게시글 필터링
-      const categoryPosts = allRootPosts.filter(p => p.category === menuInfo.title);
+      const categoryPosts = allRootPosts.filter(p => p.category === menuInfo.title || (p.category === undefined && menuInfo.title === "나의 이야기"));
 
       return (
         <div className="w-full max-w-4xl mx-auto py-12 px-6">
@@ -314,7 +319,6 @@ function App() {
             </div>
           </div>
 
-          {/* 🚀 카테고리별 게시글 리스트 출력 */}
           <div className="animate-in fade-in duration-700">
             <div className="flex items-center gap-3 mb-6 px-2">
               <div className="h-px bg-slate-200 flex-1"></div>

@@ -56,7 +56,15 @@ const AnyTalkList = ({
                 <span className="text-[9px] text-slate-400 font-bold">{formatRelativeTime(post.createdAt)}</span>
                 <div className="flex gap-0.5">
                   {[1, 2, 3].map((idx) => (
-                    <svg key={idx} className={`w-2.5 h-3 ${idx <= promoLevel ? 'text-rose-400 fill-current' : 'text-slate-100'}`} viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" /></svg>
+                    <svg 
+                      key={idx} 
+                      className={`w-2.5 h-3 transition-colors ${idx <= promoLevel ? 'text-rose-400 fill-current' : 'text-slate-200 fill-none'}`} 
+                      viewBox="0 0 24 24" 
+                      stroke="currentColor" 
+                      strokeWidth="3"
+                    >
+                      <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
+                    </svg>
                   ))}
                 </div>
               </div>
@@ -67,7 +75,6 @@ const AnyTalkList = ({
               {post.imageUrl && <div className="w-full h-20 rounded-xl overflow-hidden mb-2.5 shrink-0 bg-slate-50"><img src={post.imageUrl} alt="" className="w-full h-full object-cover" /></div>}
               
               <div className="pt-2 border-t border-slate-50 mt-auto flex flex-col gap-1.5 shrink-0">
-                {/* 🚀 카테고리 구분 라벨 (아바타 위) */}
                 <div className="flex items-center">
                   <span className="text-[8.5px] font-black text-blue-500 bg-blue-50 px-1.5 py-0.5 rounded-md uppercase tracking-tighter">
                     {post.category || "나의 이야기"}

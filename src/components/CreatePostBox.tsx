@@ -1,5 +1,5 @@
 // src/components/CreatePostBox.tsx
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Link from '@tiptap/extension-link';
@@ -7,10 +7,12 @@ import Image from '@tiptap/extension-image';
 import Underline from '@tiptap/extension-underline';
 import { s3Client, BUCKET_NAME, PUBLIC_URL } from '../s3Client';
 import { PutObjectCommand } from "@aws-sdk/client-s3";
+import type { Post } from '../types';
 
 interface Props {
   userData: any;
-  onSubmit: (title: string, content: string, imageUrl?: string, linkUrl?: string, tags?: string[], category?: string) => Promise<void>;
+  editingPost?: Post | null; // 🚀 수정 모드용 데이터
+  onSubmit: (title: string, content: string, imageUrl?: string, linkUrl?: string, tags?: string[], category?: string, postId?: string) => Promise<void>;
   onClose: () => void;
 }
 
@@ -24,10 +26,10 @@ const CATEGORIES = [
   "유배·귀양지"
 ];
 
-const CreatePostBox = ({ userData, onSubmit, onClose }: Props) => {
-  const [title, setTitle] = useState("");
-  const [category, setCategory] = useState(CATEGORIES[0]);
-  const [tags, setTags] = useState(["", "", "", "", ""]);
+const CreatePostBox = ({ userData, editingPost, onSubmit, onClose }: Props) => {
+  const [title, setTitle] = useState(editingPost?.title || "");
+  const [category, setCategory] = useState(editingPost?.category || CATEGORIES[0]);
+  const [tags, setTags] = useState(editingPost?.tags ? [...editingPost.tags, "", "", "", "", ""].slice(0, 5) : ["", "", "", "", ""]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -41,13 +43,20 @@ const CreatePostBox = ({ userData, onSubmit, onClose }: Props) => {
         HTMLAttributes: { class: 'rounded-xl border border-slate-100 my-2 max-w-full mx-auto' },
       }),
     ],
-    content: '',
+    content: editingPost?.content || '',
     editorProps: {
       attributes: {
         class: 'prose prose-slate max-w-none focus:outline-none min-h-[300px] px-5 py-5 text-[13.5px] font-medium text-slate-700 leading-relaxed',
       },
     },
   });
+
+  // 🚀 수정 모드일 때 에디터 내용 초기화
+  useEffect(() => {
+    if (editingPost && editor) {
+      editor.commands.setContent(editingPost.content);
+    }
+  }, [editingPost, editor]);
 
   const handleTagChange = (index: number, value: string) => {
     const newTags = [...tags];
@@ -82,10 +91,10 @@ const CreatePostBox = ({ userData, onSubmit, onClose }: Props) => {
     setIsSubmitting(true);
     try {
       const firstImgMatch = content.match(/<img[^>]+src="([^">]+)"/);
-      const thumbnail = firstImgMatch ? firstImgMatch[1] : undefined;
+      const thumbnail = firstImgMatch ? firstImgMatch[1] : (editingPost?.imageUrl || undefined);
       const validTags = tags.filter(t => t.trim() !== "");
       
-      await onSubmit(title, content, thumbnail, undefined, validTags, category);
+      await onSubmit(title, content, thumbnail, undefined, validTags, category, editingPost?.id);
       onClose();
     } catch (e) {
       console.error(e);
@@ -113,7 +122,9 @@ const CreatePostBox = ({ userData, onSubmit, onClose }: Props) => {
         <div className="flex justify-between items-center pb-4 border-b border-slate-50 shrink-0">
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 rounded-full bg-blue-600 animate-pulse"></div>
-            <h2 className="text-[13px] font-[1000] text-slate-900 tracking-tighter uppercase italic">새 할말 남기기</h2>
+            <h2 className="text-[13px] font-[1000] text-slate-900 tracking-tighter uppercase italic">
+              {editingPost ? '할말 수정하기' : '새 할말 남기기'}
+            </h2>
           </div>
           <div className="flex gap-2.5">
             <button onClick={onClose} className="px-4 py-2 rounded-xl text-[12px] font-black text-slate-400 hover:bg-slate-50 transition-all uppercase tracking-tighter">취소</button>
