@@ -35,7 +35,7 @@ const PostDetailModal = ({ post, onClose, currentNickname, onLikeClick, isFriend
       const descendantDocs = snapshot.docs
         .map(d => ({ id: d.id, ...d.data() } as Post))
         .filter(d => d.rootId === post.id);
-      descendantDocs.sort((a, b) => (a.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+      descendantDocs.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
       setComments(descendantDocs);
     });
     return () => unsubscribe();
