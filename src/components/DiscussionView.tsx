@@ -1,5 +1,5 @@
 // src/components/DiscussionView.tsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import type { Post } from '../types';
 import RootPostCard from './RootPostCard';
 import DebateBoard from './DebateBoard';
@@ -34,6 +34,21 @@ interface Props {
   toggleBlock?: (author: string) => void;
 }
 
+// 🚀 카테고리별 UI 규칙 정의
+export const CATEGORY_RULES: Record<string, { 
+  allowDisagree: boolean, 
+  allowFormal: boolean,
+  boardType: 'debate' | 'single' | 'qa' | 'info' | 'factcheck'
+}> = {
+  "나의 이야기": { allowDisagree: false, allowFormal: false, boardType: 'single' },
+  "임금님 귀는 당나귀 귀": { allowDisagree: true, allowFormal: true, boardType: 'debate' },
+  "벌거벗은 임금님": { allowDisagree: true, allowFormal: false, boardType: 'factcheck' },
+  "유배·귀양지": { allowDisagree: true, allowFormal: false, boardType: 'single' }, // 격리 구역용 단일 피드
+  "뼈때리는 글": { allowDisagree: false, allowFormal: false, boardType: 'single' },
+  "지식 소매상": { allowDisagree: false, allowFormal: false, boardType: 'qa' },
+  "현지 소식": { allowDisagree: true, allowFormal: false, boardType: 'info' }
+};
+
 const DiscussionView = ({
   rootPost, allPosts, otherTopics, onTopicChange, userData, friends, onToggleFriend, 
   replyTarget, setReplyTarget, handleSubmit, selectedSide, setSelectedSide,
@@ -41,6 +56,15 @@ const DiscussionView = ({
   commentCounts = {}, onLikeClick, currentNickname, allUsers = {}, followerCounts = {}
 }: Props) => {
   const [isInputFocused, setIsInputFocused] = useState(false);
+
+  // 🚀 현재 카테고리에 맞는 규칙 가져오기 (기본값은 '나의 이야기' 규칙)
+  const rule = CATEGORY_RULES[rootPost.category || "나의 이야기"] || CATEGORY_RULES["나의 이야기"];
+
+  // 🚀 규칙에 따른 초기 상태 강제
+  useEffect(() => {
+    if (!rule.allowDisagree && selectedSide === 'right') setSelectedSide('left');
+    if (!rule.allowFormal && selectedType === 'formal') setSelectedType('comment');
+  }, [rootPost.category]);
 
   const getTimeAgo = (timestamp: any) => {
     if (!timestamp) return "";
@@ -90,31 +114,43 @@ const DiscussionView = ({
           currentNickname={currentNickname}
         />
 
+        {/* 🚀 입력 영역: 카테고리 규칙에 따라 변동 */}
         <div className="bg-slate-50 border-x border-b border-slate-100 rounded-none p-3 w-full transition-all duration-500">
           <div className="flex flex-col gap-3">
             <div className="flex justify-between items-center">
               <div className="flex gap-3 items-center">
-                <span className="text-[10px] font-black text-slate-900 uppercase tracking-widest opacity-40">작성 시점</span>
+                <span className="text-[10px] font-black text-slate-900 uppercase tracking-widest opacity-40">할말 남기기</span>
                 <div className="flex bg-white p-0.5 rounded-none border border-slate-200">
-                  <select 
-                    value={selectedType} onChange={(e) => setSelectedType(e.target.value as 'comment' | 'formal')}
-                    className="appearance-none bg-transparent px-2 py-1 text-[10px] font-[1000] text-blue-600 outline-none cursor-pointer"
-                  >
-                    <option value="comment">💬 댓글</option>
-                    <option value="formal">📝 연계글</option>
-                  </select>
-                  <select 
-                    value={selectedSide} onChange={(e) => setSelectedSide(e.target.value as 'left' | 'right')}
-                    className={`ml-1 appearance-none border-l border-slate-100 px-2 py-1 text-[10px] font-[1000] outline-none cursor-pointer ${selectedSide === 'left' ? 'text-emerald-600' : 'text-rose-600'}`}
-                  >
-                    <option value="left">👍 동의</option>
-                    <option value="right">👎 비동의</option>
-                  </select>
+                  {/* 🚀 연계글 허용 여부 체크 */}
+                  {rule.allowFormal ? (
+                    <select 
+                      value={selectedType} onChange={(e) => setSelectedType(e.target.value as 'comment' | 'formal')}
+                      className="appearance-none bg-transparent px-2 py-1 text-[10px] font-[1000] text-blue-600 outline-none cursor-pointer"
+                    >
+                      <option value="comment">💬 댓글</option>
+                      <option value="formal">📝 연계글</option>
+                    </select>
+                  ) : (
+                    <div className="px-2 py-1 text-[10px] font-[1000] text-slate-400">💬 댓글 전용</div>
+                  )}
+
+                  {/* 🚀 비동의 허용 여부 체크 */}
+                  {rule.allowDisagree ? (
+                    <select 
+                      value={selectedSide} onChange={(e) => setSelectedSide(e.target.value as 'left' | 'right')}
+                      className={`ml-1 appearance-none border-l border-slate-100 px-2 py-1 text-[10px] font-[1000] outline-none cursor-pointer ${selectedSide === 'left' ? 'text-emerald-600' : 'text-rose-600'}`}
+                    >
+                      <option value="left">👍 동의</option>
+                      <option value="right">👎 비동의</option>
+                    </select>
+                  ) : (
+                    <div className="ml-1 px-2 py-1 text-[10px] font-[1000] text-emerald-600 border-l border-slate-100">👍 공감</div>
+                  )}
                 </div>
               </div>
               {replyTarget && (
                 <div className="flex items-center gap-2 px-2 py-1 bg-slate-900 text-white rounded-none">
-                  <span className="text-[10px] font-black uppercase tracking-tighter">🎯 TO: {replyTarget.author}</span>
+                  <span className="text-[10px] font-black uppercase tracking-tighter">🎯 대상: {replyTarget.author}</span>
                   <button onClick={() => setReplyTarget(null)} className="text-white hover:text-rose-400 font-black text-[10px] ml-1">✕</button>
                 </div>
               )}
@@ -124,7 +160,7 @@ const DiscussionView = ({
               {selectedType === 'formal' && (
                 <input 
                   value={newTitle} onChange={e => setNewTitle(e.target.value)}
-                  placeholder="제목을 입력하시오..."
+                  placeholder="연계글 제목을 입력하시오..."
                   className="bg-white border border-slate-200 rounded-none px-3 py-2 text-[16px] font-[1000] outline-none focus:border-slate-900 transition-all"
                 />
               )}
@@ -132,7 +168,11 @@ const DiscussionView = ({
                 <textarea 
                   value={newContent} onChange={e => setNewContent(e.target.value)}
                   onFocus={() => setIsInputFocused(true)} onBlur={() => setIsInputFocused(false)}
-                  placeholder={selectedType === 'formal' ? "논리적인 할말을 들려주시오..." : "예리한 한마디를 적어주시오..."}
+                  placeholder={
+                    rule.boardType === 'qa' ? "궁금한 점을 물어보거나 지식을 보태주시오..." :
+                    rule.boardType === 'info' ? "추가 정보를 공유해주시오..." :
+                    selectedType === 'formal' ? "논리적인 할말을 들려주시오..." : "예리한 한마디를 적어주시오..."
+                  }
                   className={`w-full bg-white border border-slate-200 rounded-none px-3 py-2 text-[16px] font-bold outline-none focus:border-slate-900 transition-all resize-none ${isInputFocused ? 'h-24' : 'h-16'}`}
                 />
                 <button type="submit" disabled={isSubmitting || !newContent.trim()} className="absolute bottom-2 right-2 bg-slate-900 text-white px-4 py-2 rounded-none text-[10px] font-black shadow-lg hover:bg-blue-600 transition-colors uppercase tracking-widest"> 전송 🚀 </button>
@@ -141,6 +181,7 @@ const DiscussionView = ({
           </div>
         </div>
 
+        {/* 🚀 출력 영역: 카테고리 규칙에 따라 레이아웃 변동 */}
         <DebateBoard 
           allChildPosts={allPosts} 
           setReplyTarget={setReplyTarget}
@@ -149,12 +190,13 @@ const DiscussionView = ({
           currentUserFriends={friends}
           onLikeClick={onLikeClick}
           currentNickname={currentNickname}
+          category={rootPost.category || "나의 이야기"}
         />
       </div>
 
       <aside className="hidden lg:block lg:col-span-4 pr-0 sticky top-0">
         <div className="flex flex-col gap-3 max-h-[calc(100vh-40px)] overflow-y-auto no-scrollbar pb-20">
-          <h4 className="text-[22px] font-[1000] text-slate-900 px-2 tracking-tighter mb-6 uppercase mt-0">아무말 더보기</h4>
+          <h4 className="text-[22px] font-[1000] text-slate-900 px-2 tracking-tighter mb-6 uppercase mt-0">주목 할말 더보기</h4>
           {filteredSideTopics.map((topic) => {
             const displayImage = (topic.imageUrl && topic.imageUrl.length > 0) 
               ? topic.imageUrl 
