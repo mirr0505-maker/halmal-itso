@@ -1,7 +1,7 @@
 // src/components/LatestTalkList.tsx
 import React from 'react';
 import type { Post } from '../types';
-import { getReputationLabel } from '../utils';
+import { getReputationLabel, formatKoreanNumber } from '../utils';
 
 interface Props {
   rootPosts: Post[];
@@ -12,11 +12,6 @@ interface Props {
 }
 
 const LatestTalkList = ({ rootPosts, onTopicClick, onLikeClick, commentCounts = {}, currentNickname }: Props) => {
-  const formatKoreanNumber = (num: number) => {
-    if (num >= 10000) return Math.floor(num / 10000) + '만';
-    if (num >= 1000) return Math.floor(num / 1000) + '천';
-    return num.toLocaleString();
-  };
 
   const stripHtml = (html: string) => {
     const tmp = document.createElement("DIV");

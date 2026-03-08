@@ -2,7 +2,7 @@
 import { db } from '../firebase';
 import { doc, deleteDoc } from 'firebase/firestore';
 import type { Post } from '../types';
-import { getReputationLabel } from '../utils';
+import { getReputationLabel, formatKoreanNumber } from '../utils';
 
 interface Props {
   post: Post;
@@ -30,12 +30,6 @@ const RootPostCard = ({
   const isMyPost = post.author === currentNickname || post.author === "흑무영"; 
   const isLikedByMe = currentNickname && post.likedBy?.includes(currentNickname);
   const hasImageInContent = post.content.includes('<img');
-
-  const formatKoreanNumber = (num: number) => {
-    if (num >= 10000) return Math.floor(num / 10000) + '만';
-    if (num >= 1000) return Math.floor(num / 1000) + '천';
-    return num.toLocaleString();
-  };
 
   const formatTime = (timestamp: any) => {
     if (!timestamp) return "";
@@ -117,7 +111,7 @@ const RootPostCard = ({
               <button onClick={() => onToggleFriend()} className={`flex-1 md:flex-none px-6 py-2.5 text-[12px] font-black rounded-none border-2 transition-all ${isFriend ? 'bg-white text-slate-400 border-slate-200' : 'bg-slate-900 text-white border-slate-900 hover:bg-blue-600 hover:border-blue-600'}`}>{isFriend ? '깐부해제' : '+ 깐부맺기'}</button>
             </div>
           </div>
-          <div className="flex items-center justify-between text-[16px] font-[1000] text-slate-400 mt-8 pt-5 border-t border-slate-50 uppercase tracking-[0.1em]"><div className="flex gap-8"><span>댓글 {totalComment}</span><span>연계글 {totalFormal}</span></div><div className="flex gap-8"><span className="flex items-center gap-1">동의 {uniqueAgreeCount}</span><span className="flex items-center gap-1">비동의 {uniqueDisagreeCount}</span></div></div>
+          <div className="flex items-center justify-between text-[16px] font-[1000] text-slate-400 mt-8 pt-5 border-t border-slate-50 uppercase tracking-[0.1em]"><div className="flex gap-8"><span>댓글 {formatKoreanNumber(totalComment)}</span><span>연계글 {formatKoreanNumber(totalFormal)}</span></div><div className="flex gap-8"><span className="flex items-center gap-1">동의 {formatKoreanNumber(uniqueAgreeCount)}</span><span className="flex items-center gap-1">비동의 {formatKoreanNumber(uniqueDisagreeCount)}</span></div></div>
         </div>
       </div>
     </section>

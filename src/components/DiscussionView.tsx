@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import type { Post } from '../types';
 import RootPostCard from './RootPostCard';
 import DebateBoard from './DebateBoard';
+import { formatKoreanNumber } from '../utils';
 
 interface Props {
   rootPost: Post;
@@ -40,11 +41,6 @@ const DiscussionView = ({
   commentCounts = {}, onLikeClick, currentNickname, allUsers = {}, followerCounts = {}
 }: Props) => {
   const [isInputFocused, setIsInputFocused] = useState(false);
-
-  const formatKoreanNumber = (num: number) => {
-    if (num >= 10000) return Math.floor(num / 10000) + '만';
-    return num.toLocaleString();
-  };
 
   const getTimeAgo = (timestamp: any) => {
     if (!timestamp) return "";
@@ -194,7 +190,7 @@ const DiscussionView = ({
                 </div>
 
                 <div className="flex items-center justify-start gap-2.5 pt-2 border-t border-slate-50 mt-auto">
-                  <span className="text-[9.5px] font-black text-slate-300">댓글 {commentCounts[topic.id] || 0}</span>
+                  <span className="text-[9.5px] font-black text-slate-300">댓글 {formatKoreanNumber(commentCounts[topic.id] || 0)}</span>
                   <span className={`text-[9.5px] font-black ${currentNickname && topic.likedBy?.includes(currentNickname) ? 'text-rose-400' : 'text-slate-300'}`}>❤️ {formatKoreanNumber(topic.likes || 0)}</span>
                 </div>
               </div>

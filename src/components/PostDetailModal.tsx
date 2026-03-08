@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { db } from '../firebase';
 import { collection, query, onSnapshot, addDoc, serverTimestamp } from 'firebase/firestore';
 import type { Post } from '../types';
-import { getReputationLabel } from '../utils';
+import { getReputationLabel, formatKoreanNumber } from '../utils';
 
 interface Props {
   post: Post;
@@ -35,7 +35,7 @@ const PostDetailModal = ({ post, onClose, currentNickname, onLikeClick, isFriend
       const descendantDocs = snapshot.docs
         .map(d => ({ id: d.id, ...d.data() } as Post))
         .filter(d => d.rootId === post.id);
-      descendantDocs.sort((a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0));
+      descendantDocs.sort((a, b) => (a.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
       setComments(descendantDocs);
     });
     return () => unsubscribe();
@@ -60,11 +60,6 @@ const PostDetailModal = ({ post, onClose, currentNickname, onLikeClick, isFriend
       });
       setNewComment("");
     } catch (err) { console.error(err); } finally { setIsSubmitting(false); }
-  };
-
-  const formatKoreanNumber = (num: number) => {
-    if (num >= 10000) return Math.floor(num / 10000) + '만';
-    return num.toLocaleString();
   };
 
   const isLikedByMe = currentNickname && post.likedBy?.includes(currentNickname);
@@ -133,7 +128,7 @@ const PostDetailModal = ({ post, onClose, currentNickname, onLikeClick, isFriend
           </div>
 
           <div className="px-2 border-t border-slate-100 pt-6">
-            <span className="text-[13px] font-black text-slate-400 italic mb-6 block">💬 댓글 {comments.length}개</span>
+            <span className="text-[13px] font-black text-slate-400 italic mb-6 block">💬 댓글 {formatKoreanNumber(comments.length)}개</span>
             <div className="space-y-4">
               {comments.map(comment => (
                 <div key={comment.id} className="bg-slate-50 p-4 rounded-2xl border border-slate-100">

@@ -1,6 +1,33 @@
 // src/utils.ts
 
 /**
+ * 숫자를 한국식 단위(천, 만)로 변환하여 반환합니다.
+ * 예: 999 -> 999
+ *     1000 -> 1천
+ *     1200 -> 1.2천 (또는 요청에 따라 1천)
+ *     10000 -> 1만
+ *     12500 -> 1만 2천
+ */
+export const formatKoreanNumber = (num: number): string => {
+  if (!num || num < 0) return "0";
+  if (num < 1000) return num.toLocaleString();
+  
+  if (num < 10000) {
+    const thousands = Math.floor(num / 1000);
+    const remainder = Math.floor((num % 1000) / 100);
+    return remainder > 0 ? `${thousands}.${remainder}천` : `${thousands}천`;
+  }
+  
+  const tenThousands = Math.floor(num / 10000);
+  const thousands = Math.floor((num % 10000) / 1000);
+  
+  if (thousands > 0) {
+    return `${tenThousands}만 ${thousands}천`;
+  }
+  return `${tenThousands}만`;
+};
+
+/**
  * 평판 점수에 따른 등급 이름을 반환합니다.
  */
 export const getReputationLabel = (score: number): string => {
