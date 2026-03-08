@@ -1,21 +1,24 @@
 // src/components/ActivityStats.tsx
+import { getReputationLabel } from '../utils';
 
 interface ActivityStatsProps {
   userData: any;
-  friendCount: number;
-  reputationLabel: string;
+  rootCount: number;
+  childCount: number;
 }
 
-const ActivityStats = ({ userData, friendCount, reputationLabel }: ActivityStatsProps) => {
+const ActivityStats = ({ userData, rootCount, childCount }: ActivityStatsProps) => {
+  const reputationLabel = getReputationLabel(userData.likes || 0);
+  
   const statItems = [
     { label: '레벨', value: userData.level, emoji: '🐥' },
     { label: '평판', value: reputationLabel, isHighlight: true },
-    { label: '깐부', value: friendCount, isUnderline: true },
-    { label: '구독자', value: userData.subscriberCount, isUnderline: true }
+    { label: '게시글', value: rootCount, isUnderline: true },
+    { label: '활동지수', value: userData.likes || 0, isUnderline: true }
   ];
 
   return (
-    <div className="flex flex-wrap bg-slate-50/80 rounded-xl p-1 gap-1 items-center border border-slate-100 shadow-inner w-full md:w-fit mt-4">
+    <div className="flex flex-wrap bg-slate-50/80 rounded-xl p-1 gap-1 items-center border border-slate-100 shadow-inner w-full md:w-fit">
       {statItems.map((item, idx) => (
         <div key={idx} className="flex items-center gap-1.5 bg-white px-3 py-1.5 rounded-lg border border-slate-100 shadow-sm transition-transform hover:scale-105">
           <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{item.label}</span>

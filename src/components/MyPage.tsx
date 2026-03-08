@@ -14,7 +14,7 @@ interface Props {
   friends: string[];
   friendCount: number;
   onPostClick: (post: Post) => void;
-  onEditPost?: (post: Post) => void; // 🚀 수정 기능 추가
+  onEditPost?: (post: Post) => void; 
   onToggleFriend: (author: string) => void;
   allUsers: Record<string, any>;
   followerCounts: Record<string, number>;
@@ -23,7 +23,7 @@ interface Props {
 }
 
 const MyPage = ({ 
-  userData, allUserRootPosts, allUserChildPosts, friends, friendCount, onPostClick, onEditPost, onToggleFriend, allUsers, followerCounts, toggleBlock, blocks 
+  userData, allUserRootPosts, allUserChildPosts, friends, friendCount, onPostClick, onEditPost, onToggleFriend, allUsers, followerCounts
 }: Props) => {
   const [activeTab, setActiveTab] = useState<'posts' | 'comments' | 'avatars' | 'friends'>('posts');
   const [isEditingProfile, setIsEditingProfile] = useState(false);
@@ -38,7 +38,12 @@ const MyPage = ({
           {/* 🚀 좌측: 활동 통계 및 마일스톤 */}
           <div className="lg:col-span-1 flex flex-col gap-6">
             <ActivityStats userData={userData} rootCount={allUserRootPosts.length} childCount={allUserChildPosts.length} />
-            <ActivityMilestones userData={userData} rootCount={allUserRootPosts.length} formalCount={allUserChildPosts.filter(p => p.type === 'formal').length} commentCount={allUserChildPosts.filter(p => p.type === 'comment').length} />
+            <ActivityMilestones 
+              userData={userData} 
+              rootCount={allUserRootPosts.length} 
+              formalCount={allUserChildPosts.filter(p => p.type === 'formal').length} 
+              commentCount={allUserChildPosts.filter(p => p.type === 'comment').length} 
+            />
           </div>
 
           {/* 🚀 우측: 게시글/댓글/아바타 탭 콘텐츠 */}
