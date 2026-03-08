@@ -104,8 +104,8 @@ const DiscussionView = ({
           post={rootPost} 
           totalComment={allPosts.filter(p => p.type === 'comment').length}
           totalFormal={allPosts.filter(p => p.type === 'formal').length}
-          uniqueAgreeCount={new Set(allPosts.filter(p => p.side === 'left').map(p => p.author)).size}
-          uniqueDisagreeCount={new Set(allPosts.filter(p => p.side === 'right').map(p => p.author)).size}
+          uniqueAgreeCount={allPosts.filter(p => p.side === 'left').length}
+          uniqueDisagreeCount={allPosts.filter(p => p.side === 'right').length}
           isFriend={friends.includes(rootPost.author)}
           onToggleFriend={() => onToggleFriend(rootPost.author)}
           userData={{ level: displayLevel, likes: displayLikes, bio: authorData?.bio || "" }}
