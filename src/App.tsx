@@ -242,10 +242,27 @@ function App() {
 
   const renderContent = () => {
     if (isLoading) return <div className="w-full flex flex-col items-center justify-center py-40 gap-4"><div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div><p className="text-slate-400 font-black italic">기록을 불러오고 있소...</p></div>;
-    if (isCreateOpen) return <CreatePostBox userData={userData} onSubmit={async (t, c, img, l, tags) => {
+    if (isCreateOpen) return <CreatePostBox userData={userData} onSubmit={async (t, c, img, l, tags, cat) => {
       if (!userData) return;
       const customId = `topic_${Date.now()}_${userData.nickname}`;
-      await setDoc(doc(db, "posts", customId), { author: userData.nickname, author_id: userData.uid, title: t, content: c, imageUrl: img || null, linkUrl: l || null, tags: tags || [], authorInfo: { level: userData.level, friendCount: friends.length, totalLikes: userData.likes }, parentId: null, rootId: null, side: 'left', type: 'formal', createdAt: serverTimestamp(), likes: 0, dislikes: 0 });
+      await setDoc(doc(db, "posts", customId), { 
+        author: userData.nickname, 
+        author_id: userData.uid, 
+        title: t, 
+        content: c, 
+        category: cat || "미지정",
+        imageUrl: img || null, 
+        linkUrl: l || null, 
+        tags: tags || [], 
+        authorInfo: { level: userData.level, friendCount: friends.length, totalLikes: userData.likes }, 
+        parentId: null, 
+        rootId: null, 
+        side: 'left', 
+        type: 'formal', 
+        createdAt: serverTimestamp(), 
+        likes: 0, 
+        dislikes: 0 
+      });
       await updateDoc(doc(db, "users", userData.uid), { likes: increment(5) });
       setIsCreateOpen(false);
     }} onClose={() => setIsCreateOpen(false)} />;

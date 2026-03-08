@@ -11,6 +11,7 @@ export interface Post {
   author: string;
   author_id?: string; // 작성자 고유 UID
   title?: string;
+  category?: string; // 🚀 게시글 카테고리 (나의 이야기, 벌거벗은 임금님 등)
   content: string;
   imageUrl?: string | null;
   linkUrl?: string | null;
