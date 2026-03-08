@@ -79,7 +79,7 @@ function App() {
   const [activeMenu, setActiveMenu] = useState<MenuId>('home');
   const [activeTab, setActiveTab] = useState<'any' | 'recent' | 'best' | 'rank' | 'friend'>('any');
   const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [editingPost, setEditingPost] = useState<Post | null>(null); // 🚀 수정 중인 게시글
+  const [editingPost, setEditingPost] = useState<Post | null>(null);
 
   useEffect(() => { if (replyTarget) { setSelectedType('comment'); setNewTitle(""); } }, [replyTarget]);
 
@@ -95,6 +95,7 @@ function App() {
       await signInWithPopup(auth, googleProvider);
     } catch (error: any) {
       console.error("로그인 에러:", error);
+      alert("로그인 중 오류가 발생했소: " + (error.message || "원인 불명"));
       setIsLoading(false);
     }
   };
@@ -122,6 +123,7 @@ function App() {
       }
     } catch (error: any) {
       console.error("로그인 에러:", error);
+      alert("깐부 로그인 중 오류가 발생했소: " + (error.message || "원인 불명"));
       setIsLoading(false);
     }
   };
@@ -251,13 +253,11 @@ function App() {
         onSubmit={async (t, c, img, l, tags, cat, postId) => {
           if (!userData) return;
           if (postId) {
-            // 🚀 수정 모드
             await updateDoc(doc(db, "posts", postId), {
               title: t, content: c, imageUrl: img || null, tags: tags || [], category: cat || "나의 이야기"
             });
             alert("기록이 수정되었소.");
           } else {
-            // 🚀 신규 작성 모드
             const customId = `topic_${Date.now()}_${userData.nickname}`;
             await setDoc(doc(db, "posts", customId), { 
               author: userData.nickname, author_id: userData.uid, title: t, content: c, 
@@ -275,39 +275,10 @@ function App() {
     
     if (activeMenu === 'mypage') {
       if (userData) {
-        // 🚀 흑무영 계정에 대한 특수 필터링 (아이디, 닉네임, 시스템 계정 등 모든 가능성 열기)
         const isBlackShadow = userData.nickname?.trim() === "흑무영" || userData.uid === "black_shadow_system_uid";
-        
-        const userPosts = allRootPosts.filter(p => {
-          const authorMatch = p.author?.trim() === userData.nickname?.trim();
-          const idMatch = p.author_id === userData.uid;
-          const systemMatch = isBlackShadow && (p.author === "흑무영" || p.author_id === "black_shadow");
-          return authorMatch || idMatch || systemMatch;
-        });
-
-        const userComments = allChildPosts.filter(p => {
-          const authorMatch = p.author?.trim() === userData.nickname?.trim();
-          const idMatch = p.author_id === userData.uid;
-          const systemMatch = isBlackShadow && (p.author === "흑무영" || p.author_id === "black_shadow");
-          return authorMatch || idMatch || systemMatch;
-        });
-
-        return (
-          <MyPage 
-            userData={userData} 
-            allUserRootPosts={userPosts} 
-            allUserChildPosts={userComments} 
-            friends={friends} 
-            friendCount={followerCounts[userData.nickname] || 0} 
-            onPostClick={setSelectedTopic} 
-            onEditPost={(post) => { setEditingPost(post); setIsCreateOpen(true); }} 
-            onToggleFriend={toggleFriend} 
-            allUsers={allUsers} 
-            followerCounts={followerCounts} 
-            toggleBlock={toggleBlock} 
-            blocks={blocks} 
-          />
-        );
+        const userPosts = allRootPosts.filter(p => p.author_id === userData.uid || p.author?.trim() === userData.nickname?.trim() || (isBlackShadow && p.author === "흑무영"));
+        const userComments = allChildPosts.filter(p => p.author_id === userData.uid || p.author?.trim() === userData.nickname?.trim() || (isBlackShadow && p.author === "흑무영"));
+        return <MyPage userData={userData} allUserRootPosts={userPosts} allUserChildPosts={userComments} friends={friends} friendCount={followerCounts[userData.nickname] || 0} onPostClick={setSelectedTopic} onEditPost={(post) => { setEditingPost(post); setIsCreateOpen(true); }} onToggleFriend={toggleFriend} allUsers={allUsers} followerCounts={followerCounts} toggleBlock={toggleBlock} blocks={blocks} />;
       }
       return <div className="w-full py-40 text-center"><button onClick={handleLogin} className="bg-slate-900 text-white px-8 py-3 rounded-xl font-black shadow-lg">로그인 해주시오</button></div>;
     }
@@ -329,11 +300,9 @@ function App() {
       );
     }
 
-    // New Menu Content Rendering
     if (MENU_MESSAGES[activeMenu]) {
       const menuInfo = MENU_MESSAGES[activeMenu];
       const categoryPosts = allRootPosts.filter(p => p.category === menuInfo.title || (p.category === undefined && menuInfo.title === "나의 이야기"));
-
       return (
         <div className="w-full max-w-4xl mx-auto py-12 px-6">
           <div className="animate-in fade-in slide-in-from-bottom-2 duration-500 mb-12">
@@ -352,7 +321,6 @@ function App() {
               </div>
             </div>
           </div>
-
           <div className="animate-in fade-in duration-700">
             <div className="flex items-center gap-3 mb-6 px-2">
               <div className="h-px bg-slate-200 flex-1"></div>
