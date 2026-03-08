@@ -276,24 +276,47 @@ function App() {
     if (MENU_MESSAGES[activeMenu]) {
       const menuInfo = MENU_MESSAGES[activeMenu];
       return (
-        <div className="w-full max-w-3xl mx-auto py-20 px-6 animate-in fade-in zoom-in duration-500">
-          <div className="bg-white rounded-[2.5rem] p-12 shadow-xl shadow-blue-900/5 border border-slate-100 text-center relative overflow-hidden">
-            <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-blue-500 to-indigo-500" />
-            <div className="text-6xl mb-8 animate-bounce">{menuInfo.emoji}</div>
-            <h2 className="text-4xl font-[1000] text-slate-900 mb-6 tracking-tighter italic">
+        <div className="w-full max-w-4xl mx-auto py-16 px-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
+          <div className="bg-white rounded-[3rem] p-16 shadow-[0_32px_64px_-12px_rgba(0,0,0,0.08)] border border-slate-100 text-center relative overflow-hidden">
+            {/* 상단 장식 바 */}
+            <div className="absolute top-0 left-0 w-full h-2.5 bg-gradient-to-r from-blue-600 via-indigo-500 to-purple-500" />
+            
+            {/* 이모지 섹션 */}
+            <div className="inline-flex items-center justify-center w-24 h-24 bg-slate-50 rounded-[2rem] text-5xl mb-10 shadow-inner">
+              <span className="animate-pulse">{menuInfo.emoji}</span>
+            </div>
+
+            {/* 제목 섹션 */}
+            <h2 className="text-[42px] font-[1000] text-slate-900 mb-6 tracking-tighter leading-none italic">
               <span className="text-blue-600">#</span> {menuInfo.title}
             </h2>
-            <div className="h-px bg-slate-100 w-20 mx-auto mb-8" />
-            <p className="text-xl font-bold text-slate-500 leading-relaxed break-keep">
-              {menuInfo.description}
-            </p>
-            <div className="mt-12">
+
+            {/* 구분선 */}
+            <div className="flex items-center justify-center gap-2 mb-10">
+              <div className="h-1.5 w-12 bg-blue-600 rounded-full" />
+              <div className="h-1.5 w-3 bg-slate-200 rounded-full" />
+              <div className="h-1.5 w-1.5 bg-slate-100 rounded-full" />
+            </div>
+
+            {/* 설명 섹션 */}
+            <div className="max-w-2xl mx-auto mb-14">
+              <p className="text-[19px] font-bold text-slate-500 leading-relaxed break-keep">
+                {menuInfo.description}
+              </p>
+            </div>
+
+            {/* 액션 버튼 */}
+            <div className="flex flex-col items-center gap-4">
               <button 
                 onClick={() => setIsCreateOpen(true)}
-                className="bg-slate-900 text-white px-10 py-4 rounded-2xl font-black text-lg shadow-lg hover:scale-105 transition-transform active:scale-95"
+                className="bg-slate-900 text-white px-14 py-5 rounded-[1.5rem] font-[1000] text-xl shadow-xl hover:scale-[1.03] transition-all active:scale-95 group flex items-center gap-3"
               >
-                글 올리기
+                <span>이 주제로 글 올리기</span>
+                <svg className="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                </svg>
               </button>
+              <p className="text-[11px] font-black text-slate-300 uppercase tracking-[0.2em]">Join the Conversation</p>
             </div>
           </div>
         </div>
