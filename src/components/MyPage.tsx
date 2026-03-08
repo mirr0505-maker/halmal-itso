@@ -37,7 +37,7 @@ const MyPage = ({
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* 🚀 좌측: 활동 통계 및 마일스톤 */}
           <div className="lg:col-span-1 flex flex-col gap-6">
-            <ActivityStats userData={userData} rootCount={allUserRootPosts.length} childCount={allUserChildPosts.length} />
+            <ActivityStats userData={userData} rootCount={allUserRootPosts.length} />
             <ActivityMilestones 
               userData={userData} 
               rootCount={allUserRootPosts.length} 
