@@ -1,5 +1,4 @@
 // src/components/ProfileHeader.tsx
-import React, { useRef } from 'react';
 
 interface ProfileHeaderProps {
   userData: any;
@@ -11,7 +10,6 @@ interface ProfileHeaderProps {
 const ProfileHeader = ({ 
   userData, isEditing, setIsEditing, friendCount
 }: ProfileHeaderProps) => {
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   return (
     <div className="flex flex-col md:flex-row items-center md:items-start gap-6 relative z-10">

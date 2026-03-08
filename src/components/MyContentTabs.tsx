@@ -1,5 +1,4 @@
 // src/components/MyContentTabs.tsx
-import { useState } from 'react';
 import type { Post } from '../types';
 
 interface Props {
@@ -9,12 +8,9 @@ interface Props {
 }
 
 const MyContentTabs = ({ posts = [], onPostClick, type }: Props) => {
-  const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
-
-  const indexOfLastItem = currentPage * itemsPerPage;
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const paginatedList = posts.slice(indexOfFirstItem, indexOfLastItem);
+  // 페이징 기능이 현재 UI에 노출되지 않으므로 상단 10개만 우선 노출
+  const paginatedList = posts.slice(0, itemsPerPage);
 
   const formatDateTime = (timestamp: any) => {
     if (!timestamp) return "";

@@ -4,10 +4,9 @@ import { getReputationLabel } from '../utils';
 interface ActivityStatsProps {
   userData: any;
   rootCount: number;
-  childCount: number;
 }
 
-const ActivityStats = ({ userData, rootCount, childCount }: ActivityStatsProps) => {
+const ActivityStats = ({ userData, rootCount }: ActivityStatsProps) => {
   const reputationLabel = getReputationLabel(userData.likes || 0);
   
   const statItems = [
