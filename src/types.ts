@@ -1,4 +1,5 @@
 // src/types.ts
+
 export interface AuthorInfo {
   level: number;
   friendCount: number;
@@ -8,18 +9,20 @@ export interface AuthorInfo {
 export interface Post {
   id: string;
   author: string;
-  title: string | null;
+  author_id?: string; // 작성자 고유 UID
+  title?: string;
   content: string;
+  imageUrl?: string | null;
+  linkUrl?: string | null;
+  tags?: string[];
+  authorInfo?: AuthorInfo;
   parentId: string | null;
   rootId: string | null; // 🚀 최상위 게시글 ID (토론 주제 ID)
   side: 'left' | 'right';
   type: 'comment' | 'formal';
-  createdAt: any;
+  createdAt: any; // Firestore Timestamp
   likes: number;
-  likedBy?: string[];
-  dislikes?: number; 
-  authorInfo?: AuthorInfo;
-  imageUrl?: string; 
-  linkUrl?: string;  
-  tags?: string[];   
+  dislikes: number;
+  likedBy?: string[]; // 🚀 좋아요를 누른 닉네임 목록
+  commentCount?: number; // 🚀 내 정보 목록 표시용
 }

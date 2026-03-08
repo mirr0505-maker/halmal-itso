@@ -1,7 +1,8 @@
 // Firebase 앱 초기화 및 설정을 위한 함수 임포트
 import { initializeApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
-import { getStorage } from "firebase/storage"; // 🚀 저장소(Storage) 추가
+import { getStorage } from "firebase/storage";
+import { getAuth, GoogleAuthProvider } from "firebase/auth"; // 🚀 인증(Auth) 추가
 
 // 환경 변수에서 설정값 가져오기
 const firebaseConfig = {
@@ -15,8 +16,10 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 
-// 🚀 데이터베이스와 저장소 내보내기
+// 🚀 데이터베이스, 저장소, 인증 내보내기
 export const db = getFirestore(app);
 export const storage = getStorage(app); 
+export const auth = getAuth(app); // 🚀 인증 객체 추가
+export const googleProvider = new GoogleAuthProvider(); // 🚀 구글 로그인 프로바이더 추가
 
 export default app;

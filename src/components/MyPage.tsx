@@ -1,14 +1,20 @@
 // src/components/MyPage.tsx
-import React, { useState, useRef, useEffect } from 'react';
-import { db } from '../firebase';
+import React, { useState, useEffect } from 'react';
+import { db, auth } from '../firebase';
+import { signOut } from 'firebase/auth';
 import { s3Client, BUCKET_NAME, PUBLIC_URL } from '../s3Client';
 import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { doc, updateDoc } from 'firebase/firestore';
 import type { Post } from '../types';
-import MyProfileCard from './MyProfileCard';
+import { calculateReputation, getReputationLabel } from '../utils';
+
+import ProfileHeader from './ProfileHeader';
+import ActivityStats from './ActivityStats';
+import AvatarCollection from './AvatarCollection';
+import ActivityMilestones from './ActivityMilestones';
 import MyContentTabs from './MyContentTabs';
 
-interface Props {
+interface MyPageProps {
   allUserChildPosts: Post[];
   allUserRootPosts: Post[];
   userData: any;
@@ -16,201 +22,107 @@ interface Props {
   friendCount: number;
   onPostClick: (post: Post) => void;
   onToggleFriend: (author: string) => void;
+  allUsers: Record<string, any>;
+  followerCounts: Record<string, number>;
+  toggleBlock: (author: string) => Promise<void>;
+  blocks: string[];
 }
 
-const MyPage = ({ allUserChildPosts = [], allUserRootPosts = [], userData, friends = [], friendCount = 0, onPostClick, onToggleFriend }: Props) => {
-  const [editingCardId, setEditingCardId] = useState<number | null>(null);
+const MyPage = ({ 
+  allUserChildPosts = [], allUserRootPosts = [], userData, 
+  friends = [], friendCount = 0, onPostClick, onToggleFriend,
+  toggleBlock, blocks = []
+}: MyPageProps) => {
   const [isUploading, setIsUploading] = useState(false);
-  const isUploadingRef = useRef(false);
-  const [cardInputs, setCardInputs] = useState({ title: "", desc: "", imageUrl: "" });
+  const [isEditing, setIsEditing] = useState(false);
+  const [editData, setEditData] = useState({
+    nickname: userData.nickname || "",
+    bio: userData.bio || "",
+    avatarUrl: userData.avatarUrl || ""
+  });
 
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
-    return () => {
-      if (timerRef.current) clearTimeout(timerRef.current);
+    const syncReputation = async () => {
+      if (!userData?.uid) return;
+      const rootCount = allUserRootPosts.length;
+      const formalCount = allUserChildPosts.filter(p => p.type === 'formal').length;
+      const commentCount = allUserChildPosts.filter(p => p.type === 'comment').length;
+      const totalLikesReceived = [...allUserRootPosts, ...allUserChildPosts]
+        .reduce((acc, post) => acc + (post.likes || 0), 0);
+      const realScore = calculateReputation(rootCount, formalCount, commentCount, totalLikesReceived);
+      if (Math.abs(userData.likes - realScore) > 0) {
+        try { await updateDoc(doc(db, "users", userData.uid), { likes: realScore }); } catch (e) { console.error(e); }
+      }
     };
-  }, []);
+    if (allUserRootPosts.length > 0 || allUserChildPosts.length > 0) syncReputation();
+  }, [userData?.uid, allUserRootPosts.length, allUserChildPosts.length, userData.likes]);
 
   if (!userData || !userData.nickname) return null;
 
-  const myFormalPosts = allUserRootPosts || [];
-  const myComments = (allUserChildPosts || []).filter(p => p.type === 'comment');
+  const handleLogout = async () => {
+    if (window.confirm("정말 로그아웃 하시겠소?")) {
+      try { await signOut(auth); window.location.href = '/'; } catch (e) { console.error(e); }
+    }
+  };
 
-  const defaultCards = [
-    { id: 1, title: "나의 한 마디", desc: "", imageUrl: "", color: "bg-blue-50" },
-    { id: 2, title: "나의 신념", desc: "", imageUrl: "", color: "bg-slate-50" },
-    { id: 3, title: "나의 비전", desc: "", imageUrl: "", color: "bg-slate-50" }
-  ];
+  const handleSaveProfile = async () => {
+    if (!editData.nickname.trim()) { alert("닉네임을 입력해주시오!"); return; }
+    try {
+      await updateDoc(doc(db, "users", userData.uid), { nickname: editData.nickname, bio: editData.bio, avatarUrl: editData.avatarUrl });
+      setIsEditing(false);
+      alert("프로필이 변경되었소!");
+    } catch (e) { console.error(e); alert("저장에 실패했소."); }
+  };
 
-  const currentCards = userData.personalityCards || defaultCards;
-
-  const personalityCards = currentCards.map((card: any) => ({
-    ...card,
-    isLocked: card.id !== 1
-  }));
-
-  // 🚀 Cloudflare R2 카드 전용 이미지 업로드 핸들러
-  const handleCardImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file) return;
-
-    if (file.size > 2 * 1024 * 1024) {
-      alert("이미지 크기가 너무 크오! 2MB 이하의 사진만 허용하오.");
-      return;
-    }
-
+    if (!file || !userData.uid) return;
+    if (file.size > 2 * 1024 * 1024) { alert("2MB 이하만 가능하오."); return; }
     setIsUploading(true);
-    isUploadingRef.current = true;
-    
-    timerRef.current = setTimeout(() => {
-      if (isUploadingRef.current) {
-        setIsUploading(false);
-        isUploadingRef.current = false;
-        alert("업로드 시간이 너무 길어 중단했소. [Cloudflare R2] CORS 설정을 확인해 보시오.");
-      }
-    }, 30000);
-
     try {
-      const fileName = `personality_cards/${userData.nickname}_card_${editingCardId}_${Date.now()}`;
-      
-      const command = new PutObjectCommand({
-        Bucket: BUCKET_NAME,
-        Key: fileName,
-        Body: file,
-        ContentType: file.type,
-      });
-
-      await s3Client.send(command);
-      const url = `${PUBLIC_URL}/${fileName}`;
-      
-      setCardInputs(prev => ({ ...prev, imageUrl: url }));
-      if (timerRef.current) {
-        clearTimeout(timerRef.current);
-        timerRef.current = null;
-      }
-    } catch (error) {
-      console.error("카드 이미지 R2 업로드 실패:", error);
-      alert("사진 전송에 실패했소. [Cloudflare R2] 설정을 확인해 보시오.");
-    } finally {
-      setIsUploading(false);
-      isUploadingRef.current = false;
-    }
+      const fileName = `avatars/${userData.uid}_${Date.now()}`;
+      await s3Client.send(new PutObjectCommand({ Bucket: BUCKET_NAME, Key: fileName, Body: file, ContentType: file.type }));
+      const newUrl = `${PUBLIC_URL}/${fileName}`;
+      setEditData(prev => ({ ...prev, avatarUrl: newUrl }));
+    } catch (error) { console.error(error); alert("이미지 업로드 실패했소."); }
+    finally { setIsUploading(false); }
   };
 
-  const handleSaveCard = async (id: number) => {
-    const updatedCards = currentCards.map((c: any) => 
-      c.id === id ? { ...c, desc: cardInputs.desc, imageUrl: cardInputs.imageUrl } : c
-    );
-    try {
-      await updateDoc(doc(db, "users", "user_heukmooyoung"), { personalityCards: updatedCards });
-      setEditingCardId(null);
-    } catch (e) { console.error("카드 저장 실패:", e); }
-  };
-
-  const handleDeleteCard = async (id: number) => {
-    if (!window.confirm("이 기록을 파기하겠소?")) return;
-    const updatedCards = currentCards.map((c: any) => 
-      c.id === id ? { ...c, desc: "", imageUrl: "" } : c
-    );
-    try {
-      await updateDoc(doc(db, "users", "user_heukmooyoung"), { personalityCards: updatedCards });
-    } catch (e) { console.error("카드 삭제 실패:", e); }
-  };
+  const reputationLabel = getReputationLabel(userData.likes);
 
   return (
-    <div className="max-w-2xl mx-auto py-4 md:py-8 animate-in fade-in slide-in-from-bottom-4 duration-500 w-full px-2 sm:px-0">
-      <MyProfileCard userData={userData} friendCount={friendCount} />
-
-      <section className="mb-10 px-2">
-        <h3 className="text-lg font-[1000] text-slate-800 mb-4 flex items-center gap-2 italic">
-          🎭 난 이런 사람
-        </h3>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          {personalityCards.map((item: any) => (
-            <div key={item.id} className={`${item.color} border-2 border-slate-100 rounded-[2rem] p-5 flex flex-col relative group transition-all ${item.isLocked ? 'opacity-60 bg-slate-50' : ''}`}>
-              
-              {item.isLocked ? (
-                <div className="flex flex-col items-center justify-center py-6 text-center select-none">
-                  <div className="w-16 h-16 rounded-full bg-slate-200/50 flex items-center justify-center text-2xl mb-3 shadow-inner">🔒</div>
-                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Coming Soon</span>
-                  <span className="text-xs font-bold text-slate-400">추후 공개 예정</span>
-                </div>
-              ) : editingCardId === item.id ? (
-                <div className="flex flex-col gap-2 animate-in zoom-in-95">
-                  <div className="relative aspect-square rounded-2xl bg-white/60 border-2 border-dashed border-slate-200 mb-1 flex items-center justify-center overflow-hidden shadow-inner">
-                    {cardInputs.imageUrl ? (
-                      <img src={cardInputs.imageUrl} alt="Preview" className="w-full h-full object-cover" />
-                    ) : (
-                      <span className="text-3xl opacity-20">📸</span>
-                    )}
-                    {isUploading && (
-                      <div className="absolute inset-0 bg-white/60 flex items-center justify-center">
-                        <div className="w-6 h-6 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
-                      </div>
-                    )}
-                  </div>
-                  
-                  <input 
-                    type="file" accept="image/*" id={`card-upload-${item.id}`} className="hidden" 
-                    onChange={handleCardImageUpload} disabled={isUploading}
-                  />
-                  <label 
-                    htmlFor={`card-upload-${item.id}`} 
-                    className={`w-full py-2 bg-blue-50 border-2 border-dashed border-blue-200 rounded-xl text-[10px] font-black text-blue-600 text-center cursor-pointer hover:bg-blue-100 transition-all ${isUploading ? 'opacity-50 animate-pulse' : ''}`}
-                  >
-                    {isUploading ? "전송 중..." : "📸 사진 고르기"}
-                  </label>
-
-                  <textarea 
-                    placeholder="이야기를 들려주소" 
-                    className="w-full p-2 text-xs border-2 border-white rounded-xl outline-none focus:border-slate-900 bg-white/50 h-20 resize-none font-bold mt-1"
-                    value={cardInputs.desc} onChange={e => setCardInputs({...cardInputs, desc: e.target.value})}
-                  />
-                  <div className="flex gap-1 mt-1">
-                    <button onClick={() => handleSaveCard(item.id)} disabled={isUploading} className={`flex-1 py-1.5 bg-slate-900 text-white text-[10px] font-black rounded-lg shadow-sm ${isUploading ? 'opacity-50' : 'hover:bg-emerald-600'}`}>저장</button>
-                    <button onClick={() => setEditingCardId(null)} className="flex-1 py-1.5 bg-white text-slate-400 text-[10px] font-black rounded-lg border border-slate-100">취소</button>
-                  </div>
-                </div>
-              ) : (
-                <div className="flex flex-col items-center text-center cursor-pointer" onClick={() => {
-                  setEditingCardId(item.id);
-                  setCardInputs({ title: item.title, desc: item.desc, imageUrl: item.imageUrl });
-                }}>
-                  <div className="w-full aspect-square rounded-2xl bg-white/60 border-2 border-dashed border-slate-200 mb-3 flex items-center justify-center overflow-hidden relative shadow-inner">
-                    {item.imageUrl ? (
-                      <img src={item.imageUrl} alt="Profile" className="w-full h-full object-cover" />
-                    ) : (
-                      <span className="opacity-20 group-hover:opacity-100 transition-opacity text-3xl">📸</span>
-                    )}
-                  </div>
-                  <span className="text-sm font-[1000] text-slate-800 leading-tight px-1">
-                    {item.desc || "첫 번째 이야기를 채워주소"}
-                  </span>
-                  
-                  {item.desc && (
-                    <button 
-                      onClick={(e) => { e.stopPropagation(); handleDeleteCard(item.id); }}
-                      className="absolute top-2 right-2 w-6 h-6 bg-white/80 text-rose-500 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm text-xs"
-                    >✕</button>
-                  )}
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
+    <div className="w-full max-w-[1000px] mx-auto py-6 px-4 animate-in fade-in duration-500 bg-[#F8FAFC]">
+      <section className="bg-white rounded-2xl p-6 shadow-lg mb-8 relative overflow-hidden border border-slate-100/50">
+        <ProfileHeader userData={userData} isEditing={isEditing} editData={editData} isUploading={isUploading} setEditData={setEditData} setIsEditing={setIsEditing} onAvatarUpload={handleAvatarUpload} onSave={handleSaveProfile} />
+        {!isEditing && <ActivityStats userData={userData} friendCount={friendCount} reputationLabel={reputationLabel} />}
+        {!isEditing && (
+          <button onClick={handleLogout} className="absolute top-4 right-6 p-2 text-slate-300 hover:text-rose-500 transition-all z-20" title="로그아웃">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
+          </button>
+        )}
       </section>
-
-      <MyContentTabs 
-        myFormalPosts={myFormalPosts} 
-        myComments={myComments} 
-        friends={friends} 
-        onPostClick={onPostClick} 
-        onToggleFriend={onToggleFriend}
-      />
-      
-      <p className="mt-10 text-center text-[10px] font-[1000] text-slate-300 uppercase tracking-[0.2em] italic">
-        Strategy & Planning Archive Since 2026
-      </p>
+      <AvatarCollection cards={[
+        { id: 1, imageUrl: "https://images.unsplash.com/photo-1497366754035-f200968a6e72?auto=format&fit=crop&w=300&q=80" },
+        { id: 2, imageUrl: "https://images.unsplash.com/photo-1497366811353-6870744d04b2?auto=format&fit=crop&w=300&q=80" },
+        { id: 3, isLocked: true, lockLevel: 5 },
+        { id: 4, isLocked: true, lockLevel: 5 },
+        { id: 5, isLocked: true, lockLevel: 5 },
+      ]} />
+      <ActivityMilestones userData={userData} friendCount={friendCount} reputationLabel={reputationLabel} />
+      <div className="border-t border-slate-100 pt-8">
+        <h3 className="text-sm font-[1000] text-slate-900 tracking-tight mb-4 px-1">기록 관리</h3>
+        <div className="bg-white rounded-2xl p-1 shadow-md border border-slate-50/50">
+          <MyContentTabs 
+            myFormalPosts={allUserRootPosts} 
+            myComments={allUserChildPosts.filter(p => p.type === 'comment')} 
+            friends={friends} 
+            onPostClick={onPostClick} 
+            onToggleFriend={onToggleFriend}
+            blocks={blocks}
+            toggleBlock={toggleBlock}
+          />
+        </div>
+      </div>
     </div>
   );
 };

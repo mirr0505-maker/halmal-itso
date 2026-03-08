@@ -16,6 +16,14 @@ HALMAL-ITSO is a modern React application integrated with Firebase and Cloudflar
   - `AnyTalkList`, `LatestTalkList`, `BestTalkList`, `FriendTalkList` for exploring posts.
   - `DiscussionView` for detailed debate topics.
   - `MyPage` with profile management and activity tracking.
+- **Recent Design Enhancements (2026-03-07)**:
+  - **My Page Upgrade**: 
+    - **Integrated Profile Editing**: Avatar, nickname, and bio are now edited in a single, unified mode activated by a pencil icon.
+    - **Visual Design**: Matched the home screen's sophisticated atmosphere using `bg-[#F8FAFC]`, `shadow-xl`, and `rounded-[2.5rem]`.
+    - **Typography**: Applied `font-black` and `font-[1000]` to match the home screen's bold typography.
+    - **Avatar Collection**: Displayed user's avatar collection with lock states based on level.
+    - **Phone Verification UI**: Improved the unverified phone UI with a clear rose-colored warning design and lock icon.
+    - **Activity Milestones**: Redesigned experience and reputation bars with gradients and shadow effects.
 
 ## Proposed Step 5: Optimization & Real-world Testing
 1. **R2 Public URL Mapping**:
@@ -26,4 +34,4 @@ HALMAL-ITSO is a modern React application integrated with Firebase and Cloudflar
    - (Optional) Integrate Firebase Analytics or Cloudflare Web Analytics to monitor user engagement.
 
 ---
-*Updated on 2026-03-04 (Deployment Completed)*
+*Updated on 2026-03-07 (My Page Design Upgrade)*

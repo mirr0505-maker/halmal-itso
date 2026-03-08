@@ -1,31 +1,35 @@
 // src/App.tsx
 import { useState, useEffect } from 'react';
-import { db } from './firebase';
-import { collection, onSnapshot, serverTimestamp, doc, setDoc, updateDoc } from 'firebase/firestore';
+import { db, auth, googleProvider } from './firebase'; 
+import { onAuthStateChanged, signInWithPopup, signOut, setPersistence, browserLocalPersistence, signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth'; 
+import { collection, onSnapshot, serverTimestamp, doc, setDoc, updateDoc, increment, arrayUnion, arrayRemove } from 'firebase/firestore';
 import type { Post } from './types';
 import MyPage from './components/MyPage';
 import PostDetailModal from './components/PostDetailModal';
 import DiscussionView from './components/DiscussionView'; 
 import AnyTalkList from './components/AnyTalkList'; 
-import LatestTalkList from './components/LatestTalkList';
 import CreatePostBox from './components/CreatePostBox';
 import Sidebar from './components/Sidebar';
 import SubNavbar from './components/SubNavbar';
+
+const TEST_ACCOUNTS = [
+  { nickname: "깐부1호", email: "test1@halmal.com", bio: "1번 테스트 계정이오." },
+  { nickname: "깐부2호", email: "test2@halmal.com", bio: "2번 테스트 계정이오." },
+  { nickname: "깐부3호", email: "test3@halmal.com", bio: "3번 테스트 계정이오." }
+];
 
 function App() {
   const [selectedTopic, setSelectedTopic] = useState<Post | null>(null);
   const [allRootPosts, setAllRootPosts] = useState<Post[]>([]);
   const [allChildPosts, setAllChildPosts] = useState<Post[]>([]);
   const [friends, setFriends] = useState<string[]>([]);
+  const [blocks, setBlocks] = useState<string[]>([]);
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
-  
   const [searchQuery, setSearchQuery] = useState("");
-
-  const [userData, setUserData] = useState({ 
-    level: 1, likes: 0, bio: "지혜로운 투자자가 되기 위해 노력합니다.",
-    nickname: "흑무영", email: "mirr0505@gmail.com",
-    isPhoneVerified: true, avatarUrl: ""
-  });
+  const [userData, setUserData] = useState<any | null>(null);
+  const [allUsers, setAllUsers] = useState<Record<string, any>>({});
+  const [followerCounts, setFollowerCounts] = useState<Record<string, number>>({});
+  const [isLoading, setIsLoading] = useState(true);
 
   const [newTitle, setNewTitle] = useState("");
   const [newContent, setNewContent] = useState("");
@@ -33,268 +37,244 @@ function App() {
   const [selectedType, setSelectedType] = useState<'comment' | 'formal'>('comment');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [replyTarget, setReplyTarget] = useState<Post | null>(null);
-  
   const [activeMenu, setActiveMenu] = useState<'home' | 'onecut' | 'friends' | 'mypage'>('home');
-  const [activeTab, setActiveTab] = useState<'any' | 'recent' | 'best' | 'rank'>('any');
-
+  const [activeTab, setActiveTab] = useState<'any' | 'recent' | 'best' | 'rank' | 'friend'>('any');
   const [isCreateOpen, setIsCreateOpen] = useState(false);
 
   useEffect(() => { if (replyTarget) { setSelectedType('comment'); setNewTitle(""); } }, [replyTarget]);
 
-  useEffect(() => {
+  const goHome = () => {
+    setActiveMenu('home'); setSelectedTopic(null); setIsCreateOpen(false); setReplyTarget(null);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleLogin = async () => {
     try {
-      const unsubPosts = onSnapshot(collection(db, "posts"), (snapshot) => {
-        const posts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Post));
-        posts.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
-        setAllRootPosts(posts.filter(p => !p.parentId || p.parentId === "" || p.id === "root_post_01"));
-        setAllChildPosts(posts.filter(p => p.parentId && p.parentId !== "" && p.id !== "root_post_01"));
-      }, (error) => {
-        console.error("Firestore Posts Error:", error);
-      });
-
-      const unsubUser = onSnapshot(doc(db, "users", "user_heukmooyoung"), (docSnap) => {
-        if (docSnap.exists()) {
-          const data = docSnap.data();
-          setUserData(prev => ({ ...prev, ...data }));
-          if (data.friendList) setFriends(data.friendList);
-        }
-      }, (error) => {
-        console.error("Firestore User Error:", error);
-      });
-
-      return () => { unsubPosts(); unsubUser(); };
-    } catch (e) {
-      console.error("Firebase Initialization Error:", e);
+      setIsLoading(true);
+      await setPersistence(auth, browserLocalPersistence);
+      await signInWithPopup(auth, googleProvider);
+    } catch (error: any) {
+      console.error("로그인 에러:", error);
+      setIsLoading(false);
     }
+  };
+
+  const handleTestLogin = async (testUser: typeof TEST_ACCOUNTS[0]) => {
+    try {
+      setIsLoading(true);
+      await setPersistence(auth, browserLocalPersistence);
+      try {
+        await signInWithEmailAndPassword(auth, testUser.email, "123456");
+      } catch (loginError: any) {
+        if (loginError.code === 'auth/user-not-found' || loginError.code === 'auth/invalid-credential') {
+          const res = await createUserWithEmailAndPassword(auth, testUser.email, "123456");
+          const initialData = {
+            nickname: testUser.nickname,
+            email: testUser.email,
+            bio: testUser.bio,
+            level: 1, exp: 0, likes: 0, points: 0,
+            subscriberCount: 0, isPhoneVerified: true,
+            friendList: [], blockList: [], avatarUrl: "", createdAt: serverTimestamp()
+          };
+          await setDoc(doc(db, "users", res.user.uid), initialData);
+          setUserData({ ...initialData, uid: res.user.uid });
+        } else { throw loginError; }
+      }
+    } catch (error: any) {
+      console.error("로그인 에러:", error);
+      setIsLoading(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    if (window.confirm("정말 로그아웃 하시겠소?")) {
+      await signOut(auth);
+      setUserData(null);
+      setActiveMenu('home');
+    }
+  };
+
+  useEffect(() => {
+    const unsubPosts = onSnapshot(collection(db, "posts"), (snapshot) => {
+      const posts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Post));
+      posts.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+      setAllRootPosts(posts.filter(p => !p.parentId || p.parentId === "" || p.id === "root_post_01"));
+      setAllChildPosts(posts.filter(p => p.parentId && p.parentId !== "" && p.id !== "root_post_01"));
+    });
+
+    const unsubUsers = onSnapshot(collection(db, "users"), (snapshot) => {
+      const users: Record<string, any> = {};
+      const fCounts: Record<string, number> = {};
+      snapshot.docs.forEach(docSnap => {
+        const data = docSnap.data();
+        const userObj = { ...data, uid: docSnap.id };
+        users[docSnap.id] = userObj;
+        if (data.nickname) users[`nickname_${data.nickname}`] = userObj;
+        if (data.friendList) {
+          data.friendList.forEach((nickname: string) => {
+            fCounts[nickname] = (fCounts[nickname] || 0) + 1;
+          });
+        }
+      });
+      setAllUsers(users);
+      setFollowerCounts(fCounts);
+    });
+
+    const unsubAuth = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        onSnapshot(doc(db, "users", user.uid), (docSnap) => {
+          if (docSnap.exists()) {
+            const data = docSnap.data();
+            setUserData({ ...data, uid: user.uid });
+            setFriends(data.friendList || []);
+            setBlocks(data.blockList || []);
+          } else {
+            const initialData = {
+              nickname: user.displayName || "익명",
+              email: user.email || "", bio: "안녕하세요.",
+              level: 1, exp: 0, likes: 0, points: 0,
+              subscriberCount: 0, isPhoneVerified: false, 
+              friendList: [], blockList: [], avatarUrl: user.photoURL || "",
+              createdAt: serverTimestamp()
+            };
+            setDoc(doc(db, "users", user.uid), initialData);
+            setUserData({ ...initialData, uid: user.uid });
+          }
+          setIsLoading(false);
+        });
+      } else {
+        setUserData(null);
+        setIsLoading(false);
+      }
+    });
+
+    return () => { unsubPosts(); unsubUsers(); unsubAuth(); };
   }, []);
 
   const filterBySearch = (posts: Post[]) => {
-    if (!searchQuery.trim()) return posts;
+    let filtered = posts;
+    if (blocks.length > 0) filtered = filtered.filter(p => !blocks.includes(p.author));
+    if (!searchQuery.trim()) return filtered;
     const query = searchQuery.toLowerCase();
-    return posts.filter(p => 
-      (p.title?.toLowerCase().includes(query)) || 
-      (p.content.toLowerCase().includes(query))
-    );
+    return filtered.filter(p => (p.title?.toLowerCase().includes(query)) || (p.content.toLowerCase().includes(query)));
   };
-
-  const nowTime = new Date();
-  const oneHourAgo = new Date(nowTime.getTime() - 60 * 60 * 1000);
-  const sixHoursAgo = new Date(nowTime.getTime() - 6 * 60 * 60 * 1000);
-
-  const anyTopics = filterBySearch(allRootPosts.filter(p => {
-    const createdAt = p.createdAt?.toDate();
-    const isNew = createdAt && createdAt > oneHourAgo;
-    const isPopular = (p.likes || 0) >= 3;
-    return isNew || isPopular;
-  })); 
 
   const commentCounts = allRootPosts.reduce((acc, post) => {
     acc[post.id] = allChildPosts.filter(child => child.rootId === post.id).length;
     return acc;
   }, {} as Record<string, number>);
 
-  const recentTopics = filterBySearch(allRootPosts.filter(p => (p.likes || 0) >= 3));
-  const bestTopics = filterBySearch(allRootPosts.filter(p => {
-    const createdAt = p.createdAt?.toDate();
-    return createdAt && createdAt > sixHoursAgo && (p.likes || 0) >= 30;
+  const now = new Date();
+  const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
+  const anyTopics = filterBySearch(allRootPosts.filter(p => {
+    const createdAt = p.createdAt?.toDate ? p.createdAt.toDate() : (p.createdAt?.seconds ? new Date(p.createdAt.seconds * 1000) : null);
+    return (createdAt && createdAt > oneHourAgo) || (p.likes || 0) >= 3;
   }));
+  const recentTopics = filterBySearch(allRootPosts.filter(p => (p.likes || 0) >= 3));
+  const bestTopics = filterBySearch(allRootPosts.filter(p => (p.likes || 0) >= 10));
+  const rankTopics = filterBySearch(allRootPosts.filter(p => (p.likes || 0) >= 30));
   const friendTopics = filterBySearch(allRootPosts.filter(p => friends.includes(p.author)));
 
-  const handleCreateTopic = async (title: string, content: string, imageUrl?: string, linkUrl?: string, tags?: string[]) => {
-    try {
-      const timestamp = Date.now();
-      const customId = `topic_${timestamp}_${userData.nickname}`;
-      await setDoc(doc(db, "posts", customId), { 
-        author: userData.nickname, title, content, 
-        imageUrl: imageUrl || null, linkUrl: linkUrl || null,
-        tags: tags || [],
-        authorInfo: { level: userData.level, friendCount: friends.length, totalLikes: userData.likes },
-        parentId: null, rootId: null, side: 'left', type: 'formal', 
-        createdAt: serverTimestamp(), likes: 0, dislikes: 0 
-      });
-      setIsCreateOpen(false);
-    } catch (e) { console.error("주제 생성 실패:", e); }
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newContent.trim()) return alert("내용을 입력하시오!");
-    setIsSubmitting(true);
-    try {
-      const timestamp = Date.now();
-      const typeLabel = selectedType === 'formal' ? 'formal' : 'reply';
-      const customId = `${typeLabel}_${timestamp}_${userData.nickname}`;
-      const parentId = replyTarget ? replyTarget.id : (selectedTopic?.id || "");
-      const rootId = selectedTopic?.id || "";
-      await setDoc(doc(db, "posts", customId), { 
-        author: userData.nickname, title: selectedType === 'formal' ? newTitle : null, content: newContent, 
-        parentId, rootId, side: selectedSide, type: selectedType, 
-        authorInfo: { level: userData.level, friendCount: friends.length, totalLikes: userData.likes },
-        createdAt: serverTimestamp(), likes: 0, dislikes: 0 
-      });
-      setNewTitle(""); setNewContent(""); setReplyTarget(null);
-    } catch (e) { console.error(e); } finally { setIsSubmitting(false); }
-  };
-
   const toggleFriend = async (author: string) => {
-    if (author === userData.nickname) return alert("나 자신과는 이미 영원한 깐부입니다!");
-    const newFriends = friends.includes(author) ? friends.filter(f => f !== author) : [...friends, author];
-    setFriends(newFriends);
-    try { await setDoc(doc(db, "users", "user_heukmooyoung"), { friendList: newFriends }, { merge: true }); } 
-    catch (error) { console.error("깐부 명단 저장 실패:", error); }
+    if (!userData) return;
+    const isFriend = friends.includes(author);
+    try { await updateDoc(doc(db, "users", userData.uid), { friendList: isFriend ? arrayRemove(author) : arrayUnion(author) }); } catch (e) { console.error(e); }
   };
 
-  const handleLike = async (e: React.MouseEvent | null, postId: string) => {
-    if (e) e.stopPropagation();
+  const toggleBlock = async (author: string) => {
+    if (!userData) return;
+    if (author === userData.nickname) { alert("본인을 차단할 수 없소!"); return; }
+    const isBlocked = blocks.includes(author);
+    if (!isBlocked && !window.confirm(`${author}님을 차단하시겠소? 모든 게시글이 숨겨집니다.`)) return;
+    try { await updateDoc(doc(db, "users", userData.uid), { blockList: isBlocked ? arrayRemove(author) : arrayUnion(author) }); } catch (e) { console.error(e); }
+  };
+
+  const handleLike = async (_e: any, postId: string) => {
+    if (!userData) { alert("로그인이 필요하오!"); return; }
     try {
-      const postRef = doc(db, "posts", postId);
       const targetPost = [...allRootPosts, ...allChildPosts].find(p => p.id === postId);
       if (!targetPost) return;
-
-      const likedBy = targetPost.likedBy || [];
-      const isLiked = likedBy.includes(userData.nickname);
-      
-      let newLikedBy = [];
-      let newLikesCount = 0;
-
-      if (isLiked) {
-        // 이미 좋아요를 누른 경우 -> 취소 (토글)
-        newLikedBy = likedBy.filter(name => name !== userData.nickname);
-        newLikesCount = Math.max(0, (targetPost.likes || 0) - 1);
-      } else {
-        // 처음 누르는 경우 -> 추가
-        newLikedBy = [...likedBy, userData.nickname];
-        newLikesCount = (targetPost.likes || 0) + 1;
-      }
-
-      await updateDoc(postRef, { 
-        likes: newLikesCount,
-        likedBy: newLikedBy
-      });
-    } catch (e) { console.error("좋아요 처리 실패:", e); }
+      const isLiked = targetPost.likedBy?.includes(userData.nickname);
+      const diff = isLiked ? -1 : 1;
+      await updateDoc(doc(db, "posts", postId), { likes: Math.max(0, (targetPost.likes || 0) + diff), likedBy: isLiked ? arrayRemove(userData.nickname) : arrayUnion(userData.nickname) });
+      if (targetPost.author_id) await updateDoc(doc(db, "users", targetPost.author_id), { likes: increment(diff * 3) });
+    } catch (e) { console.error(e); }
   };
 
   const renderContent = () => {
-    if (activeMenu === 'mypage') return (
-      <MyPage 
-        userData={userData} 
-        allUserRootPosts={allRootPosts.filter(p => p.author === userData.nickname)} 
-        allUserChildPosts={allChildPosts.filter(p => p.author === userData.nickname)} 
-        friends={friends}
-        friendCount={friends.length}
-        onPostClick={setSelectedTopic}
-        onToggleFriend={toggleFriend}
-      />
-    );
-    if (activeMenu === 'onecut') return (
-      <div className="w-full flex flex-col items-center justify-center py-40 gap-4">
-        <span className="text-6xl grayscale opacity-50">🖼️</span>
-        <p className="text-slate-400 font-black text-xl italic animate-pulse">한컷 시스템 준비 중이오...</p>
-      </div>
-    );
-    if (activeMenu === 'friends') return (
-      <div className="w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 animate-in fade-in">
-        {friendTopics.length > 0 ? (
-          friendTopics.map(post => <AnyTalkList key={post.id} posts={[post]} onTopicClick={setSelectedTopic} onLikeClick={handleLike} commentCounts={commentCounts} currentNickname={userData.nickname} />)
-        ) : (
-          <div className="col-span-full py-40 text-center"><p className="text-slate-400 font-black">깐부를 맺어보시오!</p></div>
-        )}
-      </div>
-    );
-// src/App.tsx
+    if (isLoading) return <div className="w-full flex flex-col items-center justify-center py-40 gap-4"><div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div><p className="text-slate-400 font-black italic">기록을 불러오고 있소...</p></div>;
+    if (isCreateOpen) return <CreatePostBox userData={userData} onSubmit={async (t, c, img, l, tags) => {
+      if (!userData) return;
+      const customId = `topic_${Date.now()}_${userData.nickname}`;
+      await setDoc(doc(db, "posts", customId), { author: userData.nickname, author_id: userData.uid, title: t, content: c, imageUrl: img || null, linkUrl: l || null, tags: tags || [], authorInfo: { level: userData.level, friendCount: friends.length, totalLikes: userData.likes }, parentId: null, rootId: null, side: 'left', type: 'formal', createdAt: serverTimestamp(), likes: 0, dislikes: 0 });
+      await updateDoc(doc(db, "users", userData.uid), { likes: increment(5) });
+      setIsCreateOpen(false);
+    }} onClose={() => setIsCreateOpen(false)} />;
+    
+    if (activeMenu === 'mypage') {
+      if (userData) return <MyPage userData={userData} allUserRootPosts={allRootPosts.filter(p => p.author_id === userData.uid || p.author === userData.nickname)} allUserChildPosts={allChildPosts.filter(p => p.author_id === userData.uid || p.author === userData.nickname)} friends={friends} friendCount={followerCounts[userData.nickname] || 0} onPostClick={setSelectedTopic} onToggleFriend={toggleFriend} allUsers={allUsers} followerCounts={followerCounts} toggleBlock={toggleBlock} blocks={blocks} />;
+      return <div className="w-full py-40 text-center"><button onClick={handleLogin} className="bg-slate-900 text-white px-8 py-3 rounded-xl font-black shadow-lg">로그인 해주시오</button></div>;
+    }
+
+    if (activeMenu === 'friends') {
+      const allowedNicknames = ["깐부1호", "깐부2호", "깐부3호", "흑무영"];
+      const rawOthers = Object.values(allUsers).filter(u => u.nickname && u.nickname !== userData?.nickname && !u.uid.startsWith('nickname_') && allowedNicknames.includes(u.nickname));
+      const others = Array.from(new Map(rawOthers.map(u => [u.nickname, u])).values());
+      return (
+        <div className="w-full max-w-4xl mx-auto py-10 px-4 animate-in fade-in">
+          <div className="text-center mb-12"><h2 className="text-3xl font-[1000] text-slate-900 mb-2">🤝 깐부 맺기 홍보</h2><p className="text-slate-500 font-bold">새로운 인연을 맺고 깊은 토론을 나누어 보시오.</p></div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">{others.map(u => (
+            <div key={u.uid} className="bg-white border border-slate-100 p-6 rounded-2xl flex items-center justify-between shadow-sm">
+              <div className="flex items-center gap-4"><div className="w-14 h-14 rounded-full overflow-hidden bg-slate-50 shrink-0"><img src={u.avatarUrl || `https://api.dicebear.com/7.x/adventurer/svg?seed=${u.nickname}`} alt="" className="w-full h-full object-cover" /></div><div><h3 className="font-[1000] text-slate-900">{u.nickname}</h3><p className="text-xs text-slate-400 font-bold">깐부 {followerCounts[u.nickname] || 0} · 좋아요 {u.likes?.toLocaleString() || 0}</p></div></div>
+              <button onClick={() => toggleFriend(u.nickname)} className={`px-5 py-2 rounded-xl text-xs font-black transition-all ${friends.includes(u.nickname) ? 'bg-slate-100 text-slate-400' : 'bg-blue-600 text-white hover:bg-blue-700 shadow-md'}`}>{friends.includes(u.nickname) ? '깐부해제' : '+ 깐부맺기'}</button>
+            </div>
+          ))}</div>
+        </div>
+      );
+    }
+
     if (selectedTopic) {
       const latestTopic = allRootPosts.find(p => p.id === selectedTopic.id) || selectedTopic;
-      return (
-        <DiscussionView
-          rootPost={latestTopic}
-          allPosts={allChildPosts.filter(p => p.rootId === selectedTopic.id)}
-          otherTopics={allRootPosts.filter(p => p.id !== selectedTopic.id).slice(0, 5)}
-          onTopicChange={setSelectedTopic}
-          userData={userData} friends={friends} onToggleFriend={toggleFriend}
-          onPostClick={() => {}} replyTarget={replyTarget} setReplyTarget={setReplyTarget}
-          handleSubmit={handleSubmit} selectedSide={selectedSide} setSelectedSide={setSelectedSide}
-          selectedType={selectedType} setSelectedType={setSelectedType}
-          newTitle={newTitle} setNewTitle={setNewTitle} newContent={newContent} setNewContent={setNewContent}
-          isSubmitting={isSubmitting}
-          commentCounts={commentCounts}
-          onLikeClick={handleLike}
-          currentNickname={userData.nickname}
-        />
-      );
+      return <DiscussionView rootPost={latestTopic} allPosts={allChildPosts.filter(p => p.rootId === selectedTopic.id)} otherTopics={allRootPosts.filter(p => p.id !== selectedTopic.id).slice(0, 8)} onTopicChange={setSelectedTopic} userData={userData} friends={friends} onToggleFriend={toggleFriend} onPostClick={() => {}} replyTarget={replyTarget} setReplyTarget={setReplyTarget} handleSubmit={async (e) => {
+        e.preventDefault(); if (!userData || !newContent.trim()) return;
+        setIsSubmitting(true);
+        const customId = `${selectedType}_${Date.now()}_${userData.nickname}`;
+        await setDoc(doc(db, "posts", customId), { author: userData.nickname, author_id: userData.uid, title: selectedType === 'formal' ? newTitle : null, content: newContent, parentId: replyTarget ? replyTarget.id : selectedTopic.id, rootId: selectedTopic.id, side: selectedSide, type: selectedType, authorInfo: { level: userData.level, friendCount: friends.length, totalLikes: userData.likes }, createdAt: serverTimestamp(), likes: 0, dislikes: 0 });
+        await updateDoc(doc(db, "users", userData.uid), { likes: increment(selectedType === 'formal' ? 2 : 1) });
+        setNewTitle(""); setNewContent(""); setReplyTarget(null); setIsSubmitting(false);
+      }} selectedSide={selectedSide} setSelectedSide={setSelectedSide} selectedType={selectedType} setSelectedType={setSelectedType} newTitle={newTitle} setNewTitle={setNewTitle} newContent={newContent} setNewContent={setNewContent} isSubmitting={isSubmitting} commentCounts={commentCounts} onLikeClick={handleLike} currentNickname={userData?.nickname} allUsers={allUsers} followerCounts={followerCounts} toggleBlock={toggleBlock} />;
     }
 
     return (
       <div className="w-full animate-in fade-in">
-        {activeTab === 'any' && <AnyTalkList posts={anyTopics} onTopicClick={setSelectedTopic} onLikeClick={handleLike} commentCounts={commentCounts} currentNickname={userData.nickname} />}
-        {activeTab === 'recent' && <LatestTalkList rootPosts={recentTopics} onTopicClick={setSelectedTopic} onLikeClick={handleLike} commentCounts={commentCounts} currentNickname={userData.nickname} />}
-        {activeTab === 'best' && <LatestTalkList rootPosts={bestTopics} onTopicClick={setSelectedTopic} onLikeClick={handleLike} commentCounts={commentCounts} currentNickname={userData.nickname} />}
+        {activeTab === 'any' && <AnyTalkList posts={anyTopics} onTopicClick={setSelectedTopic} onLikeClick={handleLike} commentCounts={commentCounts} currentNickname={userData?.nickname} currentUserData={userData} allUsers={allUsers} followerCounts={followerCounts} />}
+        {activeTab === 'recent' && <AnyTalkList posts={recentTopics} onTopicClick={setSelectedTopic} onLikeClick={handleLike} commentCounts={commentCounts} currentNickname={userData?.nickname} currentUserData={userData} allUsers={allUsers} followerCounts={followerCounts} />}
+        {activeTab === 'best' && <AnyTalkList posts={bestTopics} onTopicClick={setSelectedTopic} onLikeClick={handleLike} commentCounts={commentCounts} currentNickname={userData?.nickname} currentUserData={userData} allUsers={allUsers} followerCounts={followerCounts} />}
+        {activeTab === 'rank' && <AnyTalkList posts={rankTopics} onTopicClick={setSelectedTopic} onLikeClick={handleLike} commentCounts={commentCounts} currentNickname={userData?.nickname} currentUserData={userData} allUsers={allUsers} followerCounts={followerCounts} />}
+        {activeTab === 'friend' && <AnyTalkList posts={friendTopics} onTopicClick={setSelectedTopic} onLikeClick={handleLike} commentCounts={commentCounts} currentNickname={userData?.nickname} currentUserData={userData} allUsers={allUsers} followerCounts={followerCounts} />}
       </div>
     );
   };
 
   return (
     <div className="bg-[#F8FAFC] text-slate-900 font-sans h-screen flex flex-col overflow-hidden">
-      {/* 🚀 1. 상단 바 */}
-      <header className="bg-white border-b border-slate-100 h-[64px] flex items-center justify-between px-6 shrink-0 z-50">
-        <div 
-          className="w-40 flex items-center cursor-pointer hover:opacity-80 transition-opacity shrink-0"
-          onClick={() => { setActiveMenu('home'); setSelectedTopic(null); }}
-        >
-          <h1 className="text-[22px] font-[1000] italic tracking-tighter">
-            <span className="text-blue-600">HALMAL</span>
-            <span className="text-slate-900">-ITSO</span>
-          </h1>
+      <header className="bg-white border-b border-slate-100 h-[64px] flex items-center justify-between px-6 shrink-0 z-50 shadow-sm">
+        <div className="flex items-center gap-4">
+          <div className="w-40 flex items-center cursor-pointer hover:opacity-80 transition-opacity shrink-0" onClick={goHome}><h1 className="text-[22px] font-[1000] italic tracking-tighter"><span className="text-blue-600">HALMAL</span><span className="text-slate-900">-ITSO</span></h1></div>
+          {!userData && !isLoading && (
+            <div className="flex gap-1.5 items-center px-4 border-l border-slate-100">
+              <span className="text-[9px] font-black text-slate-300 uppercase tracking-tighter mr-1">Dev:</span>
+              {TEST_ACCOUNTS.map((acc, i) => (
+                <button key={i} onClick={() => handleTestLogin(acc)} className="text-[10px] font-bold text-slate-500 hover:text-blue-600 bg-slate-50 hover:bg-white px-2 py-1 rounded border border-slate-100 transition-all">{acc.nickname}</button>
+              ))}
+            </div>
+          )}
         </div>
-
-        <div className="flex-1 flex justify-center h-full items-center px-4">
-          <div className="relative flex items-center bg-slate-50/80 rounded-full px-4 h-[42px] border border-slate-100 focus-within:border-blue-500 focus-within:bg-white transition-all w-full max-w-sm shadow-inner">
-            <svg className="w-4 h-4 text-slate-400 mr-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
-            <input
-              type="text" placeholder="검색어를 입력해 주세요."
-              value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
-              className="bg-transparent outline-none w-full text-[13px] font-bold text-slate-700 placeholder:text-slate-400 leading-normal h-full"
-            />
-          </div>
-        </div>
-
-        <div className="flex items-center gap-4 ml-auto shrink-0">
-          <button onClick={() => setIsCreateOpen(true)} className="bg-blue-600 hover:bg-blue-700 text-white px-5 h-[40px] rounded-xl text-[13px] font-black transition-all shadow-sm">+ 새 포스트</button>
-          <button className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-slate-50 text-slate-400 transition-colors">
-            <svg className="w-[22px] h-[22px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>
-          </button>
-          <div 
-            className="w-[42px] h-[42px] rounded-full border-2 border-slate-100 overflow-hidden cursor-pointer bg-slate-50 shadow-sm"
-            onClick={() => setActiveMenu('mypage')}
-          >
-            <img src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${userData.nickname}`} alt="avatar" className="w-full h-full object-cover" />
-          </div>
-        </div>
+        <div className="flex-1 flex justify-center h-full items-center px-4"><div className="relative flex items-center bg-slate-50/80 rounded-full px-4 h-[42px] border border-slate-100 focus-within:border-blue-500 focus-within:bg-white transition-all w-full max-w-sm"><svg className="w-4 h-4 text-slate-400 mr-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg><input type="text" placeholder="검색어를 입력해 주세요." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="bg-transparent outline-none w-full text-[13px] font-bold text-slate-700" /></div></div>
+        <div className="flex items-center gap-4 ml-auto shrink-0">{isLoading ? <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div> : userData ? <><button onClick={() => setIsCreateOpen(true)} className="bg-blue-600 hover:bg-blue-700 text-white px-5 h-[40px] rounded-xl text-[13px] font-black shadow-sm">+ 새 포스트</button><div className="flex items-center gap-3"><div className="w-[42px] h-[42px] rounded-full border-2 border-slate-100 overflow-hidden cursor-pointer bg-slate-50" onClick={() => setActiveMenu('mypage')}><img src={userData.avatarUrl || `https://api.dicebear.com/7.x/adventurer/svg?seed=${userData.nickname}`} alt="avatar" /></div><button onClick={handleLogout} className="text-[11px] font-black text-slate-300 hover:text-rose-500 transition-colors uppercase tracking-widest">Logout</button></div></> : <button onClick={handleLogin} className="flex items-center gap-2 bg-white border border-slate-200 hover:border-slate-900 px-5 h-[42px] rounded-xl text-[13px] font-black transition-all shadow-sm group"><svg className="w-4 h-4 group-hover:scale-110 transition-transform" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>구글 계정으로 시작하기</button>}</div>
       </header>
-      
-      {/* 🚀 2. 하단 영역: 사이드바와 본문 */}
-      <div className="flex flex-1 overflow-hidden">
-        <Sidebar activeMenu={activeMenu} setActiveMenu={(menu) => { setActiveMenu(menu); setSelectedTopic(null); }} />
-        
-        <main className="flex-1 px-8 pt-0 pb-12 overflow-y-auto bg-[#F8FAFC]">
-          <div className="max-w-[1500px] mx-auto">
-            {/* 🚀 상세글 보기(selectedTopic) 중에는 탭을 숨겨서 본문이 위로 바짝 붙게 함 */}
-            <SubNavbar activeTab={activeTab} onTabClick={setActiveTab} showTabs={activeMenu === 'home'} />
-            {renderContent()}
-          </div>
-        </main>
-      </div>
-
-      {isCreateOpen && <CreatePostBox userData={userData} onSubmit={handleCreateTopic} onClose={() => setIsCreateOpen(false)} />}
-      {selectedPost && (
-        <PostDetailModal 
-          post={[...allRootPosts, ...allChildPosts].find(p => p.id === selectedPost.id) || selectedPost} 
-          onClose={() => setSelectedPost(null)} 
-          currentNickname={userData.nickname}
-          onLikeClick={handleLike}
-          isFriend={friends.includes(selectedPost.author)}
-          onToggleFriend={toggleFriend}
-        />
-      )}
+      <div className="flex flex-1 overflow-hidden">{!(selectedTopic || isCreateOpen) && <Sidebar activeMenu={activeMenu} setActiveMenu={(menu) => { setActiveMenu(menu); setSelectedTopic(null); setIsCreateOpen(false); }} />}<main className={`flex-1 overflow-y-auto bg-[#F8FAFC] transition-all duration-500 ${(selectedTopic || isCreateOpen) ? 'px-4 md:px-12 pt-4' : 'px-4 pt-0'}`}><div className="max-w-[1600px] mx-auto">{!(selectedTopic || isCreateOpen) && <SubNavbar activeTab={activeTab} onTabClick={setActiveTab} showTabs={activeMenu === 'home'} />}{renderContent()}</div></main></div>
+      {selectedPost && <PostDetailModal post={selectedPost} onClose={() => setSelectedPost(null)} currentNickname={userData?.nickname} onLikeClick={handleLike} isFriend={friends.includes(selectedPost.author)} onToggleFriend={toggleFriend} allUsers={allUsers} followerCounts={followerCounts} toggleBlock={toggleBlock} isBlocked={blocks.includes(selectedPost.author)} />}
     </div>
   );
 }
