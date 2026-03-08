@@ -64,6 +64,13 @@ const DiscussionView = ({
     return match ? match[1] : null;
   };
 
+  const filteredSideTopics = otherTopics.filter(topic => {
+    const now = new Date();
+    const createdAt = topic.createdAt?.toDate ? topic.createdAt.toDate() : new Date((topic.createdAt?.seconds || 0) * 1000);
+    const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
+    return (createdAt > oneHourAgo) || (topic.likes || 0) >= 3;
+  });
+
   // 🚀 실시간 데이터 바인딩
   const authorData = (rootPost.author_id && allUsers[rootPost.author_id]) || allUsers[`nickname_${rootPost.author}`];
   const realFollowers = followerCounts[rootPost.author] || 0;
@@ -152,7 +159,7 @@ const DiscussionView = ({
       <aside className="hidden lg:block lg:col-span-4 pr-0 sticky top-0">
         <div className="flex flex-col gap-3 max-h-[calc(100vh-40px)] overflow-y-auto no-scrollbar pb-20">
           <h4 className="text-[22px] font-[1000] text-slate-900 px-2 tracking-tighter mb-6 uppercase mt-0">아무말 더보기</h4>
-          {otherTopics.map((topic) => {
+          {filteredSideTopics.map((topic) => {
             const displayImage = (topic.imageUrl && topic.imageUrl.length > 0) 
               ? topic.imageUrl 
               : extractFirstImage(topic.content);
@@ -193,7 +200,7 @@ const DiscussionView = ({
               </div>
             );
           })}
-          {otherTopics.length === 0 && (
+          {filteredSideTopics.length === 0 && (
             <p className="center py-20 text-slate-300 font-bold italic">게시 중인 아무말이 없소.</p>
           )}
         </div>

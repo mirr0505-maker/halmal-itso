@@ -302,7 +302,7 @@ function App() {
 
     if (selectedTopic) {
       const latestTopic = allRootPosts.find(p => p.id === selectedTopic.id) || selectedTopic;
-      return <DiscussionView rootPost={latestTopic} allPosts={allChildPosts.filter(p => p.rootId === selectedTopic.id)} otherTopics={allRootPosts.filter(p => p.id !== selectedTopic.id).slice(0, 8)} onTopicChange={setSelectedTopic} userData={userData} friends={friends} onToggleFriend={toggleFriend} onPostClick={() => {}} replyTarget={replyTarget} setReplyTarget={setReplyTarget} handleSubmit={async (e) => {
+      return <DiscussionView rootPost={latestTopic} allPosts={allChildPosts.filter(p => p.rootId === selectedTopic.id)} otherTopics={allRootPosts.filter(p => p.id !== selectedTopic.id)} onTopicChange={setSelectedTopic} userData={userData} friends={friends} onToggleFriend={toggleFriend} onPostClick={() => {}} replyTarget={replyTarget} setReplyTarget={setReplyTarget} handleSubmit={async (e) => {
         e.preventDefault(); if (!userData || !newContent.trim()) return;
         setIsSubmitting(true);
         const customId = `${selectedType}_${Date.now()}_${userData.nickname}`;
