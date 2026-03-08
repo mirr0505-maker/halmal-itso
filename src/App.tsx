@@ -274,7 +274,19 @@ function App() {
     );
     
     if (activeMenu === 'mypage') {
-      if (userData) return <MyPage userData={userData} allUserRootPosts={allRootPosts.filter(p => p.author_id === userData.uid || p.author === userData.nickname)} allUserChildPosts={allChildPosts.filter(p => p.author_id === userData.uid || p.author === userData.nickname)} friends={friends} friendCount={followerCounts[userData.nickname] || 0} onPostClick={setSelectedTopic} onEditPost={(post) => { setEditingPost(post); setIsCreateOpen(true); }} onToggleFriend={toggleFriend} allUsers={allUsers} followerCounts={followerCounts} toggleBlock={toggleBlock} blocks={blocks} />;
+      if (userData) {
+        const userPosts = allRootPosts.filter(p => 
+          p.author_id === userData.uid || 
+          p.author?.trim() === userData.nickname?.trim() ||
+          (userData.nickname === "흑무영" && p.author === "흑무영")
+        );
+        const userComments = allChildPosts.filter(p => 
+          p.author_id === userData.uid || 
+          p.author?.trim() === userData.nickname?.trim() ||
+          (userData.nickname === "흑무영" && p.author === "흑무영")
+        );
+        return <MyPage userData={userData} allUserRootPosts={userPosts} allUserChildPosts={userComments} friends={friends} friendCount={followerCounts[userData.nickname] || 0} onPostClick={setSelectedTopic} onEditPost={(post) => { setEditingPost(post); setIsCreateOpen(true); }} onToggleFriend={toggleFriend} allUsers={allUsers} followerCounts={followerCounts} toggleBlock={toggleBlock} blocks={blocks} />;
+      }
       return <div className="w-full py-40 text-center"><button onClick={handleLogin} className="bg-slate-900 text-white px-8 py-3 rounded-xl font-black shadow-lg">로그인 해주시오</button></div>;
     }
 
