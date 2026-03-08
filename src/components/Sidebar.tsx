@@ -1,12 +1,25 @@
 // src/components/Sidebar.tsx
 
+export type MenuId = 
+  | 'home' 
+  | 'onecut' 
+  | 'my_story' 
+  | 'naked_king' 
+  | 'donkey_ears' 
+  | 'knowledge_seller' 
+  | 'bone_hitting' 
+  | 'local_news' 
+  | 'exile_place' 
+  | 'friends' 
+  | 'mypage';
+
 interface Props {
-  activeMenu: 'home' | 'onecut' | 'friends' | 'mypage';
-  setActiveMenu: (menu: 'home' | 'onecut' | 'friends' | 'mypage') => void;
+  activeMenu: MenuId;
+  setActiveMenu: (menu: MenuId) => void;
 }
 
 const Sidebar = ({ activeMenu, setActiveMenu }: Props) => {
-  const menus = [
+  const categoryMenus = [
     { 
       id: 'home', 
       label: '홈', 
@@ -17,18 +30,75 @@ const Sidebar = ({ activeMenu, setActiveMenu }: Props) => {
       )
     },
     { 
-      id: 'onecut', 
-      label: '한컷', 
+      id: 'my_story', 
+      label: '나의 이야기', 
       icon: (
         <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
         </svg>
       )
     },
     { 
+      id: 'naked_king', 
+      label: '벌거벗은 임금님', 
+      icon: (
+        <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+        </svg>
+      )
+    },
+    { 
+      id: 'donkey_ears', 
+      label: '임금님 귀는...', 
+      icon: (
+        <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+        </svg>
+      )
+    },
+    { 
+      id: 'knowledge_seller', 
+      label: '지식 소매상', 
+      icon: (
+        <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+        </svg>
+      )
+    },
+    { 
+      id: 'bone_hitting', 
+      label: '뼈때리는 글', 
+      icon: (
+        <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 10V3L4 14h7v7l9-11h-7z" />
+        </svg>
+      )
+    },
+    { 
+      id: 'local_news', 
+      label: '현지 소식', 
+      icon: (
+        <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+        </svg>
+      )
+    },
+    { 
+      id: 'exile_place', 
+      label: '유배·귀양지', 
+      icon: (
+        <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+        </svg>
+      )
+    },
+  ];
+
+  const userMenus = [
+    { 
       id: 'friends', 
-      /* 🚀 메뉴 명칭을 '깐부'에서 '깐부 맺기'로 변경 */
       label: '깐부 맺기', 
       icon: (
         <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -47,33 +117,41 @@ const Sidebar = ({ activeMenu, setActiveMenu }: Props) => {
     },
   ];
 
+  const renderMenuButton = (menu: any) => {
+    const isActive = activeMenu === menu.id;
+    return (
+      <button
+        key={menu.id}
+        onClick={() => setActiveMenu(menu.id as any)}
+        className={`w-full flex flex-row items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-150 border-2 ${
+          isActive
+            ? 'bg-blue-50/40 text-blue-600 border-blue-100 shadow-sm shadow-blue-50 scale-[1.02]'
+            : 'bg-transparent text-slate-400 border-transparent hover:bg-slate-50 hover:text-slate-600'
+        }`}
+      >
+        <span className={`transition-colors duration-150 ${isActive ? 'text-blue-600' : 'text-slate-300'}`}>
+          {menu.icon}
+        </span>
+        <span className={`text-[13px] tracking-tight whitespace-nowrap ${isActive ? 'font-black' : 'font-bold'}`}>
+          {menu.label}
+        </span>
+      </button>
+    );
+  };
+
   return (
-    <aside className="w-40 hidden md:flex flex-col h-full bg-white border-r border-slate-100">
-      <nav className="flex-1 px-3 pt-4 space-y-1">
-        {menus.map(menu => {
-          const isActive = activeMenu === menu.id;
-          return (
-            <button
-              key={menu.id}
-              onClick={() => setActiveMenu(menu.id as any)}
-              className={`w-full flex flex-row items-center gap-3 px-4 py-2.5 rounded-xl transition-colors duration-150 border-2 ${
-                isActive
-                  ? 'bg-blue-50/40 text-blue-600 border-blue-100 shadow-sm shadow-blue-50'
-                  : 'bg-transparent text-slate-400 border-transparent hover:bg-slate-50 hover:text-slate-600'
-              }`}
-            >
-              <span className={`transition-colors duration-150 ${isActive ? 'text-blue-600' : 'text-slate-300'}`}>
-                {menu.icon}
-              </span>
-              <span className={`text-[13.5px] tracking-tight ${isActive ? 'font-black' : 'font-bold'}`}>
-                {menu.label}
-              </span>
-            </button>
-          );
-        })}
+    <aside className="w-44 hidden md:flex flex-col h-full bg-white border-r border-slate-100 overflow-y-auto custom-scrollbar">
+      <nav className="flex-1 px-3 pt-4 space-y-1 pb-4">
+        {categoryMenus.map(renderMenuButton)}
+        
+        <div className="my-4 px-4">
+          <div className="h-px bg-slate-100 w-full" />
+        </div>
+
+        {userMenus.map(renderMenuButton)}
       </nav>
       
-      <div className="p-6 text-[9px] font-black text-slate-300 tracking-tighter uppercase opacity-50">
+      <div className="p-6 text-[9px] font-black text-slate-300 tracking-tighter uppercase opacity-50 shrink-0">
         © 2026 HALMAL-ITSO
       </div>
     </aside>

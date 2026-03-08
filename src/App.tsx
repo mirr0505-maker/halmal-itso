@@ -10,6 +10,7 @@ import DiscussionView from './components/DiscussionView';
 import AnyTalkList from './components/AnyTalkList'; 
 import CreatePostBox from './components/CreatePostBox';
 import Sidebar from './components/Sidebar';
+import type { MenuId } from './components/Sidebar';
 import SubNavbar from './components/SubNavbar';
 
 const TEST_ACCOUNTS = [
@@ -17,6 +18,44 @@ const TEST_ACCOUNTS = [
   { nickname: "깐부2호", email: "test2@halmal.com", bio: "2번 테스트 계정이오." },
   { nickname: "깐부3호", email: "test3@halmal.com", bio: "3번 테스트 계정이오." }
 ];
+
+const MENU_MESSAGES: Record<string, { title: string, description: string, emoji: string }> = {
+  my_story: {
+    emoji: "📝",
+    title: "나의 이야기",
+    description: "현재를 살아가는 내가 들려주는 이야기 (즐겁고 재밌는, 슬프고 힘든, 짜증나고 싫증나는 일상의 소식들)"
+  },
+  naked_king: {
+    emoji: "👑",
+    title: "벌거벗은 임금님",
+    description: "사회 전반 퍼져 있는, 또는 퍼지고 있는 거짓에 대한 거침없는 진실 공개, 가짜 조작/왜곡 뉴스 기사 등의 사실 확인"
+  },
+  donkey_ears: {
+    emoji: "👂",
+    title: "임금님 귀는 당나귀 귀",
+    description: "정치, 사회, 문화, 종교, 교육, 체육 등 전반 이슈에 대한 찬/반 토론, 사회적 이슈 토론의 장"
+  },
+  knowledge_seller: {
+    emoji: "📚",
+    title: "지식 소매상",
+    description: "정치, 경제(주식, 부동산), 사회, 문학, 법률, 과학, 스포츠, 어학, 쇼핑 등 지식 공유 및 판매"
+  },
+  bone_hitting: {
+    emoji: "⚡",
+    title: "뼈때리는 글",
+    description: "이 시대 경종을 울리는 타골명언 또는 띵언 (e.g. 트위터, 담벼락)"
+  },
+  local_news: {
+    emoji: "🌍",
+    title: "현지 소식",
+    description: "국내 지역, 세계 곳곳에 살고 있는 주민이 올리는 그 지역, 그 나라의 따끈한 소식(기사/뉴스 번역)"
+  },
+  exile_place: {
+    emoji: "🏚️",
+    title: "유배·귀양지",
+    description: "댓글에서 상식적이지 않은 욕설 등으로 격리된(제재받은) 이들이 글 올리고 소통하는 공간 (주제 없음)"
+  }
+};
 
 function App() {
   const [selectedTopic, setSelectedTopic] = useState<Post | null>(null);
@@ -37,7 +76,7 @@ function App() {
   const [selectedType, setSelectedType] = useState<'comment' | 'formal'>('comment');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [replyTarget, setReplyTarget] = useState<Post | null>(null);
-  const [activeMenu, setActiveMenu] = useState<'home' | 'onecut' | 'friends' | 'mypage'>('home');
+  const [activeMenu, setActiveMenu] = useState<MenuId>('home');
   const [activeTab, setActiveTab] = useState<'any' | 'recent' | 'best' | 'rank' | 'friend'>('any');
   const [isCreateOpen, setIsCreateOpen] = useState(false);
 
@@ -229,6 +268,34 @@ function App() {
               <button onClick={() => toggleFriend(u.nickname)} className={`px-5 py-2 rounded-xl text-xs font-black transition-all ${friends.includes(u.nickname) ? 'bg-slate-100 text-slate-400' : 'bg-blue-600 text-white hover:bg-blue-700 shadow-md'}`}>{friends.includes(u.nickname) ? '깐부해제' : '+ 깐부맺기'}</button>
             </div>
           ))}</div>
+        </div>
+      );
+    }
+
+    // New Menu Content Rendering
+    if (MENU_MESSAGES[activeMenu]) {
+      const menuInfo = MENU_MESSAGES[activeMenu];
+      return (
+        <div className="w-full max-w-3xl mx-auto py-20 px-6 animate-in fade-in zoom-in duration-500">
+          <div className="bg-white rounded-[2.5rem] p-12 shadow-xl shadow-blue-900/5 border border-slate-100 text-center relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-blue-500 to-indigo-500" />
+            <div className="text-6xl mb-8 animate-bounce">{menuInfo.emoji}</div>
+            <h2 className="text-4xl font-[1000] text-slate-900 mb-6 tracking-tighter italic">
+              <span className="text-blue-600">#</span> {menuInfo.title}
+            </h2>
+            <div className="h-px bg-slate-100 w-20 mx-auto mb-8" />
+            <p className="text-xl font-bold text-slate-500 leading-relaxed break-keep">
+              {menuInfo.description}
+            </p>
+            <div className="mt-12">
+              <button 
+                onClick={() => setIsCreateOpen(true)}
+                className="bg-slate-900 text-white px-10 py-4 rounded-2xl font-black text-lg shadow-lg hover:scale-105 transition-transform active:scale-95"
+              >
+                글 올리기
+              </button>
+            </div>
+          </div>
         </div>
       );
     }
