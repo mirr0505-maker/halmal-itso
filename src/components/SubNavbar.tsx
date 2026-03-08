@@ -8,47 +8,58 @@ interface Props {
 
 const SubNavbar = ({ activeTab, onTabClick, showTabs }: Props) => {
   if (!showTabs) return null;
-  
+
+  const renderTab = (id: 'any' | 'recent' | 'best' | 'rank' | 'friend', label: string) => {
+    const isActive = activeTab === id;
+    return (
+      <button
+        onClick={() => onTabClick(id)}
+        className={`h-full text-[13px] font-[1000] tracking-tight relative transition-all flex items-center px-1 ${
+          isActive ? 'text-blue-600' : 'text-slate-400 hover:text-slate-800'
+        }`}
+      >
+        {label}
+        {isActive && (
+          <span className="absolute bottom-0 left-0 w-full h-[3px] bg-blue-600 rounded-t-full animate-in fade-in slide-in-from-bottom-1" />
+        )}
+      </button>
+    );
+  };
+
+  const Chevron = () => (
+    <div className="flex items-center text-slate-200 px-1 select-none">
+      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M9 5l7 7-7 7" />
+      </svg>
+    </div>
+  );
+
+  const Divider = () => (
+    <div className="flex items-center mx-4 select-none">
+      <div className="w-[1.5px] h-4 bg-slate-200" />
+    </div>
+  );
+
   return (
-    <div className="sticky top-0 z-30 bg-[#F8FAFC] pt-5">
-      <div className="flex items-center justify-between border-b border-slate-200 h-[42px]">
-        <div className="flex gap-8 px-2 h-full">
-          <button 
-            onClick={() => onTabClick('any')}
-            className={`h-full text-[13px] font-[1000] tracking-tight relative transition-colors flex items-center ${activeTab === 'any' ? 'text-blue-600' : 'text-slate-500 hover:text-slate-800'}`}
-          >
-            아무말(전체글)
-            {activeTab === 'any' && <span className="absolute bottom-0 left-0 w-full h-[3px] bg-blue-600 rounded-t-sm" />}
-          </button>
-          <button 
-            onClick={() => onTabClick('recent')}
-            className={`h-full text-[13px] font-[1000] tracking-tight relative transition-colors flex items-center ${activeTab === 'recent' ? 'text-blue-600' : 'text-slate-500 hover:text-slate-800'}`}
-          >
-            주목말
-            {activeTab === 'recent' && <span className="absolute bottom-0 left-0 w-full h-[3px] bg-blue-600 rounded-t-sm" />}
-          </button>
-          <button 
-            onClick={() => onTabClick('best')}
-            className={`h-full text-[13px] font-[1000] tracking-tight relative transition-colors flex items-center ${activeTab === 'best' ? 'text-blue-600' : 'text-slate-500 hover:text-slate-800'}`}
-          >
-            대세말
-            {activeTab === 'best' && <span className="absolute bottom-0 left-0 w-full h-[3px] bg-blue-600 rounded-t-sm" />}
-          </button>
-          <button 
-            onClick={() => onTabClick('rank')}
-            className={`h-full text-[13px] font-[1000] tracking-tight relative transition-colors flex items-center ${activeTab === 'rank' ? 'text-blue-600' : 'text-slate-500 hover:text-slate-800'}`}
-          >
-            명예말
-            {activeTab === 'rank' && <span className="absolute bottom-0 left-0 w-full h-[3px] bg-blue-600 rounded-t-sm" />}
-          </button>
-          {/* 🚀 '깐부말' 탭 추가 */}
-          <button 
-            onClick={() => onTabClick('friend')}
-            className={`h-full text-[13px] font-[1000] tracking-tight relative transition-colors flex items-center ${activeTab === 'friend' ? 'text-blue-600' : 'text-slate-500 hover:text-slate-800'}`}
-          >
-            깐부말
-            {activeTab === 'friend' && <span className="absolute bottom-0 left-0 w-full h-[3px] bg-blue-600 rounded-t-sm" />}
-          </button>
+    <div className="sticky top-0 z-30 bg-[#F8FAFC]/80 backdrop-blur-md pt-5">
+      <div className="flex items-center border-b border-slate-200 h-[42px] px-2">
+        <div className="flex items-center h-full">
+          {/* 단계별 게시글 탭 그룹 */}
+          <div className="flex items-center h-full gap-1">
+            {renderTab('any', '아무말')}
+            <Chevron />
+            {renderTab('recent', '주목말')}
+            <Chevron />
+            {renderTab('best', '대세말')}
+            <Chevron />
+            {renderTab('rank', '명예말')}
+          </div>
+
+          {/* 분리된 깐부말 영역 */}
+          <Divider />
+          <div className="flex items-center h-full">
+            {renderTab('friend', '깐부말')}
+          </div>
         </div>
       </div>
       <div className="h-6" />
