@@ -50,7 +50,7 @@ const Sidebar = ({ activeMenu, setActiveMenu }: Props) => {
     },
     { 
       id: 'donkey_ears', 
-      label: '임금님 귀는...', 
+      label: '임금님 귀는 당나귀 귀', 
       icon: (
         <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
@@ -123,16 +123,16 @@ const Sidebar = ({ activeMenu, setActiveMenu }: Props) => {
       <button
         key={menu.id}
         onClick={() => setActiveMenu(menu.id as any)}
-        className={`w-full flex flex-row items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-150 border-2 ${
+        className={`w-full flex flex-row items-center gap-2 px-2.5 py-2.5 rounded-xl transition-all duration-150 border-2 ${
           isActive
             ? 'bg-blue-50/40 text-blue-600 border-blue-100 shadow-sm shadow-blue-50 scale-[1.02]'
             : 'bg-transparent text-slate-400 border-transparent hover:bg-slate-50 hover:text-slate-600'
         }`}
       >
-        <span className={`transition-colors duration-150 ${isActive ? 'text-blue-600' : 'text-slate-300'}`}>
+        <span className={`transition-colors duration-150 shrink-0 ${isActive ? 'text-blue-600' : 'text-slate-300'}`}>
           {menu.icon}
         </span>
-        <span className={`text-[13px] tracking-tight whitespace-nowrap ${isActive ? 'font-black' : 'font-bold'}`}>
+        <span className={`text-[12.5px] tracking-tight whitespace-nowrap overflow-hidden text-ellipsis ${isActive ? 'font-black' : 'font-bold'}`}>
           {menu.label}
         </span>
       </button>
@@ -140,8 +140,8 @@ const Sidebar = ({ activeMenu, setActiveMenu }: Props) => {
   };
 
   return (
-    <aside className="w-44 hidden md:flex flex-col h-full bg-white border-r border-slate-100 overflow-y-auto custom-scrollbar">
-      <nav className="flex-1 px-3 pt-4 space-y-1 pb-4">
+    <aside className="w-48 hidden md:flex flex-col h-full bg-white border-r border-slate-100 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+      <nav className="flex-1 px-2 pt-4 space-y-1 pb-4">
         {categoryMenus.map(renderMenuButton)}
         
         <div className="my-4 px-4">
