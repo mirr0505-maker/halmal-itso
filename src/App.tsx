@@ -275,17 +275,39 @@ function App() {
     
     if (activeMenu === 'mypage') {
       if (userData) {
-        const userPosts = allRootPosts.filter(p => 
-          p.author_id === userData.uid || 
-          p.author?.trim() === userData.nickname?.trim() ||
-          (userData.nickname === "흑무영" && p.author === "흑무영")
+        // 🚀 흑무영 계정에 대한 특수 필터링 (아이디, 닉네임, 시스템 계정 등 모든 가능성 열기)
+        const isBlackShadow = userData.nickname?.trim() === "흑무영" || userData.uid === "black_shadow_system_uid";
+        
+        const userPosts = allRootPosts.filter(p => {
+          const authorMatch = p.author?.trim() === userData.nickname?.trim();
+          const idMatch = p.author_id === userData.uid;
+          const systemMatch = isBlackShadow && (p.author === "흑무영" || p.author_id === "black_shadow");
+          return authorMatch || idMatch || systemMatch;
+        });
+
+        const userComments = allChildPosts.filter(p => {
+          const authorMatch = p.author?.trim() === userData.nickname?.trim();
+          const idMatch = p.author_id === userData.uid;
+          const systemMatch = isBlackShadow && (p.author === "흑무영" || p.author_id === "black_shadow");
+          return authorMatch || idMatch || systemMatch;
+        });
+
+        return (
+          <MyPage 
+            userData={userData} 
+            allUserRootPosts={userPosts} 
+            allUserChildPosts={userComments} 
+            friends={friends} 
+            friendCount={followerCounts[userData.nickname] || 0} 
+            onPostClick={setSelectedTopic} 
+            onEditPost={(post) => { setEditingPost(post); setIsCreateOpen(true); }} 
+            onToggleFriend={toggleFriend} 
+            allUsers={allUsers} 
+            followerCounts={followerCounts} 
+            toggleBlock={toggleBlock} 
+            blocks={blocks} 
+          />
         );
-        const userComments = allChildPosts.filter(p => 
-          p.author_id === userData.uid || 
-          p.author?.trim() === userData.nickname?.trim() ||
-          (userData.nickname === "흑무영" && p.author === "흑무영")
-        );
-        return <MyPage userData={userData} allUserRootPosts={userPosts} allUserChildPosts={userComments} friends={friends} friendCount={followerCounts[userData.nickname] || 0} onPostClick={setSelectedTopic} onEditPost={(post) => { setEditingPost(post); setIsCreateOpen(true); }} onToggleFriend={toggleFriend} allUsers={allUsers} followerCounts={followerCounts} toggleBlock={toggleBlock} blocks={blocks} />;
       }
       return <div className="w-full py-40 text-center"><button onClick={handleLogin} className="bg-slate-900 text-white px-8 py-3 rounded-xl font-black shadow-lg">로그인 해주시오</button></div>;
     }
@@ -390,3 +412,4 @@ function App() {
 }
 
 export default App;
+.
