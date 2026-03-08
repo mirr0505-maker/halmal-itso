@@ -292,39 +292,36 @@ function App() {
     // New Menu Content Rendering
     if (MENU_MESSAGES[activeMenu]) {
       const menuInfo = MENU_MESSAGES[activeMenu];
+      // 🚀 해당 카테고리에 속하는 게시글 필터링
+      const categoryPosts = allRootPosts.filter(p => p.category === menuInfo.title);
+
       return (
-        <div className="w-full max-w-2xl mx-auto py-12 px-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
-          <div className="bg-white rounded-[2rem] p-10 shadow-sm border border-slate-100 text-center relative overflow-hidden">
-            {/* 상단 포인트 라인 */}
-            <div className="absolute top-0 left-0 w-full h-1.5 bg-blue-600" />
-            
-            {/* 이모지: 콤팩트하게 변경 */}
-            <div className="text-4xl mb-6">{menuInfo.emoji}</div>
-
-            {/* 타이틀: 홈 화면 게시글 제목 스타일로 축소 */}
-            <h2 className="text-2xl font-[1000] text-slate-900 mb-4 tracking-tighter italic">
-              <span className="text-blue-600">#</span> {menuInfo.title}
-            </h2>
-
-            {/* 설명글: 홈 화면 본문 사이즈로 대폭 축소 */}
-            <div className="max-w-md mx-auto mb-8">
-              <p className="text-[14.5px] font-bold text-slate-500 leading-relaxed break-keep tracking-tight">
-                {menuInfo.description}
-              </p>
+        <div className="w-full max-w-4xl mx-auto py-12 px-6">
+          <div className="animate-in fade-in slide-in-from-bottom-2 duration-500 mb-12">
+            <div className="bg-white rounded-[2rem] p-10 shadow-sm border border-slate-100 text-center relative overflow-hidden">
+              <div className="absolute top-0 left-0 w-full h-1.5 bg-blue-600" />
+              <div className="text-4xl mb-6">{menuInfo.emoji}</div>
+              <h2 className="text-2xl font-[1000] text-slate-900 mb-4 tracking-tighter italic"><span className="text-blue-600">#</span> {menuInfo.title}</h2>
+              <div className="max-w-md mx-auto mb-8">
+                <p className="text-[14.5px] font-bold text-slate-500 leading-relaxed break-keep tracking-tight">{menuInfo.description}</p>
+              </div>
+              <div className="flex flex-col items-center">
+                <button onClick={() => setIsCreateOpen(true)} className="bg-slate-900 text-white px-8 py-3.5 rounded-xl font-black text-[15px] shadow-md hover:bg-blue-600 transition-all active:scale-95 flex items-center gap-2">
+                  <span>지금 할말 올리기</span>
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M13 7l5 5m0 0l-5 5m5-5H6" /></svg>
+                </button>
+              </div>
             </div>
+          </div>
 
-            {/* 버튼: 과하지 않게 정갈한 사이즈로 변경 */}
-            <div className="flex flex-col items-center">
-              <button 
-                onClick={() => setIsCreateOpen(true)}
-                className="bg-slate-900 text-white px-8 py-3.5 rounded-xl font-black text-[15px] shadow-md hover:bg-blue-600 transition-all active:scale-95 flex items-center gap-2"
-              >
-                <span>지금 글 올리기</span>
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                </svg>
-              </button>
+          {/* 🚀 카테고리별 게시글 리스트 출력 */}
+          <div className="animate-in fade-in duration-700">
+            <div className="flex items-center gap-3 mb-6 px-2">
+              <div className="h-px bg-slate-200 flex-1"></div>
+              <span className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em]">{menuInfo.title} 기록들</span>
+              <div className="h-px bg-slate-200 flex-1"></div>
             </div>
+            <AnyTalkList posts={categoryPosts} onTopicClick={setSelectedTopic} onLikeClick={handleLike} commentCounts={commentCounts} currentNickname={userData?.nickname} currentUserData={userData} allUsers={allUsers} followerCounts={followerCounts} />
           </div>
         </div>
       );
@@ -368,7 +365,7 @@ function App() {
           )}
         </div>
         <div className="flex-1 flex justify-center h-full items-center px-4"><div className="relative flex items-center bg-slate-50/80 rounded-full px-4 h-[42px] border border-slate-100 focus-within:border-blue-500 focus-within:bg-white transition-all w-full max-w-sm"><svg className="w-4 h-4 text-slate-400 mr-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg><input type="text" placeholder="검색어를 입력해 주세요." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="bg-transparent outline-none w-full text-[13px] font-bold text-slate-700" /></div></div>
-        <div className="flex items-center gap-4 ml-auto shrink-0">{isLoading ? <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div> : userData ? <><button onClick={() => setIsCreateOpen(true)} className="bg-blue-600 hover:bg-blue-700 text-white px-5 h-[40px] rounded-xl text-[13px] font-black shadow-sm">+ 새 포스트</button><div className="flex items-center gap-3"><div className="w-[42px] h-[42px] rounded-full border-2 border-slate-100 overflow-hidden cursor-pointer bg-slate-50" onClick={() => setActiveMenu('mypage')}><img src={userData.avatarUrl || `https://api.dicebear.com/7.x/adventurer/svg?seed=${userData.nickname}`} alt="avatar" /></div><button onClick={handleLogout} className="text-[11px] font-black text-slate-300 hover:text-rose-500 transition-colors uppercase tracking-widest">Logout</button></div></> : <button onClick={handleLogin} className="flex items-center gap-2 bg-white border border-slate-200 hover:border-slate-900 px-5 h-[42px] rounded-xl text-[13px] font-black transition-all shadow-sm group"><svg className="w-4 h-4 group-hover:scale-110 transition-transform" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>구글 계정으로 시작하기</button>}</div>
+        <div className="flex items-center gap-4 ml-auto shrink-0">{isLoading ? <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div> : userData ? <><button onClick={() => setIsCreateOpen(true)} className="bg-blue-600 hover:bg-blue-700 text-white px-5 h-[40px] rounded-xl text-[13px] font-black shadow-sm">+ 새 할말</button><div className="flex items-center gap-3"><div className="w-[42px] h-[42px] rounded-full border-2 border-slate-100 overflow-hidden cursor-pointer bg-slate-50" onClick={() => setActiveMenu('mypage')}><img src={userData.avatarUrl || `https://api.dicebear.com/7.x/adventurer/svg?seed=${userData.nickname}`} alt="avatar" /></div><button onClick={handleLogout} className="text-[11px] font-black text-slate-300 hover:text-rose-500 transition-colors uppercase tracking-widest">Logout</button></div></> : <button onClick={handleLogin} className="flex items-center gap-2 bg-white border border-slate-200 hover:border-slate-900 px-5 h-[42px] rounded-xl text-[13px] font-black transition-all shadow-sm group"><svg className="w-4 h-4 group-hover:scale-110 transition-transform" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>구글 계정으로 시작하기</button>}</div>
       </header>
       <div className="flex flex-1 overflow-hidden">{!(selectedTopic || isCreateOpen) && <Sidebar activeMenu={activeMenu} setActiveMenu={(menu) => { setActiveMenu(menu); setSelectedTopic(null); setIsCreateOpen(false); }} />}<main className={`flex-1 overflow-y-auto bg-[#F8FAFC] transition-all duration-500 ${(selectedTopic || isCreateOpen) ? 'px-4 md:px-12 pt-4' : 'px-4 pt-0'}`}><div className="max-w-[1600px] mx-auto">{!(selectedTopic || isCreateOpen) && <SubNavbar activeTab={activeTab} onTabClick={setActiveTab} showTabs={activeMenu === 'home'} />}{renderContent()}</div></main></div>
       {selectedPost && <PostDetailModal post={selectedPost} onClose={() => setSelectedPost(null)} currentNickname={userData?.nickname} onLikeClick={handleLike} isFriend={friends.includes(selectedPost.author)} onToggleFriend={toggleFriend} allUsers={allUsers} followerCounts={followerCounts} toggleBlock={toggleBlock} isBlocked={blocks.includes(selectedPost.author)} />}

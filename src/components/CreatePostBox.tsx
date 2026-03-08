@@ -122,7 +122,7 @@ const CreatePostBox = ({ userData, onSubmit, onClose }: Props) => {
               disabled={isSubmitting || isUploading}
               className={`px-6 py-2 rounded-xl text-[12px] font-[1000] transition-all shadow-md active:scale-95 ${isSubmitting ? 'bg-slate-100 text-slate-400' : 'bg-slate-900 text-white hover:bg-blue-600 hover:shadow-blue-200'}`}
             >
-              {isSubmitting ? '전송 중...' : '기록 발행'}
+              {isSubmitting ? '전송 중...' : '할말 올리기'}
             </button>
           </div>
         </div>
