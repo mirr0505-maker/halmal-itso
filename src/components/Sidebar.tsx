@@ -145,7 +145,7 @@ const Sidebar = ({ activeMenu, setActiveMenu }: Props) => {
         {categoryMenus.map(renderMenuButton)}
         
         <div className="my-4 px-4">
-          <div className="h-px bg-slate-100 w-full" />
+          <div className="h-px bg-slate-200 w-full" />
         </div>
 
         {userMenus.map(renderMenuButton)}
