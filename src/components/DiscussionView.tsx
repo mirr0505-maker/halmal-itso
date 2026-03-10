@@ -32,6 +32,7 @@ interface Props {
   allUsers?: Record<string, any>;
   followerCounts?: Record<string, number>;
   toggleBlock?: (author: string) => void;
+  onEditPost?: (post: Post) => void;
 }
 
 export const CATEGORY_RULES: Record<string, { 
@@ -54,7 +55,7 @@ const DiscussionView = ({
   rootPost, allPosts, otherTopics, onTopicChange, userData, friends, onToggleFriend, 
   replyTarget, setReplyTarget, handleSubmit, selectedSide, setSelectedSide,
   selectedType, setSelectedType, newTitle, setNewTitle, newContent, setNewContent, isSubmitting,
-  commentCounts = {}, onLikeClick, currentNickname, allUsers = {}, followerCounts = {}
+  commentCounts = {}, onLikeClick, currentNickname, allUsers = {}, followerCounts = {}, onEditPost
 }: Props) => {
   const [isInputFocused, setIsInputFocused] = useState(false);
 
@@ -172,6 +173,7 @@ const DiscussionView = ({
             friendCount={realFollowers}
             onLikeClick={onLikeClick}
             currentNickname={currentNickname}
+            onEdit={onEditPost}
           />
         )}
 

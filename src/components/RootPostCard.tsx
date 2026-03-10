@@ -21,10 +21,11 @@ interface Props {
   onDeleteSuccess?: () => void;
   onLikeClick?: (e: React.MouseEvent | null, postId: string) => void;
   currentNickname?: string;
+  onEdit?: (post: Post) => void;
 }
 
 const RootPostCard = ({ 
-  post, totalComment, totalFormal, uniqueAgreeCount, uniqueDisagreeCount, isFriend, onToggleFriend, userData, friendCount, onDeleteSuccess, onLikeClick, currentNickname
+  post, totalComment, totalFormal, uniqueAgreeCount, uniqueDisagreeCount, isFriend, onToggleFriend, userData, friendCount, onDeleteSuccess, onLikeClick, currentNickname, onEdit
 }: Props) => {
   
   const isMyPost = post.author === currentNickname || post.author === "흑무영"; 
@@ -35,7 +36,7 @@ const RootPostCard = ({
     if (!timestamp) return "";
     const now = new Date();
     const createdAt = new Date(timestamp.seconds * 1000);
-    const diffInSeconds = Math.floor((now.getTime() - createdAt.getTime()) / 1000);
+    const diffInSeconds = Math.floor((now.getTime() - createdAt.getTime()) / (1000 * 60 * 60));
     if (diffInSeconds < 60) return "방금 전";
     if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}분 전`;
     if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}시간 전`;
@@ -60,7 +61,7 @@ const RootPostCard = ({
           <div className="flex items-center gap-2">
             {isMyPost && (
               <div className="flex gap-4">
-                <button className="text-[11px] font-black text-blue-400 hover:text-blue-600 transition-colors uppercase tracking-tighter underline">수정</button>
+                <button onClick={() => onEdit?.(post)} className="text-[11px] font-black text-blue-400 hover:text-blue-600 transition-colors uppercase tracking-tighter underline">수정</button>
                 <button onClick={handleDelete} className="text-[11px] font-black text-rose-400 hover:text-rose-600 transition-colors uppercase tracking-tighter underline">삭제</button>
               </div>
             )}
