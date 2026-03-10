@@ -1,5 +1,4 @@
 // src/components/CategoryHeader.tsx
-import React from 'react';
 
 interface Props {
   menuInfo: {

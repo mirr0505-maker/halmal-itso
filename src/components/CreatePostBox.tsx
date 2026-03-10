@@ -293,7 +293,7 @@ const CreatePostBox = ({ userData, editingPost, activeMenu, menuMessages, onSubm
                   setPostData(prev => ({ ...prev, content: editorRef.current?.innerHTML || "" }));
                 }}
                 className="w-full px-8 py-6 text-[15px] font-medium text-slate-700 outline-none min-h-[400px] overflow-y-auto leading-relaxed prose prose-slate max-w-none placeholder:text-slate-200"
-                placeholder="나누고 싶은 할말을 자유롭게 적어주시오. 이미지를 복사해서 붙여넣을 수도 있소."
+                {...{placeholder: "나누고 싶은 할말을 자유롭게 적어주시오. 이미지를 복사해서 붙여넣을 수도 있소."} as any}
               />
               
               {isUploading && (

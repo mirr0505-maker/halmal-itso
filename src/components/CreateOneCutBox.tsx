@@ -1,5 +1,5 @@
 // src/components/CreateOneCutBox.tsx
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import type { Post } from '../types';
 import { s3Client, BUCKET_NAME, PUBLIC_URL } from '../s3Client';
 import { PutObjectCommand } from "@aws-sdk/client-s3";
@@ -110,7 +110,7 @@ const CreateOneCutBox = ({ userData, editingPost, allPosts, onSubmit, onClose }:
             <div className="space-y-3">
               <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">📸 이미지 업로드</label>
               <div className="flex gap-3">
-                <input type="text" placeholder="이미지 주소를 넣거나 붙여넣으시오." value={postData.imageUrl} onChange={e => setPostData({...postData, imageUrl: e.target.value})} className="flex-1 bg-slate-50 border-none px-6 py-4 rounded-2xl text-sm font-bold text-slate-600 focus:bg-white outline-none transition-all" />
+                <input type="text" placeholder="이미지 주소를 넣거나 붙여넣으시오." value={postData.imageUrl || ''} onChange={e => setPostData({...postData, imageUrl: e.target.value})} className="flex-1 bg-slate-50 border-none px-6 py-4 rounded-2xl text-sm font-bold text-slate-600 focus:bg-white outline-none transition-all" />
                 <button onClick={() => fileInputRef.current?.click()} className="px-6 bg-blue-50 text-blue-600 rounded-2xl font-black text-xs hover:bg-blue-100 transition-all shrink-0">사진 선택</button>
                 <input type="file" ref={fileInputRef} onChange={e => e.target.files?.[0] && uploadImageToR2(e.target.files[0])} accept="image/*" className="hidden" />
               </div>

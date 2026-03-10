@@ -148,7 +148,7 @@ const DiscussionView = ({
             )}
 
             <div className="w-full aspect-[9/16] max-h-[900px] bg-slate-900 rounded-[2.5rem] overflow-hidden border-8 border-slate-900 shadow-2xl relative">
-              <img src={rootPost.imageUrl} alt="OneCut" className="w-full h-full object-contain" />
+              <img src={rootPost.imageUrl || undefined} alt="OneCut" className="w-full h-full object-contain" />
             </div>
 
             <div 

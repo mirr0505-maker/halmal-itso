@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import type { Post } from '../types';
 import { formatKoreanNumber, getReputationLabel } from '../utils';
+import DebateBoard from './DebateBoard';
 
 interface Props {
   rootPost: Post;
