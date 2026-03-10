@@ -21,12 +21,13 @@ interface Props {
   currentNickname?: string;
   allUsers?: Record<string, any>;
   followerCounts?: Record<string, number>;
+  onEditPost?: (post: Post) => void;
 }
 
 const OneCutDetailView = ({
   rootPost, allPosts, otherTopics, onTopicChange, userData, friends,
   handleSubmit, selectedSide, setSelectedSide, newContent, setNewContent, isSubmitting,
-  onLikeClick, currentNickname, allUsers = {}, followerCounts = {}
+  onLikeClick, currentNickname, allUsers = {}, followerCounts = {}, onEditPost
 }: Props) => {
   const [imageError, setImageError] = useState(false);
   const authorData = (rootPost.author_id && allUsers[rootPost.author_id]) || allUsers[`nickname_${rootPost.author}`];
@@ -34,6 +35,7 @@ const OneCutDetailView = ({
   const displayLevel = authorData ? authorData.level : (rootPost.authorInfo?.level || 1);
   const displayLikes = authorData ? authorData.likes : (rootPost.authorInfo?.totalLikes || 0);
   const isLikedByMe = currentNickname && rootPost.likedBy?.includes(currentNickname);
+  const isMyPost = rootPost.author === currentNickname || rootPost.author === "흑무영";
   const linkedPost = otherTopics.find(p => p.id === rootPost.linkedPostId);
 
   const getTimeAgo = (timestamp: any) => {
@@ -64,7 +66,12 @@ const OneCutDetailView = ({
                 ))}
               </div>
             </div>
-            <span className="text-xs font-bold text-slate-300">{getTimeAgo(rootPost.createdAt)}</span>
+            <div className="flex flex-col items-end gap-2">
+              <span className="text-xs font-bold text-slate-300">{getTimeAgo(rootPost.createdAt)}</span>
+              {isMyPost && (
+                <button onClick={() => onEditPost?.(rootPost)} className="text-[11px] font-black text-blue-400 hover:text-blue-600 transition-colors uppercase tracking-tighter underline">수정</button>
+              )}
+            </div>
           </div>
 
           {/* 2. 작성자 상세 정보 카드 */}
