@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import type { Post } from '../types';
 import RootPostCard from './RootPostCard';
 import DebateBoard from './DebateBoard';
-import { formatKoreanNumber, getReputationLabel } from '../utils';
+import { formatKoreanNumber } from '../utils';
 
 interface Props {
   rootPost: Post;
@@ -59,7 +59,7 @@ const DiscussionView = ({
   rootPost, allPosts, otherTopics, onTopicChange, userData, friends, onToggleFriend, 
   replyTarget, setReplyTarget, handleSubmit, selectedSide, setSelectedSide,
   selectedType, setSelectedType, newTitle, setNewTitle, newContent, setNewContent, isSubmitting,
-  commentCounts = {}, onLikeClick, currentNickname, allUsers = {}, followerCounts = {}, onEditPost, toggleBlock
+  commentCounts = {}, onLikeClick, currentNickname, allUsers = {}, followerCounts = {}, onEditPost
 }: Props) => {
   const [isInputFocused, setIsInputFocused] = useState(false);
 
@@ -68,7 +68,7 @@ const DiscussionView = ({
   useEffect(() => {
     if (!rule.allowDisagree && selectedSide === 'right') setSelectedSide('left');
     if (!rule.allowFormal && selectedType === 'formal') setSelectedType('comment');
-  }, [rootPost.category]);
+  }, [rootPost.category, rule.allowDisagree, rule.allowFormal, selectedSide, selectedType, setSelectedSide, setSelectedType]);
 
   const getTimeAgo = (timestamp: any) => {
     if (!timestamp) return "";
@@ -87,9 +87,6 @@ const DiscussionView = ({
   const realFollowers = followerCounts[rootPost.author] || 0;
   const displayLevel = authorData ? authorData.level : (rootPost.authorInfo?.level || 1);
   const displayLikes = authorData ? authorData.likes : (rootPost.authorInfo?.totalLikes || 0);
-  const isLikedByMe = currentNickname && rootPost.likedBy?.includes(currentNickname);
-
-  const linkedPost = otherTopics.find(p => p.id === rootPost.linkedPostId);
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-12 gap-8 w-full max-w-[1600px] mx-auto animate-in fade-in duration-700 items-start pb-20">
@@ -136,7 +133,7 @@ const DiscussionView = ({
                >
                  {rule.tab1}
                </button>
-               {rule.allowDisagree && (
+               {rule.allowDisagree && rule.tab2 && (
                  <button 
                    type="button" 
                    onClick={() => setSelectedSide('right')} 
