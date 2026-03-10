@@ -51,7 +51,7 @@ const MyProfileCard = ({ userData, friendCount }: Props) => {
 
     setIsUploading(true);
     isUploadingRef.current = true;
-    
+
     timerRef.current = setTimeout(() => {
       if (isUploadingRef.current) {
         setIsUploading(false);
@@ -61,13 +61,16 @@ const MyProfileCard = ({ userData, friendCount }: Props) => {
     }, 30000);
 
     try {
-      const fileName = `avatars/${userData.nickname}_${Date.now()}`;
-      
+      // 🚀 에러 해결: File을 Uint8Array로 변환 (브라우저 호환성 강화)
+      const arrayBuffer = await file.arrayBuffer();
+      const fileData = new Uint8Array(arrayBuffer);
+      const fileName = `avatars/${userData.nickname}_${Date.now()}_${file.name.replace(/\s+/g, '_')}`;
+
       // 🚀 R2 전송 명령 생성 (PutObject)
       const command = new PutObjectCommand({
         Bucket: BUCKET_NAME,
         Key: fileName,
-        Body: file,
+        Body: fileData,
         ContentType: file.type, // 파일 타입 명시 (매우 중요)
       });
 
@@ -77,14 +80,14 @@ const MyProfileCard = ({ userData, friendCount }: Props) => {
       // 🚀 R2 이미지 URL 생성 (Public URL 기준)
       const url = `${PUBLIC_URL}/${fileName}`;
       setEditData(prev => ({ ...prev, avatarUrl: url }));
-      
+
       if (timerRef.current) {
         clearTimeout(timerRef.current);
         timerRef.current = null;
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("R2 업로드 실패:", error);
-      alert("사진 전송에 실패했소. [Cloudflare R2] 설정을 확인해 보시오.");
+      alert(`사진 전송에 실패했소: ${error.message || "원인 불명"}`);
     } finally {
       setIsUploading(false);
       isUploadingRef.current = false;
@@ -138,7 +141,7 @@ const MyProfileCard = ({ userData, friendCount }: Props) => {
                   className="w-full p-2.5 bg-slate-50 border-2 border-slate-200 rounded-xl font-bold outline-none focus:border-slate-900 transition-all"
                 />
               </div>
-              
+
               <div className="flex flex-col gap-1.5 text-left">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">프로필 사진 교체</label>
                 <div className="flex gap-2">

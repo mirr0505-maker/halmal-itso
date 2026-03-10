@@ -6,6 +6,7 @@ import MyContentTabs from './MyContentTabs';
 import ProfileHeader from './ProfileHeader';
 import ActivityMilestones from './ActivityMilestones';
 import AvatarCollection from './AvatarCollection';
+import OneCutList from './OneCutList';
 
 interface Props {
   userData: any;
@@ -25,8 +26,12 @@ interface Props {
 const MyPage = ({ 
   userData, allUserRootPosts, allUserChildPosts, friends, friendCount, onPostClick, onEditPost, onToggleFriend, allUsers, followerCounts
 }: Props) => {
-  const [activeTab, setActiveTab] = useState<'posts' | 'comments' | 'avatars' | 'friends'>('posts');
+  const [activeTab, setActiveTab] = useState<'posts' | 'onecuts' | 'comments' | 'avatars' | 'friends'>('posts');
   const [isEditingProfile, setIsEditingProfile] = useState(false);
+
+  // 🚀 게시글 분리
+  const standardPosts = allUserRootPosts.filter(p => !p.isOneCut);
+  const onecutPosts = allUserRootPosts.filter(p => p.isOneCut);
 
   return (
     <div className="w-full max-w-6xl mx-auto py-10 px-4 md:px-6 animate-in fade-in duration-700">
@@ -51,10 +56,11 @@ const MyPage = ({
             <div className="bg-white rounded-[2.5rem] p-8 shadow-xl shadow-blue-900/5 border border-slate-100 min-h-[600px] flex flex-col relative overflow-hidden">
               <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-blue-600 to-indigo-500" />
               
-              <div className="flex items-center gap-6 mb-10 border-b border-slate-50 pb-2">
-                {(['posts', 'comments', 'avatars', 'friends'] as const).map(tab => (
-                  <button key={tab} onClick={() => setActiveTab(tab)} className={`pb-4 px-2 text-[15px] font-[1000] tracking-tight transition-all relative ${activeTab === tab ? 'text-blue-600' : 'text-slate-300 hover:text-slate-500'}`}>
+              <div className="flex items-center gap-6 mb-10 border-b border-slate-50 pb-2 overflow-x-auto no-scrollbar">
+                {(['posts', 'onecuts', 'comments', 'avatars', 'friends'] as const).map(tab => (
+                  <button key={tab} onClick={() => setActiveTab(tab)} className={`pb-4 px-2 text-[15px] font-[1000] tracking-tight transition-all relative whitespace-nowrap ${activeTab === tab ? 'text-blue-600' : 'text-slate-300 hover:text-slate-500'}`}>
                     {tab === 'posts' && '나의 기록'}
+                    {tab === 'onecuts' && '나의 한컷'}
                     {tab === 'comments' && '참여한 토론'}
                     {tab === 'avatars' && '아바타 수집'}
                     {tab === 'friends' && '깐부 목록'}
@@ -64,7 +70,12 @@ const MyPage = ({
               </div>
 
               <div className="flex-1">
-                {activeTab === 'posts' && <MyContentTabs posts={allUserRootPosts} onPostClick={onEditPost || onPostClick} type="posts" />}
+                {activeTab === 'posts' && <MyContentTabs posts={standardPosts} onPostClick={onEditPost || onPostClick} type="posts" />}
+                {activeTab === 'onecuts' && (
+                  <div className="pt-4">
+                    <OneCutList posts={onecutPosts} onTopicClick={onEditPost || onPostClick} allUsers={allUsers} />
+                  </div>
+                )}
                 {activeTab === 'comments' && <MyContentTabs posts={allUserChildPosts} onPostClick={onPostClick} type="comments" />}
                 {activeTab === 'avatars' && <AvatarCollection currentLevel={userData.level} />}
                 {activeTab === 'friends' && (

@@ -82,9 +82,10 @@ const PostDetailModal = ({ post, onClose, currentNickname, onLikeClick, isFriend
             </div>
           )}
 
-          <div className="prose prose-slate max-w-none mb-10">
-            <p className="text-[15.5px] text-slate-700 whitespace-pre-wrap leading-[1.8] font-bold" dangerouslySetInnerHTML={{ __html: post.content }} />
-          </div>
+          <div 
+            className="prose prose-slate max-w-none mb-10 text-[15.5px] text-slate-700 leading-[1.8] font-medium"
+            dangerouslySetInnerHTML={{ __html: post.content }} 
+          />
 
           <div className="bg-slate-50 border border-slate-200 p-5 rounded-[1.5rem] mb-10">
             <div className="flex items-center justify-between mb-4">

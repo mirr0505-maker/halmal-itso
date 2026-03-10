@@ -19,7 +19,7 @@ interface Props {
 }
 
 const Sidebar = ({ activeMenu, setActiveMenu }: Props) => {
-  const categoryMenus = [
+  const mainServiceMenus = [
     { 
       id: 'home', 
       label: '홈', 
@@ -31,7 +31,7 @@ const Sidebar = ({ activeMenu, setActiveMenu }: Props) => {
     },
     { 
       id: 'my_story', 
-      label: '나의 이야기', 
+      label: '너와 나의 이야기', 
       icon: (
         <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -96,6 +96,16 @@ const Sidebar = ({ activeMenu, setActiveMenu }: Props) => {
     },
   ];
 
+  const oneCutMenu = { 
+    id: 'onecut', 
+    label: '한컷', 
+    icon: (
+      <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+      </svg>
+    )
+  };
+
   const userMenus = [
     { 
       id: 'friends', 
@@ -123,7 +133,7 @@ const Sidebar = ({ activeMenu, setActiveMenu }: Props) => {
       <button
         key={menu.id}
         onClick={() => setActiveMenu(menu.id as any)}
-        className={`w-full flex flex-row items-center gap-2 px-2.5 py-2.5 rounded-xl transition-all duration-150 border-2 ${
+        className={`w-full flex flex-row items-center gap-2 px-2.5 py-1.5 rounded-xl transition-all duration-150 border-2 ${
           isActive
             ? 'bg-blue-50/40 text-blue-600 border-blue-100 shadow-sm shadow-blue-50 scale-[1.02]'
             : 'bg-transparent text-slate-400 border-transparent hover:bg-slate-50 hover:text-slate-600'
@@ -132,7 +142,7 @@ const Sidebar = ({ activeMenu, setActiveMenu }: Props) => {
         <span className={`transition-colors duration-150 shrink-0 ${isActive ? 'text-blue-600' : 'text-slate-300'}`}>
           {menu.icon}
         </span>
-        <span className={`text-[12.5px] tracking-tight whitespace-nowrap overflow-hidden text-ellipsis ${isActive ? 'font-black' : 'font-bold'}`}>
+        <span className={`text-[12px] tracking-tight whitespace-nowrap overflow-hidden text-ellipsis ${isActive ? 'font-black' : 'font-bold'}`}>
           {menu.label}
         </span>
       </button>
@@ -141,11 +151,17 @@ const Sidebar = ({ activeMenu, setActiveMenu }: Props) => {
 
   return (
     <aside className="w-48 hidden md:flex flex-col h-full bg-white border-r border-slate-100 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-      <nav className="flex-1 px-2 pt-4 space-y-1 pb-4">
-        {categoryMenus.map(renderMenuButton)}
+      <nav className="flex-1 px-2 pt-3 space-y-0.5 pb-4">
+        {mainServiceMenus.map(renderMenuButton)}
         
-        <div className="my-4 px-4">
-          <div className="h-px bg-slate-200 w-full" />
+        <div className="my-2.5 px-4">
+          <div className="h-px bg-slate-100 w-full" />
+        </div>
+
+        {renderMenuButton(oneCutMenu)}
+
+        <div className="my-2.5 px-4">
+          <div className="h-px bg-slate-100 w-full" />
         </div>
 
         {userMenus.map(renderMenuButton)}

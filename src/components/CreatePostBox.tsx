@@ -1,230 +1,349 @@
 // src/components/CreatePostBox.tsx
-import { useState, useRef, useEffect } from 'react';
-import { useEditor, EditorContent } from '@tiptap/react';
-import StarterKit from '@tiptap/starter-kit';
-import Link from '@tiptap/extension-link';
-import Image from '@tiptap/extension-image';
-import Underline from '@tiptap/extension-underline';
-import { s3Client, BUCKET_NAME, PUBLIC_URL } from '../s3Client';
+import React, { useState, useRef, useEffect } from 'react';
 import { PutObjectCommand } from "@aws-sdk/client-s3";
+import { s3Client, BUCKET_NAME, PUBLIC_URL } from '../s3Client';
 import type { Post } from '../types';
 
 interface Props {
   userData: any;
-  editingPost?: Post | null; // 🚀 수정 모드용 데이터
-  onSubmit: (title: string, content: string, imageUrl?: string, linkUrl?: string, tags?: string[], category?: string, postId?: string) => Promise<void>;
+  editingPost: Post | null;
+  activeMenu: string;
+  menuMessages: Record<string, any>;
+  onSubmit: (postData: Partial<Post>, postId?: string) => Promise<void>;
   onClose: () => void;
 }
 
-const CATEGORIES = [
-  "나의 이야기",
-  "벌거벗은 임금님",
-  "임금님 귀는 당나귀 귀",
-  "지식 소매상",
-  "뼈때리는 글",
-  "현지 소식",
-  "유배·귀양지"
-];
-
-const CreatePostBox = ({ userData, editingPost, onSubmit, onClose }: Props) => {
-  const [title, setTitle] = useState(editingPost?.title || "");
-  const [category, setCategory] = useState(editingPost?.category || CATEGORIES[0]);
-  const [tags, setTags] = useState(editingPost?.tags ? [...editingPost.tags, "", "", "", "", ""].slice(0, 5) : ["", "", "", "", ""]);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
+const CreatePostBox = ({ userData, editingPost, activeMenu, menuMessages, onSubmit, onClose }: Props) => {
+  const editorRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const savedSelection = useRef<Range | null>(null);
 
-  const editor = useEditor({
-    extensions: [
-      StarterKit,
-      Underline,
-      Link.configure({ openOnClick: false }),
-      Image.configure({
-        HTMLAttributes: { class: 'rounded-xl border border-slate-100 my-2 max-w-full mx-auto' },
-      }),
-    ],
+  const [postData, setPostData] = useState<Partial<Post>>({
+    title: editingPost?.title || '',
     content: editingPost?.content || '',
-    editorProps: {
-      attributes: {
-        class: 'prose prose-slate max-w-none focus:outline-none min-h-[300px] px-5 py-5 text-[13.5px] font-medium text-slate-700 leading-relaxed',
-      },
-    },
+    category: editingPost?.category || (menuMessages[activeMenu]?.title || '나의 이야기'),
+    tags: editingPost?.tags || ['', '', '', '', ''],
+    isOneCut: false
   });
 
-  // 🚀 수정 모드일 때 에디터 내용 초기화
-  useEffect(() => {
-    if (editingPost && editor) {
-      editor.commands.setContent(editingPost.content);
-    }
-  }, [editingPost, editor]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
 
-  const handleTagChange = (index: number, value: string) => {
-    const newTags = [...tags];
-    newTags[index] = value;
-    setTags(newTags);
+  useEffect(() => {
+    if (editingPost && editorRef.current) {
+      editorRef.current.innerHTML = editingPost.content;
+    }
+  }, [editingPost]);
+
+  const menuOptions = Object.keys(menuMessages)
+    .filter(key => key !== 'onecut')
+    .map(key => ({
+      id: key,
+      title: menuMessages[key].title
+    }));
+
+  // 🚀 커서 위치 저장
+  const saveSelection = () => {
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount > 0) {
+      savedSelection.current = sel.getRangeAt(0);
+    }
   };
 
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !editor) return;
-    setIsUploading(true);
+  // 🚀 커서 위치 복구
+  const restoreSelection = () => {
+    if (savedSelection.current) {
+      const sel = window.getSelection();
+      if (sel) {
+        sel.removeAllRanges();
+        sel.addRange(savedSelection.current);
+      }
+    }
+  };
+
+  const execCommand = (command: string, value: string = "") => {
+    editorRef.current?.focus();
+    restoreSelection();
+    
+    let finalValue = value;
+    if (command === 'createLink') {
+      const url = prompt("링크 주소를 입력해주시오:");
+      if (!url) return;
+      finalValue = url;
+    }
+    
+    document.execCommand(command, false, finalValue);
+    saveSelection(); // 명령 실행 후 새 위치 저장
+    
+    if (editorRef.current) {
+      setPostData(prev => ({ ...prev, content: editorRef.current?.innerHTML || "" }));
+    }
+  };
+
+  const uploadFile = async (file: File): Promise<string | null> => {
+    if (!userData) return null;
+    const fileExt = file.name.split('.').pop();
+    const fileName = `post_${Date.now()}_${Math.random().toString(36).substring(2, 7)}.${fileExt}`;
+    const filePath = `uploads/${userData.uid}/${fileName}`;
+
     try {
-      const fileName = `posts/${userData.nickname}_${Date.now()}_${file.name}`;
-      const command = new PutObjectCommand({
-        Bucket: BUCKET_NAME, Key: fileName, Body: file, ContentType: file.type,
-      });
-      await s3Client.send(command);
-      const url = `${PUBLIC_URL}/${fileName}`;
-      editor.chain().focus().setImage({ src: url }).run();
+      const arrayBuffer = await file.arrayBuffer();
+      const uint8Array = new Uint8Array(arrayBuffer);
+
+      await s3Client.send(new PutObjectCommand({
+        Bucket: BUCKET_NAME,
+        Key: filePath,
+        Body: uint8Array,
+        ContentType: file.type,
+      }));
+
+      return `${PUBLIC_URL}/${filePath}`;
     } catch (error) {
-      console.error(error);
-      alert("이미지 전송에 실패했소.");
-    } finally {
+      console.error("R2 업로드 실패:", error);
+      alert("이미지 업로드에 실패했소.");
+      return null;
+    }
+  };
+
+  const handlePaste = async (e: React.ClipboardEvent) => {
+    const items = e.clipboardData.items;
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].type.indexOf("image") !== -1) {
+        const file = items[i].getAsFile();
+        if (file) {
+          e.preventDefault();
+          saveSelection();
+          setIsUploading(true);
+          const url = await uploadFile(file);
+          if (url) {
+            restoreSelection();
+            document.execCommand("insertImage", false, url);
+            if (editorRef.current) {
+              setPostData(prev => ({ ...prev, content: editorRef.current?.innerHTML || "" }));
+            }
+          }
+          setIsUploading(false);
+        }
+      }
+    }
+  };
+
+  const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setIsUploading(true);
+      const url = await uploadFile(file);
+      if (url) {
+        editorRef.current?.focus();
+        restoreSelection();
+        document.execCommand("insertImage", false, url);
+        if (editorRef.current) {
+          setPostData(prev => ({ ...prev, content: editorRef.current?.innerHTML || "" }));
+        }
+      }
       setIsUploading(false);
     }
   };
 
+  const handleTagChange = (index: number, value: string) => {
+    const newTags = [...(postData.tags || ['', '', '', '', ''])];
+    newTags[index] = value;
+    setPostData({ ...postData, tags: newTags });
+  };
+
   const handleSubmit = async () => {
-    const content = editor?.getHTML() || "";
-    if (!title.trim() || editor?.getText().trim() === "") return alert("제목과 내용을 모두 채워주시오!");
-    
+    const currentContent = editorRef.current?.innerHTML || "";
+    if (!userData || !currentContent.trim() || isSubmitting) return;
     setIsSubmitting(true);
     try {
-      const firstImgMatch = content.match(/<img[^>]+src="([^">]+)"/);
-      const thumbnail = firstImgMatch ? firstImgMatch[1] : (editingPost?.imageUrl || undefined);
-      const validTags = tags.filter(t => t.trim() !== "");
-      
-      await onSubmit(title, content, thumbnail, undefined, validTags, category, editingPost?.id);
-      onClose();
-    } catch (e) {
-      console.error(e);
+      const filteredTags = (postData.tags || []).filter(tag => tag.trim() !== '');
+      await onSubmit({ ...postData, content: currentContent, tags: filteredTags }, editingPost?.id);
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const ToolbarButton = ({ onClick, active, children, title }: any) => (
+  const ToolbarButton = ({ icon, cmd, val = "", label = "" }: { icon?: React.ReactNode, cmd: string, val?: string, label?: string }) => (
     <button
       type="button"
-      onClick={onClick}
-      title={title}
-      className={`p-2 rounded-lg hover:bg-slate-100 transition-colors ${active ? 'text-blue-600 bg-blue-50' : 'text-slate-400'}`}
+      onMouseDown={(e) => { 
+        e.preventDefault(); 
+        saveSelection(); 
+        execCommand(cmd, val); 
+      }}
+      className="p-2 hover:bg-slate-100 rounded-lg text-slate-500 hover:text-blue-600 transition-all cursor-pointer flex items-center justify-center gap-1 min-w-[32px]"
+      title={label}
     >
-      {children}
+      {icon}
+      {label && <span className="text-[13px] font-black uppercase tracking-tighter leading-none">{label}</span>}
     </button>
   );
 
   return (
-    <div className="w-full bg-white h-[calc(100vh-100px)] p-6 md:p-8 animate-in fade-in slide-in-from-bottom-2 duration-500 flex flex-col rounded-[2rem] shadow-xl shadow-blue-900/5 border border-slate-100 overflow-hidden">
-      <div className="w-full flex flex-col gap-6 h-full overflow-y-auto no-scrollbar">
-        
-        {/* 🚀 상단 헤더 영역 */}
-        <div className="flex justify-between items-center pb-4 border-b border-slate-50 shrink-0">
+    <div className="w-full max-w-[1200px] mx-auto py-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div className="bg-white rounded-[2rem] shadow-sm border border-slate-100 overflow-hidden">
+        {/* Header */}
+        <div className="px-10 py-6 flex justify-between items-center border-b border-slate-50">
           <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-blue-600 animate-pulse"></div>
-            <h2 className="text-[13px] font-[1000] text-slate-900 tracking-tighter uppercase italic">
-              {editingPost ? '할말 수정하기' : '새 할말 남기기'}
-            </h2>
+            <div className="w-2 h-2 rounded-full bg-blue-500" />
+            <h2 className="text-[15px] font-[1000] text-slate-900 tracking-tighter">새 할말</h2>
           </div>
-          <div className="flex gap-2.5">
-            <button onClick={onClose} className="px-4 py-2 rounded-xl text-[12px] font-black text-slate-400 hover:bg-slate-50 transition-all uppercase tracking-tighter">취소</button>
+          <div className="flex items-center gap-6">
+            <button onClick={onClose} className="text-[13px] font-bold text-slate-400 hover:text-slate-600 transition-colors cursor-pointer">취소</button>
             <button 
-              onClick={handleSubmit} 
+              onClick={handleSubmit}
               disabled={isSubmitting || isUploading}
-              className={`px-6 py-2 rounded-xl text-[12px] font-[1000] transition-all shadow-md active:scale-95 ${isSubmitting ? 'bg-slate-100 text-slate-400' : 'bg-slate-900 text-white hover:bg-blue-600 hover:shadow-blue-200'}`}
+              className={`px-8 py-2 rounded-xl font-black text-[13px] transition-all shadow-lg shadow-blue-100 ${
+                isSubmitting || isUploading ? 'bg-slate-100 text-slate-300' : 'bg-[#0F172A] text-white hover:opacity-90 cursor-pointer'
+              }`}
             >
-              {isSubmitting ? '전송 중...' : '할말 올리기'}
+              {isSubmitting ? '올리는 중...' : isUploading ? '이미지 업로드 중...' : '할말 올리기'}
             </button>
           </div>
         </div>
 
-        {/* 🚀 카테고리 및 제목 섹션 */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 shrink-0">
-          <div className="md:col-span-1 flex flex-col gap-2">
-            <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest pl-1">주제 선택</label>
-            <div className="relative">
-              <select 
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                className="w-full appearance-none bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 text-[13px] font-black text-slate-700 outline-none focus:border-blue-500 focus:bg-white transition-all cursor-pointer shadow-sm"
-              >
-                {CATEGORIES.map(cat => <option key={cat} value={cat}>{cat}</option>)}
-              </select>
-              <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M19 9l-7 7-7-7" /></svg>
+        <div className="px-10 py-8 space-y-4">
+          {/* Category & Title */}
+          <div className="flex flex-col md:flex-row gap-3">
+            <div className="flex-1 space-y-1">
+              <label className="text-[11px] font-bold text-slate-400 ml-1">주제 선택</label>
+              <div className="relative">
+                <select 
+                  value={Object.keys(menuMessages).find(key => menuMessages[key].title === postData.category) || activeMenu}
+                  onChange={(e) => setPostData({ ...postData, category: menuMessages[e.target.value].title })}
+                  className="w-full appearance-none bg-slate-50 border border-slate-50 px-6 py-2.5 rounded-2xl text-[14px] font-bold text-slate-700 focus:bg-white focus:border-blue-500 outline-none transition-all cursor-pointer"
+                >
+                  {menuOptions.map(opt => (
+                    <option key={opt.id} value={opt.id}>{opt.title}</option>
+                  ))}
+                </select>
+                <div className="absolute right-6 top-1/2 -translate-y-1/2 pointer-events-none">
+                  <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" /></svg>
+                </div>
               </div>
             </div>
-          </div>
-          <div className="md:col-span-3 flex flex-col gap-2">
-            <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest pl-1">할말 제목</label>
-            <input 
-              type="text" 
-              placeholder="무슨 할말이 있으시오?" 
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              className="w-full px-4 py-3 border border-slate-100 bg-slate-50 rounded-xl outline-none focus:border-blue-500 focus:bg-white transition-all text-[14px] font-[1000] placeholder:text-slate-300 shadow-sm tracking-tight"
-            />
-          </div>
-        </div>
-
-        {/* 🚀 에디터 섹션 */}
-        <div className="flex flex-col gap-2 flex-1 min-h-0">
-          <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest pl-1">상세 내용</label>
-          <div className="border border-slate-100 rounded-[1.5rem] overflow-hidden shadow-sm focus-within:border-blue-500 transition-all flex flex-col h-full bg-white">
-            {/* 🛠️ 툴바 */}
-            <div className="bg-slate-50/50 border-b border-slate-50 p-1.5 flex flex-wrap gap-1 items-center shrink-0">
-              <ToolbarButton onClick={() => editor?.chain().focus().undo().run()} title="실행 취소">
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" /></svg>
-              </ToolbarButton>
-              <ToolbarButton onClick={() => editor?.chain().focus().redo().run()} title="다시 실행">
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M21 10h-10a8 8 0 00-8 8v2m18-10l-6 6m6-6l-6-6" /></svg>
-              </ToolbarButton>
-              <div className="w-px h-4 bg-slate-200 mx-1"></div>
-              
-              <ToolbarButton onClick={() => editor?.chain().focus().toggleBold().run()} active={editor?.isActive('bold')} title="굵게">
-                <span className="font-[1000] text-[13px]">B</span>
-              </ToolbarButton>
-              <ToolbarButton onClick={() => editor?.chain().focus().toggleUnderline().run()} active={editor?.isActive('underline')} title="밑줄">
-                <span className="underline font-[1000] text-[13px]">U</span>
-              </ToolbarButton>
-              
-              <div className="w-px h-4 bg-slate-200 mx-1"></div>
-              
-              <ToolbarButton onClick={() => fileInputRef.current?.click()} title="이미지 삽입">
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-              </ToolbarButton>
-              <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleImageUpload} />
-
-              <ToolbarButton onClick={() => editor?.chain().focus().toggleBlockquote().run()} active={editor?.isActive('blockquote')} title="인용구">
-                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M14.017 21L14.017 18C14.017 16.8954 14.9124 16 16.017 16H19.017C19.5693 16 20.017 15.5523 20.017 15V9C20.017 8.44772 19.5693 8 19.017 8H16.017C15.4647 8 15.017 8.44772 15.017 9V12H13.017V9C13.017 6.79086 14.8079 5 17.017 5H19.017C21.2261 5 23.017 6.79086 23.017 9V15C23.017 17.2091 21.2261 19 19.017 19H17.517C17.2409 19 17.017 19.2239 17.017 19.5V21H14.017ZM1.017 21V18C1.017 16.8954 1.91243 16 3.017 16H6.017C6.56928 16 7.017 15.5523 7.017 15V9C7.017 8.44772 6.56928 8 6.017 8H3.017C2.46472 8 2.017 8.44772 2.017 9V12H0.017V9C0.017 6.79086 1.80786 5 4.017 5H6.017C8.22614 5 10.017 6.79086 10.017 9V15C10.017 17.2091 8.22614 19 6.017 19H4.517C4.24086 19 4.017 19.2239 4.017 19.5V21H1.017Z" /></svg>
-              </ToolbarButton>
-            </div>
-            {/* 🛠️ 편집 영역 */}
-            <div className="bg-white flex-1 overflow-y-auto no-scrollbar">
-              <EditorContent editor={editor} />
+            <div className="flex-[3] space-y-1">
+              <label className="text-[11px] font-bold text-slate-400 ml-1">할말 제목</label>
+              <input
+                type="text"
+                placeholder="무슨 할말이 있으시오?"
+                value={postData.title || ''}
+                onChange={(e) => setPostData({ ...postData, title: e.target.value })}
+                className="w-full bg-slate-50 border border-slate-50 px-6 py-2.5 rounded-2xl text-[14px] font-bold text-slate-700 focus:bg-white focus:border-blue-500 outline-none transition-all placeholder:text-slate-300"
+              />
             </div>
           </div>
-        </div>
 
-        {/* 🚀 해시태그 섹션 */}
-        <div className="flex flex-col gap-2 shrink-0 pb-2">
-          <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest pl-1">태그 (최대 5개)</label>
-          <div className="flex flex-wrap gap-3">
-            {tags.map((tag, idx) => (
-              <div key={idx} className="flex-1 min-w-[100px] relative group">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-blue-400 font-black text-[12px]">#</span>
-                <input 
-                  value={tag}
-                  onChange={(e) => handleTagChange(idx, e.target.value)}
-                  placeholder="태그입력"
-                  className="w-full pl-6 pr-3 py-2 bg-slate-50 border border-slate-100 rounded-xl outline-none focus:border-blue-500 focus:bg-white transition-all text-[12px] font-bold placeholder:text-slate-300 text-slate-600 shadow-sm"
-                />
+          {/* Content Editor Area */}
+          <div className="space-y-1">
+            <label className="text-[11px] font-bold text-slate-400 ml-1">올릴 내용</label>
+            <div className="bg-white border border-slate-100 rounded-[2rem] overflow-hidden focus-within:border-blue-200 transition-all flex flex-col relative">
+              {/* World-class Rich Toolbar */}
+              <div className="px-4 py-2.5 border-b border-slate-50 flex flex-wrap items-center gap-1 bg-slate-50/30">
+                <div className="flex items-center gap-1 px-2 border-r border-slate-200">
+                  <ToolbarButton label="H1" cmd="formatBlock" val="H1" />
+                  <ToolbarButton label="H2" cmd="formatBlock" val="H2" />
+                  <ToolbarButton label="P" cmd="formatBlock" val="P" />
+                </div>
+                
+                <div className="flex items-center gap-1 px-2 border-r border-slate-200">
+                  <ToolbarButton label="B" cmd="bold" />
+                  <ToolbarButton icon={<svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24"><path d="M10 4h10M4 20h10M15 4L9 20"/></svg>} cmd="italic" />
+                  <ToolbarButton icon={<svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24"><path d="M6 4v10.5a4.5 4.5 0 109 0V4M4 4h4m7 0h4M4 18h11"/></svg>} cmd="underline" />
+                  <ToolbarButton icon={<svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24"><path d="M5 12h14M19 6H5a2 2 0 00-2 2v8a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2z"/></svg>} cmd="strikeThrough" />
+                </div>
+
+                <div className="flex items-center gap-1 px-2 border-r border-slate-200">
+                  <ToolbarButton icon={<svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24"><path d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25H12"/></svg>} cmd="insertUnorderedList" />
+                  <ToolbarButton icon={<svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24"><path d="M3.75 6.75h16.5M3.75 12h16.5M3.75 17.25h16.5"/></svg>} cmd="insertOrderedList" />
+                </div>
+
+                <div className="flex items-center gap-1 px-2 border-r border-slate-200">
+                  <ToolbarButton icon={<svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24"><path d="M3.75 12h16.5m-16.5 0a9 9 0 1118 0 9 9 0 01-18 0z"/></svg>} cmd="justifyLeft" />
+                  <ToolbarButton icon={<svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24"><path d="M3.75 12h16.5m-16.5 0a9 9 0 1118 0 9 9 0 01-18 0z"/></svg>} cmd="justifyCenter" />
+                </div>
+
+                <div className="flex items-center gap-1 px-2">
+                  <button 
+                    type="button" 
+                    onMouseDown={(e) => { e.preventDefault(); saveSelection(); }}
+                    onClick={() => fileInputRef.current?.click()}
+                    className="p-2 hover:bg-slate-100 rounded-lg text-slate-500 hover:text-blue-600 transition-all cursor-pointer flex items-center gap-1"
+                    title="이미지 추가"
+                  >
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" /></svg>
+                  </button>
+                  <ToolbarButton icon={<svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24"><path d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244"/></svg>} cmd="createLink" />
+                  <ToolbarButton icon={<svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24"><path d="M5.25 8.25h15m-16.5 6.75h15"/></svg>} cmd="insertHorizontalRule" />
+                </div>
               </div>
-            ))}
+
+              {/* Hidden File Input */}
+              <input type="file" ref={fileInputRef} onChange={handleImageSelect} accept="image/*" className="hidden" />
+
+              {/* Rich Editor */}
+              <div
+                ref={editorRef}
+                contentEditable
+                onPaste={handlePaste}
+                onMouseUp={saveSelection}
+                onKeyUp={saveSelection}
+                onInput={() => {
+                  saveSelection();
+                  setPostData(prev => ({ ...prev, content: editorRef.current?.innerHTML || "" }));
+                }}
+                className="w-full px-8 py-6 text-[15px] font-medium text-slate-700 outline-none min-h-[400px] overflow-y-auto leading-relaxed prose prose-slate max-w-none placeholder:text-slate-200"
+                placeholder="나누고 싶은 할말을 자유롭게 적어주시오. 이미지를 복사해서 붙여넣을 수도 있소."
+              />
+              
+              {isUploading && (
+                <div className="absolute inset-0 bg-white/60 backdrop-blur-sm flex items-center justify-center z-10 animate-in fade-in">
+                  <div className="flex flex-col items-center gap-3">
+                    <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+                    <span className="text-sm font-black text-slate-600">이미지를 올리고 있소...</span>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Tags */}
+          <div className="space-y-2">
+            <label className="text-[11px] font-bold text-slate-400 ml-1">태그 (최대 5개)</label>
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-2.5">
+              {[0, 1, 2, 3, 4].map((idx) => (
+                <div key={idx} className="relative">
+                  <span className="absolute left-5 top-1/2 -translate-y-1/2 text-blue-400 font-bold text-[13px]">#</span>
+                  <input
+                    type="text"
+                    placeholder="태그입력"
+                    value={postData.tags?.[idx] || ''}
+                    onChange={(e) => handleTagChange(idx, e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-50 pl-9 pr-4 py-3 rounded-2xl text-[13px] font-bold text-slate-700 focus:bg-white focus:border-blue-500 outline-none transition-all placeholder:text-slate-300"
+                  />
+                </div>
+              ))}
+            </div>
           </div>
         </div>
-
       </div>
+      <style>{`
+        [contenteditable]:empty:before {
+          content: attr(placeholder);
+          color: #cbd5e1;
+          cursor: text;
+        }
+        .prose img {
+          max-width: 100%;
+          height: auto;
+          border-radius: 1rem;
+          margin: 1.5rem 0;
+          box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+        }
+        .prose h1 { font-size: 1.875rem; font-weight: 900; margin-top: 2rem; margin-bottom: 1rem; color: #0f172a; }
+        .prose h2 { font-size: 1.5rem; font-weight: 800; margin-top: 1.5rem; margin-bottom: 0.75rem; color: #1e293b; }
+        .prose p { margin-bottom: 1rem; }
+      `}</style>
     </div>
   );
 };

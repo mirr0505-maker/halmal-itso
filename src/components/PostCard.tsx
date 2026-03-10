@@ -80,7 +80,16 @@ const PostCard = ({
             <h4 className="font-black text-[13.5px] text-blue-600 leading-tight tracking-tight mt-0.5">📝 {post.title}</h4>
           )}
           
-          <p className="text-[13.5px] text-slate-700 leading-relaxed font-medium break-words">{post.content}</p>
+          <div 
+            className="text-[13.5px] text-slate-700 leading-relaxed font-medium break-words line-clamp-3 prose-compact"
+            dangerouslySetInnerHTML={{ __html: post.content }}
+          />
+          
+          <style>{`
+            .prose-compact img { display: none; } /* 목록에서는 이미지를 숨겨 쾌적함 유지 */
+            .prose-compact p { margin: 0; display: inline; }
+            .prose-compact h1, .prose-compact h2 { font-size: 13.5px; font-weight: 900; display: inline; }
+          `}</style>
           
           <div className="flex items-center justify-between mt-1">
             <div className="flex items-center gap-4">
