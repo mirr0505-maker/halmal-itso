@@ -84,88 +84,130 @@ const CreateOneCutBox = ({ userData, editingPost, allPosts, onSubmit, onClose }:
     }
   };
 
+  const handleTagChange = (index: number, value: string) => {
+    const newTags = [...(postData.tags || ['', '', '', '', ''])];
+    newTags[index] = value;
+    setPostData({ ...postData, tags: newTags });
+  };
+
   return (
-    <div className="w-full max-w-[1200px] mx-auto py-6 animate-in fade-in zoom-in-95 duration-500" onPaste={handlePaste}>
-      <div className="bg-white rounded-[3rem] shadow-2xl border border-slate-100 overflow-hidden">
-        <div className="px-12 py-10 flex justify-between items-center border-b border-slate-50">
+    <div className="w-full max-w-[1200px] mx-auto py-6 animate-in fade-in slide-in-from-bottom-4 duration-500" onPaste={handlePaste}>
+      <div className="bg-white rounded-[2.5rem] shadow-2xl border border-slate-100 overflow-hidden flex flex-col max-h-[90vh]">
+        {/* Header - Fixed */}
+        <div className="px-10 py-7 flex justify-between items-center border-b border-slate-50 bg-white z-[60] shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-3 h-3 rounded-full bg-rose-500 animate-pulse" />
-            <h2 className="text-xl font-[1000] text-slate-900 tracking-tighter">🎞️ 한컷 남기기</h2>
+            <div className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse" />
+            <h2 className="text-[17px] font-[1000] text-slate-900 tracking-tighter">🎞️ 새 한컷 기록</h2>
           </div>
           <div className="flex items-center gap-6">
-            <button onClick={onClose} className="text-sm font-bold text-slate-400 hover:text-slate-600 transition-colors">취소</button>
-            <button onClick={handleSubmit} disabled={isSubmitting || isImageUploading} className="px-10 py-3 bg-[#0F172A] text-white rounded-2xl font-black text-sm hover:opacity-90 transition-all shadow-lg shadow-blue-100 disabled:bg-slate-100 disabled:text-slate-300">
-              {isSubmitting ? '게시 중...' : '할말 올리기'}
+            <button onClick={onClose} className="text-[14px] font-bold text-slate-400 hover:text-slate-600 transition-colors cursor-pointer">취소</button>
+            <button 
+              onClick={handleSubmit}
+              disabled={isSubmitting || isImageUploading}
+              className={`px-10 py-2.5 rounded-2xl font-black text-[14px] transition-all shadow-xl shadow-rose-100/50 ${
+                isSubmitting || isImageUploading ? 'bg-slate-100 text-slate-300' : 'bg-[#0F172A] text-white hover:scale-[1.02] active:scale-95 cursor-pointer'
+              }`}
+            >
+              {isSubmitting ? '기록 중...' : isImageUploading ? '사진 전송 중...' : '한컷 올리기'}
             </button>
           </div>
         </div>
 
-        <div className="px-12 py-12 grid grid-cols-1 lg:grid-cols-12 gap-12">
-          <div className="lg:col-span-7 space-y-10">
-            <div className="space-y-3">
-              <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">한컷 제목</label>
-              <input type="text" placeholder="강렬한 한줄 제목을 적어주시오." value={postData.title} onChange={e => setPostData({...postData, title: e.target.value})} className="w-full bg-slate-50 border-none px-8 py-5 rounded-[1.5rem] text-lg font-black text-slate-800 focus:bg-white focus:ring-4 focus:ring-blue-50 outline-none transition-all placeholder:text-slate-300" />
-            </div>
-
-            <div className="space-y-3">
-              <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">📸 이미지 업로드</label>
-              <div className="flex gap-3">
-                <input type="text" placeholder="이미지 주소를 넣거나 붙여넣으시오." value={postData.imageUrl || ''} onChange={e => setPostData({...postData, imageUrl: e.target.value})} className="flex-1 bg-slate-50 border-none px-6 py-4 rounded-2xl text-sm font-bold text-slate-600 focus:bg-white outline-none transition-all" />
-                <button onClick={() => fileInputRef.current?.click()} className="px-6 bg-blue-50 text-blue-600 rounded-2xl font-black text-xs hover:bg-blue-100 transition-all shrink-0">사진 선택</button>
-                <input type="file" ref={fileInputRef} onChange={e => e.target.files?.[0] && uploadImageToR2(e.target.files[0])} accept="image/*" className="hidden" />
+        {/* Scrollable Content Area */}
+        <div className="flex-1 overflow-y-auto no-scrollbar">
+          <div className="px-10 py-10 grid grid-cols-1 lg:grid-cols-12 gap-12">
+            {/* Left Section: Inputs */}
+            <div className="lg:col-span-7 space-y-10">
+              <div className="space-y-3">
+                <label className="text-[11px] font-black text-slate-400 ml-1 uppercase tracking-widest">한컷 제목</label>
+                <input type="text" placeholder="강렬한 한줄 제목을 적어주시오." value={postData.title} onChange={e => setPostData({...postData, title: e.target.value})} className="w-full bg-slate-50 border-2 border-transparent px-8 py-5 rounded-[1.5rem] text-[18px] font-black text-slate-900 focus:bg-white focus:border-rose-500 outline-none transition-all placeholder:text-slate-200" />
               </div>
-            </div>
 
-            <div className="space-y-3 relative">
-              <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">🔗 원본 할말 연결</label>
-              <input type="text" placeholder="연결할 원본 글 제목 검색..." value={linkSearch} onChange={e => setLinkedSearch(e.target.value)} className="w-full bg-slate-50 border-none px-6 py-4 rounded-2xl text-sm font-bold text-slate-600 focus:bg-white outline-none transition-all" />
-              {linkSearch && !postData.linkedPostId && (
-                <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-slate-100 rounded-2xl shadow-2xl z-20 overflow-hidden">
-                  {filteredLinkPosts.map(p => (
-                    <div key={p.id} onClick={() => { setPostData({...postData, linkedPostId: p.id}); setLinkedSearch(p.title || ""); }} className="px-6 py-4 hover:bg-slate-50 cursor-pointer border-b border-slate-50 last:border-0">
-                      <p className="text-sm font-black text-slate-900">{p.title}</p>
-                      <p className="text-[10px] text-slate-400 font-bold">{p.author} · {p.category}</p>
+              <div className="space-y-3">
+                <label className="text-[11px] font-black text-slate-400 ml-1 uppercase tracking-widest">📸 메인 이미지 (9:16)</label>
+                <div className="flex gap-3">
+                  <input type="text" placeholder="이미지 주소를 넣거나 아래 창에 붙여넣으시오." value={postData.imageUrl || ''} onChange={e => setPostData({...postData, imageUrl: e.target.value})} className="flex-1 bg-slate-50 border-2 border-transparent px-6 py-4 rounded-2xl text-[14px] font-bold text-slate-600 focus:bg-white focus:border-rose-500 outline-none transition-all placeholder:text-slate-300" />
+                  <button onClick={() => fileInputRef.current?.click()} className="px-8 bg-[#0F172A] text-white rounded-2xl font-black text-[13px] hover:bg-slate-800 transition-all shrink-0 shadow-lg shadow-slate-100">사진 선택</button>
+                  <input type="file" ref={fileInputRef} onChange={e => e.target.files?.[0] && uploadImageToR2(e.target.files[0])} accept="image/*" className="hidden" />
+                </div>
+              </div>
+
+              <div className="space-y-3 relative">
+                <label className="text-[11px] font-black text-slate-400 ml-1 uppercase tracking-widest">🔗 원본 할말 연결</label>
+                <div className="relative group">
+                  <input type="text" placeholder="연결할 원본 글 제목 검색..." value={linkSearch} onChange={e => setLinkedSearch(e.target.value)} className="w-full bg-slate-50 border-2 border-transparent px-6 py-4 rounded-2xl text-[14px] font-bold text-slate-600 focus:bg-white focus:border-blue-500 outline-none transition-all" />
+                  {linkSearch && !postData.linkedPostId && (
+                    <div className="absolute top-full left-0 right-0 mt-3 bg-white border border-slate-100 rounded-2xl shadow-2xl z-[70] overflow-hidden animate-in fade-in slide-in-from-top-2">
+                      {filteredLinkPosts.map(p => (
+                        <div key={p.id} onClick={() => { setPostData({...postData, linkedPostId: p.id}); setLinkedSearch(p.title || ""); }} className="px-6 py-4 hover:bg-slate-50 cursor-pointer border-b border-slate-50 last:border-0 transition-colors">
+                          <p className="text-[14px] font-black text-slate-900">{p.title}</p>
+                          <p className="text-[11px] text-slate-400 font-bold mt-1">{p.author} · {p.category}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                {postData.linkedPostId && (
+                  <button onClick={() => { setPostData({...postData, linkedPostId: ""}); setLinkedSearch(""); }} className="mt-3 flex items-center gap-2 text-[11px] font-black text-rose-500 hover:text-rose-600 transition-colors underline bg-rose-50 px-3 py-1.5 rounded-lg w-fit">
+                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                    연결 해제
+                  </button>
+                )}
+              </div>
+
+              <div className="space-y-3">
+                <label className="text-[11px] font-black text-slate-400 ml-1 uppercase tracking-widest">상세 설명</label>
+                <textarea placeholder="한컷에 대한 보충 설명을 적어주시오." value={postData.content} onChange={e => setPostData({...postData, content: e.target.value})} className="w-full bg-slate-50 border-2 border-transparent px-8 py-6 rounded-[2rem] text-[15px] font-medium text-slate-700 outline-none focus:bg-white focus:border-rose-500 transition-all resize-none min-h-[180px] leading-relaxed" />
+              </div>
+
+              <div className="space-y-3">
+                <label className="text-[11px] font-black text-slate-400 ml-1 uppercase tracking-widest">태그</label>
+                <div className="grid grid-cols-5 gap-3">
+                  {[0,1,2,3,4].map(idx => (
+                    <div key={idx} className="relative">
+                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-rose-400 font-black text-[13px]">#</span>
+                      <input type="text" placeholder="태그" value={postData.tags?.[idx]} onChange={e => handleTagChange(idx, e.target.value)} className="w-full bg-slate-50 border-2 border-transparent pl-8 pr-3 py-3 rounded-xl text-[12px] font-black text-slate-700 focus:bg-white focus:border-rose-500 outline-none transition-all placeholder:text-slate-300" />
                     </div>
                   ))}
                 </div>
-              )}
-              {postData.linkedPostId && <button onClick={() => { setPostData({...postData, linkedPostId: ""}); setLinkedSearch(""); }} className="mt-2 text-[10px] font-black text-rose-500 underline">연결 해제</button>}
+              </div>
             </div>
 
-            <div className="space-y-3">
-              <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">상세 설명</label>
-              <textarea placeholder="한컷에 대한 보충 설명을 적어주시오." value={postData.content} onChange={e => setPostData({...postData, content: e.target.value})} className="w-full bg-slate-50 border-none px-8 py-6 rounded-[2rem] text-sm font-medium text-slate-700 outline-none focus:bg-white focus:ring-4 focus:ring-blue-50 transition-all resize-none min-h-[150px]" />
-            </div>
-
-            <div className="grid grid-cols-5 gap-3">
-              {[0,1,2,3,4].map(idx => (
-                <input key={idx} type="text" placeholder="#태그" value={postData.tags?.[idx]} onChange={e => { const newTags = [...(postData.tags || [])]; newTags[idx] = e.target.value; setPostData({...postData, tags: newTags}); }} className="w-full bg-slate-50 border-none px-4 py-3 rounded-xl text-[11px] font-black text-blue-600 focus:bg-white outline-none transition-all" />
-              ))}
-            </div>
-          </div>
-
-          <div className="lg:col-span-5 space-y-4">
-            <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">📱 한컷 미리보기 (9:16)</label>
-            <div className="aspect-[9/16] bg-slate-900 rounded-[3rem] overflow-hidden border-[12px] border-slate-900 shadow-2xl relative flex items-center justify-center">
-              {postData.imageUrl ? (
-                <>
-                  <img src={postData.imageUrl} alt="preview" className={`w-full h-full object-cover ${imageError ? 'hidden' : 'block'}`} onError={() => setImageError(true)} />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none" />
-                  <div className="absolute bottom-12 left-8 right-8 text-white">
-                    <h3 className="text-xl font-[1000] italic leading-tight mb-3 tracking-tighter">{postData.title || "제목을 입력하시오"}</h3>
-                    <div className="flex items-center gap-2">
-                      <div className="w-6 h-6 rounded-full bg-white/20 border border-white/30 overflow-hidden"><img src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${userData?.nickname}`} alt="" /></div>
-                      <span className="text-[11px] font-black opacity-80">{userData?.nickname}</span>
+            {/* Right Section: Mobile Preview */}
+            <div className="lg:col-span-5 space-y-4">
+              <div className="sticky top-0 space-y-4">
+                <label className="text-[11px] font-black text-slate-400 ml-1 uppercase tracking-widest">📱 한컷 미리보기 (9:16)</label>
+                <div className="aspect-[9/16] bg-slate-900 rounded-[3.5rem] overflow-hidden border-[12px] border-[#0F172A] shadow-2xl relative flex items-center justify-center group">
+                  {postData.imageUrl ? (
+                    <>
+                      <img src={postData.imageUrl} alt="preview" className={`w-full h-full object-cover transition-transform duration-700 group-hover:scale-105 ${imageError ? 'hidden' : 'block'}`} onError={() => setImageError(true)} />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-transparent pointer-events-none" />
+                      <div className="absolute bottom-12 left-10 right-10 text-white">
+                        <h3 className="text-[24px] font-[1000] italic leading-tight mb-4 tracking-tighter drop-shadow-lg">{postData.title || "제목을 입력하시오"}</h3>
+                        <div className="flex items-center gap-3 bg-white/10 backdrop-blur-md px-4 py-2 rounded-xl w-fit border border-white/10">
+                          <div className="w-7 h-7 rounded-full bg-white/20 overflow-hidden"><img src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${userData?.nickname}`} alt="" className="w-full h-full object-cover" /></div>
+                          <span className="text-[12px] font-black opacity-90">{userData?.nickname}</span>
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="text-center px-10"><p className="text-slate-600 text-[13px] font-black leading-relaxed">이미지를 선택하거나<br/>여기에 붙여넣으시오.</p></div>
+                  )}
+                  {isImageUploading && (
+                    <div className="absolute inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center animate-in fade-in">
+                      <div className="w-10 h-10 border-4 border-white border-t-transparent rounded-full animate-spin" />
                     </div>
-                  </div>
-                </>
-              ) : (
-                <div className="text-center px-10"><p className="text-slate-600 text-xs font-bold leading-relaxed">이미지를 선택하거나<br/>붙여넣으시오.</p></div>
-              )}
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         </div>
       </div>
+      <style>{`
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+      `}</style>
     </div>
   );
 };
