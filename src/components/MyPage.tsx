@@ -73,7 +73,7 @@ const MyPage = ({
                 {activeTab === 'posts' && <MyContentTabs posts={standardPosts} onPostClick={onEditPost || onPostClick} type="posts" />}
                 {activeTab === 'onecuts' && (
                   <div className="pt-4">
-                    <OneCutList posts={onecutPosts} onTopicClick={onEditPost || onPostClick} allUsers={allUsers} />
+                    <OneCutList posts={onecutPosts} allPosts={allUserRootPosts} onTopicClick={onEditPost || onPostClick} allUsers={allUsers} followerCounts={followerCounts} />
                   </div>
                 )}
                 {activeTab === 'comments' && <MyContentTabs posts={allUserChildPosts} onPostClick={onPostClick} type="comments" />}
