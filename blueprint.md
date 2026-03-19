@@ -2,7 +2,7 @@
 
 이 문서는 **할말있소(HALMAL-ITSO)** 프로젝트의 설계 원칙, 현재 구현 상태, 그리고 AI 개발자의 **절대적 행동 지침**을 담은 단일 진실 소스(Single Source of Truth)입니다.
 
-> 최종 갱신: 2026-03-19  |  현재 브랜치: `main`
+> 최종 갱신: 2026-03-19 (코드 실측 기준)  |  현재 브랜치: `main`
 
 ---
 
@@ -69,15 +69,27 @@
     ├── SubNavbar.tsx        # 홈 전용 탭 필터
     ├── CategoryHeader.tsx   # 카테고리별 헤더
     ├── AnyTalkList.tsx      # 메인 그리드 목록 (이미지 추출 로직 포함)
+    ├── BestTalkList.tsx     # 베스트 목록 (별도 컴포넌트)
+    ├── LatestTalkList.tsx   # 최신 목록
+    ├── FriendTalkList.tsx   # 깐부말 목록
+    ├── PostCard.tsx         # 공통 포스트 카드 컴포넌트
+    ├── PostDetailModal.tsx  # 포스트 오버레이 상세 모달
     ├── DiscussionView.tsx   # 일반글 상세 뷰 (2컬럼, 콤팩트 레이아웃)
     ├── RootPostCard.tsx     # 상세 뷰 상단 포스트 카드
     ├── DebateBoard.tsx      # 댓글/연계글 목록 & 스레드
+    ├── FormalBoard.tsx      # 정식 연계글 보드
     ├── OneCutList.tsx       # 한컷 목록 (9:16 그리드)
-    ├── OneCutDetailView.tsx # 한컷 상세 뷰 (2컬럼, 연결된 할말 지원)
+    ├── OneCutDetailView.tsx # 한컷 상세 뷰 (md:col-span-8 + 4 2컬럼)
     ├── TiptapEditor.tsx     # 리치 에디터 (스티키 툴바)
     ├── CreatePostBox.tsx    # 일반글 작성 폼
     ├── CreateOneCutBox.tsx  # 한컷 작성 폼
-    └── ...
+    ├── MyPage.tsx           # 마이페이지 루트 (하위 컴포넌트 조합)
+    ├── ProfileHeader.tsx    # 마이페이지 프로필 헤더
+    ├── MyProfileCard.tsx    # 프로필 카드 (레벨/통계)
+    ├── ActivityStats.tsx    # 활동 통계 (좋아요·게시글·댓글 수)
+    ├── ActivityMilestones.tsx # 활동 마일스톤 배지
+    ├── MyContentTabs.tsx    # 마이페이지 내 탭 (게시글/한컷/댓글/아바타/깐부)
+    └── AvatarCollection.tsx # 아바타 컬렉션 선택 UI
 ```
 
 ### 3.2 상태 관리 (`App.tsx`)
@@ -87,27 +99,53 @@
 
 ---
 
-## 4. 데이터 모델 (`Post`)
+## 4. 데이터 모델
+
+### 4.1 `AuthorInfo` (중첩 객체)
+
+```typescript
+interface AuthorInfo {
+  level: number;
+  friendCount: number;
+  totalLikes: number;
+}
+```
+
+### 4.2 `Post`
 
 ```typescript
 interface Post {
   id: string;          // custom ID (topic_... 또는 comment_...)
   author: string;      // 닉네임
-  author_id: string;   // UID
-  category: string;    // 한국어 카테고리명
+  author_id?: string;  // UID
+  category?: string;   // 한국어 카테고리명
   title?: string;      // 제목
   content: string;     // HTML (Tiptap)
-  parentId?: string;   // 직계 부모 ID
-  rootId?: string;     // 최상위 글 ID
-  side?: 'left' | 'right'; // 토론 포지션
-  type?: 'comment' | 'formal'; // 댓글 vs 정식 연계글
-  likes: number;
-  likedBy: string[];
-  isOneCut?: boolean;
-  imageUrl?: string;   // 한컷용 이미지
-  linkedPostId?: string; // 한컷-일반글 연결
+  imageUrl?: string | null;  // 한컷용 이미지
+  linkUrl?: string | null;   // 외부 링크
   tags?: string[];     // 한컷용 태그
-  createdAt: any;      // Timestamp
+  authorInfo?: AuthorInfo;
+  parentId: string | null;   // 직계 부모 ID
+  rootId: string | null;     // 최상위 글 ID
+  side: 'left' | 'right';   // 토론 포지션
+  type: 'comment' | 'formal'; // 댓글 vs 정식 연계글
+  likes: number;
+  dislikes: number;
+  likedBy?: string[];  // 좋아요 닉네임 목록
+  commentCount?: number; // 마이페이지 표시용
+  createdAt: any;      // Firestore Timestamp
+
+  // 카테고리별 확장 필드
+  mood?: string;              // 너와 나의 이야기: 오늘의 기분
+  factChecked?: boolean;      // 벌거벗은 임금님: 사실 확인 여부
+  debatePosition?: 'pro' | 'con' | 'neutral'; // 임금님 귀는 당나귀 귀
+  location?: string;          // 현지 소식: 발생 지역
+  infoPrice?: number;         // 지식 소매상: 정보 가치(포인트)
+  bgColor?: string;           // 뼈때리는 글: 배경색
+
+  // 한컷 관련 필드
+  isOneCut?: boolean;         // 한컷 게시물 여부
+  linkedPostId?: string;      // 연계된 원본 게시글 ID
 }
 ```
 
@@ -117,12 +155,16 @@ interface Post {
 
 | 메뉴 ID | 표시명 (Title) | 카테고리 키 (DB) | 특이사항 |
 |---------|--------------|-----------------|----------|
+| `onecut` | 한컷 | (isOneCut 플래그) | 9:16 세로형 이미지 전용 |
 | `my_story` | 너와 나의 이야기 | 너와 나의 이야기 | 일상, 공감 위주 |
 | `naked_king` | 판도라의 상자 | 벌거벗은 임금님 | 팩트체크 보드 |
 | `donkey_ears` | 솔로몬의 재판 | 임금님 귀는 당나귀 귀 | 찬/반 토론, 정식 연계글 허용 |
 | `knowledge_seller` | 황금알을 낳는 거위 | 지식 소매상 | Q&A 보드 |
 | `bone_hitting` | 신포도와 여우 | 뼈때리는 글 | 명언, 짧은 글 |
 | `local_news` | 마법 수정 구슬 | 현지 소식 | 정보 공유 보드 |
+| `friends` | 깐부 맺기 | (UI 전용) | 팔로우 추천 목록 (허용 닉네임 필터 적용) |
+| `market` | 마켓 | (UI 전용) | 기능 미구현 (빈 div) |
+| `exile_place` | 유배·귀양지 | 유배·귀양지 | 제재 유저 전용 소통 공간, 주제 없음 |
 
 ---
 
@@ -145,7 +187,9 @@ interface Post {
 ### 7.1 상세 뷰 공통 (Discussion / OneCut)
 - **2컬럼 그리드**: `md:col-span-8` (메인 콘텐츠) + `md:col-span-4` (우측 사이드바).
 - **최대 폭**: `max-w-[1600px] mx-auto`.
-- **사이드바**: '등록글 더보기' 또는 'Trending OneCuts'를 배치하여 체류 시간 증대.
+- **사이드바 (DiscussionView)**: 동일 카테고리 내 다른 글 목록('등록글 더보기').
+- **사이드바 (OneCutDetailView)**: `SideOneCuts` — 다른 한컷 최대 20개 세로 스크롤.
+- **OneCutDetailView 내부 구조**: ① 상단 헤더(제목/태그/연결글 버튼) → ② 메인 이미지(aspect-[9/16]) → ③ 텍스트 설명 → ④ 작성자 정보 바 → ⑤ 동의/반대 투표 + 댓글 폼 → ⑥ DebateBoard 댓글 목록.
 
 ### 7.2 리스트 뷰 (`AnyTalkList`)
 - **가변 그리드**: `minmax(280px, 1fr)` 기반 `auto-fill`.
@@ -158,20 +202,25 @@ interface Post {
 
 ---
 
-## 8. 현재 구현 상태 (2026-03-19 기준)
+## 8. 현재 구현 상태 (2026-03-19 기준, 코드 실측)
 
 ### ✅ 완료된 핵심 기능
 - [x] **Tiptap 프리미엄 에디터**: 스티키 툴바, 이미지 R2 업로드(드래그&드롭/붙여넣기), 마크다운 호환 스타일.
 - [x] **상세 뷰 리뉴얼**: 콤팩트한 2컬럼 레이아웃, 카테고리별 맞춤형 탭 UI(동의/반대/질문 등).
-- [x] **한컷 시스템 고도화**: 9:16 상세 뷰, 추천 사이드바, 일반 게시글 연동 버튼.
-- [x] **리스트 뷰 최적화**: 본문 내 이미지 자동 추출 및 그리드 레이아웃 개선.
-- [x] **실시간 상호작용**: 좋아요, 팔로우, 차단, 실시간 댓글 카운트.
+- [x] **한컷 시스템 고도화**: 9:16 상세 뷰, SideOneCuts 사이드바, 일반 게시글 연동 버튼, 동의/반대 투표.
+- [x] **리스트 뷰 최적화**: 본문 내 이미지 자동 추출 및 그리드 레이아웃 개선 (BestTalkList, LatestTalkList, FriendTalkList 분리).
+- [x] **실시간 상호작용**: 좋아요, 팔로우/차단, 실시간 댓글 카운트.
+- [x] **마이페이지(MyPage)**: ProfileHeader + ActivityStats + ActivityMilestones + MyContentTabs + AvatarCollection 분리 구성. 탭: 게시글/한컷/댓글/아바타/깐부.
+- [x] **PostDetailModal**: 글 클릭 시 오버레이 형태로 상세 내용 + 댓글 표시 (App.tsx `selectedPost` 상태 활용).
+- [x] **깐부 맺기 메뉴**: `friends` 메뉴에서 허용된 닉네임 목록 대상으로 팔로우 UI 제공.
+- [x] **PostCard 공통화**: 여러 목록 뷰에서 재사용 가능한 카드 컴포넌트.
 
 ### 🛠️ 진행 중 / 개선 필요 사항
 - [ ] **에디터 보완**: `bubble-menu` 활성화 (텍스트 선택 시 서식 도구 노출).
-- [ ] **컴포넌트 분리**: 200라인 초과 파일(`App.tsx`, `DiscussionView.tsx`) 리팩토링.
-- [ ] **마켓 메뉴**: 기능 정의 및 UI 구현 대기 중.
+- [ ] **마켓 메뉴**: 기능 정의 및 UI 구현 대기 중 (현재 빈 div 반환).
 - [ ] **검색 엔진**: Firestore 텍스트 검색 한계 보완 (현재는 클라이언트 사이드 필터링).
+- [ ] **유배·귀양지**: 메뉴에 정의되어 있으나 UI/필터링 미구현.
+- [ ] **App.tsx 비대화**: 460줄 — 상태 분리 또는 custom hook 도입 검토 필요.
 
 ---
 

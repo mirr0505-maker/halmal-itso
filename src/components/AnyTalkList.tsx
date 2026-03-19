@@ -6,17 +6,19 @@ import { formatKoreanNumber, getReputationLabel, getCategoryDisplayName } from '
 interface Props {
   posts: Post[];
   onTopicClick: (post: Post) => void;
-  onLikeClick?: (e: React.MouseEvent, postId: string) => void; 
+  onLikeClick?: (e: React.MouseEvent, postId: string) => void;
   commentCounts?: Record<string, number>;
   currentNickname?: string;
   currentUserData?: any;
   allUsers?: Record<string, any>;
   followerCounts?: Record<string, number>;
+  tab?: string;
 }
 
-const AnyTalkList = ({ 
-  posts, onTopicClick, onLikeClick, commentCounts = {}, currentNickname, allUsers = {}, followerCounts = {}
+const AnyTalkList = ({
+  posts, onTopicClick, onLikeClick, commentCounts = {}, currentNickname, allUsers = {}, followerCounts = {}, tab
 }: Props) => {
+  const showGoldHeart = tab === 'recent' || tab === 'best' || tab === 'rank';
 
   const stripHtml = (html: string) => {
     const tmp = document.createElement("DIV");
@@ -59,6 +61,11 @@ const AnyTalkList = ({
           const displayLevel = authorData ? authorData.level : (post.authorInfo?.level || 1);
           const displayLikes = authorData ? (authorData.likes || 0) : (post.authorInfo?.totalLikes || 0);
 
+          const goldHeartCount = (post.likedBy || []).filter(nickname => {
+            const ud = allUsers[`nickname_${nickname}`];
+            return ud && (ud.level || 1) >= 5;
+          }).length;
+
           return (
             <div 
               key={post.id} 
@@ -73,19 +80,28 @@ const AnyTalkList = ({
                     {post.title}
                   </h3>
                 </div>
-                <div className="flex gap-0.5 shrink-0 ml-2 pt-1">
-                  {[1, 2, 3].map((idx) => (
-                    <svg 
-                      key={idx} 
-                      className={`w-3 h-3 transition-colors ${idx <= promoLevel ? 'text-rose-400 fill-current' : 'text-slate-100 fill-none'}`} 
-                      viewBox="0 0 24 24" 
-                      stroke="currentColor" 
-                      strokeWidth="3" 
-                    >
+                {showGoldHeart ? (
+                  <div className="flex items-center gap-0.5 shrink-0 ml-2 pt-1">
+                    <svg className={`w-3.5 h-3.5 text-amber-400 ${goldHeartCount > 0 ? 'fill-current' : 'fill-none'}`} viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
                       <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
                     </svg>
-                  ))}
-                </div>
+                    <span className="text-[9px] font-[1000] text-amber-400">{goldHeartCount}</span>
+                  </div>
+                ) : (
+                  <div className="flex gap-0.5 shrink-0 ml-2 pt-1">
+                    {[1, 2, 3].map((idx) => (
+                      <svg
+                        key={idx}
+                        className={`w-3 h-3 transition-colors ${idx <= promoLevel ? 'text-rose-400 fill-current' : 'text-slate-100 fill-none'}`}
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        strokeWidth="3"
+                      >
+                        <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
+                      </svg>
+                    ))}
+                  </div>
+                )}
               </div>
               
               {/* 2. 중간: 내용 (이미지 여부에 따라 줄 수 가변적 조절) */}

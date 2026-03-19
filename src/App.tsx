@@ -20,9 +20,10 @@ const CreatePostBox = lazy(() => import('./components/CreatePostBox'));
 const CreateOneCutBox = lazy(() => import('./components/CreateOneCutBox'));
 
 const TEST_ACCOUNTS = [
-  { nickname: "깐부1호", email: "test1@halmal.com", bio: "1번 테스트 계정이오." },
-  { nickname: "깐부2호", email: "test2@halmal.com", bio: "2번 테스트 계정이오." },
-  { nickname: "깐부3호", email: "test3@halmal.com", bio: "3번 테스트 계정이오." }
+  { nickname: "깐부1호", email: "test1@halmal.com", bio: "1번 테스트 계정이오.", level: 1 },
+  { nickname: "깐부2호", email: "test2@halmal.com", bio: "2번 테스트 계정이오.", level: 1 },
+  { nickname: "깐부3호", email: "test3@halmal.com", bio: "3번 테스트 계정이오.", level: 1 },
+  { nickname: "깐부4호", email: "test4@halmal.com", bio: "4번 테스트 계정이오. (Lv5)", level: 5 }
 ];
 
 const MENU_MESSAGES: Record<string, { title: string, description: string, emoji: string, categoryKey?: string }> = {
@@ -135,7 +136,7 @@ function App() {
             nickname: testUser.nickname,
             email: testUser.email,
             bio: testUser.bio,
-            level: 1, exp: 0, likes: 0, points: 0,
+            level: testUser.level || 1, exp: 0, likes: 0, points: 0,
             subscriberCount: 0, isPhoneVerified: true,
             friendList: [], blockList: [], avatarUrl: "", createdAt: serverTimestamp()
           };
@@ -308,7 +309,7 @@ function App() {
     }
 
     if (activeMenu === 'friends') {
-      const allowedNicknames = ["깐부1호", "깐부2호", "깐부3호", "흑무영"];
+      const allowedNicknames = ["깐부1호", "깐부2호", "깐부3호", "깐부4호", "흑무영"];
       const others = Object.values(allUsers).filter(u => u.nickname && u.nickname !== userData?.nickname && !u.uid.startsWith('nickname_') && allowedNicknames.includes(u.nickname));
       return (
         <div className="w-full max-w-4xl mx-auto py-10 px-4 animate-in fade-in">
@@ -327,18 +328,18 @@ function App() {
       return <div className="w-full" />;
     }
 
+    if (selectedTopic) {
+      const livePost = allRootPosts.find(p => p.id === selectedTopic.id) || selectedTopic;
+      // 🚀 한컷 판정 로직 강화: isOneCut 플래그 또는 카테고리명이 "한컷"인 경우
+      if (livePost.isOneCut || livePost.category === "한컷") {
+        return <OneCutDetailView rootPost={livePost} allPosts={allChildPosts.filter(p => p.rootId === livePost.id)} otherTopics={allRootPosts} onTopicChange={setSelectedTopic} userData={userData} friends={friends} handleSubmit={handleCommentSubmit} selectedSide={selectedSide} setSelectedSide={setSelectedSide} newContent={newContent} setNewContent={setNewContent} isSubmitting={isSubmitting} onLikeClick={handleLike} currentNickname={userData?.nickname} allUsers={allUsers} followerCounts={followerCounts} commentCounts={commentCounts} onEditPost={(post) => { setEditingPost(post); setIsCreateOpen(true); }} />;
+      }
+      return <DiscussionView rootPost={livePost} allPosts={allChildPosts.filter(p => p.rootId === livePost.id)} otherTopics={allRootPosts.filter(p => p.id !== livePost.id && p.category === livePost.category)} onTopicChange={setSelectedTopic} userData={userData} friends={friends} onToggleFriend={toggleFriend} onPostClick={() => {}} replyTarget={replyTarget} setReplyTarget={setReplyTarget} handleSubmit={handleCommentSubmit} selectedSide={selectedSide} setSelectedSide={setSelectedSide} selectedType={selectedType} setSelectedType={setSelectedType} newTitle={newTitle} setNewTitle={setNewTitle} newContent={newContent} setNewContent={setNewContent} isSubmitting={isSubmitting} commentCounts={commentCounts} onLikeClick={handleLike} currentNickname={userData?.nickname} allUsers={allUsers} followerCounts={followerCounts} toggleBlock={toggleBlock} onEditPost={(post) => { setEditingPost(post); setIsCreateOpen(true); }} />;
+    }
+
     if (activeMenu === 'onecut') {
       const onecutPosts = allRootPosts.filter(p => p.isOneCut);
       return <div className="w-full animate-in fade-in"><OneCutList posts={onecutPosts} allPosts={allRootPosts} onTopicClick={setSelectedTopic} onLikeClick={handleLike} currentNickname={userData?.nickname} allUsers={allUsers} followerCounts={followerCounts} onEditClick={(post) => { setEditingPost(post); setIsCreateOpen(true); }} /></div>;
-    }
-
-
-    if (selectedTopic) {
-      const livePost = allRootPosts.find(p => p.id === selectedTopic.id) || selectedTopic;
-      if (livePost.isOneCut) {
-        return <OneCutDetailView rootPost={livePost} allPosts={allChildPosts.filter(p => p.rootId === livePost.id)} otherTopics={allRootPosts} onTopicChange={setSelectedTopic} userData={userData} friends={friends} handleSubmit={handleCommentSubmit} selectedSide={selectedSide} setSelectedSide={setSelectedSide} newContent={newContent} setNewContent={setNewContent} isSubmitting={isSubmitting} onLikeClick={handleLike} currentNickname={userData?.nickname} allUsers={allUsers} followerCounts={followerCounts} onEditPost={(post) => { setEditingPost(post); setIsCreateOpen(true); }} />;
-      }
-      return <DiscussionView rootPost={livePost} allPosts={allChildPosts.filter(p => p.rootId === livePost.id)} otherTopics={allRootPosts.filter(p => p.id !== livePost.id && p.category === livePost.category)} onTopicChange={setSelectedTopic} userData={userData} friends={friends} onToggleFriend={toggleFriend} onPostClick={() => {}} replyTarget={replyTarget} setReplyTarget={setReplyTarget} handleSubmit={handleCommentSubmit} selectedSide={selectedSide} setSelectedSide={setSelectedSide} selectedType={selectedType} setSelectedType={setSelectedType} newTitle={newTitle} setNewTitle={setNewTitle} newContent={newContent} setNewContent={setNewContent} isSubmitting={isSubmitting} commentCounts={commentCounts} onLikeClick={handleLike} currentNickname={userData?.nickname} allUsers={allUsers} followerCounts={followerCounts} toggleBlock={toggleBlock} onEditPost={(post) => { setEditingPost(post); setIsCreateOpen(true); }} />;
     }
 
     // 🚀 포스트 필터링 및 탭 처리
@@ -357,7 +358,7 @@ function App() {
       const searchedPosts = filterBySearch(categoryPosts);
       return (
         <div className="w-full animate-in fade-in">
-          <AnyTalkList posts={searchedPosts} onTopicClick={setSelectedTopic} onLikeClick={handleLike} commentCounts={commentCounts} currentNickname={userData?.nickname} currentUserData={userData} allUsers={allUsers} followerCounts={followerCounts} />
+          <AnyTalkList posts={searchedPosts} onTopicClick={setSelectedTopic} onLikeClick={handleLike} commentCounts={commentCounts} currentNickname={userData?.nickname} currentUserData={userData} allUsers={allUsers} followerCounts={followerCounts} tab={activeTab} />
         </div>
       );
     }
@@ -385,7 +386,7 @@ function App() {
 
     return (
       <div className="w-full animate-in fade-in">
-        <AnyTalkList posts={searchedPosts} onTopicClick={setSelectedTopic} onLikeClick={handleLike} commentCounts={commentCounts} currentNickname={userData?.nickname} currentUserData={userData} allUsers={allUsers} followerCounts={followerCounts} />
+        <AnyTalkList posts={searchedPosts} onTopicClick={setSelectedTopic} onLikeClick={handleLike} commentCounts={commentCounts} currentNickname={userData?.nickname} currentUserData={userData} allUsers={allUsers} followerCounts={followerCounts} tab={activeTab} />
       </div>
     );
   };
