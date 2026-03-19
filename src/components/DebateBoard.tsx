@@ -33,11 +33,11 @@ const DebateBoard = ({
     } else if (category === '유배·귀양지') {
       label = "격리 구역 기록"; colorClass = "text-slate-500"; pointColor = "bg-slate-400";
     } else if (category === '뼈때리는 글') {
-      label = "뼈때리는 할말"; colorClass = "text-purple-600"; pointColor = "bg-purple-500";
+      label = "뼈때리는 글"; colorClass = "text-purple-600"; pointColor = "bg-purple-500";
     } else if (rule.boardType === 'onecut') {
       label = "한컷 반응"; colorClass = "text-rose-600"; pointColor = "bg-rose-500";
     } else {
-      label = "공감하는 할말"; colorClass = "text-emerald-600"; pointColor = "bg-emerald-500";
+      label = "공감하는 글"; colorClass = "text-emerald-600"; pointColor = "bg-emerald-500";
     }
 
     return (
@@ -55,7 +55,7 @@ const DebateBoard = ({
               onLikeClick={onLikeClick} currentNickname={currentNickname}
             />
           ))}
-          {allChildPosts.length === 0 && <div className="py-20 text-center text-slate-300 font-bold text-xs">첫 번째 기록을 남겨보시오.</div>}
+          {allChildPosts.length === 0 && <div className="py-20 text-center text-slate-300 font-bold text-xs">첫 번째 글을 남겨보세요.</div>}
         </div>
       </div>
     );
@@ -83,7 +83,7 @@ const DebateBoard = ({
             ))}
           </div>
         </div>
-        {allChildPosts.length === 0 && <div className="py-20 text-center text-slate-300 font-bold text-xs">🌍 따끈한 현지 소식을 기다리고 있소.</div>}
+        {allChildPosts.length === 0 && <div className="py-20 text-center text-slate-300 font-bold text-xs">🌍 따끈한 현지 소식을 기다리고 있어요.</div>}
       </div>
     );
   }
@@ -109,7 +109,7 @@ const DebateBoard = ({
               onLikeClick={onLikeClick} currentNickname={currentNickname}
             />
           ))}
-          {leftPosts.length === 0 && <div className="py-16 text-center text-slate-300 font-bold text-xs">첫 기록을 남겨주시오.</div>}
+          {leftPosts.length === 0 && <div className="py-16 text-center text-slate-300 font-bold text-xs">첫 글을 남겨주세요.</div>}
         </div>
       </div>
 
@@ -128,7 +128,7 @@ const DebateBoard = ({
               onLikeClick={onLikeClick} currentNickname={currentNickname}
             />
           ))}
-          {rightPosts.length === 0 && <div className="py-16 text-center text-slate-300 font-bold text-xs">첫 기록을 남겨주시오.</div>}
+          {rightPosts.length === 0 && <div className="py-16 text-center text-slate-300 font-bold text-xs">첫 글을 남겨주세요.</div>}
         </div>
       </div>
     </div>

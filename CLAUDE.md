@@ -1,0 +1,87 @@
+# CLAUDE.md — Claude Code 전용 지침
+
+이 파일은 Claude Code가 **할말있소(HALMAL-ITSO)** 프로젝트에서 작업할 때 반드시 따라야 하는 지침입니다.
+
+---
+
+## 프로젝트 핵심 파악
+
+- **blueprint.md** — 설계 계약서. 모든 작업 전 반드시 참조.
+- **GEMINI.md** — 범용 AI 개발 원칙 (코드 품질, Firebase 규칙 등).
+- **src/types.ts** — TypeScript 인터페이스 전체. 새 타입 추가 시 여기에만 작성.
+
+---
+
+## 절대 수칙
+
+1. **코드 보호**: 요구사항과 무관한 기존 코드를 절대 수정하지 않는다. Tailwind 클래스, 마진, 패딩 1픽셀도 임의 변경 금지.
+2. **선 보고 후 실행**: 코드 수정 전 AS-IS → TO-BE를 한국어로 설명하고 사용자 확인 후 실행.
+3. **Surgical Edit**: 파일 전체 재작성 대신 필요한 부분만 Edit 도구로 정밀하게 수정.
+4. **200라인 규칙**: 파일이 200라인 초과 시 기능별 분리 제안.
+
+---
+
+## 기술 규칙
+
+### Firebase / Firestore
+- Firestore 자동 생성 ID 금지 → `post_timestamp_nickname` 형식 사용
+- 실시간 리스너: `onSnapshot` (App.tsx에서 중앙 관리)
+- 컬렉션: `posts`, `users`
+
+### Cloudflare R2 이미지 업로드
+- `File` → `ArrayBuffer` → `Uint8Array` → `PutObjectCommand`
+- 메타데이터에 한국어(비ASCII) 금지
+- 업로드 경로: `uploads/{userId}/{filename}`
+- 공개 URL 베이스: `https://pub-9e6af273cd034aa6b7857343d0745224.r2.dev`
+
+### HTML 렌더링
+- 에디터 출력은 `dangerouslySetInnerHTML={{ __html: post.content }}` 사용
+- `prose` Tailwind 클래스로 스타일 안정화
+- 목록 뷰에서 이미지는 `display:none` (line-clamp-3 적용)
+
+### TypeScript
+- 빌드 에러 0 유지 (`npm run build` 확인)
+- 미사용 변수 `_` 접두사 또는 즉시 제거
+
+---
+
+## 컴포넌트별 주의사항
+
+| 파일 | 주의 |
+|------|------|
+| `App.tsx` | 전역 상태·리스너 중심. props drilling이 많으므로 함부로 리팩터링 금지. |
+| `TiptapEditor.tsx` | 스티키 툴바 + 버블 메뉴 로직 손대지 않기. 커서 위치 유지 로직 보호. |
+| `CreatePostBox.tsx` | 카테고리 목록에서 "한컷" 제외 유지. |
+| `DiscussionView.tsx` | `CATEGORY_RULES` 객체 — 카테고리별 댓글 규칙 정의. 임의 변경 금지. |
+| `OneCutDetailView.tsx` | 3컬럼 레이아웃 유지. |
+
+---
+
+## 개발·테스트 환경
+
+- 테스트 계정: 깐부1호, 깐부2호, 깐부3호 (헤더 Dev 버튼으로 전환)
+- 빌드: `npm run build`
+- 배포: `firebase deploy --only hosting`
+- 린트: `npx eslint . --fix`
+
+---
+
+## 필터링 로직 (절대 불변)
+
+| 탭 | 조건 |
+|----|------|
+| any | 게시 후 1시간 이내 |
+| recent | 좋아요 3개 이상 |
+| best | 좋아요 10개 이상 |
+| rank | 좋아요 30개 이상 |
+| friend | 1시간 이내 + 좋아요 3개 이상 + 팔로우 유저 |
+| 카테고리 뷰 | 좋아요 3개 이상 |
+
+---
+
+## 금지 사항
+
+- `write_file` / `Write` 도구로 기존 파일 전체 덮어쓰기 (신규 파일 제외)
+- 요청 없는 리팩터링, 불필요한 주석·docstring 추가
+- `firebase deploy` 자동 실행 (사용자 명시 요청 시에만)
+- Git push 자동 실행 (사용자 명시 요청 시에만)

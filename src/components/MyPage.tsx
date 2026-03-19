@@ -81,7 +81,7 @@ const MyPage = ({
                 {activeTab === 'friends' && (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {friends.length === 0 ? (
-                      <div className="col-span-full py-20 text-center text-slate-300 font-bold italic">아직 맺은 깐부가 없소.</div>
+                      <div className="col-span-full py-20 text-center text-slate-300 font-bold italic">아직 맺은 깐부가 없어요.</div>
                     ) : (
                       friends.map(fname => {
                         const fData = allUsers[`nickname_${fname}`] || allUsers[fname];

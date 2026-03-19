@@ -45,7 +45,7 @@ const MyProfileCard = ({ userData, friendCount }: Props) => {
     if (!file) return;
 
     if (file.size > 2 * 1024 * 1024) {
-      alert("이미지 크기가 너무 크오! 2MB 이하의 사진만 허용하오.");
+      alert("이미지가 너무 큽니다. 2MB 이하만 업로드할 수 있어요.");
       return;
     }
 
@@ -56,7 +56,7 @@ const MyProfileCard = ({ userData, friendCount }: Props) => {
       if (isUploadingRef.current) {
         setIsUploading(false);
         isUploadingRef.current = false;
-        alert("업로드 시간이 너무 길어 중단했소. [Cloudflare R2]의 CORS 설정 문제일 수 있소!");
+        alert("업로드 시간이 초과됐습니다. Cloudflare R2 CORS 설정 문제일 수 있어요.");
       }
     }, 30000);
 
@@ -105,7 +105,7 @@ const MyProfileCard = ({ userData, friendCount }: Props) => {
       setIsEditing(false);
     } catch (e) { 
       console.error("프로필 수정 실패:", e);
-      alert("사령부(DB)에 정보가 전달되지 않았소.");
+      alert("서버에 저장되지 않았습니다.");
     }
   };
 
@@ -168,7 +168,7 @@ const MyProfileCard = ({ userData, friendCount }: Props) => {
                   value={editData.bio} 
                   onChange={e => setEditData({...editData, bio: e.target.value})} 
                   className="w-full p-3 bg-slate-50 border-2 border-slate-200 rounded-xl text-sm outline-none focus:border-slate-900 h-20 resize-none font-medium leading-relaxed" 
-                  placeholder="당신의 철학을 적어주시오" 
+                  placeholder="자신을 소개해 보세요" 
                 />
               </div>
 

@@ -147,7 +147,7 @@ const PostDetailModal = ({ post, onClose, currentNickname, onLikeClick, isFriend
           <form onSubmit={handleFullSubmit} className="flex gap-2">
             <input 
               type="text" value={newComment} onChange={e => setNewComment(e.target.value)} 
-              placeholder="예리한 한마디를 던져보시오..." 
+              placeholder="예리한 한마디를 남겨보세요..." 
               className="flex-1 px-5 py-3 border-2 border-slate-100 rounded-2xl text-[13px] font-bold outline-none focus:border-slate-900 focus:bg-white transition-all shadow-inner" 
             />
             <button type="submit" disabled={!newComment.trim() || isSubmitting} className="bg-slate-900 text-white px-8 rounded-2xl font-black text-[13px] shadow-lg active:scale-95 disabled:opacity-50 transition-all">전송 🚀</button>

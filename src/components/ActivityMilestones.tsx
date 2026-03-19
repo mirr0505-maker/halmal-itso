@@ -67,7 +67,7 @@ const ActivityMilestones = ({ userData, rootCount, formalCount, commentCount }: 
               <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest block mb-1">기록 통계</span>
               <div className="flex items-baseline gap-1.5">
                 <span className="text-2xl font-[1000] tracking-tight">{rootCount}</span>
-                <span className="text-[10px] font-black text-blue-500 uppercase font-sans">할말 남김</span>
+                <span className="text-[10px] font-black text-blue-500 uppercase font-sans">글 남김</span>
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3 pt-4 border-t border-white/10">

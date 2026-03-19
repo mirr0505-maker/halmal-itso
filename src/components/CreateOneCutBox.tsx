@@ -23,7 +23,8 @@ const CreateOneCutBox = ({ userData, editingPost, allPosts, onSubmit, onClose }:
     linkedPostId: editingPost?.linkedPostId || '',
   });
 
-  const [linkSearch, setLinkedSearch] = useState("");
+  const [linkSearch, setLinkSearch] = useState("");
+  const [showLinkModal, setShowLinkModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isImageUploading, setIsImageUploading] = useState(false);
   const [imageError, setImageError] = useState(false);
@@ -40,7 +41,7 @@ const CreateOneCutBox = ({ userData, editingPost, allPosts, onSubmit, onClose }:
       const arrayBuffer = await file.arrayBuffer();
       const fileData = new Uint8Array(arrayBuffer);
       const extension = file.name.split('.').pop();
-      const fileName = `posts/${userData.uid}/${Date.now()}.${extension}`;
+      const fileName = `uploads/${userData.uid}/${Date.now()}.${extension}`;
       
       await s3Client.send(new PutObjectCommand({
         Bucket: BUCKET_NAME,
@@ -53,7 +54,7 @@ const CreateOneCutBox = ({ userData, editingPost, allPosts, onSubmit, onClose }:
       setPostData(prev => ({ ...prev, imageUrl: finalUrl }));
     } catch (error: any) {
       console.error("업로드 실패:", error);
-      alert("이미지 서버 전송에 실패했소. 미리보기는 유지되오.");
+      alert("이미지 전송에 실패했습니다. 미리보기는 유지됩니다.");
     } finally {
       setIsImageUploading(false);
     }
@@ -69,9 +70,15 @@ const CreateOneCutBox = ({ userData, editingPost, allPosts, onSubmit, onClose }:
     }
   };
 
-  const filteredLinkPosts = allPosts.filter(p => 
-    !p.isOneCut && (p.title?.toLowerCase().includes(linkSearch.toLowerCase()) || p.content.toLowerCase().includes(linkSearch.toLowerCase()))
-  ).slice(0, 5);
+  // 내 글 목록 (한컷 제외) + 검색 필터
+  const myPosts = allPosts.filter(p => !p.isOneCut && p.author === userData?.nickname);
+  const filteredLinkPosts = myPosts.filter(p =>
+    !linkSearch ||
+    p.title?.toLowerCase().includes(linkSearch.toLowerCase()) ||
+    p.content.toLowerCase().includes(linkSearch.toLowerCase())
+  );
+
+  const selectedLinkPost = myPosts.find(p => p.id === postData.linkedPostId);
 
   const handleSubmit = async () => {
     if (!postData.imageUrl) { alert("한컷은 이미지가 필수이오!"); return; }
@@ -85,9 +92,11 @@ const CreateOneCutBox = ({ userData, editingPost, allPosts, onSubmit, onClose }:
   };
 
   const handleTagChange = (index: number, value: string) => {
-    const newTags = [...(postData.tags || ['', '', '', '', ''])];
-    newTags[index] = value;
-    setPostData({ ...postData, tags: newTags });
+    setPostData(prev => {
+      const newTags = [...(prev.tags || ['', '', '', '', ''])];
+      newTags[index] = value;
+      return { ...prev, tags: newTags };
+    });
   };
 
   return (
@@ -114,50 +123,63 @@ const CreateOneCutBox = ({ userData, editingPost, allPosts, onSubmit, onClose }:
         </div>
 
         {/* Scrollable Content Area */}
-        <div className="flex-1 overflow-y-auto no-scrollbar">
+        <div className="flex-1 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
           <div className="px-10 py-10 grid grid-cols-1 lg:grid-cols-12 gap-12">
             {/* Left Section: Inputs */}
             <div className="lg:col-span-7 space-y-10">
               <div className="space-y-3">
                 <label className="text-[11px] font-black text-slate-400 ml-1 uppercase tracking-widest">한컷 제목</label>
-                <input type="text" placeholder="강렬한 한줄 제목을 적어주시오." value={postData.title} onChange={e => setPostData({...postData, title: e.target.value})} className="w-full bg-slate-50 border-2 border-transparent px-8 py-5 rounded-[1.5rem] text-[18px] font-black text-slate-900 focus:bg-white focus:border-rose-500 outline-none transition-all placeholder:text-slate-200" />
+                <input type="text" placeholder="강렬한 한 줄 제목을 입력하세요." value={postData.title} onChange={e => setPostData(prev => ({...prev, title: e.target.value}))} className="w-full bg-slate-50 border-2 border-transparent px-8 py-5 rounded-[1.5rem] text-[18px] font-black text-slate-900 focus:bg-white focus:border-rose-500 outline-none transition-all placeholder:text-slate-200" />
               </div>
 
               <div className="space-y-3">
                 <label className="text-[11px] font-black text-slate-400 ml-1 uppercase tracking-widest">📸 메인 이미지 (9:16)</label>
                 <div className="flex gap-3">
-                  <input type="text" placeholder="이미지 주소를 넣거나 아래 창에 붙여넣으시오." value={postData.imageUrl || ''} onChange={e => setPostData({...postData, imageUrl: e.target.value})} className="flex-1 bg-slate-50 border-2 border-transparent px-6 py-4 rounded-2xl text-[14px] font-bold text-slate-600 focus:bg-white focus:border-rose-500 outline-none transition-all placeholder:text-slate-300" />
+                  <input type="text" placeholder="이미지 주소를 입력하거나 아래에 붙여넣으세요." value={postData.imageUrl || ''} onChange={e => setPostData(prev => ({...prev, imageUrl: e.target.value}))} className="flex-1 bg-slate-50 border-2 border-transparent px-6 py-4 rounded-2xl text-[14px] font-bold text-slate-600 focus:bg-white focus:border-rose-500 outline-none transition-all placeholder:text-slate-300" />
                   <button onClick={() => fileInputRef.current?.click()} className="px-8 bg-[#0F172A] text-white rounded-2xl font-black text-[13px] hover:bg-slate-800 transition-all shrink-0 shadow-lg shadow-slate-100">사진 선택</button>
                   <input type="file" ref={fileInputRef} onChange={e => e.target.files?.[0] && uploadImageToR2(e.target.files[0])} accept="image/*" className="hidden" />
                 </div>
               </div>
 
-              <div className="space-y-3 relative">
-                <label className="text-[11px] font-black text-slate-400 ml-1 uppercase tracking-widest">🔗 원본 할말 연결</label>
-                <div className="relative group">
-                  <input type="text" placeholder="연결할 원본 글 제목 검색..." value={linkSearch} onChange={e => setLinkedSearch(e.target.value)} className="w-full bg-slate-50 border-2 border-transparent px-6 py-4 rounded-2xl text-[14px] font-bold text-slate-600 focus:bg-white focus:border-blue-500 outline-none transition-all" />
-                  {linkSearch && !postData.linkedPostId && (
-                    <div className="absolute top-full left-0 right-0 mt-3 bg-white border border-slate-100 rounded-2xl shadow-2xl z-[70] overflow-hidden animate-in fade-in slide-in-from-top-2">
-                      {filteredLinkPosts.map(p => (
-                        <div key={p.id} onClick={() => { setPostData({...postData, linkedPostId: p.id}); setLinkedSearch(p.title || ""); }} className="px-6 py-4 hover:bg-slate-50 cursor-pointer border-b border-slate-50 last:border-0 transition-colors">
-                          <p className="text-[14px] font-black text-slate-900">{p.title}</p>
-                          <p className="text-[11px] text-slate-400 font-bold mt-1">{p.author} · {p.category}</p>
-                        </div>
-                      ))}
+              <div className="space-y-3">
+                <label className="text-[11px] font-black text-slate-400 ml-1 uppercase tracking-widest">🔗 원본 글 연결 (선택)</label>
+
+                {postData.linkedPostId && selectedLinkPost ? (
+                  /* 연결된 글 표시 */
+                  <div className="flex items-center justify-between p-5 bg-blue-50 rounded-2xl border-2 border-blue-100">
+                    <div className="flex flex-col gap-1 min-w-0 mr-4">
+                      <span className="text-[10px] font-black text-blue-400 uppercase tracking-wider">연결됨</span>
+                      <p className="text-[14px] font-black text-slate-900 truncate">{selectedLinkPost.title}</p>
+                      <p className="text-[11px] text-slate-400 font-bold">{selectedLinkPost.category}</p>
                     </div>
-                  )}
-                </div>
-                {postData.linkedPostId && (
-                  <button onClick={() => { setPostData({...postData, linkedPostId: ""}); setLinkedSearch(""); }} className="mt-3 flex items-center gap-2 text-[11px] font-black text-rose-500 hover:text-rose-600 transition-colors underline bg-rose-50 px-3 py-1.5 rounded-lg w-fit">
-                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
-                    연결 해제
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        onClick={() => setShowLinkModal(true)}
+                        className="flex items-center gap-1.5 text-[11px] font-black text-blue-500 hover:text-blue-600 bg-white px-3 py-2 rounded-xl border border-blue-100 transition-colors"
+                      >변경</button>
+                      <button
+                        onClick={() => { setPostData(prev => ({...prev, linkedPostId: ""})); setLinkSearch(""); }}
+                        className="flex items-center gap-1.5 text-[11px] font-black text-rose-500 hover:text-rose-600 bg-white px-3 py-2 rounded-xl border border-rose-100 transition-colors"
+                      >
+                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                        해제
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setShowLinkModal(true)}
+                    className="w-full flex items-center gap-3 px-6 py-4 bg-slate-50 hover:bg-blue-50 border-2 border-dashed border-slate-200 hover:border-blue-300 rounded-2xl transition-all group"
+                  >
+                    <svg className="w-5 h-5 text-slate-300 group-hover:text-blue-400 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
+                    <span className="text-[13px] font-black text-slate-400 group-hover:text-blue-500 transition-colors">원본 글 검색하여 연결하기</span>
                   </button>
                 )}
               </div>
 
               <div className="space-y-3">
                 <label className="text-[11px] font-black text-slate-400 ml-1 uppercase tracking-widest">상세 설명</label>
-                <textarea placeholder="한컷에 대한 보충 설명을 적어주시오." value={postData.content} onChange={e => setPostData({...postData, content: e.target.value})} className="w-full bg-slate-50 border-2 border-transparent px-8 py-6 rounded-[2rem] text-[15px] font-medium text-slate-700 outline-none focus:bg-white focus:border-rose-500 transition-all resize-none min-h-[180px] leading-relaxed" />
+                <textarea placeholder="한컷에 대한 보충 설명을 입력하세요." value={postData.content ?? ''} onChange={e => setPostData(prev => ({...prev, content: e.target.value}))} className="w-full bg-slate-50 border-2 border-transparent px-8 py-6 rounded-[2rem] text-[15px] font-medium text-slate-700 outline-none focus:bg-white focus:border-rose-500 transition-all resize-none min-h-[180px] leading-relaxed" />
               </div>
 
               <div className="space-y-3">
@@ -183,7 +205,7 @@ const CreateOneCutBox = ({ userData, editingPost, allPosts, onSubmit, onClose }:
                       <img src={postData.imageUrl} alt="preview" className={`w-full h-full object-cover transition-transform duration-700 group-hover:scale-105 ${imageError ? 'hidden' : 'block'}`} onError={() => setImageError(true)} />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-transparent pointer-events-none" />
                       <div className="absolute bottom-12 left-10 right-10 text-white">
-                        <h3 className="text-[24px] font-[1000] italic leading-tight mb-4 tracking-tighter drop-shadow-lg">{postData.title || "제목을 입력하시오"}</h3>
+                        <h3 className="text-[24px] font-[1000] italic leading-tight mb-4 tracking-tighter drop-shadow-lg">{postData.title || "제목을 입력하세요"}</h3>
                         <div className="flex items-center gap-3 bg-white/10 backdrop-blur-md px-4 py-2 rounded-xl w-fit border border-white/10">
                           <div className="w-7 h-7 rounded-full bg-white/20 overflow-hidden"><img src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${userData?.nickname}`} alt="" className="w-full h-full object-cover" /></div>
                           <span className="text-[12px] font-black opacity-90">{userData?.nickname}</span>
@@ -191,7 +213,7 @@ const CreateOneCutBox = ({ userData, editingPost, allPosts, onSubmit, onClose }:
                       </div>
                     </>
                   ) : (
-                    <div className="text-center px-10"><p className="text-slate-600 text-[13px] font-black leading-relaxed">이미지를 선택하거나<br/>여기에 붙여넣으시오.</p></div>
+                    <div className="text-center px-10"><p className="text-slate-600 text-[13px] font-black leading-relaxed">이미지를 선택하거나<br/>여기에 붙여넣으세요.</p></div>
                   )}
                   {isImageUploading && (
                     <div className="absolute inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center animate-in fade-in">
@@ -204,10 +226,57 @@ const CreateOneCutBox = ({ userData, editingPost, allPosts, onSubmit, onClose }:
           </div>
         </div>
       </div>
-      <style>{`
-        .no-scrollbar::-webkit-scrollbar { display: none; }
-        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-      `}</style>
+      {/* 원본 글 검색 팝업 모달 */}
+      {showLinkModal && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-6" onClick={() => { setShowLinkModal(false); setLinkSearch(""); }}>
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
+          <div className="relative bg-white rounded-[2.5rem] shadow-2xl w-full max-w-lg overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-300" onClick={e => e.stopPropagation()}>
+            {/* 모달 헤더 */}
+            <div className="flex items-center justify-between px-8 py-6 border-b border-slate-100">
+              <div>
+                <h3 className="text-[16px] font-[1000] text-slate-900 tracking-tighter">내 글 선택</h3>
+                <p className="text-[11px] font-bold text-slate-400 mt-0.5">한컷과 연결할 원본 글을 선택하세요.</p>
+              </div>
+              <button onClick={() => { setShowLinkModal(false); setLinkSearch(""); }} className="w-9 h-9 flex items-center justify-center rounded-full bg-slate-100 hover:bg-slate-200 transition-colors">
+                <svg className="w-4 h-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
+            </div>
+            {/* 검색 입력 */}
+            <div className="px-8 pt-5 pb-3">
+              <input
+                type="text"
+                placeholder="제목 또는 내용으로 검색..."
+                value={linkSearch}
+                onChange={e => setLinkSearch(e.target.value)}
+                autoFocus
+                className="w-full bg-slate-50 border-2 border-transparent px-5 py-3 rounded-2xl text-[13px] font-bold text-slate-600 focus:bg-white focus:border-blue-500 outline-none transition-all placeholder:text-slate-300"
+              />
+            </div>
+            {/* 글 목록 */}
+            <div className="px-8 pb-8 max-h-[400px] overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] space-y-2">
+              {myPosts.length === 0 ? (
+                <p className="text-[13px] text-slate-300 font-bold text-center py-10">작성한 글이 없습니다.</p>
+              ) : filteredLinkPosts.length === 0 ? (
+                <p className="text-[13px] text-slate-300 font-bold text-center py-10">검색 결과가 없습니다.</p>
+              ) : (
+                filteredLinkPosts.map(p => (
+                  <div
+                    key={p.id}
+                    onClick={() => { setPostData(prev => ({...prev, linkedPostId: p.id})); setShowLinkModal(false); setLinkSearch(""); }}
+                    className="flex items-center justify-between px-5 py-4 bg-slate-50 hover:bg-blue-50 hover:border-blue-200 border-2 border-transparent rounded-2xl cursor-pointer transition-all group"
+                  >
+                    <div className="flex flex-col gap-0.5 min-w-0 mr-3">
+                      <p className="text-[14px] font-black text-slate-900 truncate group-hover:text-blue-600 transition-colors">{p.title || "(제목 없음)"}</p>
+                      <p className="text-[11px] font-bold text-slate-400">{p.category}</p>
+                    </div>
+                    <svg className="w-4 h-4 text-slate-300 group-hover:text-blue-400 shrink-0 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" /></svg>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -1,7 +1,7 @@
 // src/components/AnyTalkList.tsx
 import React from 'react';
 import type { Post } from '../types';
-import { formatKoreanNumber } from '../utils';
+import { formatKoreanNumber, getReputationLabel, getCategoryDisplayName } from '../utils';
 
 interface Props {
   posts: Post[];
@@ -43,9 +43,9 @@ const AnyTalkList = ({
   };
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 w-full pb-20">
+    <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-4 w-full pb-20">
       {posts.length === 0 ? (
-        <div className="col-span-full py-40 text-center text-slate-400 font-bold text-sm italic">기록된 할말이 없소.</div>
+        <div className="col-span-full py-40 text-center text-slate-400 font-bold text-sm italic">기록된 글이 없어요.</div>
       ) : (
         posts.map((post) => {
           const promoLevel = Math.min(post.likes || 0, 3);
@@ -57,12 +57,13 @@ const AnyTalkList = ({
           const authorData = (post.author_id && allUsers[post.author_id]) || allUsers[`nickname_${post.author}`];
           const realFollowers = followerCounts[post.author] || 0;
           const displayLevel = authorData ? authorData.level : (post.authorInfo?.level || 1);
+          const displayLikes = authorData ? (authorData.likes || 0) : (post.authorInfo?.totalLikes || 0);
 
           return (
             <div 
               key={post.id} 
               onClick={() => onTopicClick(post)} 
-              className="bg-white border border-slate-100 rounded-[2rem] p-5 cursor-pointer hover:border-blue-400 hover:shadow-xl transition-all group flex flex-col h-full shadow-sm min-h-[460px]"
+              className="bg-white border border-slate-100 rounded-[2rem] p-5 cursor-pointer hover:border-blue-400 hover:shadow-xl transition-all group flex flex-col shadow-sm"
             >
               {/* 1. 최상단: 제목 및 시간/프로모션 */}
               <div className="flex justify-between items-start mb-3 shrink-0">
@@ -105,7 +106,7 @@ const AnyTalkList = ({
               <div className="pt-2 border-t border-slate-50 mt-auto flex flex-col gap-2 shrink-0">
                 <div className="flex items-center">
                   <span className="text-[8px] font-[1000] text-blue-500 bg-blue-50 px-2 py-0.5 rounded-md uppercase tracking-widest border border-blue-100/30">
-                    {post.category || "나의 이야기"}
+                    {getCategoryDisplayName(post.category)}
                   </span>
                 </div>
 
@@ -117,7 +118,7 @@ const AnyTalkList = ({
                     <div className="flex flex-col min-w-0">
                       <span className="text-[11px] font-[1000] text-slate-900 truncate leading-none mb-1">{post.author}</span>
                       <span className="text-[9px] font-bold text-slate-400 truncate tracking-tight">
-                        Lv {displayLevel} · 깐부 {formatKoreanNumber(realFollowers)}
+                        Lv {displayLevel} · {getReputationLabel(displayLikes)} · 깐부 {formatKoreanNumber(realFollowers)}
                       </span>
                     </div>
                   </div>

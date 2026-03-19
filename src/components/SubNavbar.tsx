@@ -41,28 +41,28 @@ const SubNavbar = ({ activeTab, onTabClick, showTabs }: Props) => {
   );
 
   return (
-    <div className="sticky top-0 z-30 bg-[#F8FAFC]/80 backdrop-blur-md pt-5">
-      <div className="flex items-center border-b border-slate-200 h-[42px] px-2">
+    <div className="sticky top-0 z-30 bg-[#F8FAFC]/80 backdrop-blur-md pt-2">
+      <div className="flex items-center border-b border-slate-200 h-[36px] px-2">
         <div className="flex items-center h-full">
           {/* 단계별 게시글 탭 그룹 */}
           <div className="flex items-center h-full gap-1">
-            {renderTab('any', '아무말')}
+            {renderTab('any', '새글')}
             <Chevron />
-            {renderTab('recent', '주목말')}
+            {renderTab('recent', '등록글')}
             <Chevron />
-            {renderTab('best', '대세말')}
+            {renderTab('best', '인기글')}
             <Chevron />
-            {renderTab('rank', '명예말')}
+            {renderTab('rank', '최고글')}
           </div>
 
-          {/* 분리된 깐부말 영역 */}
+          {/* 분리된 깐부글 영역 */}
           <Divider />
           <div className="flex items-center h-full">
-            {renderTab('friend', '깐부말')}
+            {renderTab('friend', '깐부글')}
           </div>
         </div>
       </div>
-      <div className="h-6" />
+      <div className="h-3" />
     </div>
   );
 };
