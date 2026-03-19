@@ -358,7 +358,7 @@ function App() {
       const searchedPosts = filterBySearch(categoryPosts);
       return (
         <div className="w-full animate-in fade-in">
-          <AnyTalkList posts={searchedPosts} onTopicClick={setSelectedTopic} onLikeClick={handleLike} commentCounts={commentCounts} currentNickname={userData?.nickname} currentUserData={userData} allUsers={allUsers} followerCounts={followerCounts} tab={activeTab} />
+          <AnyTalkList posts={searchedPosts} onTopicClick={setSelectedTopic} onLikeClick={handleLike} commentCounts={commentCounts} currentNickname={userData?.nickname} currentUserData={userData} allUsers={allUsers} followerCounts={followerCounts} />
         </div>
       );
     }
