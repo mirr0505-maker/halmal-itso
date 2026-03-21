@@ -26,7 +26,7 @@ const CreatePostBox = ({ userData, editingPost, activeMenu, menuMessages, onSubm
   const [isUploading, setIsUploading] = useState(false);
 
   const menuOptions = Object.keys(menuMessages)
-    .filter(key => key !== 'onecut')
+    .filter(key => !['onecut', 'market', 'exile_place'].includes(key))
     .map(key => ({
       id: key,
       title: menuMessages[key].title,

@@ -1,15 +1,17 @@
-// src/App.tsx
+// src/App.tsx — 루트 컴포넌트 (전역 상태, 실시간 리스너, 라우팅)
 import { useState, useEffect, lazy, Suspense } from 'react';
 import { db, auth, googleProvider } from './firebase';
-import { onAuthStateChanged, signInWithPopup, signOut, setPersistence, browserLocalPersistence, signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
-import { collection, onSnapshot, serverTimestamp, doc, setDoc, updateDoc, increment, arrayUnion, arrayRemove } from 'firebase/firestore';
+import { signInWithPopup, signOut, setPersistence, browserLocalPersistence, signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
+import { serverTimestamp, doc, setDoc, updateDoc, increment, arrayUnion, arrayRemove } from 'firebase/firestore';
 import type { Post } from './types';
+import { useFirebaseListeners } from './hooks/useFirebaseListeners';
 // 항상 초기 화면에 필요한 컴포넌트 — 정적 import 유지
 import AnyTalkList from './components/AnyTalkList';
 import Sidebar from './components/Sidebar';
 import type { MenuId } from './components/Sidebar';
 import SubNavbar from './components/SubNavbar';
 import CategoryHeader from './components/CategoryHeader';
+import { TEST_ACCOUNTS, MENU_MESSAGES } from './constants';
 // 조건부 렌더링 컴포넌트 — lazy load (청크 분리)
 const MyPage = lazy(() => import('./components/MyPage'));
 const PostDetailModal = lazy(() => import('./components/PostDetailModal'));
@@ -18,74 +20,34 @@ const OneCutDetailView = lazy(() => import('./components/OneCutDetailView'));
 const OneCutList = lazy(() => import('./components/OneCutList'));
 const CreatePostBox = lazy(() => import('./components/CreatePostBox'));
 const CreateOneCutBox = lazy(() => import('./components/CreateOneCutBox'));
-
-const TEST_ACCOUNTS = [
-  { nickname: "깐부1호", email: "test1@halmal.com", bio: "1번 테스트 계정이오.", level: 1 },
-  { nickname: "깐부2호", email: "test2@halmal.com", bio: "2번 테스트 계정이오.", level: 1 },
-  { nickname: "깐부3호", email: "test3@halmal.com", bio: "3번 테스트 계정이오.", level: 1 },
-  { nickname: "깐부4호", email: "test4@halmal.com", bio: "4번 테스트 계정이오. (Lv5)", level: 5 }
-];
-
-const MENU_MESSAGES: Record<string, { title: string, description: string, emoji: string, categoryKey?: string }> = {
-  onecut: {
-    emoji: "🎞️",
-    title: "한컷",
-    description: "유튜브 썸네일처럼 강렬한 이미지 한 장으로 전하는 오늘의 소식 (세로형 이미지 권장)"
-  },
-  my_story: {
-    emoji: "📝",
-    title: "너와 나의 이야기",
-    description: "현재를 살아가는 내가 들려주는 이야기 (즐겁고 재밌는, 슬프고 힘든, 짜증나고 싫증나는 일상의 소식들)"
-  },
-  naked_king: {
-    emoji: "👑",
-    title: "판도라의 상자",
-    categoryKey: "벌거벗은 임금님",
-    description: "사회 전반 퍼져 있는, 또는 퍼지고 있는 거짓에 대한 거침없는 진실 공개, 가짜 조작/왜곡 뉴스 기사 등의 사실 확인"
-  },
-  donkey_ears: {
-    emoji: "👂",
-    title: "솔로몬의 재판",
-    categoryKey: "임금님 귀는 당나귀 귀",
-    description: "정치, 사회, 문화, 종교, 교육, 체육 등 전반 이슈에 대한 찬/반 토론, 사회적 이슈 토론의 장"
-  },
-  knowledge_seller: {
-    emoji: "📚",
-    title: "황금알을 낳는 거위",
-    categoryKey: "지식 소매상",
-    description: "정치, 경제(주식, 부동산), 사회, 문학, 법률, 과학, 스포츠, 어학, 쇼핑 등 지식 공유 및 판매"
-  },
-  bone_hitting: {
-    emoji: "⚡",
-    title: "신포도와 여우",
-    categoryKey: "뼈때리는 글",
-    description: "이 시대 경종을 울리는 타골명언 또는 띵언 (e.g. 트위터, 담벼락)"
-  },
-  local_news: {
-    emoji: "🔮",
-    title: "마법 수정 구슬",
-    categoryKey: "현지 소식",
-    description: "국내, 해외 지역 곳곳에 살고 있는 주민이 올리는 그 나라, 그 지역의 따끈한 소식들 (기사/뉴스 번역 포함)"
-  },
-  exile_place: {
-    emoji: "🏚️",
-    title: "유배·귀양지",
-    description: "댓글에서 상식적이지 않은 욕설 등으로 격리된(제재받은) 이들이 글 올리고 소통하는 공간 (주제 없음)"
-  }
+const CREATE_MENU_COMPONENTS: Record<string, ReturnType<typeof lazy>> = {
+  my_story:        lazy(() => import('./components/CreateMyStory')),
+  naked_king:      lazy(() => import('./components/CreateNakedKing')),
+  donkey_ears:     lazy(() => import('./components/CreateDebate')),
+  knowledge_seller:lazy(() => import('./components/CreateKnowledge')),
+  bone_hitting:    lazy(() => import('./components/CreateBoneHitting')),
+  local_news:      lazy(() => import('./components/CreateLocalNews')),
+  exile_place:     lazy(() => import('./components/CreateExile')),
+  market:          lazy(() => import('./components/CreateMarket')),
 };
 
 function App() {
+  // Firebase 실시간 데이터 — useFirebaseListeners 훅에서 관리
+  const {
+    allRootPosts, setAllRootPosts,
+    allChildPosts,
+    userData, setUserData,
+    allUsers,
+    followerCounts,
+    friends,
+    blocks,
+    isLoading
+  } = useFirebaseListeners();
+
+  // UI 전용 상태
   const [selectedTopic, setSelectedTopic] = useState<Post | null>(null);
-  const [allRootPosts, setAllRootPosts] = useState<Post[]>([]);
-  const [allChildPosts, setAllChildPosts] = useState<Post[]>([]);
-  const [friends, setFriends] = useState<string[]>([]);
-  const [blocks, setBlocks] = useState<string[]>([]);
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [userData, setUserData] = useState<any | null>(null);
-  const [allUsers, setAllUsers] = useState<Record<string, any>>({});
-  const [followerCounts, setFollowerCounts] = useState<Record<string, number>>({});
-  const [isLoading, setIsLoading] = useState(true);
 
   const [newTitle, setNewTitle] = useState("");
   const [newContent, setNewContent] = useState("");
@@ -108,21 +70,18 @@ function App() {
 
   const handleLogin = async () => {
     try {
-      setIsLoading(true);
       await setPersistence(auth, browserLocalPersistence);
       await signInWithPopup(auth, googleProvider);
     } catch (error: any) {
       console.error("로그인 에러:", error);
       alert("로그인 중 오류가 발생했소: " + (error.message || "원인 불명"));
-      setIsLoading(false);
     }
   };
 
   const handleTestLogin = async (testUser: typeof TEST_ACCOUNTS[0]) => {
-    if (isLoading) return; 
-    
+    if (isLoading) return;
+
     try {
-      setIsLoading(true);
       if (userData) {
         await signOut(auth);
       }
@@ -147,7 +106,6 @@ function App() {
     } catch (error: any) {
       console.error("로그인 에러:", error);
       alert("깐부 로그인 중 오류가 발생했소: " + (error.message || "원인 불명"));
-      setIsLoading(false);
     }
   };
 
@@ -158,72 +116,6 @@ function App() {
       setActiveMenu('home');
     }
   };
-
-  useEffect(() => {
-    const unsubPosts = onSnapshot(collection(db, "posts"), (snapshot) => {
-      const posts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Post));
-      posts.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
-      setAllRootPosts(posts.filter(p => !p.parentId || p.parentId === "" || p.id === "root_post_01"));
-      setAllChildPosts(posts.filter(p => p.parentId && p.parentId !== "" && p.id !== "root_post_01"));
-    });
-
-    const unsubUsers = onSnapshot(collection(db, "users"), (snapshot) => {
-      const users: Record<string, any> = {};
-      const fCounts: Record<string, number> = {};
-      snapshot.docs.forEach(docSnap => {
-        const data = docSnap.data();
-        const userObj = { ...data, uid: docSnap.id };
-        users[docSnap.id] = userObj;
-        if (data.nickname) users[`nickname_${data.nickname}`] = userObj;
-        if (data.friendList) {
-          data.friendList.forEach((nickname: string) => {
-            fCounts[nickname] = (fCounts[nickname] || 0) + 1;
-          });
-        }
-      });
-      setAllUsers(users);
-      setFollowerCounts(fCounts);
-    });
-
-    let unsubUserDoc: (() => void) | null = null;
-    const unsubAuth = onAuthStateChanged(auth, (user) => {
-      if (user) {
-        if (unsubUserDoc) unsubUserDoc();
-        unsubUserDoc = onSnapshot(doc(db, "users", user.uid), (docSnap) => {
-          if (docSnap.exists()) {
-            const data = docSnap.data();
-            setUserData({ ...data, uid: user.uid });
-            setFriends(data.friendList || []);
-            setBlocks(data.blockList || []);
-          } else {
-            const initialData = {
-              nickname: user.displayName || "익명",
-              email: user.email || "", bio: "안녕하세요.",
-              level: 1, exp: 0, likes: 0, points: 0,
-              subscriberCount: 0, isPhoneVerified: false, 
-              friendList: [], blockList: [], avatarUrl: user.photoURL || "",
-              createdAt: serverTimestamp()
-            };
-            setDoc(doc(db, "users", user.uid), initialData);
-            setUserData({ ...initialData, uid: user.uid });
-          }
-          setIsLoading(false);
-        });
-      } else {
-        if (unsubUserDoc) unsubUserDoc();
-        unsubUserDoc = null;
-        setUserData(null);
-        setIsLoading(false);
-      }
-    });
-
-    return () => { 
-      unsubPosts(); 
-      unsubUsers(); 
-      unsubAuth(); 
-      if (unsubUserDoc) unsubUserDoc();
-    };
-  }, []);
 
   const filterBySearch = (posts: Post[]) => {
     let filtered = posts;
@@ -296,6 +188,10 @@ function App() {
       if (activeMenu === 'onecut' || editingPost?.isOneCut || selectedTopic?.isOneCut) {
         return <CreateOneCutBox userData={userData} editingPost={editingPost} allPosts={allRootPosts} onSubmit={handlePostSubmit} onClose={() => { setIsCreateOpen(false); setEditingPost(null); }} />;
       }
+      if (CREATE_MENU_COMPONENTS[activeMenu]) {
+        const CreateComponent = CREATE_MENU_COMPONENTS[activeMenu];
+        return <CreateComponent userData={userData} editingPost={editingPost} onSubmit={handlePostSubmit} onClose={() => { setIsCreateOpen(false); setEditingPost(null); }} />;
+      }
       return <CreatePostBox userData={userData} editingPost={editingPost} activeMenu={activeMenu} menuMessages={MENU_MESSAGES} onSubmit={handlePostSubmit} onClose={() => { setIsCreateOpen(false); setEditingPost(null); }} />;
     }
     
@@ -325,7 +221,15 @@ function App() {
     }
 
     if (activeMenu === 'market') {
-      return <div className="w-full" />;
+      const marketPosts = allRootPosts.filter(p => p.category === "마켓");
+      return (
+        <div className="w-full animate-in fade-in">
+          {marketPosts.length > 0
+            ? <OneCutList posts={marketPosts} allPosts={allRootPosts} onTopicClick={setSelectedTopic} onLikeClick={handleLike} currentNickname={userData?.nickname} allUsers={allUsers} followerCounts={followerCounts} onEditClick={(post) => { setEditingPost(post); setIsCreateOpen(true); }} />
+            : <div className="py-40 text-center text-slate-300 font-black text-sm">기록된 글이 없어요</div>
+          }
+        </div>
+      );
     }
 
     if (selectedTopic) {
@@ -334,7 +238,13 @@ function App() {
       if (livePost.isOneCut || livePost.category === "한컷") {
         return <OneCutDetailView rootPost={livePost} allPosts={allChildPosts.filter(p => p.rootId === livePost.id)} otherTopics={allRootPosts} onTopicChange={setSelectedTopic} userData={userData} friends={friends} handleSubmit={handleCommentSubmit} selectedSide={selectedSide} setSelectedSide={setSelectedSide} newContent={newContent} setNewContent={setNewContent} isSubmitting={isSubmitting} onLikeClick={handleLike} currentNickname={userData?.nickname} allUsers={allUsers} followerCounts={followerCounts} commentCounts={commentCounts} onEditPost={(post) => { setEditingPost(post); setIsCreateOpen(true); }} />;
       }
-      return <DiscussionView rootPost={livePost} allPosts={allChildPosts.filter(p => p.rootId === livePost.id)} otherTopics={allRootPosts.filter(p => p.id !== livePost.id && p.category === livePost.category)} onTopicChange={setSelectedTopic} userData={userData} friends={friends} onToggleFriend={toggleFriend} onPostClick={() => {}} replyTarget={replyTarget} setReplyTarget={setReplyTarget} handleSubmit={handleCommentSubmit} selectedSide={selectedSide} setSelectedSide={setSelectedSide} selectedType={selectedType} setSelectedType={setSelectedType} newTitle={newTitle} setNewTitle={setNewTitle} newContent={newContent} setNewContent={setNewContent} isSubmitting={isSubmitting} commentCounts={commentCounts} onLikeClick={handleLike} currentNickname={userData?.nickname} allUsers={allUsers} followerCounts={followerCounts} toggleBlock={toggleBlock} onEditPost={(post) => { setEditingPost(post); setIsCreateOpen(true); }} />;
+      return <DiscussionView rootPost={livePost} allPosts={allChildPosts.filter(p => p.rootId === livePost.id)} otherTopics={allRootPosts.filter(p => {
+          if (p.id === livePost.id) return false;
+          const myStory = ['너와 나의 이야기', '나의 이야기'];
+          const liveIsMyStory = !livePost.category || myStory.includes(livePost.category);
+          if (liveIsMyStory) return !p.category || myStory.includes(p.category || '');
+          return p.category === livePost.category;
+        })} onTopicChange={setSelectedTopic} userData={userData} friends={friends} onToggleFriend={toggleFriend} onPostClick={() => {}} replyTarget={replyTarget} setReplyTarget={setReplyTarget} handleSubmit={handleCommentSubmit} selectedSide={selectedSide} setSelectedSide={setSelectedSide} selectedType={selectedType} setSelectedType={setSelectedType} newTitle={newTitle} setNewTitle={setNewTitle} newContent={newContent} setNewContent={setNewContent} isSubmitting={isSubmitting} commentCounts={commentCounts} onLikeClick={handleLike} currentNickname={userData?.nickname} allUsers={allUsers} followerCounts={followerCounts} toggleBlock={toggleBlock} onEditPost={(post) => { setEditingPost(post); setIsCreateOpen(true); }} onInlineReply={handleInlineReply} />;
     }
 
     if (activeMenu === 'onecut') {
@@ -347,7 +257,7 @@ function App() {
     
     if (activeMenu !== 'home' && MENU_MESSAGES[activeMenu]) {
       const menuInfo = MENU_MESSAGES[activeMenu];
-      const categoryKey = menuInfo.categoryKey || menuInfo.title;
+      const categoryKey = menuInfo.title;
       basePosts = basePosts.filter(p =>
         menuInfo.title === "너와 나의 이야기"
           ? (p.category === "너와 나의 이야기" || p.category === "나의 이야기" || p.category === undefined)
@@ -373,13 +283,21 @@ function App() {
         return createdAt && createdAt > oneHourAgo;
       });
     } else if (activeTab === 'recent') {
-      filteredPosts = basePosts.filter(p => (p.likes || 0) >= 3);
+      // 등록글: 새글(1시간) 심사를 통과한 글 — 1시간 경과 + 좋아요 3개 이상
+      filteredPosts = basePosts.filter(p => {
+        const createdAt = p.createdAt?.toDate ? p.createdAt.toDate() : (p.createdAt?.seconds ? new Date(p.createdAt.seconds * 1000) : null);
+        return (p.likes || 0) >= 3 && (!createdAt || createdAt <= oneHourAgo);
+      });
     } else if (activeTab === 'best') {
       filteredPosts = basePosts.filter(p => (p.likes || 0) >= 10);
     } else if (activeTab === 'rank') {
       filteredPosts = basePosts.filter(p => (p.likes || 0) >= 30);
     } else if (activeTab === 'friend') {
-      filteredPosts = basePosts.filter(p => friends.includes(p.author));
+      // 깐부글: 1시간 이내 + 좋아요 3개 이상 + 팔로우 유저
+      filteredPosts = basePosts.filter(p => {
+        const createdAt = p.createdAt?.toDate ? p.createdAt.toDate() : (p.createdAt?.seconds ? new Date(p.createdAt.seconds * 1000) : null);
+        return friends.includes(p.author) && (p.likes || 0) >= 3 && createdAt && createdAt > oneHourAgo;
+      });
     }
 
     const searchedPosts = filterBySearch(filteredPosts);
@@ -408,6 +326,13 @@ function App() {
       await updateDoc(doc(db, "users", userData.uid), { likes: increment(5) });
     }
     setIsCreateOpen(false); setEditingPost(null);
+  };
+
+  const handleInlineReply = async (content: string, parentPost: Post | null) => {
+    if (!userData || !content.trim() || !selectedTopic) return;
+    const customId = `comment_${Date.now()}_${userData.uid}`;
+    await setDoc(doc(db, "posts", customId), { author: userData.nickname, author_id: userData.uid, title: null, content, parentId: parentPost ? parentPost.id : selectedTopic.id, rootId: selectedTopic.id, side: 'left', type: 'comment', authorInfo: { level: userData.level, friendCount: friends.length, totalLikes: userData.likes }, createdAt: serverTimestamp(), likes: 0, dislikes: 0 });
+    await updateDoc(doc(db, "users", userData.uid), { likes: increment(1) });
   };
 
   const handleCommentSubmit = async (e: React.FormEvent) => {

@@ -14,6 +14,15 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID
 };
 
+// env 불러오기 실패 시 명확하게 예외 처리
+if (!firebaseConfig.apiKey || firebaseConfig.apiKey === "") {
+  console.error("Firebase 초기화 실패: VITE_FIREBASE_API_KEY가 설정되지 않았습니다.");
+  throw new Error("Firebase API key is missing. Set VITE_FIREBASE_API_KEY in .env file.");
+}
+if (!firebaseConfig.authDomain || !firebaseConfig.projectId) {
+  console.warn("Firebase 설정이 일부 누락되었습니다. authDomain 또는 projectId를 확인해 주세요.");
+}
+
 const app = initializeApp(firebaseConfig);
 
 // 🚀 데이터베이스, 저장소, 인증 내보내기

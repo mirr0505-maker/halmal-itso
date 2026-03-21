@@ -1,8 +1,10 @@
 // src/components/RootPostCard.tsx
+import { useState } from 'react';
 import { db } from '../firebase';
 import { doc, deleteDoc } from 'firebase/firestore';
 import type { Post } from '../types';
 import { getReputationLabel, formatKoreanNumber, getCategoryDisplayName } from '../utils';
+import { CATEGORY_RULES } from './DiscussionView';
 
 interface Props {
   post: Post;
@@ -28,8 +30,9 @@ const RootPostCard = ({
   post, totalComment, totalFormal, uniqueAgreeCount, uniqueDisagreeCount, isFriend, onToggleFriend, userData, friendCount, onDeleteSuccess, onLikeClick, currentNickname, onEdit
 }: Props) => {
   
-  const isMyPost = post.author === currentNickname || post.author === "흑무영"; 
+  const isMyPost = post.author === currentNickname;
   const isLikedByMe = currentNickname && post.likedBy?.includes(currentNickname);
+  const [showSelfMsg, setShowSelfMsg] = useState(false);
   const hasImageInContent = post.content.includes('<img');
 
   const formatTime = (timestamp: any) => {
@@ -54,7 +57,7 @@ const RootPostCard = ({
   };
 
   return (
-    <section className="bg-white rounded-none flex flex-col mb-4">
+    <section className="bg-white rounded-none flex flex-col mb-0">
       {/* 본문 영역 (콤팩트 패딩) */}
       <div className="flex-1 flex flex-col pt-8 px-4 md:px-8 pb-4">
         <div className="flex items-center justify-between mb-6">
@@ -121,12 +124,28 @@ const RootPostCard = ({
               <svg className={`w-4 h-4 fill-current`} viewBox="0 0 24 24" stroke="none"><path d="M11.645 20.91l-.007-.003-.022-.012a15.247 15.247 0 01-.383-.218 25.18 25.18 0 01-4.244-3.17C4.688 15.36 2.25 12.174 2.25 8.25 2.25 5.322 4.714 3 7.688 3A5.5 5.5 0 0112 5.052 5.5 5.5 0 0116.313 3c2.973 0 5.437 2.322 5.437 5.25 0 3.925-2.438 7.111-4.739 9.256a25.175 25.175 0 01-4.244 3.17 15.247 15.247 0 01-.383.219l-.022.012-.007.004-.003.001a.752.752 0 01-.704 0l-.003-.001z" /></svg>
               {formatKoreanNumber(post.likes || 0)}
             </button>
-            <button 
-              onClick={() => onToggleFriend()} 
-              className={`flex-1 md:flex-none px-6 py-2.5 text-[13px] font-[1000] rounded-xl border transition-all ${isFriend ? 'bg-white text-slate-400 border-slate-200' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
-            >
-              {isFriend ? '깐부해제' : '+ 깐부맺기'}
-            </button>
+            {isMyPost ? (
+              <div className="flex-1 md:flex-none flex flex-col items-center gap-1">
+                <button
+                  onClick={() => { setShowSelfMsg(true); setTimeout(() => setShowSelfMsg(false), 1000); }}
+                  className="w-full md:w-auto px-6 py-2.5 text-[13px] font-[1000] rounded-xl border bg-white text-slate-300 border-slate-200 cursor-default"
+                >
+                  + 깐부맺기
+                </button>
+                {showSelfMsg && (
+                  <span className="text-[11px] font-bold text-rose-400 bg-rose-50 border border-rose-200 rounded-lg px-3 py-1.5 whitespace-nowrap">
+                    본인은 이 세상 절대 깐부입니다 🚫
+                  </span>
+                )}
+              </div>
+            ) : (
+              <button
+                onClick={() => onToggleFriend()}
+                className={`flex-1 md:flex-none px-6 py-2.5 text-[13px] font-[1000] rounded-xl border transition-all ${isFriend ? 'bg-white text-slate-400 border-slate-200' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
+              >
+                {isFriend ? '깐부해제' : '+ 깐부맺기'}
+              </button>
+            )}
           </div>
         </div>
 
@@ -134,12 +153,16 @@ const RootPostCard = ({
         <div className="flex items-center justify-between text-[13px] font-bold text-slate-500 pt-2 px-2">
           <div className="flex gap-4">
             <span>댓글 <span className="font-black text-slate-700">{formatKoreanNumber(totalComment)}</span></span>
-            <span>연계글 <span className="font-black text-slate-700">{formatKoreanNumber(totalFormal)}</span></span>
+            {CATEGORY_RULES[post.category || ""]?.allowFormal && (
+              <span>연계글 <span className="font-black text-slate-700">{formatKoreanNumber(totalFormal)}</span></span>
+            )}
           </div>
-          <div className="flex gap-4">
-            <span>동의 <span className="font-black text-slate-700">{formatKoreanNumber(uniqueAgreeCount)}</span></span>
-            <span>비동의 <span className="font-black text-slate-700">{formatKoreanNumber(uniqueDisagreeCount)}</span></span>
-          </div>
+          {CATEGORY_RULES[post.category || ""]?.allowDisagree && (
+            <div className="flex gap-4">
+              <span>동의 <span className="font-black text-slate-700">{formatKoreanNumber(uniqueAgreeCount)}</span></span>
+              <span>비동의 <span className="font-black text-slate-700">{formatKoreanNumber(uniqueDisagreeCount)}</span></span>
+            </div>
+          )}
         </div>
       </div>
     </section>

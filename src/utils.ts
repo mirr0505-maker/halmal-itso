@@ -30,16 +30,18 @@ export const formatKoreanNumber = (num: number): string => {
 /**
  * Firestore에 저장된 구 카테고리명을 현재 표시명으로 변환합니다.
  */
+// 마이그레이션 완료 후에도 구버전 DB 데이터 backward-compat용
 const CATEGORY_DISPLAY_MAP: Record<string, string> = {
-  "벌거벗은 임금님": "판도라의 상자",
+  "나의 이야기":          "너와 나의 이야기",
+  "벌거벗은 임금님":       "판도라의 상자",
   "임금님 귀는 당나귀 귀": "솔로몬의 재판",
-  "현지 소식": "마법 수정 구슬",
-  "지식 소매상": "황금알을 낳는 거위",
-  "뼈때리는 글": "신포도와 여우",
+  "현지 소식":             "마법 수정 구슬",
+  "지식 소매상":           "황금알을 낳는 거위",
+  "뼈때리는 글":           "신포도와 여우",
 };
 
 export const getCategoryDisplayName = (category?: string): string => {
-  if (!category) return "나의 이야기";
+  if (!category) return "너와 나의 이야기";
   return CATEGORY_DISPLAY_MAP[category] || category;
 };
 
