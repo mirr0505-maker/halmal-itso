@@ -38,4 +38,25 @@ export interface Post {
   // 🚀 한컷 관련 필드
   isOneCut?: boolean;      // 한컷 게시물 여부
   linkedPostId?: string;   // 연계된 원본 게시글 ID
+
+  // 🚀 깐부방 관련
+  kanbuRoomId?: string;    // 소속 깐부방 ID
+}
+
+export interface KanbuRoom {
+  id: string;
+  title: string;
+  description?: string;
+  creatorId: string;
+  creatorNickname: string;
+  creatorLevel: number;
+  createdAt: any;
+}
+
+export interface KanbuChat {
+  id: string;
+  author: string;
+  authorId: string;
+  content: string;
+  createdAt: any;
 }

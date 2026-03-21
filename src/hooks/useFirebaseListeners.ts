@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { db, auth } from '../firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import { collection, onSnapshot, doc, setDoc, serverTimestamp } from 'firebase/firestore';
-import type { Post } from '../types';
+import type { Post, KanbuRoom } from '../types';
 
 export function useFirebaseListeners() {
   const [allRootPosts, setAllRootPosts] = useState<Post[]>([]);
@@ -14,8 +14,16 @@ export function useFirebaseListeners() {
   const [friends, setFriends] = useState<string[]>([]);
   const [blocks, setBlocks] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [kanbuRooms, setKanbuRooms] = useState<KanbuRoom[]>([]);
 
   useEffect(() => {
+    // 깐부방 실시간 구독
+    const unsubRooms = onSnapshot(collection(db, "kanbu_rooms"), (snapshot) => {
+      const rooms = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as KanbuRoom));
+      rooms.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+      setKanbuRooms(rooms);
+    });
+
     // 게시글 전체 실시간 구독
     const unsubPosts = onSnapshot(collection(db, "posts"), (snapshot) => {
       const posts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Post));
@@ -77,6 +85,7 @@ export function useFirebaseListeners() {
     });
 
     return () => {
+      unsubRooms();
       unsubPosts();
       unsubUsers();
       unsubAuth();
@@ -92,6 +101,7 @@ export function useFirebaseListeners() {
     followerCounts,
     friends, setFriends,
     blocks, setBlocks,
-    isLoading
+    isLoading,
+    kanbuRooms,
   };
 }

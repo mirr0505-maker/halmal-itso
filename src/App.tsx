@@ -3,7 +3,7 @@ import { useState, useEffect, lazy, Suspense } from 'react';
 import { db, auth, googleProvider } from './firebase';
 import { signInWithPopup, signOut, setPersistence, browserLocalPersistence, signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
 import { serverTimestamp, doc, setDoc, updateDoc, increment, arrayUnion, arrayRemove } from 'firebase/firestore';
-import type { Post } from './types';
+import type { Post, KanbuRoom } from './types';
 import { useFirebaseListeners } from './hooks/useFirebaseListeners';
 // 항상 초기 화면에 필요한 컴포넌트 — 정적 import 유지
 import AnyTalkList from './components/AnyTalkList';
@@ -20,6 +20,9 @@ const OneCutDetailView = lazy(() => import('./components/OneCutDetailView'));
 const OneCutList = lazy(() => import('./components/OneCutList'));
 const CreatePostBox = lazy(() => import('./components/CreatePostBox'));
 const CreateOneCutBox = lazy(() => import('./components/CreateOneCutBox'));
+const KanbuRoomList = lazy(() => import('./components/KanbuRoomList'));
+const KanbuRoomView = lazy(() => import('./components/KanbuRoomView'));
+const CreateKanbuRoomModal = lazy(() => import('./components/CreateKanbuRoomModal'));
 const CREATE_MENU_COMPONENTS: Record<string, ReturnType<typeof lazy>> = {
   my_story:        lazy(() => import('./components/CreateMyStory')),
   naked_king:      lazy(() => import('./components/CreateNakedKing')),
@@ -41,7 +44,8 @@ function App() {
     followerCounts,
     friends,
     blocks,
-    isLoading
+    isLoading,
+    kanbuRooms,
   } = useFirebaseListeners();
 
   // UI 전용 상태
@@ -59,13 +63,34 @@ function App() {
   const [activeTab, setActiveTab] = useState<'any' | 'recent' | 'best' | 'rank' | 'friend'>('any');
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editingPost, setEditingPost] = useState<Post | null>(null);
+  const [selectedRoom, setSelectedRoom] = useState<KanbuRoom | null>(null);
+  const [isCreateRoomOpen, setIsCreateRoomOpen] = useState(false);
+
+  const accessibleRooms = kanbuRooms.filter(r =>
+    r.creatorNickname === userData?.nickname || friends.includes(r.creatorNickname)
+  );
 
   useEffect(() => { if (replyTarget) { setSelectedType('comment'); setNewTitle(""); } }, [replyTarget]);
 
   const goHome = () => {
     setActiveMenu('home'); setSelectedTopic(null); setIsCreateOpen(false); setReplyTarget(null); setEditingPost(null);
-    setActiveTab('any'); 
+    setSelectedRoom(null); setIsCreateRoomOpen(false);
+    setActiveTab('any');
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleCreateRoom = async (data: Pick<KanbuRoom, 'title' | 'description'>) => {
+    if (!userData) return;
+    const roomId = `room_${Date.now()}_${userData.uid}`;
+    await setDoc(doc(db, 'kanbu_rooms', roomId), {
+      title: data.title,
+      description: data.description || '',
+      creatorId: userData.uid,
+      creatorNickname: userData.nickname,
+      creatorLevel: userData.level,
+      createdAt: serverTimestamp(),
+    });
+    setIsCreateRoomOpen(false);
   };
 
   const handleLogin = async () => {
@@ -232,6 +257,14 @@ function App() {
       );
     }
 
+    if (activeMenu === 'kanbu_room') {
+      if (selectedRoom) {
+        const roomPosts = allRootPosts.filter(p => p.kanbuRoomId === selectedRoom.id);
+        return <KanbuRoomView room={selectedRoom} roomPosts={roomPosts} onBack={() => setSelectedRoom(null)} currentUserData={userData} allUsers={allUsers} />;
+      }
+      return <KanbuRoomList rooms={accessibleRooms} onRoomClick={setSelectedRoom} onCreateRoom={() => setIsCreateRoomOpen(true)} currentUserLevel={userData?.level || 1} allUsers={allUsers} />;
+    }
+
     if (selectedTopic) {
       const livePost = allRootPosts.find(p => p.id === selectedTopic.id) || selectedTopic;
       // 🚀 한컷 판정 로직 강화: isOneCut 플래그 또는 카테고리명이 "한컷"인 경우
@@ -359,7 +392,7 @@ function App() {
         <div className="flex-1 flex justify-center h-full items-center px-4"><div className="relative flex items-center bg-slate-50/80 rounded-full px-4 h-[42px] border border-slate-100 focus-within:border-blue-500 focus-within:bg-white transition-all w-full max-w-sm"><svg className="w-4 h-4 text-slate-400 mr-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg><input type="text" placeholder="검색어를 입력해 주세요." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="bg-transparent outline-none w-full text-[13px] font-bold text-slate-700" /></div></div>
         <div className="flex items-center gap-4 ml-auto shrink-0">{isLoading ? <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div> : userData ? <><button onClick={() => setIsCreateOpen(true)} className="bg-blue-600 hover:bg-blue-700 text-white px-5 h-[40px] rounded-xl text-[13px] font-black shadow-sm">+ 새 글</button><div className="flex items-center gap-3"><div className="w-[42px] h-[42px] rounded-full border-2 border-slate-100 overflow-hidden cursor-pointer bg-slate-50" onClick={() => setActiveMenu('mypage')}><img src={userData.avatarUrl || `https://api.dicebear.com/7.x/adventurer/svg?seed=${userData.nickname}`} alt="avatar" /></div><button onClick={handleLogout} className="text-[11px] font-black text-slate-300 hover:text-rose-500 transition-colors uppercase tracking-widest">Logout</button></div></> : <button onClick={handleLogin} className="flex items-center gap-2 bg-white border border-slate-200 hover:border-slate-900 px-5 h-[42px] rounded-xl text-[13px] font-black transition-all shadow-sm group"><svg className="w-4 h-4 group-hover:scale-110 transition-transform" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>구글 계정으로 시작하기</button>}</div>
       </header>
-      <div className="flex flex-1 overflow-hidden">{!(selectedTopic || isCreateOpen) && <Sidebar activeMenu={activeMenu} setActiveMenu={(menu) => { setActiveMenu(menu); setSelectedTopic(null); setIsCreateOpen(false); }} />}<main className={`flex-1 overflow-y-auto bg-[#F8FAFC] transition-all duration-500 ${(selectedTopic || isCreateOpen) ? 'px-4 md:px-6 pt-4' : 'pt-0'}`}><div className={(selectedTopic || isCreateOpen) ? "max-w-[1600px] mx-auto pb-20" : "pb-20"}>
+      <div className="flex flex-1 overflow-hidden">{!(selectedTopic || isCreateOpen) && <Sidebar activeMenu={activeMenu} setActiveMenu={(menu) => { setActiveMenu(menu); setSelectedTopic(null); setIsCreateOpen(false); setSelectedRoom(null); }} kanbuRoomCount={accessibleRooms.length} />}<main className={`flex-1 overflow-y-auto bg-[#F8FAFC] transition-all duration-500 ${(selectedTopic || isCreateOpen) ? 'px-4 md:px-6 pt-4' : 'pt-0'}`}><div className={(selectedTopic || isCreateOpen) ? "max-w-[1600px] mx-auto pb-20" : "pb-20"}>
         {!(selectedTopic || isCreateOpen) && (
           activeMenu === 'home' ? (
             <SubNavbar activeTab={activeTab} onTabClick={setActiveTab} showTabs={true} />
@@ -373,6 +406,11 @@ function App() {
           </Suspense>
         </div>
       </div></main></div>
+      {isCreateRoomOpen && (
+        <Suspense fallback={null}>
+          <CreateKanbuRoomModal onSubmit={handleCreateRoom} onClose={() => setIsCreateRoomOpen(false)} />
+        </Suspense>
+      )}
       {selectedPost && (
         <Suspense fallback={null}>
           <PostDetailModal post={selectedPost} onClose={() => setSelectedPost(null)} currentNickname={userData?.nickname} onLikeClick={handleLike} isFriend={friends.includes(selectedPost.author)} onToggleFriend={toggleFriend} allUsers={allUsers} followerCounts={followerCounts} toggleBlock={toggleBlock} isBlocked={blocks.includes(selectedPost.author)} />

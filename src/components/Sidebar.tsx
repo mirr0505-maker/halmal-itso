@@ -11,15 +11,17 @@ export type MenuId =
   | 'bone_hitting'
   | 'local_news'
   | 'exile_place'
+  | 'kanbu_room'
   | 'friends'
   | 'mypage';
 
 interface Props {
   activeMenu: MenuId;
   setActiveMenu: (menu: MenuId) => void;
+  kanbuRoomCount?: number;
 }
 
-const Sidebar = ({ activeMenu, setActiveMenu }: Props) => {
+const Sidebar = ({ activeMenu, setActiveMenu, kanbuRoomCount = 0 }: Props) => {
   const mainServiceMenus = [
     {
       id: 'home',
@@ -185,6 +187,35 @@ const Sidebar = ({ activeMenu, setActiveMenu }: Props) => {
 
         {renderMenuButton(oneCutMenu)}
         {renderMenuButton(marketMenu)}
+
+        <div className="my-2.5 px-4">
+          <div className="h-px bg-slate-100 w-full" />
+        </div>
+
+        {/* 깐부방 섹션 */}
+        <button
+          onClick={() => setActiveMenu('kanbu_room')}
+          className={`w-full flex flex-row items-center gap-2 px-2.5 py-1.5 rounded-xl transition-all duration-150 border-2 ${
+            activeMenu === 'kanbu_room'
+              ? 'bg-blue-50/40 text-blue-600 border-blue-100 shadow-sm shadow-blue-50 scale-[1.02]'
+              : 'bg-transparent text-slate-400 border-transparent hover:bg-slate-50 hover:text-slate-600'
+          }`}
+        >
+          <span className={`transition-colors duration-150 shrink-0 ${activeMenu === 'kanbu_room' ? 'text-blue-600' : 'text-slate-300'}`}>
+            <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+          </span>
+          <div className="flex flex-col items-start min-w-0 flex-1 overflow-hidden">
+            <span className={`text-[12px] tracking-tight whitespace-nowrap ${activeMenu === 'kanbu_room' ? 'font-black' : 'font-bold'}`}>깐부방</span>
+            <span className="text-[9px] font-bold text-slate-300 leading-none mt-0.5">친구들의 공간</span>
+          </div>
+          {kanbuRoomCount > 0 && (
+            <span className="bg-rose-500 text-white text-[9px] font-black rounded-full px-1.5 py-0.5 min-w-[18px] text-center shrink-0">
+              {kanbuRoomCount}
+            </span>
+          )}
+        </button>
 
         <div className="my-2.5 px-4">
           <div className="h-px bg-slate-100 w-full" />
