@@ -5,11 +5,21 @@ interface ProfileHeaderProps {
   isEditing: boolean;
   setIsEditing: (val: boolean) => void;
   friendCount: number;
+  totalThanksball?: number;
 }
 
-const ProfileHeader = ({ 
-  userData, isEditing, setIsEditing, friendCount
+const getThanksballBadge = (total: number) => {
+  if (total >= 100) return { label: '⚾ 프리미엄 기여자', bg: 'bg-rose-50', text: 'text-rose-600', border: 'border-rose-100' };
+  if (total >= 30)  return { label: '⚾ 골드 기여자',     bg: 'bg-amber-50', text: 'text-amber-600', border: 'border-amber-100' };
+  if (total >= 10)  return { label: '⚾ 블루 기여자',     bg: 'bg-blue-50',  text: 'text-blue-600',  border: 'border-blue-100' };
+  if (total >= 1)   return { label: '⚾ 땡스볼 수신',     bg: 'bg-slate-50', text: 'text-slate-500', border: 'border-slate-100' };
+  return null;
+};
+
+const ProfileHeader = ({
+  userData, isEditing, setIsEditing, friendCount, totalThanksball = 0
 }: ProfileHeaderProps) => {
+  const thanksballBadge = getThanksballBadge(totalThanksball);
 
   return (
     <div className="flex flex-col md:flex-row items-center md:items-start gap-6 relative z-10">
@@ -47,6 +57,11 @@ const ProfileHeader = ({
           <div className="flex items-center gap-2 flex-wrap justify-center md:justify-start">
             <span className="text-[11px] text-slate-400 font-black tracking-tight">{userData.email}</span>
             <div className="h-2 w-[1px] bg-slate-200 hidden sm:block" />
+            {thanksballBadge && (
+              <span className={`px-2 py-0.5 rounded-full text-[9px] font-black border shadow-sm ${thanksballBadge.bg} ${thanksballBadge.text} ${thanksballBadge.border}`}>
+                {thanksballBadge.label}
+              </span>
+            )}
             
             {userData.isPhoneVerified ? (
               <div className="flex items-center gap-1 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100/50">

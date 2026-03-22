@@ -5,6 +5,7 @@ import { doc, deleteDoc } from 'firebase/firestore';
 import type { Post } from '../types';
 import { getReputationLabel, formatKoreanNumber, getCategoryDisplayName } from '../utils';
 import { CATEGORY_RULES } from './DiscussionView';
+import ThanksballModal from './ThanksballModal';
 
 interface Props {
   post: Post;
@@ -25,15 +26,17 @@ interface Props {
   currentNickname?: string;
   onEdit?: (post: Post) => void;
   onBack?: () => void;
+  thanksballTotal?: number;
 }
 
 const RootPostCard = ({
-  post, totalComment, totalFormal, uniqueAgreeCount, uniqueDisagreeCount, isFriend, onToggleFriend, userData, friendCount, onDeleteSuccess, onLikeClick, currentNickname, onEdit, onBack
+  post, totalComment, totalFormal, uniqueAgreeCount, uniqueDisagreeCount, isFriend, onToggleFriend, userData, friendCount, onDeleteSuccess, onLikeClick, currentNickname, onEdit, onBack, thanksballTotal
 }: Props) => {
-  
+
   const isMyPost = post.author === currentNickname;
   const isLikedByMe = currentNickname && post.likedBy?.includes(currentNickname);
   const [showSelfMsg, setShowSelfMsg] = useState(false);
+  const [showThanksball, setShowThanksball] = useState(false);
   const hasImageInContent = post.content.includes('<img');
 
   const formatTime = (timestamp: any) => {
@@ -155,20 +158,52 @@ const RootPostCard = ({
         </div>
 
         {/* 하단 통계 텍스트 */}
-        <div className="flex items-center justify-between text-[13px] font-bold text-slate-500 pt-2 px-2">
+        <div className="grid grid-cols-3 items-center text-[13px] font-bold text-slate-500 pt-2 px-2">
+          {/* 좌: 댓글 / 연계글 */}
           <div className="flex gap-4">
             <span>댓글 <span className="font-black text-slate-700">{formatKoreanNumber(totalComment)}</span></span>
             {CATEGORY_RULES[post.category || ""]?.allowFormal && (
               <span>연계글 <span className="font-black text-slate-700">{formatKoreanNumber(totalFormal)}</span></span>
             )}
           </div>
-          {CATEGORY_RULES[post.category || ""]?.allowDisagree && (
-            <div className="flex gap-4">
-              <span>동의 <span className="font-black text-slate-700">{formatKoreanNumber(uniqueAgreeCount)}</span></span>
-              <span>비동의 <span className="font-black text-slate-700">{formatKoreanNumber(uniqueDisagreeCount)}</span></span>
-            </div>
-          )}
+
+          {/* 중앙: 땡스볼 */}
+          <div className="flex justify-center">
+            <button
+              onClick={() => { if (!isMyPost && currentNickname) setShowThanksball(true); }}
+              title={isMyPost ? '본인 글에는 땡스볼을 보낼 수 없습니다' : (currentNickname ? '땡스볼 보내기' : '로그인 후 이용하세요')}
+              className={`flex items-center gap-1 px-3 py-1 rounded-full text-[12px] font-[1000] transition-all ${
+                isMyPost || !currentNickname
+                  ? 'text-slate-300 cursor-default'
+                  : 'text-amber-500 hover:bg-amber-50 cursor-pointer'
+              }`}
+            >
+              <span>⚾</span>
+              <span>{(thanksballTotal || 0) > 0 ? `${thanksballTotal}볼` : '땡스볼'}</span>
+            </button>
+          </div>
+
+          {/* 우: 동의 / 비동의 */}
+          <div className="flex gap-4 justify-end">
+            {CATEGORY_RULES[post.category || ""]?.allowDisagree && (
+              <>
+                <span>동의 <span className="font-black text-slate-700">{formatKoreanNumber(uniqueAgreeCount)}</span></span>
+                <span>비동의 <span className="font-black text-slate-700">{formatKoreanNumber(uniqueDisagreeCount)}</span></span>
+              </>
+            )}
+          </div>
         </div>
+
+        {/* 땡스볼 모달 */}
+        {showThanksball && currentNickname && (
+          <ThanksballModal
+            postId={post.id}
+            postAuthor={post.author}
+            postTitle={post.title}
+            currentNickname={currentNickname}
+            onClose={() => setShowThanksball(false)}
+          />
+        )}
       </div>
     </section>
   );

@@ -44,6 +44,19 @@ export interface Post {
 
   // 🚀 댓글 고정
   pinnedCommentId?: string; // 작성자가 고정한 댓글 ID
+
+  // 🚀 땡스볼
+  thanksballTotal?: number; // 받은 총 볼 수 (누적)
+}
+
+export interface Thanksball {
+  id: string;
+  sender: string;      // 보낸 사람 닉네임
+  senderId: string;    // 보낸 사람 UID
+  amount: number;      // 볼 수 (1볼 = $1, 향후 실결제 연동)
+  message?: string;    // 응원 메시지 (최대 50자, 선택)
+  createdAt: any;      // Firestore Timestamp
+  isPaid: boolean;     // false = 가상볼(현재), true = 실결제(향후)
 }
 
 export interface KanbuRoom {

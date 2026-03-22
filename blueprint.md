@@ -2,7 +2,7 @@
 
 이 문서는 **할말있소(HALMAL-ITSO)** 프로젝트의 설계 원칙, 현재 구현 상태, 그리고 AI 개발자의 **절대적 행동 지침**을 담은 단일 진실 소스(Single Source of Truth)입니다.
 
-> 최종 갱신: 2026-03-22 (코드 실측 기준)  |  현재 브랜치: `main`
+> 최종 갱신: 2026-03-23 v3 (코드 실측 기준)  |  현재 브랜치: `main`
 
 ---
 
@@ -111,7 +111,10 @@
     ├── AvatarCollection.tsx # 아바타 컬렉션 선택 UI
     ├── KanbuRoomList.tsx    # 깐부방 목록 (Lv3 이상 개설 가능)
     ├── KanbuRoomView.tsx    # 깐부방 상세 (게시판 좌 + 실시간 채팅 우)
-    └── CreateKanbuRoomModal.tsx # 깐부방 개설 모달
+    ├── CreateKanbuRoomModal.tsx # 깐부방 개설 모달
+    ├── ThanksballModal.tsx  # 땡스볼 전송 모달 (볼 선택·메시지·티어 표시)
+    ├── NotificationBell.tsx # 헤더 알림 벨 (땡스볼 수신 알림, 실시간 뱃지)
+    └── RankingView.tsx      # 랭킹 페이지 (좋아요·땡스볼 × 유저·글 4개 뷰)
 ```
 
 ### 3.2 상태 관리 (`App.tsx`)
@@ -171,6 +174,22 @@ interface Post {
 
   // 깐부방 관련 필드
   kanbuRoomId?: string;       // 소속 깐부방 ID
+
+  // 댓글 고정 (너와 나의 이야기 등)
+  pinnedCommentId?: string;   // 작성자가 고정한 댓글 ID
+
+  // 땡스볼
+  thanksballTotal?: number;   // 받은 총 볼 수 (누적, Firestore increment)
+}
+
+interface Thanksball {
+  id: string;
+  sender: string;      // 보낸 사람 닉네임
+  senderId: string;    // 보낸 사람 UID
+  amount: number;      // 볼 수 (1볼 = $1, 향후 실결제 연동)
+  message?: string;    // 응원 메시지 (최대 50자, 선택)
+  createdAt: any;      // Firestore Timestamp
+  isPaid: boolean;     // false = 가상볼(현재), true = 실결제(향후)
 }
 
 interface KanbuRoom {
@@ -200,11 +219,11 @@ interface KanbuChat {
 |---------|--------------|-----------------|----------|
 | `onecut` | 한컷 | (isOneCut 플래그) | 9:16 세로형 이미지 전용 |
 | `my_story` | 너와 나의 이야기 | 너와 나의 이야기 | 일상, 공감 위주 |
-| `naked_king` | 판도라의 상자 | 벌거벗은 임금님 | 팩트체크 보드 |
-| `donkey_ears` | 솔로몬의 재판 | 임금님 귀는 당나귀 귀 | 찬/반 토론, 정식 연계글 허용 |
-| `knowledge_seller` | 황금알을 낳는 거위 | 지식 소매상 | Q&A 보드 |
-| `bone_hitting` | 신포도와 여우 | 뼈때리는 글 | 명언, 짧은 글 |
-| `local_news` | 마법 수정 구슬 | 현지 소식 | 정보 공유 보드 |
+| `naked_king` | 판도라의 상자 | 판도라의 상자 | 팩트체크 보드 (구: 벌거벗은 임금님 → migrate 완료) |
+| `donkey_ears` | 솔로몬의 재판 | 솔로몬의 재판 | 찬/반 토론, 정식 연계글 허용 (구: 임금님 귀는 당나귀 귀 → migrate 완료) |
+| `knowledge_seller` | 황금알을 낳는 거위 | 황금알을 낳는 거위 | Q&A 보드 (구: 지식 소매상 → migrate 완료) |
+| `bone_hitting` | 신포도와 여우 | 신포도와 여우 | 명언, 짧은 글 (구: 뼈때리는 글 → migrate 완료) |
+| `local_news` | 마법 수정 구슬 | 마법 수정 구슬 | 정보 공유 보드 (구: 현지 소식 → migrate 완료) |
 | `friends` | 깐부 맺기 | (UI 전용) | 팔로우 추천 목록 (허용 닉네임 필터 적용) |
 | `kanbu_room` | 깐부방 | (subcollection) | 깐부가 개설한 방 목록, 방별 게시판+실시간 채팅. Lv3 이상 개설. Firestore: `kanbu_rooms/{roomId}/chats` |
 | `market` | 마켓 | 마켓 | OneCutList 그리드 레이아웃, 게시글 없을 시 "기록된 글이 없어요" |
@@ -225,7 +244,7 @@ interface KanbuChat {
 - 해당 카테고리 내에서 **좋아요 3개 이상**을 획득한 글만 노출 (품질 필터).
 
 ### 6.3 등록글 더보기 사이드바 (`RelatedPostsSidebar`)
-- **노출 조건**: 등록글 기준과 동일 — **1시간 경과 + 좋아요 3개 이상**.
+- **노출 조건**: 등록글 기준과 동일 — **2시간 경과 + 좋아요 3개 이상**.
 - 현재 보고 있는 글과 동일 카테고리 + 한컷 제외 + 최대 10개.
 - 필터 위치: `DiscussionView.tsx` `relatedPosts` 계산 시 적용.
 
@@ -244,6 +263,9 @@ interface KanbuChat {
 - **가변 그리드**: `minmax(280px, 1fr)` 기반 `auto-fill`.
 - **이미지 자동 추출**: 본문 HTML 내 첫 번째 `<img>` 태그를 찾아 썸네일로 활용.
 - **카드 디자인**: 라운드 `rounded-[2rem]`, 호버 시 `border-blue-400` 및 그림자 효과.
+- **카드 우측 상단 지표**:
+  - `tab === 'any'` (새글 탭): 하트 3개 표시. `promoLevel = Math.min(post.likes, 3)` 기준으로 채워진 하트 수 결정 (0개이면 전부 빈 하트). `text-rose-400 fill-current` (채움) vs `text-slate-100 fill-none` (빈 하트).
+  - 그 외 탭 / 카테고리 뷰: Lv5 이상 유저가 좋아요를 누른 수(`goldStarCount`) > 0 일 때만 금색 별(⭐) + 숫자 표시. `text-amber-400 fill-current`. 0이면 아무것도 표시하지 않음.
 
 ### 7.3 한컷 시스템 (`OneCut`)
 - **비율**: 9:16 세로형 이미지 최적화 (`aspect-[9/16]`).
@@ -251,7 +273,7 @@ interface KanbuChat {
 
 ---
 
-## 8. 현재 구현 상태 (2026-03-21 기준, 코드 실측)
+## 8. 현재 구현 상태 (2026-03-22 기준, 코드 실측)
 
 ### ✅ 완료된 핵심 기능 (2026-03-22 갱신)
 - [x] **Tiptap 프리미엄 에디터**: 스티키 툴바, 이미지 R2 업로드(드래그&드롭/붙여넣기), 마크다운 호환 스타일.
@@ -274,11 +296,39 @@ interface KanbuChat {
 - [x] **권한 버그 수정**: `RootPostCard`에서 `|| post.author === "흑무영"` 하드코딩으로 인해 모든 유저가 흑무영 게시글을 수정/삭제할 수 있던 문제 수정.
 - [x] **카테고리 전면 개편 및 DB 마이그레이션**: 내부 카테고리명을 새 표시명으로 일괄 변경 (벌거벗은 임금님→판도라의 상자, 임금님 귀는 당나귀 귀→솔로몬의 재판, 지식 소매상→황금알을 낳는 거위, 뼈때리는 글→신포도와 여우, 현지 소식→마법 수정 구슬, 나의 이야기→너와 나의 이야기). Firestore 15건 migrate.cjs로 일괄 업데이트. 구 카테고리명 backward-compat 유지.
 - [x] **깐부방 기능**: 사이드바 전용 섹션(깐부방+깐부맺기 묶음). 방 목록(KanbuRoomList), 방 상세(KanbuRoomView — 게시판+실시간 채팅), 방 개설 모달(CreateKanbuRoomModal). Lv3 이상 개설 가능. Firestore `kanbu_rooms` 컬렉션 + `chats` 서브컬렉션.
-- [x] **골드하트(Gold Heart)**: Lv5 이상 유저가 좋아요 시 금색 하트 카운트 표시. 카드 우측 상단 노출. 홈 탭(recent/best/rank/friend) + 카테고리 메뉴 뷰(tab=undefined) 모두 적용 (AnyTalkList `showGoldHeart` 조건 수정).
+- [x] **골드스타(Gold Star)**: Lv5 이상 유저가 좋아요 시 금색 별(★) 카운트 표시. 새글(any) 탭 제외한 모든 뷰(등록글/인기글/최고글/깐부글/카테고리 뷰)에서 카드 우측 상단에 노출. 카운트 0이면 표시 안 함. (구: 골드하트 → 골드스타로 교체, SVG star path 사용)
 - [x] **상세글 뒤로가기**: `RootPostCard` 좌측 상단 파란 카테고리 버튼 클릭 시 `activeMenu` 유지하며 목록으로 복귀. 화살표(←) + hover 효과 추가. `onBack` prop: App→DiscussionView→RootPostCard 체인.
 - [x] **댓글 UX 수정**: 너와 나의 이야기(구 나의 이야기 포함) 카테고리에서 댓글 남기기 폼 표시 제거. 동의/비동의 카운트 `allowDisagree=false` 카테고리에서 미표시.
 - [x] **헤더 브랜드**: GLove 로고 옆 "집단지성의 힘" 서브텍스트 추가.
-- [x] **사이드바 구조 개편**: 깐부방+깐부맺기 동일 섹션(구분선 아래), 내정보 별도 섹션.
+- [x] **사이드바 구조 개편**: 깐부방+깐부맺기 동일 섹션(구분선 아래), 내정보 별도 섹션. 깐부방 배지 색상: `bg-blue-100 text-blue-600` (구: rose 계열).
+- [x] **로딩 애니메이션 교체**: 말 뛰어가기 이미지 → pulsing GLove 로고 (`@keyframes logo-pulse`: opacity 0→1, scale 0.92→1, 1.4s ease-in-out infinite). `index.css`에 정의, `.animate-logo-pulse` 클래스 적용.
+- [x] **너와 나의 이야기 댓글 UX 개선**:
+  - 댓글 입력: 단일 라인 `<input>` (구: 여러 줄 textarea).
+  - 레이아웃: 입력란 + 바로 아래 "댓글 달기" 버튼.
+  - 빈 상태 메시지("첫 번째 글을 남겨보세요.") 숨김.
+  - **한글 IME 버그 수정**: `InlineForm` 로컬 컴포넌트 제거 → `DebateBoard` 내 인라인 JSX로 직접 렌더링. (원인: 로컬 컴포넌트는 부모 리렌더 시 unmount/remount되어 IME 조합 파괴). `onKeyDown`에 `!e.nativeEvent.isComposing` 체크 추가.
+- [x] **댓글 고정(Pin) 기능**: 너와 나의 이야기 글 작성자가 댓글 하나를 최상단에 고정. `Post.pinnedCommentId` Firestore 필드 활용. `DebateBoard`에서 고정 댓글 항상 최상위 정렬 (최신순/공감순 유지). `PostCard`에 pin 버튼(작성자만 hover 시 노출) + "작성자가 고정한 댓글" 배지 + `bg-amber-50/40 border-l-amber-300` 하이라이트.
+- [x] **새글→등록글 로직 변경**: 새글 노출 창: 1시간 → **2시간**. 등록글 심사: 2시간 경과 + 좋아요 **3개** 이상. (`twoHoursAgo` 변수, App.tsx 필터 3곳 수정)
+- [x] **땡스볼(ThanksBALL) 시스템**: 글 읽은 사람이 글쓴이에게 감사 볼을 던지는 기능 (유튜브 슈퍼챗 유사). 1볼 = $1 기준, 향후 실결제 연동 전제 설계.
+  - **데이터 구조**:
+    - `posts/{postId}/thanksBalls/{id}`: 개별 땡스볼 기록 (`sender`, `senderId`, `amount`, `message`, `createdAt`, `isPaid: false`)
+    - `posts/{postId}.thanksballTotal`: Firestore `increment`로 누적 합산
+    - `notifications/{recipientNickname}/items/{id}`: 수신자 알림 (`type: 'thanksball'`, `fromNickname`, `amount`, `message`, `postId`, `postTitle`, `read: false`)
+    - `sentBalls/{senderNickname}/items/{id}`: 발신자 전송 내역 (`postId`, `postTitle`, `postAuthor`, `amount`, `message`, `createdAt`)
+  - **UI — ThanksballModal**: 볼 프리셋(1/2/3/5/10) + 직접 입력 + 티어 표시(베이직~프리미엄) + 응원 메시지(50자). 전송 완료 시 바운스 애니메이션.
+  - **UI — RootPostCard 하단 통계 바**: 3-컬럼(`댓글수` | `⚾ 땡스볼 버튼` | `동의/비동의`). 본인 글엔 비활성화. 0볼이면 "땡스볼" 텍스트, 수신 시 "N볼" 숫자 표시.
+  - **UI — AnyTalkList 카드**: 하단 우측에 `⚾ N` 표시 (thanksballTotal > 0 인 경우만).
+  - **UI — NotificationBell**: 헤더 `+ 새 글` 버튼 우측 배치. 미읽음 수 빨간 뱃지. 드롭다운(최근 20개), 클릭 시 해당 글 이동 + 읽음 처리. "모두 읽음" 일괄 처리(`writeBatch`).
+  - **UI — 랭킹(RankingView)**: 사이드바 `랭킹` 메뉴 → 메인탭(좋아요/땡스볼) × 서브탭(유저/글) 4개 뷰. 상위 3위 메달(🥇🥈🥉). 땡스볼 유저 랭킹은 글쓴이별 `thanksballTotal` 합산.
+  - **UI — 내정보(MyPage)**:
+    - `받은볼` 탭: 내 글별 수신 볼 목록 (thanksballTotal 내림차순)
+    - `보낸볼` 탭: `sentBalls` 실시간 구독, 보낸 내역 (수신자·볼수·메시지·시간) 표시
+    - `ActivityStats`: 땡스볼 > 0 시 `⚾ N볼` 스탯 카드 추가
+    - `ActivityMilestones`: 기록 통계 카드 하단에 `⚾ N볼` 항목 추가
+    - `ProfileHeader`: 수신량 기반 배지 (1볼~: 땡스볼 수신 / 10볼~: 블루 기여자 / 30볼~: 골드 기여자 / 100볼~: 프리미엄 기여자)
+  - **볼 티어 색상**: 1볼(slate) / 2볼(blue) / 3볼(violet) / 5볼(amber) / 10볼+(rose)
+  - **자기 글 제한**: 본인 글엔 땡스볼 버튼 비활성 (`isMyPost` 체크)
+  - **미구현(향후)**: 실결제 PG사 연동, 작성자 정산 대시보드, 볼→현금 환전
 
 ### 🛠️ 진행 중 / 개선 필요 사항
 - [ ] **에디터 보완**: `bubble-menu` 활성화 (텍스트 선택 시 서식 도구 노출).

@@ -6,9 +6,10 @@ interface ActivityMilestonesProps {
   rootCount: number;
   formalCount: number;
   commentCount: number;
+  totalThanksball?: number;
 }
 
-const ActivityMilestones = ({ userData, rootCount, formalCount, commentCount }: ActivityMilestonesProps) => {
+const ActivityMilestones = ({ userData, rootCount, formalCount, commentCount, totalThanksball = 0 }: ActivityMilestonesProps) => {
   const reputationLabel = getReputationLabel(userData.likes || 0);
   const repProgress = getReputationProgress(userData.likes || 0);
   const expProgress = userData.exp || 0;
@@ -79,6 +80,12 @@ const ActivityMilestones = ({ userData, rootCount, formalCount, commentCount }: 
                 <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest block">총 활동 지수</span>
                 <span className="text-sm font-[1000] tracking-tight">{(userData.likes || 0).toLocaleString()}</span>
               </div>
+              {totalThanksball > 0 && (
+                <div className="col-span-2 pt-3 border-t border-white/10">
+                  <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest block">받은 땡스볼</span>
+                  <span className="text-sm font-[1000] tracking-tight text-amber-400">⚾ {totalThanksball}볼</span>
+                </div>
+              )}
             </div>
           </div>
         </div>
