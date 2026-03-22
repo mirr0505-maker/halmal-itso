@@ -18,7 +18,7 @@ interface Props {
 const AnyTalkList = ({
   posts, onTopicClick, onLikeClick, commentCounts = {}, currentNickname, allUsers = {}, followerCounts = {}, tab
 }: Props) => {
-  const showGoldHeart = tab === 'recent' || tab === 'best' || tab === 'rank';
+  const showGoldHeart = !tab || tab === 'recent' || tab === 'best' || tab === 'rank' || tab === 'friend';
 
   const stripHtml = (html: string) => {
     const tmp = document.createElement("DIV");
