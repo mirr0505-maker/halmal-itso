@@ -24,10 +24,11 @@ interface Props {
   onLikeClick?: (e: React.MouseEvent | null, postId: string) => void;
   currentNickname?: string;
   onEdit?: (post: Post) => void;
+  onBack?: () => void;
 }
 
-const RootPostCard = ({ 
-  post, totalComment, totalFormal, uniqueAgreeCount, uniqueDisagreeCount, isFriend, onToggleFriend, userData, friendCount, onDeleteSuccess, onLikeClick, currentNickname, onEdit
+const RootPostCard = ({
+  post, totalComment, totalFormal, uniqueAgreeCount, uniqueDisagreeCount, isFriend, onToggleFriend, userData, friendCount, onDeleteSuccess, onLikeClick, currentNickname, onEdit, onBack
 }: Props) => {
   
   const isMyPost = post.author === currentNickname;
@@ -62,8 +63,12 @@ const RootPostCard = ({
       <div className="flex-1 flex flex-col pt-8 px-4 md:px-8 pb-4">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
-            <span className="text-[10px] font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded-sm uppercase tracking-widest">
-              {getCategoryDisplayName(post.category)}
+            <span
+              onClick={onBack}
+              className="text-[10px] font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded-sm uppercase tracking-widest cursor-pointer hover:bg-blue-100 hover:text-blue-700 hover:-translate-x-0.5 transition-all duration-150 select-none"
+              title="목록으로 돌아가기"
+            >
+              ← {getCategoryDisplayName(post.category)}
             </span>
             <span className="text-[11px] font-bold text-slate-400">{formatTime(post.createdAt)}</span>
           </div>

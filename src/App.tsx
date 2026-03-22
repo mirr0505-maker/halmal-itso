@@ -184,28 +184,11 @@ function App() {
 
   const renderContent = () => {
     if (isLoading) return (
-      <div className="w-full flex flex-col items-center justify-center py-40 gap-4 overflow-hidden">
-        <div className="relative flex items-center justify-center w-24 h-12">
-          {/* 후다다닥! 달려가는 말 */}
-          <div className="text-4xl animate-dash filter drop-shadow-md z-10">
-            🐎
-          </div>
-          {/* 질주하는 먼지 효과 */}
-          <div className="absolute left-4 bottom-2 flex gap-1">
-            <div className="w-1.5 h-1.5 bg-slate-200 rounded-full animate-dust" style={{ animationDelay: '0s' }}></div>
-            <div className="w-2 h-2 bg-slate-100 rounded-full animate-dust" style={{ animationDelay: '0.1s' }}></div>
-            <div className="w-1 h-1 bg-slate-300 rounded-full animate-dust" style={{ animationDelay: '0.2s' }}></div>
-          </div>
-          {/* 바닥 질주 라인 */}
-          <div className="absolute bottom-1 left-0 w-full h-[1.5px] bg-slate-100/30 rounded-full"></div>
-        </div>
-        
-        <div className="flex flex-col items-center gap-1 text-center">
-          <h2 className="text-lg font-[1000] text-slate-800 italic tracking-tight">
-            콘텐츠를 불러오고 있어요...
-          </h2>
-          <p className="text-slate-400 font-bold text-[10px] animate-pulse">잠시만 기다려 주세요</p>
-        </div>
+      <div className="w-full flex flex-col items-center justify-center py-40 gap-3">
+        <h1 className="text-[36px] font-[1000] italic tracking-tighter animate-logo-pulse">
+          <span className="text-blue-600">GL</span><span className="text-slate-900">ove</span>
+        </h1>
+        <p className="text-[11px] font-black text-slate-300 tracking-tight">집단지성의 힘</p>
       </div>
     );
     
@@ -277,7 +260,7 @@ function App() {
           const liveIsMyStory = !livePost.category || myStory.includes(livePost.category);
           if (liveIsMyStory) return !p.category || myStory.includes(p.category || '');
           return p.category === livePost.category;
-        })} onTopicChange={setSelectedTopic} userData={userData} friends={friends} onToggleFriend={toggleFriend} onPostClick={() => {}} replyTarget={replyTarget} setReplyTarget={setReplyTarget} handleSubmit={handleCommentSubmit} selectedSide={selectedSide} setSelectedSide={setSelectedSide} selectedType={selectedType} setSelectedType={setSelectedType} newTitle={newTitle} setNewTitle={setNewTitle} newContent={newContent} setNewContent={setNewContent} isSubmitting={isSubmitting} commentCounts={commentCounts} onLikeClick={handleLike} currentNickname={userData?.nickname} allUsers={allUsers} followerCounts={followerCounts} toggleBlock={toggleBlock} onEditPost={(post) => { setEditingPost(post); setIsCreateOpen(true); }} onInlineReply={handleInlineReply} />;
+        })} onTopicChange={setSelectedTopic} userData={userData} friends={friends} onToggleFriend={toggleFriend} onPostClick={() => {}} replyTarget={replyTarget} setReplyTarget={setReplyTarget} handleSubmit={handleCommentSubmit} selectedSide={selectedSide} setSelectedSide={setSelectedSide} selectedType={selectedType} setSelectedType={setSelectedType} newTitle={newTitle} setNewTitle={setNewTitle} newContent={newContent} setNewContent={setNewContent} isSubmitting={isSubmitting} commentCounts={commentCounts} onLikeClick={handleLike} currentNickname={userData?.nickname} allUsers={allUsers} followerCounts={followerCounts} toggleBlock={toggleBlock} onEditPost={(post) => { setEditingPost(post); setIsCreateOpen(true); }} onInlineReply={handleInlineReply} onBack={() => { setSelectedTopic(null); setReplyTarget(null); setEditingPost(null); }} />;
     }
 
     if (activeMenu === 'onecut') {
@@ -307,29 +290,29 @@ function App() {
     }
 
     const now = new Date();
-    const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
+    const twoHoursAgo = new Date(now.getTime() - 2 * 60 * 60 * 1000);
 
     let filteredPosts = basePosts;
     if (activeTab === 'any') {
       filteredPosts = basePosts.filter(p => {
         const createdAt = p.createdAt?.toDate ? p.createdAt.toDate() : (p.createdAt?.seconds ? new Date(p.createdAt.seconds * 1000) : null);
-        return createdAt && createdAt > oneHourAgo;
+        return createdAt && createdAt > twoHoursAgo;
       });
     } else if (activeTab === 'recent') {
-      // 등록글: 새글(1시간) 심사를 통과한 글 — 1시간 경과 + 좋아요 3개 이상
+      // 등록글: 새글(2시간) 심사를 통과한 글 — 2시간 경과 + 좋아요 3개 이상
       filteredPosts = basePosts.filter(p => {
         const createdAt = p.createdAt?.toDate ? p.createdAt.toDate() : (p.createdAt?.seconds ? new Date(p.createdAt.seconds * 1000) : null);
-        return (p.likes || 0) >= 3 && (!createdAt || createdAt <= oneHourAgo);
+        return (p.likes || 0) >= 3 && (!createdAt || createdAt <= twoHoursAgo);
       });
     } else if (activeTab === 'best') {
       filteredPosts = basePosts.filter(p => (p.likes || 0) >= 10);
     } else if (activeTab === 'rank') {
       filteredPosts = basePosts.filter(p => (p.likes || 0) >= 30);
     } else if (activeTab === 'friend') {
-      // 깐부글: 1시간 이내 + 좋아요 3개 이상 + 팔로우 유저
+      // 깐부글: 2시간 이내 + 좋아요 3개 이상 + 팔로우 유저
       filteredPosts = basePosts.filter(p => {
         const createdAt = p.createdAt?.toDate ? p.createdAt.toDate() : (p.createdAt?.seconds ? new Date(p.createdAt.seconds * 1000) : null);
-        return friends.includes(p.author) && (p.likes || 0) >= 3 && createdAt && createdAt > oneHourAgo;
+        return friends.includes(p.author) && (p.likes || 0) >= 3 && createdAt && createdAt > twoHoursAgo;
       });
     }
 
@@ -381,7 +364,7 @@ function App() {
     <div className="bg-[#F8FAFC] text-slate-900 font-sans h-screen flex flex-col overflow-hidden">
       <header className="bg-white border-b border-slate-100 h-[64px] flex items-center justify-between px-6 shrink-0 z-50 shadow-sm">
         <div className="flex items-center gap-4">
-          <div className="w-40 flex items-center cursor-pointer hover:opacity-80 transition-opacity shrink-0" onClick={goHome}><h1 className="text-[22px] font-[1000] italic tracking-tighter"><span className="text-blue-600">GL</span><span className="text-slate-900">ove</span></h1></div>
+          <div className="w-40 flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity shrink-0" onClick={goHome}><h1 className="text-[22px] font-[1000] italic tracking-tighter shrink-0"><span className="text-blue-600">GL</span><span className="text-slate-900">ove</span></h1><div className="flex flex-col"><span className="text-[11px] font-[1000] text-slate-500 tracking-tight leading-tight">글러브</span><span className="text-[9px] font-black text-slate-300 tracking-tight leading-tight">집단지성의 힘</span></div></div>
           <div className="flex gap-1.5 items-center px-4 border-l border-slate-100" onClick={(e) => e.stopPropagation()}>
             <span className="text-[9px] font-black text-slate-300 uppercase tracking-tighter mr-1">Dev:</span>
             {TEST_ACCOUNTS.map((acc, i) => (

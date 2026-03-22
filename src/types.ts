@@ -41,6 +41,9 @@ export interface Post {
 
   // 🚀 깐부방 관련
   kanbuRoomId?: string;    // 소속 깐부방 ID
+
+  // 🚀 댓글 고정
+  pinnedCommentId?: string; // 작성자가 고정한 댓글 ID
 }
 
 export interface KanbuRoom {

@@ -13,11 +13,15 @@ interface Props {
   currentNickname?: string;
   allUsers?: Record<string, any>;
   followerCounts?: Record<string, number>;
+  isPinned?: boolean;
+  isRootAuthor?: boolean;
+  onPin?: () => void;
 }
 
-const PostCard = ({ 
-  post, onReply, onPostClick, 
-  onLikeClick, currentNickname, allUsers = {}, followerCounts = {}
+const PostCard = ({
+  post, onReply, onPostClick,
+  onLikeClick, currentNickname, allUsers = {}, followerCounts = {},
+  isPinned, isRootAuthor, onPin
 }: Props) => {
   const isMyPost = post.author === currentNickname;
   const isLikedByMe = currentNickname && post.likedBy?.includes(currentNickname);
@@ -49,9 +53,9 @@ const PostCard = ({
   };
 
   return (
-    <div 
+    <div
       onClick={() => post.type === 'formal' && onPostClick(post)}
-      className={`group relative p-4 md:p-5 border-b border-slate-100 transition-all ${post.type === 'formal' ? 'bg-white cursor-pointer hover:bg-slate-50' : 'bg-transparent'}`}
+      className={`group relative p-4 md:p-5 border-b border-slate-100 transition-all ${isPinned ? 'bg-amber-50/40 border-l-2 border-l-amber-300' : post.type === 'formal' ? 'bg-white cursor-pointer hover:bg-slate-50' : 'bg-transparent'}`}
     >
       <div className="flex gap-3.5">
         <div className="w-9 h-9 rounded-full overflow-hidden bg-slate-50 shrink-0 border border-slate-100 shadow-sm">
@@ -69,11 +73,27 @@ const PostCard = ({
                 Lv {displayLevel} · {getReputationLabel(displayLikes)} · 깐부 {formatKoreanNumber(realFollowers)}
               </span>
             </div>
-            {isMyPost && (
-              <button onClick={handleDelete} className="opacity-0 group-hover:opacity-100 p-1 text-slate-300 hover:text-rose-500 transition-all">
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h14" /></svg>
-              </button>
-            )}
+            <div className="flex items-center gap-1">
+              {isPinned && (
+                <span className="text-[9px] font-black text-amber-500 flex items-center gap-0.5">
+                  <svg className="w-3 h-3 fill-current" viewBox="0 0 24 24"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>
+                  작성자가 고정한 댓글
+                </span>
+              )}
+              {isRootAuthor && onPin && (
+                <button onClick={(e) => { e.stopPropagation(); onPin(); }}
+                  className={`opacity-0 group-hover:opacity-100 p-1 transition-all ${isPinned ? 'text-amber-400 hover:text-slate-400' : 'text-slate-300 hover:text-amber-400'}`}
+                  title={isPinned ? '고정 해제' : '댓글 고정'}
+                >
+                  <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>
+                </button>
+              )}
+              {isMyPost && (
+                <button onClick={handleDelete} className="opacity-0 group-hover:opacity-100 p-1 text-slate-300 hover:text-rose-500 transition-all">
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h14" /></svg>
+                </button>
+              )}
+            </div>
           </div>
           
           {post.type === 'formal' && post.title && (

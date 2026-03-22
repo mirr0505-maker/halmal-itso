@@ -2,7 +2,7 @@
 
 이 문서는 **할말있소(HALMAL-ITSO)** 프로젝트의 설계 원칙, 현재 구현 상태, 그리고 AI 개발자의 **절대적 행동 지침**을 담은 단일 진실 소스(Single Source of Truth)입니다.
 
-> 최종 갱신: 2026-03-21 (코드 실측 기준)  |  현재 브랜치: `main`
+> 최종 갱신: 2026-03-22 (코드 실측 기준)  |  현재 브랜치: `main`
 
 ---
 
@@ -108,7 +108,10 @@
     ├── ActivityStats.tsx    # 활동 통계 (좋아요·게시글·댓글 수)
     ├── ActivityMilestones.tsx # 활동 마일스톤 배지
     ├── MyContentTabs.tsx    # 마이페이지 내 탭 (게시글/한컷/댓글/아바타/깐부)
-    └── AvatarCollection.tsx # 아바타 컬렉션 선택 UI
+    ├── AvatarCollection.tsx # 아바타 컬렉션 선택 UI
+    ├── KanbuRoomList.tsx    # 깐부방 목록 (Lv3 이상 개설 가능)
+    ├── KanbuRoomView.tsx    # 깐부방 상세 (게시판 좌 + 실시간 채팅 우)
+    └── CreateKanbuRoomModal.tsx # 깐부방 개설 모달
 ```
 
 ### 3.2 상태 관리 (`App.tsx`)
@@ -165,6 +168,27 @@ interface Post {
   // 한컷 관련 필드
   isOneCut?: boolean;         // 한컷 게시물 여부
   linkedPostId?: string;      // 연계된 원본 게시글 ID
+
+  // 깐부방 관련 필드
+  kanbuRoomId?: string;       // 소속 깐부방 ID
+}
+
+interface KanbuRoom {
+  id: string;
+  title: string;
+  description?: string;
+  creatorNickname: string;
+  creatorId: string;
+  creatorLevel: number;
+  createdAt: any;
+}
+
+interface KanbuChat {
+  id: string;
+  author: string;
+  authorId: string;
+  content: string;
+  createdAt: any;
 }
 ```
 
@@ -182,6 +206,7 @@ interface Post {
 | `bone_hitting` | 신포도와 여우 | 뼈때리는 글 | 명언, 짧은 글 |
 | `local_news` | 마법 수정 구슬 | 현지 소식 | 정보 공유 보드 |
 | `friends` | 깐부 맺기 | (UI 전용) | 팔로우 추천 목록 (허용 닉네임 필터 적용) |
+| `kanbu_room` | 깐부방 | (subcollection) | 깐부가 개설한 방 목록, 방별 게시판+실시간 채팅. Lv3 이상 개설. Firestore: `kanbu_rooms/{roomId}/chats` |
 | `market` | 마켓 | 마켓 | OneCutList 그리드 레이아웃, 게시글 없을 시 "기록된 글이 없어요" |
 | `exile_place` | 유배·귀양지 | 유배·귀양지 | 제재 유저 전용 소통 공간, 주제 없음 |
 
@@ -190,11 +215,11 @@ interface Post {
 ## 6. 필터링 및 노출 규칙
 
 ### 6.1 홈 탭 (`activeTab`)
-- **새글 (any)**: 등록 후 1시간 이내 모든 글.
-- **등록글 (recent)**: 1시간 경과 + 좋아요 3개 이상 (새글 심사 통과 기준).
+- **새글 (any)**: 등록 후 2시간 이내 모든 글.
+- **등록글 (recent)**: 2시간 경과 + 좋아요 3개 이상 (새글 심사 통과 기준).
 - **인기글 (best)**: 좋아요 10개 이상.
 - **최고글 (rank)**: 좋아요 30개 이상.
-- **깐부글 (friend)**: 1시간 이내 + 좋아요 3개 이상 + 팔로우 유저 작성.
+- **깐부글 (friend)**: 2시간 이내 + 좋아요 3개 이상 + 팔로우 유저 작성.
 
 ### 6.2 카테고리 뷰
 - 해당 카테고리 내에서 **좋아요 3개 이상**을 획득한 글만 노출 (품질 필터).
@@ -228,7 +253,7 @@ interface Post {
 
 ## 8. 현재 구현 상태 (2026-03-21 기준, 코드 실측)
 
-### ✅ 완료된 핵심 기능
+### ✅ 완료된 핵심 기능 (2026-03-22 갱신)
 - [x] **Tiptap 프리미엄 에디터**: 스티키 툴바, 이미지 R2 업로드(드래그&드롭/붙여넣기), 마크다운 호환 스타일.
 - [x] **상세 뷰 리뉴얼**: 콤팩트한 2컬럼 레이아웃, 카테고리별 맞춤형 탭 UI(동의/반대/질문 등).
 - [x] **한컷 시스템 고도화**: 그리드 상세 뷰, OneCutListSidebar, 일반 게시글 연동 버튼, 동의/반대 투표.
@@ -247,6 +272,13 @@ interface Post {
 - [x] **필터링 버그 수정**: 등록글(1시간 경과 조건 누락), 깐부글(좋아요 3개 이상 조건 누락) 수정.
 - [x] **등록글 더보기 필터 버그 수정**: `RelatedPostsSidebar`에 노출되는 글이 등록글 조건(1시간 경과 + 좋아요 3개 이상) 없이 전체 노출되던 문제 수정 (`DiscussionView.tsx`).
 - [x] **권한 버그 수정**: `RootPostCard`에서 `|| post.author === "흑무영"` 하드코딩으로 인해 모든 유저가 흑무영 게시글을 수정/삭제할 수 있던 문제 수정.
+- [x] **카테고리 전면 개편 및 DB 마이그레이션**: 내부 카테고리명을 새 표시명으로 일괄 변경 (벌거벗은 임금님→판도라의 상자, 임금님 귀는 당나귀 귀→솔로몬의 재판, 지식 소매상→황금알을 낳는 거위, 뼈때리는 글→신포도와 여우, 현지 소식→마법 수정 구슬, 나의 이야기→너와 나의 이야기). Firestore 15건 migrate.cjs로 일괄 업데이트. 구 카테고리명 backward-compat 유지.
+- [x] **깐부방 기능**: 사이드바 전용 섹션(깐부방+깐부맺기 묶음). 방 목록(KanbuRoomList), 방 상세(KanbuRoomView — 게시판+실시간 채팅), 방 개설 모달(CreateKanbuRoomModal). Lv3 이상 개설 가능. Firestore `kanbu_rooms` 컬렉션 + `chats` 서브컬렉션.
+- [x] **골드하트(Gold Heart)**: Lv5 이상 유저가 좋아요 시 금색 하트 카운트 표시. 카드 우측 상단 노출. 홈 탭(recent/best/rank/friend) + 카테고리 메뉴 뷰(tab=undefined) 모두 적용 (AnyTalkList `showGoldHeart` 조건 수정).
+- [x] **상세글 뒤로가기**: `RootPostCard` 좌측 상단 파란 카테고리 버튼 클릭 시 `activeMenu` 유지하며 목록으로 복귀. 화살표(←) + hover 효과 추가. `onBack` prop: App→DiscussionView→RootPostCard 체인.
+- [x] **댓글 UX 수정**: 너와 나의 이야기(구 나의 이야기 포함) 카테고리에서 댓글 남기기 폼 표시 제거. 동의/비동의 카운트 `allowDisagree=false` 카테고리에서 미표시.
+- [x] **헤더 브랜드**: GLove 로고 옆 "집단지성의 힘" 서브텍스트 추가.
+- [x] **사이드바 구조 개편**: 깐부방+깐부맺기 동일 섹션(구분선 아래), 내정보 별도 섹션.
 
 ### 🛠️ 진행 중 / 개선 필요 사항
 - [ ] **에디터 보완**: `bubble-menu` 활성화 (텍스트 선택 시 서식 도구 노출).

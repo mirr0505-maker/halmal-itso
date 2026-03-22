@@ -57,6 +57,7 @@ interface Props {
   toggleBlock?: (author: string) => void;
   onEditPost?: (post: Post) => void;
   onInlineReply?: (content: string, parentPost: Post | null) => Promise<void>;
+  onBack?: () => void;
 }
 
 // 🚀 카테고리별 댓글/연계글 렌더링 룰 및 문구 정의
@@ -88,7 +89,7 @@ const DiscussionView = ({
   rootPost, allPosts, otherTopics, onTopicChange, userData, friends, onToggleFriend,
   replyTarget, setReplyTarget, handleSubmit, selectedSide, setSelectedSide,
   selectedType, setSelectedType, newTitle, setNewTitle, newContent, setNewContent, isSubmitting,
-  commentCounts = {}, onLikeClick, currentNickname, allUsers = {}, followerCounts = {}, onEditPost, onInlineReply
+  commentCounts = {}, onLikeClick, currentNickname, allUsers = {}, followerCounts = {}, onEditPost, onInlineReply, onBack
 }: Props) => {
   const rule = CATEGORY_RULES[rootPost.category || "나의 이야기"] || CATEGORY_RULES["나의 이야기"];
   const CommentForm = CATEGORY_COMMENT_MAP[rootPost.category || '나의 이야기'] ?? CommentMyStory;
@@ -129,6 +130,7 @@ const DiscussionView = ({
             onLikeClick={onLikeClick}
             currentNickname={currentNickname}
             onEdit={onEditPost}
+            onBack={onBack}
           />
         )}
 
@@ -158,6 +160,7 @@ const DiscussionView = ({
             currentNickname={currentNickname}
             category={rootPost.category || "나의 이야기"}
             onInlineReply={onInlineReply}
+            rootPost={rootPost}
           />
         </div>
       </div>

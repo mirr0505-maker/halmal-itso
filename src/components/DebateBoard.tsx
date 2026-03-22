@@ -3,6 +3,8 @@ import React, { useState } from 'react';
 import PostCard from './PostCard';
 import type { Post } from '../types';
 import { CATEGORY_RULES } from './DiscussionView';
+import { db } from '../firebase';
+import { doc, updateDoc } from 'firebase/firestore';
 
 interface Props {
   allChildPosts: Post[];
@@ -14,10 +16,11 @@ interface Props {
   currentNickname?: string;
   category: string;
   onInlineReply?: (content: string, parentPost: Post | null) => Promise<void>;
+  rootPost?: Post;
 }
 
 const DebateBoard = ({
-  allChildPosts, setReplyTarget, onPostClick, onLikeClick, currentNickname, category, onInlineReply
+  allChildPosts, setReplyTarget, onPostClick, onLikeClick, currentNickname, category, onInlineReply, rootPost
 }: Props) => {
   const rule = CATEGORY_RULES[category] || CATEGORY_RULES["나의 이야기"];
 
@@ -26,6 +29,15 @@ const DebateBoard = ({
 
   // 댓글 정렬 상태 (단일 리스트형에서 사용)
   const [sortBy, setSortBy] = useState<'latest' | 'likes'>('latest');
+
+  const isRootAuthor = !!(rootPost && currentNickname && rootPost.author === currentNickname);
+  const pinnedCommentId = rootPost?.pinnedCommentId;
+
+  const handlePin = async (commentId: string) => {
+    if (!rootPost) return;
+    const newPinned = pinnedCommentId === commentId ? null : commentId;
+    await updateDoc(doc(db, 'posts', rootPost.id), { pinnedCommentId: newPinned ?? '' });
+  };
 
   // 너와 나의 이야기 전용 인라인 폼 상태
   // '__new__' = 새 최상위 댓글, post.id = 해당 댓글 답글
@@ -42,29 +54,17 @@ const DebateBoard = ({
     setInlineContent(''); setActiveId(null); setIsInlineSubmitting(false);
   };
 
-  const InlineForm = ({ parentPost }: { parentPost: Post | null }) => (
-    <div className="flex gap-2 px-4 py-3 bg-slate-50 border-t border-slate-100">
-      <textarea autoFocus value={inlineContent} onChange={e => setInlineContent(e.target.value)}
-        onKeyDown={e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) submitInline(parentPost); }}
-        placeholder={parentPost ? `${parentPost.author}에게 답글...` : "따뜻한 공감의 한마디를 남겨보세요..."}
-        className="flex-1 bg-white border border-slate-200 rounded-lg px-3 py-2 text-[13px] font-bold text-slate-700 outline-none focus:border-slate-400 resize-none h-16" />
-      <div className="flex flex-col gap-1.5 shrink-0 justify-center">
-        <button onClick={() => { setActiveId(null); setInlineContent(''); }}
-          className="px-3 py-1.5 text-[11px] font-bold text-slate-400 hover:text-slate-600 rounded-md transition-colors">취소</button>
-        <button onClick={() => submitInline(parentPost)} disabled={isInlineSubmitting || !inlineContent.trim()}
-          className="px-3 py-1.5 text-[11px] font-bold bg-slate-900 text-white rounded-md hover:bg-blue-600 disabled:opacity-50 transition-colors">전송 🚀</button>
-      </div>
-    </div>
-  );
 
   // 답글 스레드: parentId === rootId 이면 최상위 댓글, 아니면 다른 댓글의 답글
   const topLevelComments = allChildPosts.filter(p => p.parentId === p.rootId);
   const getReplies = (id: string) => allChildPosts.filter(p => p.parentId === id);
-  const sortedTopLevel = [...topLevelComments].sort((a, b) =>
-    sortBy === 'likes'
+  const sortedTopLevel = [...topLevelComments].sort((a, b) => {
+    if (a.id === pinnedCommentId) return -1;
+    if (b.id === pinnedCommentId) return 1;
+    return sortBy === 'likes'
       ? (b.likes || 0) - (a.likes || 0)
-      : (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)
-  );
+      : (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0);
+  });
   const renderThread = (post: Post, depth: number) => {
     const replies = getReplies(post.id);
     return (
@@ -83,8 +83,23 @@ const DebateBoard = ({
     return (
       <div key={post.id}>
         <div className={depth > 0 ? 'ml-6 border-l-2 border-slate-100' : ''}>
-          <PostCard post={post} onReply={(p) => openInline(p.id)} onPostClick={onPostClick} onLikeClick={onLikeClick} currentNickname={currentNickname} />
-          {activeId === post.id && <InlineForm parentPost={post} />}
+          <PostCard post={post} onReply={(p) => openInline(p.id)} onPostClick={onPostClick} onLikeClick={onLikeClick} currentNickname={currentNickname}
+            isPinned={post.id === pinnedCommentId}
+            isRootAuthor={isRootAuthor}
+            onPin={() => handlePin(post.id)}
+          />
+          {activeId === post.id && (
+            <div className="flex items-center gap-2 px-4 py-2.5 bg-slate-50 border-t border-slate-100">
+              <input autoFocus type="text" value={inlineContent} onChange={e => setInlineContent(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) submitInline(post); }}
+                placeholder={`${post.author}에게 답글...`}
+                className="flex-1 bg-white border border-slate-200 rounded-lg px-3 py-2 text-[13px] font-bold text-slate-700 outline-none focus:border-slate-400" />
+              <button onClick={() => { setActiveId(null); setInlineContent(''); }}
+                className="px-3 py-1.5 text-[11px] font-bold text-slate-400 hover:text-slate-600 rounded-md transition-colors shrink-0">취소</button>
+              <button onClick={() => submitInline(post)} disabled={isInlineSubmitting || !inlineContent.trim()}
+                className="px-3 py-1.5 text-[11px] font-bold bg-slate-900 text-white rounded-md hover:bg-blue-600 disabled:opacity-50 transition-colors shrink-0">댓글 달기</button>
+            </div>
+          )}
         </div>
         {replies.map(reply => renderThreadMyStory(reply, depth + 1))}
       </div>
@@ -132,14 +147,25 @@ const DebateBoard = ({
             ? sortedTopLevel.map(post => renderThreadMyStory(post, 0))
             : sortedTopLevel.map(post => renderThread(post, 0))
           }
-          {allChildPosts.length === 0 && <div className="py-20 text-center text-slate-300 font-bold text-xs">첫 번째 글을 남겨보세요.</div>}
+          {allChildPosts.length === 0 && category !== '너와 나의 이야기' && category !== '나의 이야기' && <div className="py-20 text-center text-slate-300 font-bold text-xs">첫 번째 글을 남겨보세요.</div>}
         </div>
 
         {/* 너와 나의 이야기 / 나의 이야기 전용 — 최하단 새 댓글 입력창 */}
         {(category === '너와 나의 이야기' || category === '나의 이야기') && (
           <div className="border-t border-slate-100">
             {activeId === '__new__'
-              ? <InlineForm parentPost={null} />
+              ? (
+                <div className="flex items-center gap-2 px-4 py-2.5 bg-slate-50 border-t border-slate-100">
+                  <input autoFocus type="text" value={inlineContent} onChange={e => setInlineContent(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) submitInline(null); }}
+                    placeholder="따뜻한 공감의 한마디를 남겨보세요..."
+                    className="flex-1 bg-white border border-slate-200 rounded-lg px-3 py-2 text-[13px] font-bold text-slate-700 outline-none focus:border-slate-400" />
+                  <button onClick={() => { setActiveId(null); setInlineContent(''); }}
+                    className="px-3 py-1.5 text-[11px] font-bold text-slate-400 hover:text-slate-600 rounded-md transition-colors shrink-0">취소</button>
+                  <button onClick={() => submitInline(null)} disabled={isInlineSubmitting || !inlineContent.trim()}
+                    className="px-3 py-1.5 text-[11px] font-bold bg-slate-900 text-white rounded-md hover:bg-blue-600 disabled:opacity-50 transition-colors shrink-0">댓글 달기</button>
+                </div>
+              )
               : <button onClick={() => openInline('__new__')}
                   className="w-full px-8 py-4 text-left text-[13px] font-bold text-slate-300 hover:text-slate-500 hover:bg-slate-50 transition-colors">
                   댓글 달기...

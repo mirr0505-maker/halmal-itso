@@ -126,19 +126,20 @@ const Sidebar = ({ activeMenu, setActiveMenu, kanbuRoomCount = 0 }: Props) => {
     )
   };
 
+  const friendsMenu = {
+    id: 'friends',
+    label: '깐부 맺기',
+    icon: (
+      <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+      </svg>
+    )
+  };
+
   const userMenus = [
-    { 
-      id: 'friends', 
-      label: '깐부 맺기', 
-      icon: (
-        <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-        </svg>
-      )
-    },
-    { 
-      id: 'mypage', 
-      label: '내정보', 
+    {
+      id: 'mypage',
+      label: '내정보',
       icon: (
         <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h10a7 7 0 00-7-7z" />
@@ -192,7 +193,7 @@ const Sidebar = ({ activeMenu, setActiveMenu, kanbuRoomCount = 0 }: Props) => {
           <div className="h-px bg-slate-100 w-full" />
         </div>
 
-        {/* 깐부방 섹션 */}
+        {/* 깐부 섹션: 깐부방 + 깐부맺기 */}
         <button
           onClick={() => setActiveMenu('kanbu_room')}
           className={`w-full flex flex-row items-center gap-2 px-2.5 py-1.5 rounded-xl transition-all duration-150 border-2 ${
@@ -208,14 +209,15 @@ const Sidebar = ({ activeMenu, setActiveMenu, kanbuRoomCount = 0 }: Props) => {
           </span>
           <div className="flex flex-col items-start min-w-0 flex-1 overflow-hidden">
             <span className={`text-[12px] tracking-tight whitespace-nowrap ${activeMenu === 'kanbu_room' ? 'font-black' : 'font-bold'}`}>깐부방</span>
-            <span className="text-[9px] font-bold text-slate-300 leading-none mt-0.5">친구들의 공간</span>
           </div>
           {kanbuRoomCount > 0 && (
-            <span className="bg-rose-500 text-white text-[9px] font-black rounded-full px-1.5 py-0.5 min-w-[18px] text-center shrink-0">
+            <span className="bg-blue-100 text-blue-600 text-[9px] font-black rounded-full px-1.5 py-0.5 min-w-[18px] text-center shrink-0">
               {kanbuRoomCount}
             </span>
           )}
         </button>
+
+        {renderMenuButton(friendsMenu)}
 
         <div className="my-2.5 px-4">
           <div className="h-px bg-slate-100 w-full" />
@@ -224,8 +226,9 @@ const Sidebar = ({ activeMenu, setActiveMenu, kanbuRoomCount = 0 }: Props) => {
         {userMenus.map(renderMenuButton)}
       </nav>
       
-      <div className="p-6 text-[9px] font-black text-slate-300 tracking-tighter uppercase opacity-50 shrink-0">
-        © 2026 GLove
+      <div className="p-4 flex items-baseline gap-1.5 shrink-0">
+        <span className="text-[11px] font-black text-slate-300 tracking-tight">GLove</span>
+        <span className="text-[8px] font-bold text-slate-200 tracking-tight">집단지성의 힘</span>
       </div>
     </aside>
   );
