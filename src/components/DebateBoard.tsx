@@ -143,15 +143,15 @@ const DebateBoard = ({
           </div>
         </div>
         <div className="flex-1">
-          {(category === '너와 나의 이야기' || category === '나의 이야기')
+          {rule.allowInlineReply
             ? sortedTopLevel.map(post => renderThreadMyStory(post, 0))
             : sortedTopLevel.map(post => renderThread(post, 0))
           }
-          {allChildPosts.length === 0 && category !== '너와 나의 이야기' && category !== '나의 이야기' && <div className="py-20 text-center text-slate-300 font-bold text-xs">첫 번째 글을 남겨보세요.</div>}
+          {allChildPosts.length === 0 && !rule.hideEmptyMessage && <div className="py-20 text-center text-slate-300 font-bold text-xs">첫 번째 글을 남겨보세요.</div>}
         </div>
 
-        {/* 너와 나의 이야기 / 나의 이야기 전용 — 최하단 새 댓글 입력창 */}
-        {(category === '너와 나의 이야기' || category === '나의 이야기') && (
+        {/* 인라인 답글 활성화 카테고리 전용 — 최하단 새 댓글 입력창 */}
+        {rule.allowInlineReply && (
           <div className="border-t border-slate-100">
             {activeId === '__new__'
               ? (

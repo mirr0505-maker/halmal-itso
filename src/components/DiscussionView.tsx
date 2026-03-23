@@ -61,16 +61,18 @@ interface Props {
 }
 
 // 🚀 카테고리별 댓글/연계글 렌더링 룰 및 문구 정의
-export const CATEGORY_RULES: Record<string, { 
-  allowDisagree: boolean, 
+export const CATEGORY_RULES: Record<string, {
+  allowDisagree: boolean,
   allowFormal: boolean,
   boardType: 'debate' | 'single' | 'qa' | 'info' | 'factcheck' | 'onecut',
   placeholder: string,
   tab1: string,
-  tab2?: string
+  tab2?: string,
+  allowInlineReply?: boolean,  // 인라인 답글 폼 활성화 여부
+  hideEmptyMessage?: boolean,  // 빈 상태 메시지 숨김 여부
 }> = {
-  "나의 이야기":          { allowDisagree: false, allowFormal: false, boardType: 'single',   placeholder: "따뜻한 공감의 한마디를 남겨보세요...", tab1: "💬 댓글 전용", tab2: "👍 공감" },       // backward compat
-  "너와 나의 이야기":     { allowDisagree: false, allowFormal: false, boardType: 'single',   placeholder: "따뜻한 공감의 한마디를 남겨보세요...", tab1: "💬 댓글 전용", tab2: "👍 공감" },
+  "나의 이야기":          { allowDisagree: false, allowFormal: false, boardType: 'single',   placeholder: "따뜻한 공감의 한마디를 남겨보세요...", tab1: "💬 댓글 전용", tab2: "👍 공감", allowInlineReply: true, hideEmptyMessage: true },  // backward compat
+  "너와 나의 이야기":     { allowDisagree: false, allowFormal: false, boardType: 'single',   placeholder: "따뜻한 공감의 한마디를 남겨보세요...", tab1: "💬 댓글 전용", tab2: "👍 공감", allowInlineReply: true, hideEmptyMessage: true },
   "솔로몬의 재판":        { allowDisagree: true,  allowFormal: true,  boardType: 'debate',   placeholder: "논리적인 의견을 펼쳐보세요...", tab1: "👍 동의", tab2: "👎 반대" },
   "임금님 귀는 당나귀 귀":{ allowDisagree: true,  allowFormal: true,  boardType: 'debate',   placeholder: "논리적인 의견을 펼쳐보세요...", tab1: "👍 동의", tab2: "👎 반대" },                  // backward compat
   "판도라의 상자":        { allowDisagree: true,  allowFormal: false, boardType: 'factcheck', placeholder: "정확한 팩트를 제시해 주세요...", tab1: "⭕ 진실 (동의)", tab2: "❌ 거짓 (반대)" },
