@@ -9,7 +9,7 @@ interface Props {
   onPostClick: (post: Post) => void;
 }
 
-type MainTab = 'likes' | 'thanksball';
+type MainTab = 'likes' | 'thanksball' | 'views';
 type SubTab = 'users' | 'posts';
 
 const MEDAL = ['🥇', '🥈', '🥉'];
@@ -18,9 +18,14 @@ const RankingView = ({ allRootPosts, allUsers, onPostClick }: Props) => {
   const [mainTab, setMainTab] = useState<MainTab>('likes');
   const [subTab, setSubTab] = useState<SubTab>('users');
 
-  // 좋아요 유저 랭킹: allUsers 기준 likes 내림차순
+  // 좋아요 유저 랭킹: allUsers 기준 likes 내림차순 (닉네임 중복 제거)
+  const seenNicknamesLike = new Set<string>();
   const likeUserRanking = Object.values(allUsers)
-    .filter((u: any) => u.nickname)
+    .filter((u: any) => {
+      if (!u.nickname || seenNicknamesLike.has(u.nickname)) return false;
+      seenNicknamesLike.add(u.nickname);
+      return true;
+    })
     .sort((a: any, b: any) => (b.likes || 0) - (a.likes || 0))
     .slice(0, 20);
 
@@ -45,6 +50,23 @@ const RankingView = ({ allRootPosts, allUsers, onPostClick }: Props) => {
   const thanksballPostRanking = [...allRootPosts]
     .filter(p => (p.thanksballTotal || 0) > 0 && !p.kanbuRoomId)
     .sort((a, b) => (b.thanksballTotal || 0) - (a.thanksballTotal || 0))
+    .slice(0, 20);
+
+  // 조회수 유저 랭킹: 글쓴이별 viewCount 합산
+  const viewUserMap: Record<string, number> = {};
+  allRootPosts.forEach(p => {
+    if ((p.viewCount || 0) > 0) {
+      viewUserMap[p.author] = (viewUserMap[p.author] || 0) + (p.viewCount || 0);
+    }
+  });
+  const viewUserRanking = Object.entries(viewUserMap)
+    .sort(([, a], [, b]) => b - a)
+    .slice(0, 20);
+
+  // 조회수 글 랭킹: viewCount 내림차순
+  const viewPostRanking = [...allRootPosts]
+    .filter(p => (p.viewCount || 0) > 0 && !p.kanbuRoomId)
+    .sort((a, b) => (b.viewCount || 0) - (a.viewCount || 0))
     .slice(0, 20);
 
   const renderRankBadge = (idx: number) => {
@@ -96,8 +118,31 @@ const RankingView = ({ allRootPosts, allUsers, onPostClick }: Props) => {
     );
   };
 
+  const renderViewUserRow = (entry: [string, number], idx: number) => {
+    const [nickname, total] = entry;
+    const userData = allUsers[`nickname_${nickname}`];
+    const avatarUrl = userData?.avatarUrl || `https://api.dicebear.com/7.x/adventurer/svg?seed=${nickname}`;
+    return (
+      <div key={nickname} className={`flex items-center gap-3 px-4 py-3 rounded-2xl border transition-all ${idx < 3 ? 'bg-amber-50/40 border-amber-100' : 'bg-white border-slate-100 hover:border-blue-100'}`}>
+        <div className="w-6 flex items-center justify-center shrink-0">{renderRankBadge(idx)}</div>
+        <div className="w-9 h-9 rounded-full overflow-hidden border border-slate-200 shrink-0 bg-slate-50">
+          <img src={avatarUrl} alt="" className="w-full h-full object-cover" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-[13px] font-[1000] text-slate-800 truncate">{nickname}</p>
+          <p className="text-[10px] font-bold text-slate-400">Lv {userData?.level || 1}</p>
+        </div>
+        <div className="text-[13px] font-[1000] text-blue-400 shrink-0">
+          👁 {formatKoreanNumber(total)}
+        </div>
+      </div>
+    );
+  };
+
   const renderPostRow = (post: Post, idx: number) => {
-    const value = mainTab === 'likes' ? (post.likes || 0) : (post.thanksballTotal || 0);
+    const value = mainTab === 'likes' ? (post.likes || 0) : mainTab === 'thanksball' ? (post.thanksballTotal || 0) : (post.viewCount || 0);
+    const valueDisplay = mainTab === 'likes' ? `♥ ${formatKoreanNumber(value)}` : mainTab === 'thanksball' ? `⚾ ${formatKoreanNumber(value)}볼` : `👁 ${formatKoreanNumber(value)}`;
+    const valueColor = mainTab === 'thanksball' ? 'text-amber-500' : mainTab === 'views' ? 'text-blue-400' : 'text-rose-400';
     return (
       <div
         key={post.id}
@@ -113,8 +158,8 @@ const RankingView = ({ allRootPosts, allUsers, onPostClick }: Props) => {
             {post.author} · {getCategoryDisplayName(post.category)}
           </p>
         </div>
-        <div className={`text-[13px] font-[1000] shrink-0 ${mainTab === 'thanksball' ? 'text-amber-500' : 'text-rose-400'}`}>
-          {mainTab === 'likes' ? `♥ ${formatKoreanNumber(value)}` : `⚾ ${formatKoreanNumber(value)}볼`}
+        <div className={`text-[13px] font-[1000] shrink-0 ${valueColor}`}>
+          {valueDisplay}
         </div>
       </div>
     );
@@ -124,7 +169,9 @@ const RankingView = ({ allRootPosts, allUsers, onPostClick }: Props) => {
     (mainTab === 'likes' && subTab === 'users' && likeUserRanking.length === 0) ||
     (mainTab === 'likes' && subTab === 'posts' && likePostRanking.length === 0) ||
     (mainTab === 'thanksball' && subTab === 'users' && thanksballUserRanking.length === 0) ||
-    (mainTab === 'thanksball' && subTab === 'posts' && thanksballPostRanking.length === 0);
+    (mainTab === 'thanksball' && subTab === 'posts' && thanksballPostRanking.length === 0) ||
+    (mainTab === 'views' && subTab === 'users' && viewUserRanking.length === 0) ||
+    (mainTab === 'views' && subTab === 'posts' && viewPostRanking.length === 0);
 
   return (
     <div className="w-full max-w-2xl mx-auto py-8 px-4 animate-in fade-in duration-500">
@@ -136,7 +183,7 @@ const RankingView = ({ allRootPosts, allUsers, onPostClick }: Props) => {
 
       {/* 메인 탭 */}
       <div className="flex gap-2 mb-4">
-        {([['likes', '♥ 좋아요'], ['thanksball', '⚾ 땡스볼']] as const).map(([id, label]) => (
+        {([['likes', '♥ 좋아요'], ['thanksball', '⚾ 땡스볼'], ['views', '👁 조회수']] as const).map(([id, label]) => (
           <button
             key={id}
             onClick={() => setMainTab(id)}
@@ -164,7 +211,7 @@ const RankingView = ({ allRootPosts, allUsers, onPostClick }: Props) => {
       <div className="flex flex-col gap-2">
         {isEmpty ? (
           <div className="py-20 text-center text-slate-300 font-bold italic">
-            {mainTab === 'thanksball' ? '아직 받은 땡스볼이 없어요.' : '데이터가 없어요.'}
+            {mainTab === 'thanksball' ? '아직 받은 땡스볼이 없어요.' : mainTab === 'views' ? '아직 조회 기록이 없어요.' : '데이터가 없어요.'}
           </div>
         ) : (
           <>
@@ -176,6 +223,10 @@ const RankingView = ({ allRootPosts, allUsers, onPostClick }: Props) => {
               thanksballUserRanking.map((entry, idx) => renderThanksballUserRow(entry, idx))}
             {mainTab === 'thanksball' && subTab === 'posts' &&
               thanksballPostRanking.map((p, idx) => renderPostRow(p, idx))}
+            {mainTab === 'views' && subTab === 'users' &&
+              viewUserRanking.map((entry, idx) => renderViewUserRow(entry, idx))}
+            {mainTab === 'views' && subTab === 'posts' &&
+              viewPostRanking.map((p, idx) => renderPostRow(p, idx))}
           </>
         )}
       </div>

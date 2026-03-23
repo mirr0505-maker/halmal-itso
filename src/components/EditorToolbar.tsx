@@ -201,7 +201,16 @@ const EditorToolbar = ({ editor, onImageUpload }: Props) => {
           const url = window.prompt('링크 URL을 입력하세요', prev || 'https://');
           if (url === null) return;
           if (!url.trim()) { editor.chain().focus().unsetLink().run(); return; }
-          editor.chain().focus().setLink({ href: url.trim(), target: '_blank' }).run();
+          const { from, to } = editor.state.selection;
+          if (from !== to) {
+            // 텍스트 선택됨 → 선택 텍스트에 링크 적용
+            editor.chain().focus().setLink({ href: url.trim(), target: '_blank' }).run();
+          } else {
+            // 선택 없음 → URL 자체를 링크 텍스트로 삽입
+            editor.chain().focus()
+              .insertContent(`<a href="${url.trim()}" target="_blank">${url.trim()}</a>`)
+              .run();
+          }
         }}
         active={editor.isActive('link')}
         title="링크 삽입"

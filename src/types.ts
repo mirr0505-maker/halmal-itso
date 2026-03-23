@@ -47,6 +47,9 @@ export interface Post {
 
   // 🚀 땡스볼
   thanksballTotal?: number; // 받은 총 볼 수 (누적)
+
+  // 🚀 조회수
+  viewCount?: number; // 타인이 열람한 횟수 (자기 글 제외, 세션 내 중복 방지)
 }
 
 export interface Thanksball {

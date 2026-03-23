@@ -25,11 +25,6 @@ const RelatedPostsSidebar = ({
     return createdAt.toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' });
   };
 
-  const stripHtml = (html: string) => {
-    const tmp = document.createElement("DIV");
-    tmp.innerHTML = html;
-    return tmp.innerText || tmp.textContent || "";
-  };
 
   const extractFirstImage = (html: string) => {
     const div = document.createElement('div');
@@ -52,6 +47,10 @@ const RelatedPostsSidebar = ({
           const topicLikes = topicAuthorData ? (topicAuthorData.likes || 0) : (topic.authorInfo?.totalLikes || 0);
           const topicFollowers = followerCounts[topic.author] || 0;
           const isLiked = currentNickname && topic.likedBy?.includes(currentNickname);
+          const goldStarCount = (topic.likedBy || []).filter(nick => {
+            const ud = allUsers[`nickname_${nick}`];
+            return ud && (ud.level || 1) >= 5;
+          }).length;
 
           return (
             <div
@@ -61,27 +60,27 @@ const RelatedPostsSidebar = ({
             >
               {/* 시간 + 제목 */}
               <div className="flex flex-col gap-0.5">
-                <span className="text-[9px] text-slate-300 font-black">{getTimeAgo(topic.createdAt)}</span>
-                <h5 className="text-[13px] font-[1000] text-slate-900 line-clamp-2 leading-snug tracking-tighter group-hover:text-blue-600 transition-colors">
+                <span className="text-[10px] text-slate-300 font-black">{getTimeAgo(topic.createdAt)}</span>
+                <h5 className="text-[14px] font-[1000] text-slate-900 line-clamp-2 leading-snug tracking-tighter group-hover:text-blue-600 transition-colors">
                   {topic.title}
                 </h5>
               </div>
 
               {/* 본문 미리보기 */}
-              <p className={`text-[11px] text-slate-500 leading-relaxed font-medium ${topicImage ? 'line-clamp-2' : 'line-clamp-4'}`}>
-                {stripHtml(topic.content)}
-              </p>
+              <div className={`text-[12px] text-slate-500 leading-relaxed font-medium [&_img]:hidden [&_p]:mb-1 [&_p:last-child]:mb-0 [&_strong]:font-bold [&_em]:italic ${topicImage ? 'line-clamp-2' : 'line-clamp-4'}`}
+                dangerouslySetInnerHTML={{ __html: topic.content }}
+              />
 
               {/* 썸네일 이미지 */}
               {topicImage && (
-                <div className="w-full aspect-video rounded-xl overflow-hidden bg-slate-50 border border-slate-50 shrink-0">
+                <div className="w-full aspect-[16/7] rounded-lg overflow-hidden bg-slate-50 border border-slate-50 shrink-0">
                   <img src={topicImage} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                 </div>
               )}
 
               {/* 카테고리 + 작성자 + 댓글·좋아요 수 */}
               <div className="flex flex-col gap-1.5 pt-2 border-t border-slate-50 mt-1">
-                <span className="text-[8px] font-[1000] text-blue-500 bg-blue-50 px-2 py-0.5 rounded-md w-fit border border-blue-100/30">
+                <span className="text-[10px] font-[1000] text-blue-500 bg-blue-50 px-2 py-0.5 rounded-md w-fit border border-blue-100/30">
                   {getCategoryDisplayName(topic.category)}
                 </span>
                 <div className="flex items-center justify-between">
@@ -90,13 +89,24 @@ const RelatedPostsSidebar = ({
                       <img src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${topic.author}`} alt="" className="w-full h-full object-cover" />
                     </div>
                     <div className="flex flex-col min-w-0">
-                      <span className="text-[10px] font-[1000] text-slate-900 truncate leading-none mb-0.5">{topic.author}</span>
-                      <span className="text-[8px] font-bold text-slate-400 truncate">
+                      <span className="text-[11px] font-[1000] text-slate-900 truncate leading-none mb-0.5">{topic.author}</span>
+                      <span className="text-[9px] font-bold text-slate-400 truncate">
                         Lv {topicLevel} · {getReputationLabel(topicLikes)} · 깐부 {formatKoreanNumber(topicFollowers)}
                       </span>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2.5 text-slate-300 text-[9px] font-black shrink-0">
+                  <div className="flex items-center gap-2.5 text-slate-300 text-[10px] font-black shrink-0">
+                    {goldStarCount > 0 && (
+                      <span className="flex items-center gap-0.5 text-amber-400">
+                        <svg className="w-3 h-3 fill-current" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" /></svg>
+                        {goldStarCount}
+                      </span>
+                    )}
+                    {(topic.thanksballTotal || 0) > 0 && (
+                      <span className="flex items-center gap-0.5 text-amber-400">
+                        <span className="text-[13px]">⚾</span> {topic.thanksballTotal}
+                      </span>
+                    )}
                     <span className="flex items-center gap-1">
                       <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
                       {formatKoreanNumber(commentCounts[topic.id] || 0)}

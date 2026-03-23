@@ -87,7 +87,7 @@ const RootPostCard = ({
 
         <h2 className="text-[22px] font-[1000] text-slate-900 mb-5 leading-snug tracking-tighter max-w-4xl">{post.title}</h2>
 
-        <div className="text-[15px] text-slate-700 mb-6 leading-[1.8] font-medium prose prose-slate max-w-none flex-1" dangerouslySetInnerHTML={{ __html: post.content }} />
+        <div className="text-[15px] text-slate-700 mb-6 leading-[1.8] font-medium max-w-none flex-1 [&_p]:mb-4 [&_p:last-child]:mb-0 [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:mb-4 [&_ol]:list-decimal [&_ol]:pl-5 [&_ol]:mb-4 [&_li]:mb-1 [&_strong]:font-bold [&_em]:italic [&_a]:text-blue-600 [&_a]:underline [&_blockquote]:border-l-4 [&_blockquote]:border-slate-200 [&_blockquote]:pl-4 [&_blockquote]:text-slate-500 [&_h1]:text-2xl [&_h1]:font-black [&_h2]:text-xl [&_h2]:font-black [&_h3]:text-lg [&_h3]:font-black" dangerouslySetInnerHTML={{ __html: post.content }} />
 
         {post.imageUrl && !hasImageInContent && (
           <div className="w-full md:w-2/3 mb-6 rounded-2xl overflow-hidden border border-slate-100 bg-slate-50">
@@ -179,7 +179,7 @@ const RootPostCard = ({
                   : 'text-amber-500 hover:bg-amber-50 cursor-pointer'
               }`}
             >
-              <span>⚾</span>
+              <span className="text-[16px]">⚾</span>
               <span>{(thanksballTotal || 0) > 0 ? `${thanksballTotal}볼` : '땡스볼'}</span>
             </button>
           </div>

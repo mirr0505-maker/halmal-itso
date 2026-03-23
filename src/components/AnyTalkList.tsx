@@ -20,10 +20,11 @@ const AnyTalkList = ({
 }: Props) => {
   const isNewTab = tab === 'any';
 
-  const stripHtml = (html: string) => {
+  // 본문에서 텍스트 존재 여부 확인용 (렌더링은 HTML 그대로)
+  const hasText = (html: string) => {
     const tmp = document.createElement("DIV");
     tmp.innerHTML = html;
-    return tmp.innerText || tmp.textContent || "";
+    return !!(tmp.innerText || tmp.textContent || "").trim();
   };
 
   // 🚀 본문 HTML에서 첫 번째 이미지 URL 추출
@@ -45,7 +46,7 @@ const AnyTalkList = ({
   };
 
   return (
-    <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-4 w-full pb-20">
+    <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-2 w-full pb-20">
       {posts.length === 0 ? (
         <div className="col-span-full py-40 text-center text-slate-400 font-bold text-sm italic">기록된 글이 없어요.</div>
       ) : (
@@ -54,6 +55,7 @@ const AnyTalkList = ({
           const commentCount = commentCounts[post.id] || 0;
           const isLikedByMe = currentNickname && post.likedBy?.includes(currentNickname);
           const displayImage = post.imageUrl || extractFirstImage(post.content);
+          const hasContent = hasText(post.content);
 
           // 🚀 실시간 사용자 데이터 바인딩
           const authorData = (post.author_id && allUsers[post.author_id]) || allUsers[`nickname_${post.author}`];
@@ -70,10 +72,10 @@ const AnyTalkList = ({
             <div 
               key={post.id} 
               onClick={() => onTopicClick(post)} 
-              className="bg-white border border-slate-100 rounded-[2rem] p-5 cursor-pointer hover:border-blue-400 hover:shadow-xl transition-all group flex flex-col shadow-sm"
+              className="bg-white border border-slate-100 rounded-xl px-3.5 py-2.5 cursor-pointer hover:border-blue-400 hover:shadow-xl transition-all group flex flex-col shadow-sm"
             >
               {/* 1. 최상단: 제목 및 시간/프로모션 */}
-              <div className="flex justify-between items-start mb-3 shrink-0">
+              <div className="flex justify-between items-start mb-1.5 shrink-0">
                 <div className="flex flex-col gap-1 min-w-0">
                   <span className="text-[9px] text-slate-300 font-black uppercase tracking-tighter">{formatRelativeTime(post.createdAt)}</span>
                   <h3 className="text-[15px] font-[1000] text-slate-900 group-hover:text-blue-600 line-clamp-2 leading-tight tracking-tight transition-colors">
@@ -104,22 +106,23 @@ const AnyTalkList = ({
                 )}
               </div>
               
-              {/* 2. 중간: 내용 (이미지 여부에 따라 줄 수 가변적 조절) */}
-              <div className="flex-1 overflow-hidden mb-4">
-                <p className={`text-[13px] text-slate-500 leading-relaxed font-medium ${displayImage ? 'line-clamp-5' : 'line-clamp-[12]'}`}>
-                  {stripHtml(post.content)}
-                </p>
-              </div>
-              
-              {/* 3. 하단부: 이미지 (있는 경우만 노출) */}
+              {/* 2. 중간: 본문 — HTML 그대로 렌더링, 이미지는 숨김 */}
+              {hasContent && (
+                <div
+                  className={`flex-1 overflow-hidden mb-1.5 text-[13px] text-slate-500 leading-relaxed font-medium [&_img]:hidden [&_p]:mb-1 [&_p:last-child]:mb-0 [&_strong]:font-bold [&_em]:italic [&_ul]:list-disc [&_ul]:pl-4 [&_ol]:list-decimal [&_ol]:pl-4 ${displayImage ? 'line-clamp-3' : 'line-clamp-7'}`}
+                  dangerouslySetInnerHTML={{ __html: post.content }}
+                />
+              )}
+
+              {/* 3. 이미지 — 있는 경우만 노출 */}
               {displayImage && (
-                <div className="w-full aspect-video rounded-2xl overflow-hidden shrink-0 bg-slate-50 border border-slate-50 mb-2">
+                <div className="w-full aspect-video rounded-lg overflow-hidden shrink-0 bg-slate-50 border border-slate-50 mb-1.5">
                   <img src={displayImage} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                 </div>
               )}
               
               {/* 4. 최하단: 카테고리 & 아바타/유저정보 */}
-              <div className="pt-2 border-t border-slate-50 mt-auto flex flex-col gap-2 shrink-0">
+              <div className="pt-1.5 border-t border-slate-50 mt-auto flex flex-col gap-1 shrink-0">
                 <div className="flex items-center">
                   <span className="text-[8px] font-[1000] text-blue-500 bg-blue-50 px-2 py-0.5 rounded-md uppercase tracking-widest border border-blue-100/30">
                     {getCategoryDisplayName(post.category)}
@@ -146,7 +149,7 @@ const AnyTalkList = ({
                     </span>
                     {(post.thanksballTotal || 0) > 0 && (
                       <span className="flex items-center gap-0.5 text-amber-400">
-                        ⚾ {post.thanksballTotal}
+                        <span className="text-[13px]">⚾</span> {post.thanksballTotal}
                       </span>
                     )}
                     <span
