@@ -2,7 +2,7 @@
 
 이 문서는 **할말있소(HALMAL-ITSO)** 프로젝트의 설계 원칙, 현재 구현 상태, 그리고 AI 개발자의 **절대적 행동 지침**을 담은 단일 진실 소스(Single Source of Truth)입니다.
 
-> 최종 갱신: 2026-03-24 v4 (코드 실측 기준)  |  현재 브랜치: `main`
+> 최종 갱신: 2026-03-24 v6 (코드 실측 기준)  |  현재 브랜치: `main`
 
 ---
 
@@ -43,11 +43,15 @@
 | **파일 스토리지** | Cloudflare R2 (AWS SDK S3) | 3.1000.0 |
 
 ### Tiptap 익스텐션 목록
-- `@tiptap/starter-kit` — 기본 세트
+- `@tiptap/starter-kit` — 기본 세트 (bold, italic, strike, heading, list, blockquote, code 등)
 - `@tiptap/extension-underline` — 밑줄
 - `@tiptap/extension-image` — 이미지 삽입 (R2 업로드 연동)
 - `@tiptap/extension-link` — 링크
 - `@tiptap/extension-placeholder` — 플레이스홀더
+- `@tiptap/extension-text-style` — 인라인 스타일 기반 (Color 등 사용 전제)
+- `@tiptap/extension-color` — 글자색 (10색 팔레트, `setColor` / `unsetColor`)
+- `@tiptap/extension-highlight` — 배경 하이라이트 (6색, `multicolor: true`)
+- `@tiptap/extension-text-align` — 텍스트 정렬 (left/center/right, heading+paragraph)
 - *(설치됨/미적용)*: `bubble-menu`, `floating-menu`
 
 ---
@@ -331,6 +335,20 @@ interface KanbuChat {
   - **볼 티어 색상**: 1볼(slate) / 2볼(blue) / 3볼(violet) / 5볼(amber) / 10볼+(rose)
   - **자기 글 제한**: 본인 글엔 땡스볼 버튼 비활성 (`isMyPost` 체크)
   - **미구현(향후)**: 실결제 PG사 연동, 작성자 정산 대시보드, 볼→현금 환전
+
+- [x] **비로그인 댓글 가드**: 로그인하지 않은 상태에서 댓글 입력창에 접근 시 "댓글을 작성하려면 로그인이 필요합니다." 안내 표시. 처리 위치 2곳:
+  - `DiscussionView.tsx`: `currentNickname` 없으면 CommentForm 대신 자물쇠 아이콘 + 안내 배너 렌더링.
+  - `DebateBoard.tsx`: `allowInlineReply` 카테고리(너와 나의 이야기 등)에서 비로그인 시 하단 입력 영역을 안내 텍스트로 대체. `openInline()` 함수 진입 시 `!currentNickname` 이면 즉시 리턴(답글 버튼 클릭 무반응).
+- [x] **에디터 기능 확장 (EditorToolbar / TiptapEditor)**:
+  - 신규 패키지: `@tiptap/extension-color`, `@tiptap/extension-text-style`, `@tiptap/extension-highlight`, `@tiptap/extension-text-align`.
+  - **글자색**: 10색 팔레트 드롭다운. 현재 적용 색상이 'A' 아이콘 하단 컬러바로 실시간 표시. "색 제거" 버튼 포함.
+  - **배경 하이라이트**: 6색 팔레트 드롭다운. "제거" 버튼 포함. `multicolor: true` 설정으로 중복 적용 지원.
+  - **텍스트 정렬**: 왼쪽 / 가운데 / 오른쪽 3버튼. `TextAlign.configure({ types: ['heading', 'paragraph'] })`.
+  - **링크 삽입**: 클릭 시 URL 입력 프롬프트. 빈 값 입력 시 링크 해제.
+  - 외부 클릭 시 색상 팔레트 자동 닫힘 (`useEffect` + `mousedown` 이벤트).
+- [x] **너와 나의 이야기 새글 작성 폼 개선 (CreateMyStory.tsx)**:
+  - 헤더 타이틀: "새 글 기록" → "새 글 작성".
+  - 오늘의 기분 선택 시 `tags[0]`에 자동 반영 (예: `😊행복`). 기분 해제 시 auto-set 태그도 함께 제거. 사용자가 직접 수정한 tags[0]은 보호.
 
 ### 🛠️ 진행 중 / 개선 필요 사항
 - [ ] **에디터 보완**: `bubble-menu` 활성화 (텍스트 선택 시 서식 도구 노출).

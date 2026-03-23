@@ -47,6 +47,18 @@ const CreateMyStory = ({ userData, editingPost, onSubmit, onClose }: Props) => {
     setPostData({ ...postData, tags: newTags });
   };
 
+  const handleMoodSelect = (m: string) => {
+    const newMood = postData.mood === m ? '' : m;
+    const newTags = [...(postData.tags || ['', '', '', '', ''])];
+    const prevAutoTag = postData.mood ? postData.mood.replace(' ', '') : '';
+    if (newMood) {
+      newTags[0] = newMood.replace(' ', ''); // ex) '😊행복'
+    } else if (newTags[0] === prevAutoTag) {
+      newTags[0] = '';
+    }
+    setPostData(p => ({ ...p, mood: newMood, tags: newTags }));
+  };
+
   const handleSubmit = async () => {
     if (!userData || !postData.content?.trim() || isSubmitting) return;
     setIsSubmitting(true);
@@ -62,7 +74,7 @@ const CreateMyStory = ({ userData, editingPost, onSubmit, onClose }: Props) => {
         {/* 헤더 */}
         <div className="flex items-center justify-between px-5 h-12 border-b border-slate-100 shrink-0">
           <div className="flex items-center gap-2.5">
-            <span className="text-[12px] font-bold text-slate-400 tracking-wide uppercase">{editingPost ? '글 수정' : '새 글 기록'}</span>
+            <span className="text-[12px] font-bold text-slate-400 tracking-wide uppercase">{editingPost ? '글 수정' : '새 글 작성'}</span>
             <span className="text-[11px] font-bold text-emerald-500">📝 너와 나의 이야기</span>
             {isUploading && <span className="flex items-center gap-1.5 text-[11px] font-bold text-blue-500"><span className="w-2.5 h-2.5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin inline-block" />이미지 업로드 중</span>}
           </div>
@@ -81,7 +93,7 @@ const CreateMyStory = ({ userData, editingPost, onSubmit, onClose }: Props) => {
         <div className="flex items-center gap-2 px-5 py-2 border-b border-slate-100 shrink-0 flex-wrap">
           <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest shrink-0">오늘의 기분</span>
           {MOODS.map(m => (
-            <button key={m} type="button" onClick={() => setPostData(p => ({ ...p, mood: p.mood === m ? '' : m }))}
+            <button key={m} type="button" onClick={() => handleMoodSelect(m)}
               className={`px-2.5 py-1 rounded-full text-[11px] font-bold transition-all ${postData.mood === m ? 'bg-emerald-100 text-emerald-700 border border-emerald-300' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}>{m}</button>
           ))}
         </div>

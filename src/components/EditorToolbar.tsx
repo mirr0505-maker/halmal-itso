@@ -1,7 +1,10 @@
 // src/components/EditorToolbar.tsx — Tiptap 에디터 도구 모음 (서식/제목/목록/이미지 버튼)
-import { useRef } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import type { ReactNode } from 'react';
 import type { Editor } from '@tiptap/react';
+
+const TEXT_COLORS = ['#000000','#ef4444','#f97316','#eab308','#22c55e','#3b82f6','#8b5cf6','#ec4899','#64748b','#ffffff'];
+const HIGHLIGHT_COLORS = ['#fef08a','#bbf7d0','#bfdbfe','#f9a8d4','#fed7aa','#e9d5ff'];
 
 interface Props {
   editor: Editor;
@@ -10,6 +13,19 @@ interface Props {
 
 const EditorToolbar = ({ editor, onImageUpload }: Props) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [showColors, setShowColors] = useState(false);
+  const [showHL, setShowHL] = useState(false);
+  const colorRef = useRef<HTMLDivElement>(null);
+  const hlRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (colorRef.current && !colorRef.current.contains(e.target as Node)) setShowColors(false);
+      if (hlRef.current && !hlRef.current.contains(e.target as Node)) setShowHL(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
 
   const Btn = ({ onClick, active, title, children }: {
     onClick: () => void; active?: boolean; title?: string; children: ReactNode;
@@ -123,6 +139,77 @@ const EditorToolbar = ({ editor, onImageUpload }: Props) => {
           e.target.value = '';
         }}
       />
+
+      <Sep />
+
+      {/* 글자색 */}
+      <div ref={colorRef} className="relative">
+        <button type="button" title="글자색" onClick={() => { setShowColors(v => !v); setShowHL(false); }}
+          className="w-7 h-7 flex flex-col items-center justify-center rounded transition-colors text-slate-400 hover:text-slate-800 hover:bg-slate-100 gap-0.5">
+          <span className="text-[12px] font-black leading-none">A</span>
+          <span className="w-3.5 h-0.5 rounded-full" style={{ backgroundColor: editor.getAttributes('textStyle').color || '#000000' }} />
+        </button>
+        {showColors && (
+          <div className="absolute top-full left-0 mt-1 p-1.5 bg-white border border-slate-200 rounded-lg shadow-lg z-[100] grid grid-cols-5 gap-1">
+            {TEXT_COLORS.map(c => (
+              <button key={c} type="button" title={c} onClick={() => { editor.chain().focus().setColor(c).run(); setShowColors(false); }}
+                className="w-5 h-5 rounded border border-slate-200 hover:scale-110 transition-transform" style={{ backgroundColor: c }} />
+            ))}
+            <button type="button" onClick={() => { editor.chain().focus().unsetColor().run(); setShowColors(false); }}
+              className="col-span-5 text-[9px] font-bold text-slate-400 hover:bg-slate-50 rounded py-0.5 mt-0.5 border border-slate-100">색 제거</button>
+          </div>
+        )}
+      </div>
+
+      {/* 배경 하이라이트 */}
+      <div ref={hlRef} className="relative">
+        <button type="button" title="배경색" onClick={() => { setShowHL(v => !v); setShowColors(false); }}
+          className={`w-7 h-7 flex items-center justify-center rounded transition-colors text-[12px] ${editor.isActive('highlight') ? 'bg-slate-900 text-white' : 'text-slate-400 hover:text-slate-800 hover:bg-slate-100'}`}>
+          <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M17.5 12 15.6 9.9 17.5 8l1.9 1.9L17.5 12zM9.5 20.5l-4-4 1.4-1.4 4 4-1.4 1.4zm8-11-4.5-4.5-6.5 6.5 4.5 4.5L17.5 9.5zm-3-3-1.5 1.5 4.5 4.5 1.5-1.5L14.5 6.5z"/></svg>
+        </button>
+        {showHL && (
+          <div className="absolute top-full left-0 mt-1 p-1.5 bg-white border border-slate-200 rounded-lg shadow-lg z-[100] grid grid-cols-3 gap-1">
+            {HIGHLIGHT_COLORS.map(c => (
+              <button key={c} type="button" title={c} onClick={() => { editor.chain().focus().setHighlight({ color: c }).run(); setShowHL(false); }}
+                className="w-5 h-5 rounded border border-slate-200 hover:scale-110 transition-transform" style={{ backgroundColor: c }} />
+            ))}
+            <button type="button" onClick={() => { editor.chain().focus().unsetHighlight().run(); setShowHL(false); }}
+              className="col-span-3 text-[9px] font-bold text-slate-400 hover:bg-slate-50 rounded py-0.5 mt-0.5 border border-slate-100">제거</button>
+          </div>
+        )}
+      </div>
+
+      <Sep />
+
+      {/* 텍스트 정렬 */}
+      <Btn onClick={() => editor.chain().focus().setTextAlign('left').run()} active={editor.isActive({ textAlign: 'left' })} title="왼쪽 정렬">
+        <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M15 15H3v2h12v-2zm0-8H3v2h12V7zM3 13h18v-2H3v2zm0 8h18v-2H3v2zM3 3v2h18V3H3z"/></svg>
+      </Btn>
+      <Btn onClick={() => editor.chain().focus().setTextAlign('center').run()} active={editor.isActive({ textAlign: 'center' })} title="가운데 정렬">
+        <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M7 15v2h10v-2H7zm-4 6h18v-2H3v2zm0-8h18v-2H3v2zm4-6v2h10V7H7zM3 3v2h18V3H3z"/></svg>
+      </Btn>
+      <Btn onClick={() => editor.chain().focus().setTextAlign('right').run()} active={editor.isActive({ textAlign: 'right' })} title="오른쪽 정렬">
+        <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M3 21h18v-2H3v2zm6-4h12v-2H9v2zm-6-4h18v-2H3v2zm6-4h12V7H9v2zM3 3v2h18V3H3z"/></svg>
+      </Btn>
+
+      <Sep />
+
+      {/* 링크 */}
+      <Btn
+        onClick={() => {
+          const prev = editor.getAttributes('link').href;
+          const url = window.prompt('링크 URL을 입력하세요', prev || 'https://');
+          if (url === null) return;
+          if (!url.trim()) { editor.chain().focus().unsetLink().run(); return; }
+          editor.chain().focus().setLink({ href: url.trim(), target: '_blank' }).run();
+        }}
+        active={editor.isActive('link')}
+        title="링크 삽입"
+      >
+        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244"/>
+        </svg>
+      </Btn>
     </div>
   );
 };
