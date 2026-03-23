@@ -27,10 +27,11 @@ interface Props {
   onEdit?: (post: Post) => void;
   onBack?: () => void;
   thanksballTotal?: number;
+  allUsers?: Record<string, any>;
 }
 
 const RootPostCard = ({
-  post, totalComment, totalFormal, uniqueAgreeCount, uniqueDisagreeCount, isFriend, onToggleFriend, userData, friendCount, onDeleteSuccess, onLikeClick, currentNickname, onEdit, onBack, thanksballTotal
+  post, totalComment, totalFormal, uniqueAgreeCount, uniqueDisagreeCount, isFriend, onToggleFriend, userData, friendCount, onDeleteSuccess, onLikeClick, currentNickname, onEdit, onBack, thanksballTotal, allUsers = {}
 }: Props) => {
 
   const isMyPost = post.author === currentNickname;
@@ -201,6 +202,7 @@ const RootPostCard = ({
             postAuthor={post.author}
             postTitle={post.title}
             currentNickname={currentNickname}
+            allUsers={allUsers}
             onClose={() => setShowThanksball(false)}
           />
         )}

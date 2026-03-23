@@ -9,13 +9,15 @@ interface ActivityStatsProps {
 
 const ActivityStats = ({ userData, rootCount, totalThanksball = 0 }: ActivityStatsProps) => {
   const reputationLabel = getReputationLabel(userData.likes || 0);
+  const ballBalance = userData.ballBalance || 0;
 
   const statItems = [
     { label: '레벨', value: userData.level, emoji: '🐥' },
     { label: '평판', value: reputationLabel, isHighlight: true },
     { label: '게시글', value: rootCount, isUnderline: true },
     { label: '활동지수', value: userData.likes || 0, isUnderline: true },
-    ...(totalThanksball > 0 ? [{ label: '땡스볼', value: `⚾ ${totalThanksball}볼`, isThanksball: true }] : [])
+    { label: '보유볼', value: `⚾ ${ballBalance}볼`, isThanksball: true },
+    ...(totalThanksball > 0 ? [{ label: '받은볼', value: `⚾ ${totalThanksball}볼`, isReceived: true }] : [])
   ];
 
   return (
@@ -23,7 +25,7 @@ const ActivityStats = ({ userData, rootCount, totalThanksball = 0 }: ActivitySta
       {statItems.map((item, idx) => (
         <div key={idx} className="flex items-center gap-1.5 bg-white px-3 py-1.5 rounded-lg border border-slate-100 shadow-sm transition-transform hover:scale-105">
           <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{item.label}</span>
-          <span className={`text-[12px] font-[1000] tracking-tight ${(item as any).isThanksball ? 'text-amber-500' : item.isHighlight ? 'text-blue-600' : 'text-slate-900'} ${item.isUnderline ? 'underline decoration-blue-100 underline-offset-2' : ''}`}>
+          <span className={`text-[12px] font-[1000] tracking-tight ${(item as any).isReceived ? 'text-emerald-500' : (item as any).isThanksball ? 'text-amber-500' : item.isHighlight ? 'text-blue-600' : 'text-slate-900'} ${item.isUnderline ? 'underline decoration-blue-100 underline-offset-2' : ''}`}>
             {item.value}
           </span>
           {item.emoji && <span className="text-xs">{item.emoji}</span>}

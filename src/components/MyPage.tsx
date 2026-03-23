@@ -1,7 +1,7 @@
 // src/components/MyPage.tsx
 import { useState, useEffect } from 'react';
-import { db } from '../firebase';
-import { collection, query, orderBy, limit, onSnapshot } from 'firebase/firestore';
+import { db, auth } from '../firebase';
+import { collection, query, orderBy, limit, onSnapshot, doc, updateDoc, increment } from 'firebase/firestore';
 import type { Post } from '../types';
 import ActivityStats from './ActivityStats';
 import MyContentTabs from './MyContentTabs';
@@ -58,6 +58,21 @@ const MyPage = ({
   const standardPosts = allUserRootPosts.filter(p => !p.isOneCut);
   const onecutPosts = allUserRootPosts.filter(p => p.isOneCut);
 
+  const [charging, setCharging] = useState(false);
+
+  const handleTestCharge = async (amount: number) => {
+    const uid = auth.currentUser?.uid;
+    if (!uid || charging) return;
+    setCharging(true);
+    try {
+      await updateDoc(doc(db, 'users', uid), {
+        ballBalance: increment(amount),
+      });
+    } finally {
+      setCharging(false);
+    }
+  };
+
   // 땡스볼 집계
   const totalThanksball = allUserRootPosts.reduce((sum, p) => sum + (p.thanksballTotal || 0), 0);
   const thanksballPosts = [...allUserRootPosts]
@@ -74,6 +89,44 @@ const MyPage = ({
           {/* 🚀 좌측: 활동 통계 및 마일스톤 */}
           <div className="lg:col-span-1 flex flex-col gap-6">
             <ActivityStats userData={userData} rootCount={allUserRootPosts.length} totalThanksball={totalThanksball} />
+
+            {/* 땡스볼 지갑 */}
+            <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">내 땡스볼 지갑</span>
+                <span className="text-[10px] font-bold text-slate-300">1볼 = $1</span>
+              </div>
+              <div className="flex items-baseline gap-1.5 mb-4">
+                <span className="text-3xl font-[1000] text-amber-500">⚾ {userData.ballBalance || 0}</span>
+                <span className="text-[12px] font-black text-slate-400">볼 보유</span>
+              </div>
+              <div className="grid grid-cols-2 gap-2 mb-2">
+                {[5, 10].map(n => (
+                  <button
+                    key={n}
+                    onClick={() => handleTestCharge(n)}
+                    disabled={charging}
+                    className="py-2 rounded-xl text-[12px] font-[1000] bg-amber-50 text-amber-600 border border-amber-100 hover:bg-amber-100 transition-all disabled:opacity-50"
+                  >
+                    +{n}볼 충전
+                  </button>
+                ))}
+              </div>
+              <p className="text-[9px] font-bold text-slate-300 text-center">※ 현재 테스트 무료 충전 (향후 결제 연동)</p>
+              {(userData.ballSpent || 0) > 0 && (
+                <div className="mt-3 pt-3 border-t border-slate-50 flex justify-between text-[10px] font-bold text-slate-400">
+                  <span>총 보낸 볼</span>
+                  <span className="text-blue-400 font-[1000]">{userData.ballSpent}볼</span>
+                </div>
+              )}
+              {(userData.ballReceived || 0) > 0 && (
+                <div className="flex justify-between text-[10px] font-bold text-slate-400 mt-1">
+                  <span>총 받은 볼</span>
+                  <span className="text-emerald-400 font-[1000]">{userData.ballReceived}볼</span>
+                </div>
+              )}
+            </div>
+
             <ActivityMilestones
               userData={userData}
               rootCount={allUserRootPosts.length}

@@ -1,13 +1,14 @@
 // src/components/ThanksballModal.tsx
 import { useState } from 'react';
 import { db, auth } from '../firebase';
-import { collection, addDoc, doc, updateDoc, increment, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc, doc, runTransaction, increment, serverTimestamp } from 'firebase/firestore';
 
 interface Props {
   postId: string;
   postAuthor: string;
   postTitle?: string;
   currentNickname: string;
+  allUsers?: Record<string, any>;
   onClose: () => void;
 }
 
@@ -21,56 +22,74 @@ const getTier = (amount: number) => {
   return              { bg: 'bg-slate-200',   text: 'text-slate-700', border: 'border-slate-300', label: '베이직', btnHover: 'hover:bg-slate-300' };
 };
 
-const ThanksballModal = ({ postId, postAuthor, postTitle, currentNickname, onClose }: Props) => {
+const ThanksballModal = ({ postId, postAuthor, postTitle, currentNickname, allUsers = {}, onClose }: Props) => {
   const [selected, setSelected] = useState(1);
   const [custom, setCustom] = useState('');
   const [message, setMessage] = useState('');
   const [sending, setSending] = useState(false);
   const [done, setDone] = useState(false);
+  const [error, setError] = useState('');
 
   const finalAmount = custom !== '' ? Math.max(1, parseInt(custom) || 1) : selected;
   const tier = getTier(finalAmount);
 
+  // 현재 로그인 유저의 잔액 (allUsers에서 조회)
+  const senderUid = auth.currentUser?.uid || '';
+  const senderData = allUsers[senderUid] || {};
+  const ballBalance = senderData.ballBalance || 0;
+  const insufficient = ballBalance < finalAmount;
+
   const handleSend = async () => {
-    if (sending) return;
+    if (sending || insufficient) return;
+    setError('');
     setSending(true);
     try {
-      const uid = auth.currentUser?.uid || '';
+      const recipientData = allUsers[`nickname_${postAuthor}`];
+      const recipientUid = recipientData?.uid;
+
+      // 원자적 트랜잭션: 잔액 차감 + 수신자 누적 + 게시글 누적
+      await runTransaction(db, async (tx) => {
+        const senderRef = doc(db, 'users', senderUid);
+        const senderSnap = await tx.get(senderRef);
+        const currentBalance = senderSnap.data()?.ballBalance || 0;
+        if (currentBalance < finalAmount) throw new Error('잔액 부족');
+
+        tx.update(senderRef, {
+          ballBalance: increment(-finalAmount),
+          ballSpent: increment(finalAmount),
+        });
+        if (recipientUid) {
+          tx.update(doc(db, 'users', recipientUid), {
+            ballReceived: increment(finalAmount),
+          });
+        }
+        tx.update(doc(db, 'posts', postId), {
+          thanksballTotal: increment(finalAmount),
+        });
+      });
+
+      // 비금융 기록 (트랜잭션 외)
       await addDoc(collection(db, 'posts', postId, 'thanksBalls'), {
-        sender: currentNickname,
-        senderId: uid,
-        amount: finalAmount,
-        message: message.trim() || null,
-        createdAt: serverTimestamp(),
-        isPaid: false,
+        sender: currentNickname, senderId: senderUid,
+        amount: finalAmount, message: message.trim() || null,
+        createdAt: serverTimestamp(), isPaid: false,
       });
-      await updateDoc(doc(db, 'posts', postId), {
-        thanksballTotal: increment(finalAmount),
-      });
-      // 보낸볼 내역 기록 (발신자 기준)
       await addDoc(collection(db, 'sentBalls', currentNickname, 'items'), {
-        postId,
-        postTitle: postTitle || null,
-        postAuthor,
-        amount: finalAmount,
-        message: message.trim() || null,
+        postId, postTitle: postTitle || null, postAuthor,
+        amount: finalAmount, message: message.trim() || null,
         createdAt: serverTimestamp(),
       });
-      // 수신자 알림 기록
       await addDoc(collection(db, 'notifications', postAuthor, 'items'), {
-        type: 'thanksball',
-        fromNickname: currentNickname,
-        amount: finalAmount,
-        message: message.trim() || null,
-        postId,
-        postTitle: postTitle || null,
-        createdAt: serverTimestamp(),
-        read: false,
+        type: 'thanksball', fromNickname: currentNickname,
+        amount: finalAmount, message: message.trim() || null,
+        postId, postTitle: postTitle || null,
+        createdAt: serverTimestamp(), read: false,
       });
+
       setDone(true);
       setTimeout(onClose, 1800);
-    } catch (e) {
-      console.error(e);
+    } catch (e: any) {
+      setError(e.message === '잔액 부족' ? '보유 볼이 부족합니다. 내정보에서 충전해주세요.' : '전송에 실패했습니다. 다시 시도해주세요.');
       setSending(false);
     }
   };
@@ -104,9 +123,14 @@ const ThanksballModal = ({ postId, postAuthor, postTitle, currentNickname, onClo
               </button>
             </div>
 
-            <p className="text-[12px] font-bold text-slate-400 mb-4">
-              <span className="text-slate-800 font-[1000]">{postAuthor}</span>님의 글이 도움이 되었나요?
-            </p>
+            <div className="flex items-center justify-between mb-4">
+              <p className="text-[12px] font-bold text-slate-400">
+                <span className="text-slate-800 font-[1000]">{postAuthor}</span>님의 글이 도움이 되었나요?
+              </p>
+              <span className={`text-[11px] font-[1000] px-2 py-0.5 rounded-full ${insufficient ? 'bg-rose-50 text-rose-500 border border-rose-100' : 'bg-amber-50 text-amber-500 border border-amber-100'}`}>
+                ⚾ {ballBalance}볼 보유
+              </span>
+            </div>
 
             {/* 프리셋 버튼 */}
             <div className="flex gap-1.5 mb-3">
@@ -160,6 +184,13 @@ const ThanksballModal = ({ postId, postAuthor, postTitle, currentNickname, onClo
             />
             <p className="text-[10px] text-slate-300 font-bold text-right mb-4">{message.length}/50</p>
 
+            {/* 잔액 부족 / 에러 메시지 */}
+            {(insufficient || error) && (
+              <p className="text-[11px] font-bold text-rose-500 bg-rose-50 rounded-xl px-3 py-2 mb-3 text-center border border-rose-100">
+                {error || `보유 볼(${ballBalance}볼)이 부족합니다. 내정보에서 충전해주세요.`}
+              </p>
+            )}
+
             {/* 액션 버튼 */}
             <div className="flex gap-2">
               <button
@@ -170,10 +201,10 @@ const ThanksballModal = ({ postId, postAuthor, postTitle, currentNickname, onClo
               </button>
               <button
                 onClick={handleSend}
-                disabled={sending}
-                className={`flex-1 py-2.5 rounded-xl text-[13px] font-[1000] ${tier.text} ${tier.bg} ${tier.btnHover} transition-all ${sending ? 'opacity-50 cursor-not-allowed' : ''}`}
+                disabled={sending || insufficient}
+                className={`flex-1 py-2.5 rounded-xl text-[13px] font-[1000] ${tier.text} ${tier.bg} ${tier.btnHover} transition-all ${(sending || insufficient) ? 'opacity-40 cursor-not-allowed' : ''}`}
               >
-                {sending ? '전송 중...' : `⚾ ${finalAmount}볼 보내기`}
+                {sending ? '전송 중...' : insufficient ? '볼 부족' : `⚾ ${finalAmount}볼 보내기`}
               </button>
             </div>
           </>

@@ -132,6 +132,7 @@ const DiscussionView = ({
             onEdit={onEditPost}
             onBack={onBack}
             thanksballTotal={rootPost.thanksballTotal}
+            allUsers={allUsers}
           />
         )}
 
