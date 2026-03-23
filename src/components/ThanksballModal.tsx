@@ -100,7 +100,7 @@ const ThanksballModal = ({ postId, postAuthor, postTitle, currentNickname, allUs
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-3xl p-6 w-[340px] shadow-2xl"
+        className="bg-white rounded-3xl p-6 w-[400px] shadow-2xl"
         onClick={e => e.stopPropagation()}
       >
         {done ? (
