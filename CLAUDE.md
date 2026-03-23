@@ -24,9 +24,10 @@
 ## 기술 규칙
 
 ### Firebase / Firestore
-- Firestore 자동 생성 ID 금지 → `post_timestamp_nickname` 형식 사용
-- 실시간 리스너: `onSnapshot` (App.tsx에서 중앙 관리)
-- 컬렉션: `posts`, `users`
+- Firestore 자동 생성 ID 금지 → `topic_timestamp_uid` / `comment_timestamp_uid` 형식 사용
+  - **예외**: `notifications/{nick}/items`, `sentBalls/{nick}/items` — 알림·내역 데이터는 `addDoc` 자동 ID 허용
+- 실시간 리스너: `onSnapshot` (App.tsx 또는 개별 컴포넌트에서 관리)
+- 컬렉션: `posts`, `users`, `kanbu_rooms`, `notifications`, `sentBalls`
 
 ### Cloudflare R2 이미지 업로드
 - `File` → `ArrayBuffer` → `Uint8Array` → `PutObjectCommand`
@@ -54,6 +55,10 @@
 | `CreatePostBox.tsx` | 카테고리 목록에서 "한컷" 제외 유지. |
 | `DiscussionView.tsx` | `CATEGORY_RULES` 객체 — 카테고리별 댓글 규칙 정의. 임의 변경 금지. |
 | `OneCutDetailView.tsx` | 3컬럼 레이아웃 유지. |
+| `DebateBoard.tsx` | 너와 나의 이야기 댓글 IME 처리 — InlineForm 컴포넌트 금지, 인라인 JSX 유지. `isComposing` 체크 보호. |
+| `RootPostCard.tsx` | 하단 통계 바 3컬럼 구조(댓글\|땡스볼\|동의) 유지. `onBack` prop 체인 보호. |
+| `ThanksballModal.tsx` | `sentBalls` + `notifications` + `thanksballTotal` 3곳 동시 쓰기 — 하나라도 누락 금지. |
+| `NotificationBell.tsx` | `notifications/{nick}/items` 실시간 구독. `writeBatch`로 일괄 읽음 처리. |
 
 ---
 
@@ -70,12 +75,13 @@
 
 | 탭 | 조건 |
 |----|------|
-| any | 게시 후 1시간 이내 |
-| recent | 좋아요 3개 이상 |
-| best | 좋아요 10개 이상 |
-| rank | 좋아요 30개 이상 |
-| friend | 1시간 이내 + 좋아요 3개 이상 + 팔로우 유저 |
+| any (새글) | 게시 후 **2시간** 이내 |
+| recent (등록글) | **2시간 경과** + 좋아요 **3개** 이상 |
+| best (인기글) | 좋아요 10개 이상 |
+| rank (최고글) | 좋아요 30개 이상 |
+| friend (깐부글) | 좋아요 3개 이상 + 팔로우 유저 (시간 제한 없음) |
 | 카테고리 뷰 | 좋아요 3개 이상 |
+| RelatedPostsSidebar | 2시간 경과 + 좋아요 3개 이상 (등록글 기준 동일) |
 
 ---
 

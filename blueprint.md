@@ -13,6 +13,7 @@
 3. **Strategy Approval (선 보고 후 실행)**: 코드 수정 전 반드시 **AS-IS / TO-BE**를 한국어로 보고하고 승인을 받은 후 실행한다.
 4. **Component Decomposition**: 단일 파일이 200라인을 초과하면 UI / 로직 / 타입별로 파일을 분리한다. (현재 `App.tsx`, `DiscussionView.tsx` 등 일부 파일이 임계점에 도달함)
 5. **No Auto-Generated IDs**: Firestore 자동 ID 사용 금지. `topic_timestamp_uid` 또는 `comment_timestamp_uid` 형태의 맥락 ID를 직접 생성한다.
+   - **예외**: `notifications/{nick}/items`, `sentBalls/{nick}/items` — 알림·내역 보조 데이터는 `addDoc` 자동 ID 허용.
 
 ---
 
@@ -25,7 +26,7 @@
 | **대상** | 한국어 사용자 |
 | **유형** | 소셜 토론 플랫폼 (멀티 카테고리) |
 | **배포** | Firebase Hosting |
-| **저장소** | `/home/user/halmal-itso` |
+| **저장소** | `e:\halmal-itso` (Windows) |
 
 ---
 
@@ -228,6 +229,7 @@ interface KanbuChat {
 | `kanbu_room` | 깐부방 | (subcollection) | 깐부가 개설한 방 목록, 방별 게시판+실시간 채팅. Lv3 이상 개설. Firestore: `kanbu_rooms/{roomId}/chats` |
 | `market` | 마켓 | 마켓 | OneCutList 그리드 레이아웃, 게시글 없을 시 "기록된 글이 없어요" |
 | `exile_place` | 유배·귀양지 | 유배·귀양지 | 제재 유저 전용 소통 공간, 주제 없음 |
+| `ranking` | 랭킹 | (UI 전용) | 좋아요·땡스볼 × 유저·글 4개 뷰. `RankingView.tsx`. 사이드바 내정보 위 배치. |
 
 ---
 
@@ -238,7 +240,7 @@ interface KanbuChat {
 - **등록글 (recent)**: 2시간 경과 + 좋아요 3개 이상 (새글 심사 통과 기준).
 - **인기글 (best)**: 좋아요 10개 이상.
 - **최고글 (rank)**: 좋아요 30개 이상.
-- **깐부글 (friend)**: 2시간 이내 + 좋아요 3개 이상 + 팔로우 유저 작성.
+- **깐부글 (friend)**: 좋아요 3개 이상 + 팔로우 유저 작성 (시간 제한 없음 — 친구들의 좋은 글 모아보기).
 
 ### 6.2 카테고리 뷰
 - 해당 카테고리 내에서 **좋아요 3개 이상**을 획득한 글만 노출 (품질 필터).
@@ -273,15 +275,15 @@ interface KanbuChat {
 
 ---
 
-## 8. 현재 구현 상태 (2026-03-22 기준, 코드 실측)
+## 8. 현재 구현 상태 (2026-03-23 기준, 코드 실측)
 
-### ✅ 완료된 핵심 기능 (2026-03-22 갱신)
+### ✅ 완료된 핵심 기능 (2026-03-23 갱신)
 - [x] **Tiptap 프리미엄 에디터**: 스티키 툴바, 이미지 R2 업로드(드래그&드롭/붙여넣기), 마크다운 호환 스타일.
 - [x] **상세 뷰 리뉴얼**: 콤팩트한 2컬럼 레이아웃, 카테고리별 맞춤형 탭 UI(동의/반대/질문 등).
 - [x] **한컷 시스템 고도화**: 그리드 상세 뷰, OneCutListSidebar, 일반 게시글 연동 버튼, 동의/반대 투표.
 - [x] **리스트 뷰 최적화**: 본문 내 이미지 자동 추출 및 그리드 레이아웃 개선.
 - [x] **실시간 상호작용**: 좋아요, 팔로우/차단, 실시간 댓글 카운트.
-- [x] **마이페이지(MyPage)**: ProfileHeader + ActivityStats + ActivityMilestones + MyContentTabs + AvatarCollection 분리 구성. 탭: 게시글/한컷/댓글/아바타/깐부.
+- [x] **마이페이지(MyPage)**: ProfileHeader + ActivityStats + ActivityMilestones + MyContentTabs + AvatarCollection 분리 구성. 탭: 나의기록/나의한컷/참여한토론/아바타수집/깐부목록/받은볼/보낸볼 (7개).
 - [x] **PostDetailModal**: 글 클릭 시 오버레이 형태로 상세 내용 + 댓글 표시 (App.tsx `selectedPost` 상태 활용).
 - [x] **깐부 맺기 메뉴**: `friends` 메뉴에서 허용된 닉네임 목록 대상으로 팔로우 UI 제공.
 - [x] **PostCard 공통화**: 여러 목록 뷰에서 재사용 가능한 카드 컴포넌트.

@@ -315,11 +315,10 @@ function App() {
     } else if (activeTab === 'rank') {
       filteredPosts = basePosts.filter(p => (p.likes || 0) >= 30);
     } else if (activeTab === 'friend') {
-      // 깐부글: 2시간 이내 + 좋아요 3개 이상 + 팔로우 유저
-      filteredPosts = basePosts.filter(p => {
-        const createdAt = p.createdAt?.toDate ? p.createdAt.toDate() : (p.createdAt?.seconds ? new Date(p.createdAt.seconds * 1000) : null);
-        return friends.includes(p.author) && (p.likes || 0) >= 3 && createdAt && createdAt > twoHoursAgo;
-      });
+      // 깐부글: 좋아요 3개 이상 + 팔로우 유저 (시간 제한 없음 — 친구들의 좋은 글 모아보기)
+      filteredPosts = basePosts.filter(p =>
+        friends.includes(p.author) && (p.likes || 0) >= 3
+      );
     }
 
     const searchedPosts = filterBySearch(filteredPosts);
