@@ -74,12 +74,31 @@ function App() {
   const [selectedFriend, setSelectedFriend] = useState<string | null>(null);
   const [viewingAuthor, setViewingAuthor] = useState<string | null>(null);
 
+  // 🚀 URL 공유 링크 처리: ?post=글ID 로 직접 접근 시 해당 글 자동 오픈
+  // - lazy 초기화로 앱 마운트 시 딱 한 번만 URL 파라미터를 읽음
+  const [pendingSharedPostId, setPendingSharedPostId] = useState<string | null>(() =>
+    new URLSearchParams(window.location.search).get('post')
+  );
+
   const accessibleRooms = kanbuRooms.filter(r =>
     r.creatorNickname === userData?.nickname || friends.includes(r.creatorNickname)
   );
 
   useEffect(() => { if (replyTarget) { setSelectedType('comment'); setNewTitle(""); } }, [replyTarget]);
   useEffect(() => { setSelectedFriend(null); setViewingAuthor(null); }, [activeMenu, activeTab]);
+
+  // 🚀 공유 링크로 접근 시: allRootPosts가 로드되면 해당 글을 찾아 자동으로 상세 뷰 오픈
+  // - allRootPosts가 아직 빈 배열이면 대기, 로드 완료 후 실행
+  // - 처리 완료 후 pendingSharedPostId를 null로 초기화해 재실행 방지
+  useEffect(() => {
+    if (!pendingSharedPostId || allRootPosts.length === 0) return;
+    const sharedPost = allRootPosts.find(p => p.id === pendingSharedPostId);
+    if (sharedPost) {
+      setSelectedTopic(sharedPost);
+      setPendingSharedPostId(null);
+      window.history.replaceState({}, '', window.location.pathname); // URL에서 ?post= 파라미터 제거
+    }
+  }, [allRootPosts, pendingSharedPostId]);
 
   // 댓글 컬렉션 분리 — per-topic 실시간 구독
   useEffect(() => {
