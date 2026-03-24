@@ -16,12 +16,13 @@ interface Props {
   isPinned?: boolean;
   isRootAuthor?: boolean;
   onPin?: () => void;
+  onThanksball?: (post: Post) => void;
 }
 
 const PostCard = ({
   post, onReply, onPostClick,
   onLikeClick, currentNickname, allUsers = {}, followerCounts = {},
-  isPinned, isRootAuthor, onPin
+  isPinned, isRootAuthor, onPin, onThanksball
 }: Props) => {
   const isMyPost = post.author === currentNickname;
   const isLikedByMe = currentNickname && post.likedBy?.includes(currentNickname);
@@ -121,13 +122,28 @@ const PostCard = ({
                 <svg className={`w-3.5 h-3.5 ${isLikedByMe ? 'fill-current' : 'fill-none'}`} stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" /></svg>
                 {formatKoreanNumber(post.likes || 0)}
               </button>
-              <button 
+              <button
                 onClick={(e) => { e.stopPropagation(); onReply(post); }}
                 className="flex items-center gap-1.5 text-[10.5px] font-black text-slate-300 hover:text-blue-500 transition-colors"
               >
                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
                 답글
               </button>
+              {(post.thanksballTotal || 0) > 0 && (
+                <span className="flex items-center gap-1 text-[10.5px] font-black text-amber-400">
+                  <span className="text-[12px] leading-none">⚾</span>
+                  {post.thanksballTotal}
+                </span>
+              )}
+              {isRootAuthor && !isMyPost && onThanksball && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); onThanksball(post); }}
+                  className="flex items-center gap-1 text-[10.5px] font-black text-slate-300 hover:text-amber-500 transition-colors"
+                  title="이 댓글에 땡스볼 보내기"
+                >
+                  <span className="text-[12px] leading-none">⚾</span>
+                </button>
+              )}
             </div>
             
             {/* 🚀 카테고리 정보 노출 (댓글/연계글 타입) */}

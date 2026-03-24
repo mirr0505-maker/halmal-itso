@@ -1,6 +1,7 @@
 // src/components/DebateBoard.tsx
 import React, { useRef, useState } from 'react';
 import PostCard from './PostCard';
+import ThanksballModal from './ThanksballModal';
 import type { Post } from '../types';
 import { CATEGORY_RULES } from './DiscussionView';
 import { db } from '../firebase';
@@ -80,6 +81,9 @@ const DebateBoard = ({
     await updateDoc(doc(db, 'posts', rootPost.id), { commentsLocked: !rootPost.commentsLocked });
   };
 
+  // 땡스볼 모달 상태 (글 작성자 → 댓글 작성자)
+  const [thanksballTarget, setThanksballTarget] = useState<{ docId: string; recipient: string; col: string } | null>(null);
+
   // 너와 나의 이야기 전용 인라인 폼 상태
   // '__new__' = 새 최상위 댓글, post.id = 해당 댓글 답글
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -95,8 +99,14 @@ const DebateBoard = ({
   const submitInline = async (parentPost: Post | null) => {
     if (!inlineContent.trim() || isInlineSubmitting) return;
     setIsInlineSubmitting(true);
-    await onInlineReply?.(inlineContent, parentPost);
-    setInlineContent(''); setActiveId(null); setIsInlineSubmitting(false);
+    try {
+      await onInlineReply?.(inlineContent, parentPost);
+      setInlineContent(''); setActiveId(null);
+    } catch {
+      // 에러는 handleInlineReply에서 alert 처리됨
+    } finally {
+      setIsInlineSubmitting(false);
+    }
   };
 
 
@@ -132,6 +142,7 @@ const DebateBoard = ({
             isPinned={post.id === pinnedCommentId}
             isRootAuthor={isRootAuthor}
             onPin={() => handlePin(post.id)}
+            onThanksball={isRootAuthor ? (p) => setThanksballTarget({ docId: p.id, recipient: p.author, col: p.rootId ? 'comments' : 'posts' }) : undefined}
           />
           {activeId === post.id && (
             <div className="flex items-center gap-2 px-4 py-2.5 bg-slate-50 border-t border-slate-100">
@@ -264,6 +275,21 @@ const DebateBoard = ({
                         <svg className={`w-3 h-3 ${isLiked ? 'fill-current' : 'fill-none'}`} stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
                         {post.likes || 0}
                       </button>
+                      {(post.thanksballTotal || 0) > 0 && (
+                        <span className="flex items-center gap-1 text-[11px] font-bold text-amber-400">
+                          <span className="text-[13px] leading-none">⚾</span>
+                          {post.thanksballTotal}
+                        </span>
+                      )}
+                      {isRootAuthor && post.author !== currentNickname && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setThanksballTarget({ docId: post.id, recipient: post.author, col: post.rootId ? 'comments' : 'posts' }); }}
+                          className="flex items-center gap-1 text-[11px] font-bold text-slate-300 hover:text-amber-500 transition-colors"
+                          title="이 댓글에 땡스볼 보내기"
+                        >
+                          <span className="text-[13px] leading-none">⚾</span>
+                        </button>
+                      )}
                     </div>
                   </div>
                   <p className={`text-[13px] font-medium leading-relaxed whitespace-pre-line ${isLeft ? 'text-blue-900' : 'text-rose-900'}`}>
@@ -389,6 +415,19 @@ const DebateBoard = ({
             </div>
           )}
         </div>
+      {thanksballTarget && currentNickname && rootPost && (
+        <ThanksballModal
+          postId={rootPost.id}
+          postAuthor={rootPost.author}
+          postTitle={rootPost.title}
+          recipientNickname={thanksballTarget.recipient}
+          targetDocId={thanksballTarget.docId}
+          targetCollection={thanksballTarget.col}
+          currentNickname={currentNickname}
+          allUsers={allUsers}
+          onClose={() => setThanksballTarget(null)}
+        />
+      )}
       </div>
     );
   }
@@ -465,6 +504,19 @@ const DebateBoard = ({
               </button>
             )}
           </div>
+        )}
+        {thanksballTarget && currentNickname && rootPost && (
+          <ThanksballModal
+            postId={rootPost.id}
+            postAuthor={rootPost.author}
+            postTitle={rootPost.title}
+            recipientNickname={thanksballTarget.recipient}
+            targetDocId={thanksballTarget.docId}
+            targetCollection={thanksballTarget.col}
+            currentNickname={currentNickname}
+            allUsers={allUsers}
+            onClose={() => setThanksballTarget(null)}
+          />
         )}
       </div>
     );

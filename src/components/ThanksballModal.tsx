@@ -1,7 +1,7 @@
 // src/components/ThanksballModal.tsx
 import { useState } from 'react';
 import { db, auth } from '../firebase';
-import { collection, addDoc, doc, runTransaction, increment, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc, doc, runTransaction, updateDoc, increment, serverTimestamp } from 'firebase/firestore';
 
 interface Props {
   postId: string;
@@ -10,6 +10,10 @@ interface Props {
   currentNickname: string;
   allUsers?: Record<string, any>;
   onClose: () => void;
+  // 댓글 작성자에게 보낼 때 사용
+  recipientNickname?: string;    // 미지정 시 postAuthor
+  targetDocId?: string;          // 미지정 시 postId
+  targetCollection?: string;     // 미지정 시 'posts' (댓글은 'comments')
 }
 
 const PRESETS = [1, 2, 3, 5, 10];
@@ -22,7 +26,11 @@ const getTier = (amount: number) => {
   return              { bg: 'bg-slate-200',   text: 'text-slate-700', border: 'border-slate-300', label: '베이직', btnHover: 'hover:bg-slate-300' };
 };
 
-const ThanksballModal = ({ postId, postAuthor, postTitle, currentNickname, allUsers = {}, onClose }: Props) => {
+const ThanksballModal = ({ postId, postAuthor, postTitle, currentNickname, allUsers = {}, onClose, recipientNickname, targetDocId, targetCollection }: Props) => {
+  const recipient = recipientNickname || postAuthor;
+  const docId = targetDocId || postId;
+  const docCollection = targetCollection || 'posts';
+  const isCommentMode = !!(targetDocId && targetDocId !== postId);
   const [selected, setSelected] = useState(1);
   const [custom, setCustom] = useState('');
   const [message, setMessage] = useState('');
@@ -44,10 +52,10 @@ const ThanksballModal = ({ postId, postAuthor, postTitle, currentNickname, allUs
     setError('');
     setSending(true);
     try {
-      const recipientData = allUsers[`nickname_${postAuthor}`];
+      const recipientData = allUsers[`nickname_${recipient}`];
       const recipientUid = recipientData?.uid;
 
-      // 원자적 트랜잭션: 잔액 차감 + 수신자 누적 + 게시글 누적
+      // 원자적 트랜잭션: 잔액 차감 + 수신자 누적
       await runTransaction(db, async (tx) => {
         const senderRef = doc(db, 'users', senderUid);
         const senderSnap = await tx.get(senderRef);
@@ -59,30 +67,34 @@ const ThanksballModal = ({ postId, postAuthor, postTitle, currentNickname, allUs
           ballSpent: increment(finalAmount),
         });
         if (recipientUid) {
-          tx.update(doc(db, 'users', recipientUid), {
+          tx.set(doc(db, 'users', recipientUid), {
             ballReceived: increment(finalAmount),
-          });
+          }, { merge: true });
         }
-        tx.update(doc(db, 'posts', postId), {
-          thanksballTotal: increment(finalAmount),
-        });
+      });
+
+      // 트랜잭션 외: 땡스볼 카운터 업데이트 (onSnapshot 반영용)
+      await updateDoc(doc(db, docCollection, docId), {
+        thanksballTotal: increment(finalAmount),
       });
 
       // 비금융 기록 (트랜잭션 외)
-      await addDoc(collection(db, 'posts', postId, 'thanksBalls'), {
+      await addDoc(collection(db, docCollection, docId, 'thanksBalls'), {
         sender: currentNickname, senderId: senderUid,
         amount: finalAmount, message: message.trim() || null,
         createdAt: serverTimestamp(), isPaid: false,
       });
       await addDoc(collection(db, 'sentBalls', currentNickname, 'items'), {
-        postId, postTitle: postTitle || null, postAuthor,
+        postId, postTitle: postTitle || null, postAuthor: recipient,
+        ...(isCommentMode ? { commentId: docId } : {}),
         amount: finalAmount, message: message.trim() || null,
         createdAt: serverTimestamp(),
       });
-      await addDoc(collection(db, 'notifications', postAuthor, 'items'), {
+      await addDoc(collection(db, 'notifications', recipient, 'items'), {
         type: 'thanksball', fromNickname: currentNickname,
         amount: finalAmount, message: message.trim() || null,
         postId, postTitle: postTitle || null,
+        ...(isCommentMode ? { commentId: docId } : {}),
         createdAt: serverTimestamp(), read: false,
       });
 
@@ -107,7 +119,7 @@ const ThanksballModal = ({ postId, postAuthor, postTitle, currentNickname, allUs
           <div className="flex flex-col items-center gap-3 py-6">
             <span className="text-5xl animate-bounce">⚾</span>
             <p className="text-[16px] font-[1000] text-slate-800 mt-1">
-              {postAuthor}님께 {finalAmount}볼 전달!
+              {recipient}님께 {finalAmount}볼 전달!
             </p>
             <p className="text-[12px] text-slate-400 font-bold">감사가 전달되었습니다</p>
           </div>
@@ -125,7 +137,7 @@ const ThanksballModal = ({ postId, postAuthor, postTitle, currentNickname, allUs
 
             <div className="flex items-center justify-between mb-4">
               <p className="text-[12px] font-bold text-slate-400">
-                <span className="text-slate-800 font-[1000]">{postAuthor}</span>님의 글이 도움이 되었나요?
+                <span className="text-slate-800 font-[1000]">{recipient}</span>님의 {isCommentMode ? '댓글' : '글'}이 도움이 되었나요?
               </p>
               <span className={`text-[11px] font-[1000] px-2 py-0.5 rounded-full ${insufficient ? 'bg-rose-50 text-rose-500 border border-rose-100' : 'bg-amber-50 text-amber-500 border border-amber-100'}`}>
                 ⚾ {ballBalance}볼 보유

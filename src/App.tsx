@@ -90,7 +90,8 @@ function App() {
         const comments = snap.docs.map(d => ({ id: d.id, ...d.data() } as Post));
         comments.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
         setAllChildPosts(comments);
-      }
+      },
+      (err) => console.error('[comments onSnapshot]', err)
     );
     return unsub;
   }, [selectedTopic?.id]);
@@ -434,19 +435,32 @@ function App() {
   const handleInlineReply = async (content: string, parentPost: Post | null, side?: 'left' | 'right', imageUrl?: string, linkUrl?: string) => {
     if (!userData || !content.trim() || !selectedTopic) return;
     const customId = `comment_${Date.now()}_${userData.uid}`;
-    await setDoc(doc(db, "comments", customId), { author: userData.nickname, author_id: userData.uid, title: null, content, parentId: parentPost ? parentPost.id : selectedTopic.id, rootId: selectedTopic.id, side: side || 'left', type: 'comment', authorInfo: { level: userData.level, friendCount: friends.length, totalLikes: userData.likes }, createdAt: serverTimestamp(), likes: 0, dislikes: 0, ...(imageUrl ? { imageUrl } : {}), ...(linkUrl ? { linkUrl } : {}) });
-    await updateDoc(doc(db, "posts", selectedTopic.id), { commentCount: increment(1) });
-    await updateDoc(doc(db, "users", userData.uid), { likes: increment(1) });
+    try {
+      await setDoc(doc(db, "comments", customId), { author: userData.nickname, author_id: userData.uid, title: null, content, parentId: parentPost ? parentPost.id : selectedTopic.id, rootId: selectedTopic.id, side: side || 'left', type: 'comment', authorInfo: { level: userData.level, friendCount: friends.length, totalLikes: userData.likes }, createdAt: serverTimestamp(), likes: 0, dislikes: 0, ...(imageUrl ? { imageUrl } : {}), ...(linkUrl ? { linkUrl } : {}) });
+      await updateDoc(doc(db, "posts", selectedTopic.id), { commentCount: increment(1) });
+      await updateDoc(doc(db, "users", userData.uid), { likes: increment(1) });
+    } catch (e: any) {
+      console.error('[handleInlineReply]', e);
+      alert('댓글 등록에 실패했습니다: ' + e.message);
+      throw e;
+    }
   };
 
   const handleCommentSubmit = async (e: React.FormEvent) => {
     e.preventDefault(); if (!userData || !newContent.trim() || !selectedTopic) return;
     setIsSubmitting(true);
     const customId = `comment_${Date.now()}_${userData.uid}`;
-    await setDoc(doc(db, "comments", customId), { author: userData.nickname, author_id: userData.uid, title: selectedType === 'formal' ? newTitle : null, content: newContent, parentId: replyTarget ? replyTarget.id : selectedTopic.id, rootId: selectedTopic.id, side: selectedSide, type: selectedType, authorInfo: { level: userData.level, friendCount: friends.length, totalLikes: userData.likes }, createdAt: serverTimestamp(), likes: 0, dislikes: 0 });
-    await updateDoc(doc(db, "posts", selectedTopic.id), { commentCount: increment(1) });
-    await updateDoc(doc(db, "users", userData.uid), { likes: increment(selectedType === 'formal' ? 2 : 1) });
-    setNewTitle(""); setNewContent(""); setReplyTarget(null); setIsSubmitting(false);
+    try {
+      await setDoc(doc(db, "comments", customId), { author: userData.nickname, author_id: userData.uid, title: selectedType === 'formal' ? newTitle : null, content: newContent, parentId: replyTarget ? replyTarget.id : selectedTopic.id, rootId: selectedTopic.id, side: selectedSide, type: selectedType, authorInfo: { level: userData.level, friendCount: friends.length, totalLikes: userData.likes }, createdAt: serverTimestamp(), likes: 0, dislikes: 0 });
+      await updateDoc(doc(db, "posts", selectedTopic.id), { commentCount: increment(1) });
+      await updateDoc(doc(db, "users", userData.uid), { likes: increment(selectedType === 'formal' ? 2 : 1) });
+      setNewTitle(""); setNewContent(""); setReplyTarget(null);
+    } catch (e: any) {
+      console.error('[handleCommentSubmit]', e);
+      alert('댓글 등록에 실패했습니다: ' + e.message);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
