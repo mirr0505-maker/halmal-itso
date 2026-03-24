@@ -2,6 +2,10 @@
 import { useRef, useState, useEffect } from 'react';
 import type { ReactNode } from 'react';
 import type { Editor } from '@tiptap/react';
+import LinkPreviewCard from './LinkPreviewCard';
+import type { OgData } from './LinkPreviewCard';
+
+const LINK_PREVIEW_WORKER = 'https://halmal-link-preview.mirr0505.workers.dev';
 
 const TEXT_COLORS = ['#000000','#ef4444','#f97316','#eab308','#22c55e','#3b82f6','#8b5cf6','#ec4899','#64748b','#ffffff'];
 const HIGHLIGHT_COLORS = ['#fef08a','#bbf7d0','#bfdbfe','#f9a8d4','#fed7aa','#e9d5ff'];
@@ -17,6 +21,22 @@ const EditorToolbar = ({ editor, onImageUpload }: Props) => {
   const [showHL, setShowHL] = useState(false);
   const colorRef = useRef<HTMLDivElement>(null);
   const hlRef = useRef<HTMLDivElement>(null);
+  const [preview, setPreview] = useState<OgData | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+
+  const fetchPreview = async (url: string) => {
+    setPreviewLoading(true);
+    setPreview(null);
+    try {
+      const res = await fetch(`${LINK_PREVIEW_WORKER}?url=${encodeURIComponent(url)}`);
+      const data = await res.json() as OgData & { error?: string };
+      if (!data.error) setPreview(data);
+    } catch {
+      // 미리보기 실패는 무시
+    } finally {
+      setPreviewLoading(false);
+    }
+  };
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -50,6 +70,7 @@ const EditorToolbar = ({ editor, onImageUpload }: Props) => {
   };
 
   return (
+    <>
     <div className="sticky top-0 z-50 flex flex-wrap items-center gap-0.5 px-4 py-2 border-b border-slate-100 bg-white">
 
       {/* 서식 */}
@@ -200,7 +221,7 @@ const EditorToolbar = ({ editor, onImageUpload }: Props) => {
           const prev = editor.getAttributes('link').href;
           const url = window.prompt('링크 URL을 입력하세요', prev || 'https://');
           if (url === null) return;
-          if (!url.trim()) { editor.chain().focus().unsetLink().run(); return; }
+          if (!url.trim()) { editor.chain().focus().unsetLink().run(); setPreview(null); return; }
           const { from, to } = editor.state.selection;
           if (from !== to) {
             // 텍스트 선택됨 → 선택 텍스트에 링크 적용
@@ -211,6 +232,7 @@ const EditorToolbar = ({ editor, onImageUpload }: Props) => {
               .insertContent(`<a href="${url.trim()}" target="_blank">${url.trim()}</a>`)
               .run();
           }
+          fetchPreview(url.trim());
         }}
         active={editor.isActive('link')}
         title="링크 삽입"
@@ -220,6 +242,8 @@ const EditorToolbar = ({ editor, onImageUpload }: Props) => {
         </svg>
       </Btn>
     </div>
+    <LinkPreviewCard data={preview} loading={previewLoading} onClose={() => setPreview(null)} />
+    </>
   );
 };
 
