@@ -243,12 +243,12 @@ const DebateBoard = ({
                       작성자가 고정한 댓글
                     </div>
                   )}
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
+                  <div className={`flex items-center justify-between mb-2 ${!isLeft ? 'flex-row-reverse' : ''}`}>
+                    <div className={`flex items-center gap-2 ${!isLeft ? 'flex-row-reverse' : ''}`}>
                       <div className="w-7 h-7 rounded-full overflow-hidden shrink-0 border border-slate-200">
                         <img src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${post.author}`} alt="avatar" className="w-full h-full object-cover" />
                       </div>
-                      <div className="flex flex-col">
+                      <div className={`flex flex-col ${!isLeft ? 'items-end' : ''}`}>
                         <div className="flex items-center gap-2">
                           <span className={`font-black text-[12px] leading-none ${isLeft ? 'text-blue-800' : 'text-rose-800'}`}>{post.author}</span>
                           <span className="text-[9px] font-bold text-slate-300">{formatTime(post.createdAt)}</span>
@@ -292,7 +292,7 @@ const DebateBoard = ({
                       )}
                     </div>
                   </div>
-                  <p className={`text-[13px] font-medium leading-relaxed whitespace-pre-line ${isLeft ? 'text-blue-900' : 'text-rose-900'}`}>
+                  <p className={`text-[13px] font-medium leading-relaxed whitespace-pre-line ${isLeft ? 'text-blue-900' : 'text-rose-900 text-right'}`}>
                     {post.content}
                   </p>
                   {post.imageUrl && (
