@@ -67,12 +67,15 @@ function App() {
   const [editingPost, setEditingPost] = useState<Post | null>(null);
   const [selectedRoom, setSelectedRoom] = useState<KanbuRoom | null>(null);
   const [isCreateRoomOpen, setIsCreateRoomOpen] = useState(false);
+  const [selectedFriend, setSelectedFriend] = useState<string | null>(null);
+  const [viewingAuthor, setViewingAuthor] = useState<string | null>(null);
 
   const accessibleRooms = kanbuRooms.filter(r =>
     r.creatorNickname === userData?.nickname || friends.includes(r.creatorNickname)
   );
 
   useEffect(() => { if (replyTarget) { setSelectedType('comment'); setNewTitle(""); } }, [replyTarget]);
+  useEffect(() => { setSelectedFriend(null); setViewingAuthor(null); }, [activeMenu, activeTab]);
 
   const goHome = () => {
     setActiveMenu('home'); setSelectedTopic(null); setIsCreateOpen(false); setReplyTarget(null); setEditingPost(null);
@@ -329,13 +332,53 @@ function App() {
       filteredPosts = basePosts.filter(p =>
         friends.includes(p.author) && (p.likes || 0) >= 3
       );
+      // 특정 깐부 선택 시 추가 필터
+      if (selectedFriend) filteredPosts = filteredPosts.filter(p => p.author === selectedFriend);
+    }
+
+    // 특정 작가 피드 보기 (A 탭 칩 또는 글카드 작가 클릭)
+    if (viewingAuthor) {
+      const authorPosts = filterBySearch(basePosts.filter(p => p.author === viewingAuthor));
+      const avatarSrc = `https://api.dicebear.com/7.x/adventurer/svg?seed=${viewingAuthor}`;
+      return (
+        <div className="w-full animate-in fade-in">
+          <div className="flex items-center gap-2 px-1 py-2 mb-1">
+            <img src={avatarSrc} className="w-7 h-7 rounded-full bg-slate-100" alt="" />
+            <span className="font-[1000] text-slate-800 text-sm">{viewingAuthor}의 글</span>
+            <span className="text-xs text-slate-400 font-bold">({authorPosts.length})</span>
+            <button onClick={() => setViewingAuthor(null)} className="ml-auto w-6 h-6 flex items-center justify-center rounded-full bg-slate-100 hover:bg-slate-200 text-slate-400 transition-colors">
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+          </div>
+          <AnyTalkList posts={authorPosts} onTopicClick={handleViewPost} onLikeClick={handleLike} commentCounts={commentCounts} currentNickname={userData?.nickname} currentUserData={userData} allUsers={allUsers} followerCounts={followerCounts} tab={activeTab} onAuthorClick={setViewingAuthor} />
+        </div>
+      );
     }
 
     const searchedPosts = filterBySearch(filteredPosts);
 
     return (
       <div className="w-full animate-in fade-in">
-        <AnyTalkList posts={searchedPosts} onTopicClick={handleViewPost} onLikeClick={handleLike} commentCounts={commentCounts} currentNickname={userData?.nickname} currentUserData={userData} allUsers={allUsers} followerCounts={followerCounts} tab={activeTab} />
+        {/* 깐부글 탭: 깐부 아바타 칩 가로 스크롤 */}
+        {activeTab === 'friend' && friends.length > 0 && (
+          <div className="flex items-center gap-2 px-1 pb-3 overflow-x-auto">
+            <button
+              onClick={() => setSelectedFriend(null)}
+              className={`flex items-center px-3 py-1.5 rounded-full text-[11px] font-[1000] transition-all shrink-0 ${!selectedFriend ? 'bg-blue-600 text-white shadow-sm' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}
+            >전체</button>
+            {friends.map(nick => (
+              <button
+                key={nick}
+                onClick={() => setSelectedFriend(selectedFriend === nick ? null : nick)}
+                className={`flex items-center gap-1.5 pl-1.5 pr-3 py-1 rounded-full text-[11px] font-[1000] transition-all shrink-0 ${selectedFriend === nick ? 'bg-blue-600 text-white shadow-sm' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}
+              >
+                <img src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${nick}`} className="w-5 h-5 rounded-full bg-white" alt="" />
+                {nick}
+              </button>
+            ))}
+          </div>
+        )}
+        <AnyTalkList posts={searchedPosts} onTopicClick={handleViewPost} onLikeClick={handleLike} commentCounts={commentCounts} currentNickname={userData?.nickname} currentUserData={userData} allUsers={allUsers} followerCounts={followerCounts} tab={activeTab} onAuthorClick={setViewingAuthor} />
       </div>
     );
   };

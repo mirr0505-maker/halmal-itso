@@ -13,10 +13,11 @@ interface Props {
   allUsers?: Record<string, any>;
   followerCounts?: Record<string, number>;
   tab?: string;
+  onAuthorClick?: (author: string) => void;
 }
 
 const AnyTalkList = ({
-  posts, onTopicClick, onLikeClick, commentCounts = {}, currentNickname, allUsers = {}, followerCounts = {}, tab
+  posts, onTopicClick, onLikeClick, commentCounts = {}, currentNickname, allUsers = {}, followerCounts = {}, tab, onAuthorClick
 }: Props) => {
   const isNewTab = tab === 'any';
 
@@ -130,7 +131,10 @@ const AnyTalkList = ({
                 </div>
 
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2.5 min-w-0">
+                  <div
+                    className="flex items-center gap-2.5 min-w-0 cursor-pointer hover:opacity-70 transition-opacity"
+                    onClick={(e) => { e.stopPropagation(); onAuthorClick?.(post.author); }}
+                  >
                     <div className="w-8 h-8 rounded-full bg-slate-50 overflow-hidden shrink-0 border-2 border-white shadow-sm ring-1 ring-slate-100">
                       <img src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${post.author}`} alt="" className="w-full h-full object-cover" />
                     </div>
