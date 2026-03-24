@@ -9,8 +9,14 @@ import Color from '@tiptap/extension-color';
 import { TextStyle } from '@tiptap/extension-text-style';
 import Highlight from '@tiptap/extension-highlight';
 import TextAlign from '@tiptap/extension-text-align';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import EditorToolbar from './EditorToolbar';
+import LinkPreviewCard from './LinkPreviewCard';
+import type { OgData } from './LinkPreviewCard';
+
+const LINK_PREVIEW_WORKER = 'https://halmal-link-preview.mirr0505.workers.dev';
+
+const URL_PATTERN = /^https?:\/\/[^\s]{4,}$/;
 
 interface Props {
   content: string;
@@ -19,6 +25,23 @@ interface Props {
 }
 
 const TiptapEditor = ({ content, onChange, onImageUpload }: Props) => {
+  const [preview, setPreview] = useState<OgData | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+
+  const fetchPreview = async (url: string) => {
+    setPreviewLoading(true);
+    setPreview(null);
+    try {
+      const res = await fetch(`${LINK_PREVIEW_WORKER}?url=${encodeURIComponent(url)}`);
+      const data = await res.json() as OgData & { error?: string };
+      if (!data.error) setPreview(data);
+    } catch {
+      // 미리보기 실패는 무시
+    } finally {
+      setPreviewLoading(false);
+    }
+  };
+
   const editor = useEditor({
     extensions: [
       StarterKit,
@@ -61,6 +84,11 @@ const TiptapEditor = ({ content, onChange, onImageUpload }: Props) => {
             }
           }
         }
+        // URL 텍스트 붙여넣기 감지 → 미리보기 자동 발동
+        const text = event.clipboardData?.getData('text/plain')?.trim() || '';
+        if (URL_PATTERN.test(text)) {
+          fetchPreview(text);
+        }
         return false;
       },
       handleDrop: (view, event) => {
@@ -90,7 +118,8 @@ const TiptapEditor = ({ content, onChange, onImageUpload }: Props) => {
 
   return (
     <div className="flex flex-col w-full bg-white">
-      <EditorToolbar editor={editor} onImageUpload={onImageUpload} />
+      <EditorToolbar editor={editor} onImageUpload={onImageUpload} onLinkInserted={fetchPreview} />
+      <LinkPreviewCard data={preview} loading={previewLoading} onClose={() => setPreview(null)} />
 
       {/* 에디터 본문 */}
       <div className="flex-1">
