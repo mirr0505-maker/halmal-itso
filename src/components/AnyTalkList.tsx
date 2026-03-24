@@ -124,10 +124,13 @@ const AnyTalkList = ({
               
               {/* 4. 최하단: 카테고리 & 아바타/유저정보 */}
               <div className="pt-1.5 border-t border-slate-50 mt-auto flex flex-col gap-1 shrink-0">
-                <div className="flex items-center">
+                <div className="flex items-center gap-1.5">
                   <span className="text-[8px] font-[1000] text-blue-500 bg-blue-50 px-2 py-0.5 rounded-md uppercase tracking-widest border border-blue-100/30">
                     {getCategoryDisplayName(post.category)}
                   </span>
+                  {post.verdict === 'fact'      && <span className="text-[8px] font-[1000] text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md">✅ 사실</span>}
+                  {post.verdict === 'false'     && <span className="text-[8px] font-[1000] text-rose-600    bg-rose-50    border border-rose-200    px-2 py-0.5 rounded-md">❌ 허위</span>}
+                  {post.verdict === 'uncertain' && <span className="text-[8px] font-[1000] text-slate-500   bg-slate-50   border border-slate-200   px-2 py-0.5 rounded-md">🔍 미정</span>}
                 </div>
 
                 <div className="flex items-center justify-between">

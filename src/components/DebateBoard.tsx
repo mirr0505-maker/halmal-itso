@@ -1,10 +1,13 @@
 // src/components/DebateBoard.tsx
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import PostCard from './PostCard';
 import type { Post } from '../types';
 import { CATEGORY_RULES } from './DiscussionView';
 import { db } from '../firebase';
 import { doc, updateDoc } from 'firebase/firestore';
+import { formatKoreanNumber, getReputationLabel } from '../utils';
+import { PutObjectCommand } from '@aws-sdk/client-s3';
+import { s3Client, BUCKET_NAME, PUBLIC_URL } from '../s3Client';
 
 interface Props {
   allChildPosts: Post[];
@@ -15,12 +18,14 @@ interface Props {
   onLikeClick?: (e: any, id: string) => void;
   currentNickname?: string;
   category: string;
-  onInlineReply?: (content: string, parentPost: Post | null, side?: 'left' | 'right') => Promise<void>;
+  onInlineReply?: (content: string, parentPost: Post | null, side?: 'left' | 'right', imageUrl?: string, linkUrl?: string) => Promise<void>;
   rootPost?: Post;
+  allUsers?: Record<string, any>;
+  followerCounts?: Record<string, number>;
 }
 
 const DebateBoard = ({
-  allChildPosts, setReplyTarget, onPostClick, onLikeClick, currentNickname, category, onInlineReply, rootPost
+  allChildPosts, setReplyTarget, onPostClick, onLikeClick, currentNickname, category, onInlineReply, rootPost, allUsers = {}, followerCounts = {}
 }: Props) => {
   const rule = CATEGORY_RULES[category] || CATEGORY_RULES["나의 이야기"];
 
@@ -31,12 +36,48 @@ const DebateBoard = ({
   const [sortBy, setSortBy] = useState<'latest' | 'likes'>('latest');
 
   const isRootAuthor = !!(rootPost && currentNickname && rootPost.author === currentNickname);
+
+  // 판도라 전용 이미지/링크 상태
+  const [pandoraImageUrl, setPandoraImageUrl] = useState('');
+  const [pandoraLinkUrl, setPandoraLinkUrl] = useState('');
+  const [pandoraLinkInput, setPandoraLinkInput] = useState('');
+  const [pandoraShowLink, setPandoraShowLink] = useState(false);
+  const [pandoraUploading, setPandoraUploading] = useState(false);
+  const pandoraFileRef = useRef<HTMLInputElement>(null);
+
+  const normUrl = (url: string) => {
+    const u = url.trim();
+    return u && !/^https?:\/\//i.test(u) ? `https://${u}` : u;
+  };
+
+  const resetPandoraAttach = () => {
+    setPandoraImageUrl(''); setPandoraLinkUrl('');
+    setPandoraLinkInput(''); setPandoraShowLink(false);
+  };
+
+  const uploadPandoraImage = async (file: File): Promise<string | null> => {
+    if (!file.type.startsWith('image/')) return null;
+    setPandoraUploading(true);
+    const safeName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+    const filePath = `uploads/${currentNickname || 'pandora'}/${Date.now()}_${safeName}`;
+    try {
+      const uint8Array = new Uint8Array(await file.arrayBuffer());
+      await s3Client.send(new PutObjectCommand({ Bucket: BUCKET_NAME, Key: filePath, Body: uint8Array, ContentType: file.type }));
+      return `${PUBLIC_URL}/${filePath}`;
+    } catch { alert('이미지 업로드에 실패했습니다.'); return null; }
+    finally { setPandoraUploading(false); }
+  };
   const pinnedCommentId = rootPost?.pinnedCommentId;
 
   const handlePin = async (commentId: string) => {
     if (!rootPost) return;
     const newPinned = pinnedCommentId === commentId ? null : commentId;
     await updateDoc(doc(db, 'posts', rootPost.id), { pinnedCommentId: newPinned ?? '' });
+  };
+
+  const handleToggleLock = async () => {
+    if (!rootPost) return;
+    await updateDoc(doc(db, 'posts', rootPost.id), { commentsLocked: !rootPost.commentsLocked });
   };
 
   // 너와 나의 이야기 전용 인라인 폼 상태
@@ -122,8 +163,9 @@ const DebateBoard = ({
     const pandoraSubmit = async (side: 'left' | 'right') => {
       if (!inlineContent.trim() || isInlineSubmitting) return;
       setIsInlineSubmitting(true);
-      await onInlineReply?.(inlineContent, null, side);
+      await onInlineReply?.(inlineContent, null, side, pandoraImageUrl || undefined, pandoraLinkUrl || undefined);
       setInlineContent(''); setActiveId(null); setIsInlineSubmitting(false);
+      resetPandoraAttach();
     };
 
     const formatTime = (ts: any) => {
@@ -151,7 +193,18 @@ const DebateBoard = ({
               <span className="text-rose-500">반박 {rightPosts.length}</span>
             </span>
           </h4>
-          <span className="text-[11px] font-bold text-slate-300">전체 {topLevel.length}</span>
+          {isRootAuthor && (
+            <button
+              onClick={handleToggleLock}
+              title={rootPost?.commentsLocked ? '댓글 잠금 해제' : '댓글 잠금'}
+              className={`flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-lg transition-all ${rootPost?.commentsLocked ? 'bg-slate-100 text-slate-500 hover:bg-slate-200' : 'text-slate-300 hover:text-slate-500 hover:bg-slate-50'}`}
+            >
+              {rootPost?.commentsLocked
+                ? <><svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></svg>잠금 해제</>
+                : <><svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z"/></svg>댓글 잠금</>
+              }
+            </button>
+          )}
         </div>
 
         {/* 지그재그 댓글 목록 */}
@@ -160,6 +213,10 @@ const DebateBoard = ({
             const isLeft = post.side === 'left';
             const isPinned = post.id === pinnedCommentId;
             const isLiked = currentNickname && (post.likedBy || []).includes(currentNickname);
+            const authorData = (post.author_id && allUsers[post.author_id]) || allUsers[`nickname_${post.author}`];
+            const displayLevel = authorData ? authorData.level : (post.authorInfo?.level || 1);
+            const displayLikes = authorData ? authorData.likes : (post.authorInfo?.totalLikes || 0);
+            const realFollowers = followerCounts[post.author] || 0;
             return (
               <div key={post.id} className={`flex ${isLeft ? 'justify-start' : 'justify-end'}`}>
                 <div className={`w-[84%] rounded-xl border px-4 py-3 transition-all ${
@@ -175,10 +232,21 @@ const DebateBoard = ({
                       작성자가 고정한 댓글
                     </div>
                   )}
-                  <div className="flex items-center justify-between mb-1.5">
-                    <span className={`text-[10px] font-[1000] px-2 py-0.5 rounded-full ${isLeft ? 'bg-blue-100 text-blue-600' : 'bg-rose-100 text-rose-600'}`}>
-                      {isLeft ? '동의' : '반박'}
-                    </span>
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <div className="w-7 h-7 rounded-full overflow-hidden shrink-0 border border-slate-200">
+                        <img src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${post.author}`} alt="avatar" className="w-full h-full object-cover" />
+                      </div>
+                      <div className="flex flex-col">
+                        <div className="flex items-center gap-2">
+                          <span className={`font-black text-[12px] leading-none ${isLeft ? 'text-blue-800' : 'text-rose-800'}`}>{post.author}</span>
+                          <span className="text-[9px] font-bold text-slate-300">{formatTime(post.createdAt)}</span>
+                        </div>
+                        <span className="text-[9px] text-slate-400 font-bold leading-tight mt-0.5">
+                          Lv {displayLevel} · {getReputationLabel(displayLikes)} · 깐부 {formatKoreanNumber(realFollowers)}
+                        </span>
+                      </div>
+                    </div>
                     <div className="flex items-center gap-2">
                       {isRootAuthor && (
                         <button
@@ -201,10 +269,18 @@ const DebateBoard = ({
                   <p className={`text-[13px] font-medium leading-relaxed whitespace-pre-line ${isLeft ? 'text-blue-900' : 'text-rose-900'}`}>
                     {post.content}
                   </p>
-                  <div className="flex items-center justify-between mt-2">
-                    <span className={`text-[11px] font-[1000] ${isLeft ? 'text-blue-400' : 'text-rose-400'}`}>{post.author}</span>
-                    <span className="text-[10px] text-slate-300 font-bold">{formatTime(post.createdAt)}</span>
-                  </div>
+                  {post.imageUrl && (
+                    <div className="mt-2 rounded-lg overflow-hidden border border-slate-200">
+                      <img src={post.imageUrl} alt="" className="w-full h-auto max-h-52 object-cover" />
+                    </div>
+                  )}
+                  {post.linkUrl && (
+                    <a href={post.linkUrl} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()}
+                      className={`mt-2 flex items-center gap-1 text-[11px] font-bold truncate ${isLeft ? 'text-blue-500 hover:text-blue-700' : 'text-rose-500 hover:text-rose-700'}`}>
+                      <svg className="w-3 h-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>
+                      {post.linkUrl}
+                    </a>
+                  )}
                 </div>
               </div>
             );
@@ -213,42 +289,103 @@ const DebateBoard = ({
 
         {/* 하단 인라인 입력 */}
         <div className="border-t border-slate-100">
-          {!currentNickname ? (
+          {rootPost?.commentsLocked ? (
+            <div className="flex items-center gap-2 px-6 py-4 text-[13px] font-bold text-slate-400">
+              <svg className="w-4 h-4 shrink-0" fill="currentColor" viewBox="0 0 24 24"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></svg>
+              작성자가 댓글 기능을 잠궜습니다.
+            </div>
+          ) : !currentNickname ? (
             <div className="flex items-center gap-2 px-6 py-4 text-[13px] font-bold text-slate-400">
               <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
               댓글을 작성하려면 로그인이 필요합니다.
             </div>
           ) : activeId === 'agree' || activeId === 'refute' ? (
-            <div className={`flex items-center gap-2 px-4 py-2.5 border-t ${activeId === 'agree' ? 'bg-blue-50 border-blue-100' : 'bg-rose-50 border-rose-100'}`}>
-              <span className={`text-[10px] font-[1000] px-2 py-0.5 rounded-full shrink-0 ${activeId === 'agree' ? 'bg-blue-100 text-blue-600' : 'bg-rose-100 text-rose-600'}`}>
-                {activeId === 'agree' ? '동의' : '반박'}
-              </span>
-              <input
-                autoFocus
-                type="text"
+            <div className={`flex flex-col gap-2.5 px-4 py-3 border-t ${activeId === 'agree' ? 'bg-blue-50 border-blue-100' : 'bg-rose-50 border-rose-100'}`}>
+              {/* 힌트 + 첨부 아이콘 */}
+              <div className={`flex items-center gap-2 text-[11px] font-bold ${activeId === 'agree' ? 'text-blue-400' : 'text-rose-400'}`}>
+                <span>{activeId === 'agree' ? '동의하는 근거를 작성하세요.' : '반박하는 근거를 작성하세요.'}</span>
+                <input ref={pandoraFileRef} type="file" accept="image/*" className="hidden" onChange={async e => {
+                  const file = e.target.files?.[0];
+                  if (file) { const url = await uploadPandoraImage(file); if (url) setPandoraImageUrl(url); }
+                  e.target.value = '';
+                }} />
+                <button onClick={() => pandoraFileRef.current?.click()} disabled={pandoraUploading} title="이미지 첨부"
+                  className={`transition-opacity hover:opacity-70 ${pandoraImageUrl ? 'opacity-100' : 'opacity-60'} ${pandoraUploading ? 'opacity-30' : ''}`}>
+                  {pandoraUploading
+                    ? <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
+                    : '📷'}
+                </button>
+                <button onClick={() => setPandoraShowLink(prev => !prev)} title="링크 첨부"
+                  className={`transition-opacity hover:opacity-70 ${pandoraLinkUrl ? 'opacity-100' : 'opacity-60'}`}>
+                  🔗
+                </button>
+              </div>
+              {/* 이미지 미리보기 */}
+              {pandoraImageUrl && (
+                <div className="relative w-24 h-24 shrink-0">
+                  <img src={pandoraImageUrl} alt="" className="w-full h-full object-cover rounded-lg border border-slate-200" />
+                  <button onClick={() => setPandoraImageUrl('')} className="absolute -top-1 -right-1 w-5 h-5 bg-slate-700 text-white rounded-full text-[10px] flex items-center justify-center leading-none">×</button>
+                </div>
+              )}
+              {/* 링크 입력 */}
+              {pandoraShowLink && (
+                <div className="flex gap-2">
+                  <input
+                    autoFocus
+                    value={pandoraLinkInput}
+                    onChange={e => setPandoraLinkInput(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') { setPandoraLinkUrl(normUrl(pandoraLinkInput)); setPandoraShowLink(false); } if (e.key === 'Escape') { setPandoraShowLink(false); setPandoraLinkInput(''); } }}
+                    placeholder="https://..."
+                    className="flex-1 bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-[12px] font-bold outline-none focus:border-blue-400"
+                  />
+                  <button onClick={() => { setPandoraLinkUrl(normUrl(pandoraLinkInput)); setPandoraShowLink(false); }} className="px-3 py-1.5 text-[11px] font-bold bg-slate-700 text-white rounded-lg">확인</button>
+                  <button onClick={() => { setPandoraShowLink(false); setPandoraLinkInput(''); }} className="px-2 py-1.5 text-[11px] font-bold text-slate-400 hover:text-slate-600 rounded-lg">취소</button>
+                </div>
+              )}
+              {/* 링크 미리보기 */}
+              {pandoraLinkUrl && !pandoraShowLink && (
+                <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-3 py-1.5">
+                  <svg className="w-3 h-3 shrink-0 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>
+                  <span className="text-[11px] text-blue-500 font-bold truncate flex-1">{pandoraLinkUrl}</span>
+                  <button onClick={() => { setPandoraLinkUrl(''); setPandoraLinkInput(''); }} className="text-slate-300 hover:text-slate-500 text-[14px] leading-none">×</button>
+                </div>
+              )}
+              {/* textarea */}
+              <textarea
+                autoFocus={!pandoraShowLink}
                 value={inlineContent}
                 onChange={e => setInlineContent(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) pandoraSubmit(activeId === 'agree' ? 'left' : 'right'); }}
-                placeholder={activeId === 'agree' ? '동의하는 이유를 작성하세요...' : '반박하는 이유를 작성하세요...'}
-                className={`flex-1 bg-white border rounded-lg px-3 py-2 text-[13px] font-bold text-slate-700 outline-none transition-all ${activeId === 'agree' ? 'border-blue-200 focus:border-blue-400' : 'border-rose-200 focus:border-rose-400'}`}
+                onKeyDown={e => { if (e.key === 'Enter' && e.ctrlKey && !e.nativeEvent.isComposing) pandoraSubmit(activeId === 'agree' ? 'left' : 'right'); }}
+                onPaste={async e => {
+                  const items = e.clipboardData?.items;
+                  if (!items) return;
+                  for (const item of Array.from(items)) {
+                    if (item.type.startsWith('image/')) {
+                      e.preventDefault();
+                      const file = item.getAsFile();
+                      if (file) { const url = await uploadPandoraImage(file); if (url) setPandoraImageUrl(url); }
+                      break;
+                    }
+                  }
+                }}
+                placeholder={activeId === 'agree' ? '동의하는 이유를 작성하세요... (Ctrl+Enter로 등록)' : '반박하는 이유를 작성하세요... (Ctrl+Enter로 등록)'}
+                rows={3}
+                className={`w-full bg-white border rounded-lg px-3 py-2 text-[13px] font-bold text-slate-700 outline-none resize-none transition-all ${activeId === 'agree' ? 'border-blue-200 focus:border-blue-400' : 'border-rose-200 focus:border-rose-400'}`}
               />
-              <button onClick={() => { setActiveId(null); setInlineContent(''); }} className="px-3 py-1.5 text-[11px] font-bold text-slate-400 hover:text-slate-600 rounded-md transition-colors shrink-0">취소</button>
-              <button
-                onClick={() => pandoraSubmit(activeId === 'agree' ? 'left' : 'right')}
-                disabled={isInlineSubmitting || !inlineContent.trim()}
-                className={`px-3 py-1.5 text-[11px] font-bold text-white rounded-md disabled:opacity-50 transition-colors shrink-0 ${activeId === 'agree' ? 'bg-blue-500 hover:bg-blue-600' : 'bg-rose-500 hover:bg-rose-600'}`}
-              >댓글 달기</button>
+              {/* 버튼 */}
+              <div className="flex items-center justify-end gap-2">
+                <button onClick={() => { setActiveId(null); setInlineContent(''); resetPandoraAttach(); }} className="px-3 py-1.5 text-[11px] font-bold text-slate-400 hover:text-slate-600 rounded-md transition-colors">취소</button>
+                <button
+                  onClick={() => pandoraSubmit(activeId === 'agree' ? 'left' : 'right')}
+                  disabled={isInlineSubmitting || !inlineContent.trim() || pandoraUploading}
+                  className={`px-3 py-1.5 text-[11px] font-bold text-white rounded-md disabled:opacity-50 transition-colors ${activeId === 'agree' ? 'bg-blue-500 hover:bg-blue-600' : 'bg-rose-500 hover:bg-rose-600'}`}
+                >댓글 달기</button>
+              </div>
             </div>
           ) : (
             <div className="flex gap-2 px-4 py-3">
-              <button
-                onClick={() => openInline('agree')}
-                className="flex-1 py-2.5 rounded-xl text-[12px] font-[1000] bg-blue-50 text-blue-500 hover:bg-blue-100 border border-blue-100 transition-all"
-              >동의 의견 달기...</button>
-              <button
-                onClick={() => openInline('refute')}
-                className="flex-1 py-2.5 rounded-xl text-[12px] font-[1000] bg-rose-50 text-rose-500 hover:bg-rose-100 border border-rose-100 transition-all"
-              >반박 의견 달기...</button>
+              <button onClick={() => openInline('agree')} className="flex-1 py-2.5 rounded-xl text-[12px] font-[1000] bg-blue-50 text-blue-500 hover:bg-blue-100 border border-blue-100 transition-all">동의 의견 달기...</button>
+              <button onClick={() => openInline('refute')} className="flex-1 py-2.5 rounded-xl text-[12px] font-[1000] bg-rose-50 text-rose-500 hover:bg-rose-100 border border-rose-100 transition-all">반박 의견 달기...</button>
             </div>
           )}
         </div>

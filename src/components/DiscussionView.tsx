@@ -56,7 +56,7 @@ interface Props {
   followerCounts?: Record<string, number>;
   toggleBlock?: (author: string) => void;
   onEditPost?: (post: Post) => void;
-  onInlineReply?: (content: string, parentPost: Post | null) => Promise<void>;
+  onInlineReply?: (content: string, parentPost: Post | null, side?: 'left' | 'right', imageUrl?: string, linkUrl?: string) => Promise<void>;
   onBack?: () => void;
 }
 
@@ -174,6 +174,8 @@ const DiscussionView = ({
             category={rootPost.category || "나의 이야기"}
             onInlineReply={onInlineReply}
             rootPost={rootPost}
+            allUsers={allUsers}
+            followerCounts={followerCounts}
           />
         </div>
       </div>

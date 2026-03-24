@@ -29,7 +29,13 @@ export interface Post {
   
   // 🚀 카테고리별 확장 필드
   mood?: string;           // 너와 나의 이야기: 오늘의 기분
-  factChecked?: boolean;   // 벌거벗은 임금님: 사실 확인 여부
+  factChecked?: boolean;   // 벌거벗은 임금님: 사실 확인 여부 (레거시)
+  // 🚀 판도라의 상자 전용
+  claimSource?: string;      // 주장 출처: 언론사/인물/단체명
+  claimLinkUrl?: string;     // 주장 출처 링크
+  verdict?: 'fact' | 'false' | 'uncertain'; // 작성자 판정
+  factCheckResult?: string;  // 팩트체크 결과 내용
+  factCheckSources?: string[]; // 팩트체크 출처 링크 목록
   debatePosition?: 'pro' | 'con' | 'neutral'; // 임금님 귀는 당나귀 귀: 초기 입장
   location?: string;       // 현지 소식: 발생 지역
   infoPrice?: number;      // 지식 소매상: 정보 가치(포인트)
@@ -44,12 +50,14 @@ export interface Post {
 
   // 🚀 댓글 고정
   pinnedCommentId?: string; // 작성자가 고정한 댓글 ID
+  commentsLocked?: boolean; // 작성자가 댓글 잠금
 
   // 🚀 땡스볼
   thanksballTotal?: number; // 받은 총 볼 수 (누적)
 
   // 🚀 조회수
   viewCount?: number; // 타인이 열람한 횟수 (자기 글 제외, 세션 내 중복 방지)
+
 }
 
 export interface Thanksball {

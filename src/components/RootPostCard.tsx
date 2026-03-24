@@ -180,12 +180,12 @@ const RootPostCard = ({
             )}
           </div>
 
-          {/* 우: 동의 / 비동의 */}
+          {/* 우: 동의 / 비동의 (pandora는 DebateBoard 헤더에서 표시하므로 생략) */}
           <div className="flex gap-4">
-            {CATEGORY_RULES[post.category || ""]?.allowDisagree && (
+            {CATEGORY_RULES[post.category || ""]?.allowDisagree && CATEGORY_RULES[post.category || ""]?.boardType !== 'pandora' && (
               <>
                 <span>동의 <span className="font-black text-slate-700">{formatKoreanNumber(uniqueAgreeCount)}</span></span>
-                <span>{CATEGORY_RULES[post.category || ""]?.boardType === 'pandora' ? '반박' : '비동의'} <span className="font-black text-slate-700">{formatKoreanNumber(uniqueDisagreeCount)}</span></span>
+                <span>비동의 <span className="font-black text-slate-700">{formatKoreanNumber(uniqueDisagreeCount)}</span></span>
               </>
             )}
           </div>

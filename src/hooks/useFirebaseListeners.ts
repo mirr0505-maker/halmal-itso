@@ -7,7 +7,6 @@ import type { Post, KanbuRoom } from '../types';
 
 export function useFirebaseListeners() {
   const [allRootPosts, setAllRootPosts] = useState<Post[]>([]);
-  const [allChildPosts, setAllChildPosts] = useState<Post[]>([]);
   const [userData, setUserData] = useState<any | null>(null);
   const [allUsers, setAllUsers] = useState<Record<string, any>>({});
   const [followerCounts, setFollowerCounts] = useState<Record<string, number>>({});
@@ -24,12 +23,11 @@ export function useFirebaseListeners() {
       setKanbuRooms(rooms);
     });
 
-    // 게시글 전체 실시간 구독
+    // 루트 게시글 실시간 구독 (comments 컬렉션 분리 후 posts는 루트 글만)
     const unsubPosts = onSnapshot(collection(db, "posts"), (snapshot) => {
       const posts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Post));
       posts.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
-      setAllRootPosts(posts.filter(p => !p.parentId || p.parentId === "" || p.id === "root_post_01"));
-      setAllChildPosts(posts.filter(p => p.parentId && p.parentId !== "" && p.id !== "root_post_01"));
+      setAllRootPosts(posts);
     });
 
     // 유저 전체 실시간 구독 (닉네임 역색인 포함)
@@ -95,7 +93,6 @@ export function useFirebaseListeners() {
 
   return {
     allRootPosts, setAllRootPosts,
-    allChildPosts,
     userData, setUserData,
     allUsers,
     followerCounts,

@@ -2,7 +2,7 @@
 
 이 문서는 **할말있소(HALMAL-ITSO)** 프로젝트의 설계 원칙, 현재 구현 상태, 그리고 AI 개발자의 **절대적 행동 지침**을 담은 단일 진실 소스(Single Source of Truth)입니다.
 
-> 최종 갱신: 2026-03-24 v12 (코드 실측 기준)  |  현재 브랜치: `main`
+> 최종 갱신: 2026-03-24 v13 (코드 실측 기준)  |  현재 브랜치: `main`
 
 ---
 
@@ -103,7 +103,7 @@
     ├── EditorToolbar.tsx    # TiptapEditor 툴바 버튼 UI
     ├── TiptapEditor.tsx     # 리치 에디터 (스티키 툴바)
     ├── CreateMyStory.tsx    # 너와 나의 이야기 작성 폼 (mood 선택)
-    ├── CreateNakedKing.tsx  # 판도라의 상자 작성 폼 (factChecked 토글)
+    ├── CreateNakedKing.tsx  # 판도라의 상자 작성 폼 (2단 구조: 검증 대상 + 팩트체크 결과, verdict 배지, claimSource/claimLinkUrl/factCheckSources[])
     ├── CreateDebate.tsx     # 솔로몬의 재판 작성 폼 (debatePosition 찬/반/중립)
     ├── CreateKnowledge.tsx  # 황금알을 낳는 거위 작성 폼 (infoPrice 입력)
     ├── CreateBoneHitting.tsx# 신포도와 여우 작성 폼 (bgColor 선택)
@@ -130,8 +130,24 @@
 
 ### 3.2 상태 관리 (`App.tsx`)
 
-- **실시간 구독**: `onSnapshot`을 통해 `posts`와 `users` 컬렉션을 실시간으로 감시.
+- **실시간 구독**: `onSnapshot`을 통해 `posts`, `comments`, `users` 컬렉션을 실시간으로 감시.
 - **Lazy Loading**: `Suspense`와 `lazy`를 사용하여 주요 뷰 컴포넌트를 분리, 초기 로딩 최적화.
+
+### 3.3 Firestore 컬렉션 구조 (C안 — 2026-03-24 마이그레이션 완료)
+
+| 컬렉션 | 용도 | ID 규칙 |
+|--------|------|---------|
+| `posts` | 루트 글 전용 (카테고리별 게시글) | `topic_timestamp_uid` |
+| `comments` | 댓글 전용 (모든 카테고리 통합) | `comment_timestamp_uid` |
+| `users` | 사용자 프로필, 레벨, 팔로우 등 | UID 키 + `nickname_닉네임` 키 이중 저장 |
+| `kanbu_rooms` | 깐부방 메타데이터 | 자동 ID |
+| `kanbu_rooms/{id}/chats` | 깐부방 실시간 채팅 | 자동 ID |
+| `notifications/{nick}/items` | 땡스볼·알림 수신 내역 | `addDoc` 자동 ID |
+| `sentBalls/{nick}/items` | 땡스볼 발신 내역 | `addDoc` 자동 ID |
+
+- **commentCount 비정규화**: 댓글 작성 시 `posts/{postId}` 문서에 `increment(1)` 누적 → 홈 피드 쿼리에서 Firestore 읽기 비용 절감.
+- **per-topic 구독**: `selectedTopic` 변경 시에만 `comments` where `rootId == selectedTopic.id` 구독 (전체 구독 비용 절감).
+- **MyPage 댓글 조회**: `comments` where `author_id == userData.uid` 별도 구독.
 
 ---
 
@@ -173,11 +189,19 @@ interface Post {
 
   // 카테고리별 확장 필드
   mood?: string;              // 너와 나의 이야기: 오늘의 기분
-  factChecked?: boolean;      // 벌거벗은 임금님: 사실 확인 여부
-  debatePosition?: 'pro' | 'con' | 'neutral'; // 임금님 귀는 당나귀 귀
-  location?: string;          // 현지 소식: 발생 지역
-  infoPrice?: number;         // 지식 소매상: 정보 가치(포인트)
-  bgColor?: string;           // 뼈때리는 글: 배경색
+  factChecked?: boolean;      // 판도라의 상자: 사실 확인 여부 (레거시)
+  debatePosition?: 'pro' | 'con' | 'neutral'; // 솔로몬의 재판: 초기 입장
+  location?: string;          // 마법 수정 구슬: 발생 지역
+  infoPrice?: number;         // 황금알을 낳는 거위: 정보 가치(포인트)
+  bgColor?: string;           // 신포도와 여우: 배경색
+
+  // 판도라의 상자 전용 필드 (2026-03-24 추가)
+  claimSource?: string;       // 주장 출처: 언론사/인물/단체명
+  claimLinkUrl?: string;      // 주장 출처 링크 URL
+  verdict?: 'fact' | 'false' | 'uncertain'; // 작성자 판정 (사실/허위/미정)
+  factCheckResult?: string;   // 팩트체크 결과 내용
+  factCheckSources?: string[]; // 팩트체크 출처 링크 목록 (복수)
+  commentsLocked?: boolean;   // 작성자가 댓글 기능 잠금
 
   // 한컷 관련 필드
   isOneCut?: boolean;         // 한컷 게시물 여부
@@ -399,6 +423,37 @@ interface KanbuChat {
   - **작성자 고정 댓글**: 글 작성자에게만 핀 버튼 노출. 고정 시 상단 정렬 + 앰버색 하이라이트 + "작성자가 고정한 댓글" 배지.
   - `App.tsx` `handleInlineReply`: `side?: 'left' | 'right'` 파라미터 추가 (기본값 'left').
   - `DebateBoard.tsx` Props `onInlineReply` 시그니처도 동일하게 업데이트.
+
+- [x] **판도라의 상자 댓글 카드 UX 고도화 (2026-03-24)**:
+  - **카드 헤더**: 아바타(w-7 h-7) + 작성자명 + 시간(작성자 옆) + Lv/평판/깐부 — PostCard 스타일로 통일.
+  - **이미지/링크 첨부**: 동의·반박 입력 폼에 📷(R2 이미지 업로드) + 🔗(링크 입력) 버튼 추가. 클립보드 이미지 붙여넣기(`onPaste`) 지원. 첨부 이미지 미리보기(52px 정사각형). 링크는 `normUrl()`으로 프로토콜 자동 추가(`https://`).
+  - **링크 클릭 이동**: 댓글 카드 내 링크에 `stopPropagation` 적용하여 카드 클릭 이벤트와 분리. `target="_blank" rel="noopener noreferrer"` 처리.
+  - **댓글 잠금**: 글 작성자에게 헤더 우측 잠금 버튼 노출. 잠금 시 동의/반박 입력 영역 대신 "작성자가 댓글 기능을 잠궜습니다" 표시. `Post.commentsLocked` Firestore 필드 활용. `handleToggleLock()` → `updateDoc` 토글.
+  - **통계 중복 제거**: `RootPostCard` 하단 통계 바에서 `boardType === 'pandora'`인 경우 동의/반박 수 숨김 (DebateBoard 헤더에서 이미 표시).
+  - **댓글 데이터 라우팅**: `handleLike`, `PostCard.handleDelete` — `rootId` 유무로 `comments` vs `posts` 컬렉션 자동 분기.
+
+- [x] **판도라의 상자 새글 폼 전면 개편 — CreateNakedKing.tsx (2026-03-24)**:
+  - **2단 구조**:
+    - 섹션 1 "검증 대상": TiptapEditor(리치 에디터) + 출처(claimSource) + 출처 링크(claimLinkUrl).
+    - 섹션 2 "팩트체크 결과" (선택 사항): 판정 배지(✅사실/❌허위/🔍미정) + 결과 textarea(rows=10) + 복수 출처 링크(factCheckSources[]).
+  - **판정 배지 토글**: 선택 시 색상 강조(emerald/rose/slate). 재클릭 시 해제.
+  - **복수 출처 링크**: `addFactCheckSource` / `removeFactCheckSource` / `updateFactCheckSource` 함수. "링크 추가" 버튼으로 항목 추가, × 버튼으로 개별 삭제(2개 이상일 때).
+  - **TiptapEditor `placeholder` prop**: 에디터 컴포넌트에 `placeholder?: string` prop 추가. 판도라 폼에서 "검증하고 싶은 대상 내용을 입력하세요" 전달. 미전달 시 기본 placeholder 유지.
+  - **가독성 개선**: 레이블·힌트·placeholder 색상 `slate-300→400`, `slate-200→300` 한 단계 진하게.
+  - **기존 데이터 정리**: `scripts/cleanup-pandora.mjs` 스크립트로 구 판도라/벌거벗은임금님 루트 글 및 posts 컬렉션 내 구 댓글 일괄 삭제(writeBatch 500건 chunk 분할).
+
+- [x] **판도라의 상자 목록 카드 verdict 배지 (2026-03-24)**:
+  - `AnyTalkList.tsx` 카드 하단 카테고리 배지 옆에 판정 배지 추가.
+  - `verdict === 'fact'` → `✅ 사실` (emerald), `'false'` → `❌ 허위` (rose), `'uncertain'` → `🔍 미정` (slate).
+  - verdict 없는 글(다른 카테고리 포함)에는 표시 안 함.
+
+- [x] **C안 아키텍처 — posts + comments 컬렉션 분리 (2026-03-24)**:
+  - **Before**: 단일 `posts` 컬렉션 (루트 글 + 댓글 혼재, `rootId` 유무로 구분).
+  - **After**: `posts`(루트 글 전용) + `comments`(댓글 전용) 컬렉션 분리.
+  - `commentCount` 비정규화: 댓글 작성/삭제 시 `posts/{id}.commentCount` `increment(±1)`.
+  - App.tsx: per-topic useEffect — `selectedTopic` 변경 시에만 comments 구독. MyPage용 별도 comments useEffect (`author_id` 기준).
+  - `useFirebaseListeners.ts`: posts 리스너만 유지 (allRootPosts). allChildPosts 전역 리스너 제거.
+  - `handleLike`, `PostCard.handleDelete`: `rootId` 유무로 컬렉션 자동 분기.
 
 ### 🛠️ 진행 중 / 개선 필요 사항
 - [ ] **에디터 보완**: `bubble-menu` 활성화 (텍스트 선택 시 서식 도구 노출).

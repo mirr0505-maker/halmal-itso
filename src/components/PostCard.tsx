@@ -36,7 +36,8 @@ const PostCard = ({
     e.stopPropagation();
     if (window.confirm("정말 삭제하시겠소?")) {
       try {
-        await deleteDoc(doc(db, "posts", post.id));
+        const col = post.rootId ? 'comments' : 'posts';
+        await deleteDoc(doc(db, col, post.id));
       } catch (e) { console.error(e); }
     }
   };

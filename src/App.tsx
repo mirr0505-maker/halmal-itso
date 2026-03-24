@@ -2,7 +2,7 @@
 import { useState, useEffect, lazy, Suspense } from 'react';
 import { db, auth, googleProvider } from './firebase';
 import { signInWithPopup, signOut, setPersistence, browserLocalPersistence, signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
-import { serverTimestamp, doc, setDoc, updateDoc, increment, arrayUnion, arrayRemove } from 'firebase/firestore';
+import { serverTimestamp, doc, setDoc, updateDoc, increment, arrayUnion, arrayRemove, collection, onSnapshot, query, where } from 'firebase/firestore';
 import type { Post, KanbuRoom } from './types';
 import { useFirebaseListeners } from './hooks/useFirebaseListeners';
 // 항상 초기 화면에 필요한 컴포넌트 — 정적 import 유지
@@ -40,7 +40,6 @@ function App() {
   // Firebase 실시간 데이터 — useFirebaseListeners 훅에서 관리
   const {
     allRootPosts, setAllRootPosts,
-    allChildPosts,
     userData, setUserData,
     allUsers,
     followerCounts,
@@ -49,6 +48,10 @@ function App() {
     isLoading,
     kanbuRooms,
   } = useFirebaseListeners();
+
+  // 댓글 컬렉션 분리 — 상태
+  const [allChildPosts, setAllChildPosts] = useState<Post[]>([]);
+  const [myComments, setMyComments] = useState<Post[]>([]);
 
   // UI 전용 상태
   const [selectedTopic, setSelectedTopic] = useState<Post | null>(null);
@@ -76,6 +79,30 @@ function App() {
 
   useEffect(() => { if (replyTarget) { setSelectedType('comment'); setNewTitle(""); } }, [replyTarget]);
   useEffect(() => { setSelectedFriend(null); setViewingAuthor(null); }, [activeMenu, activeTab]);
+
+  // 댓글 컬렉션 분리 — per-topic 실시간 구독
+  useEffect(() => {
+    if (!selectedTopic) { setAllChildPosts([]); return; }
+    const unsub = onSnapshot(
+      query(collection(db, 'comments'), where('rootId', '==', selectedTopic.id)),
+      (snap) => {
+        const comments = snap.docs.map(d => ({ id: d.id, ...d.data() } as Post));
+        comments.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+        setAllChildPosts(comments);
+      }
+    );
+    return unsub;
+  }, [selectedTopic?.id]);
+
+  // 내 댓글 구독 (MyPage 용)
+  useEffect(() => {
+    if (!userData?.uid) { setMyComments([]); return; }
+    const unsub = onSnapshot(
+      query(collection(db, 'comments'), where('author_id', '==', userData.uid)),
+      (snap) => setMyComments(snap.docs.map(d => ({ id: d.id, ...d.data() } as Post)))
+    );
+    return unsub;
+  }, [userData?.uid]);
 
   const goHome = () => {
     setActiveMenu('home'); setSelectedTopic(null); setIsCreateOpen(false); setReplyTarget(null); setEditingPost(null);
@@ -156,7 +183,7 @@ function App() {
   };
 
   const commentCounts = allRootPosts.reduce((acc, post) => {
-    acc[post.id] = allChildPosts.filter(child => child.rootId === post.id).length;
+    acc[post.id] = post.commentCount || 0;
     return acc;
   }, {} as Record<string, number>);
 
@@ -182,7 +209,8 @@ function App() {
       if (!targetPost) return;
       const isLiked = targetPost.likedBy?.includes(userData.nickname);
       const diff = isLiked ? -1 : 1;
-      await updateDoc(doc(db, "posts", postId), { likes: Math.max(0, (targetPost.likes || 0) + diff), likedBy: isLiked ? arrayRemove(userData.nickname) : arrayUnion(userData.nickname) });
+      const col = targetPost.rootId ? 'comments' : 'posts';
+      await updateDoc(doc(db, col, postId), { likes: Math.max(0, (targetPost.likes || 0) + diff), likedBy: isLiked ? arrayRemove(userData.nickname) : arrayUnion(userData.nickname) });
       if (targetPost.author_id) await updateDoc(doc(db, "users", targetPost.author_id), { likes: increment(diff * 3) });
     } catch (e) { console.error(e); }
   };
@@ -221,7 +249,7 @@ function App() {
     if (activeMenu === 'mypage') {
       if (userData) {
         const userPosts = allRootPosts.filter(p => p.author_id === userData.uid || p.author === userData.nickname);
-        const userComments = allChildPosts.filter(p => p.author_id === userData.uid || p.author === userData.nickname);
+        const userComments = myComments;
         return <MyPage userData={userData} allUserRootPosts={userPosts} allUserChildPosts={userComments} friends={friends} friendCount={followerCounts[userData.nickname] || 0} onPostClick={handleViewPost} onEditPost={(post) => { setEditingPost(post); setIsCreateOpen(true); }} onToggleFriend={toggleFriend} allUsers={allUsers} followerCounts={followerCounts} toggleBlock={toggleBlock} blocks={blocks} />;
       }
       return <div className="w-full py-40 text-center"><button onClick={handleLogin} className="bg-slate-900 text-white px-8 py-3 rounded-xl font-black shadow-lg">로그인하기</button></div>;
@@ -402,10 +430,11 @@ function App() {
     setIsCreateOpen(false); setEditingPost(null);
   };
 
-  const handleInlineReply = async (content: string, parentPost: Post | null, side?: 'left' | 'right') => {
+  const handleInlineReply = async (content: string, parentPost: Post | null, side?: 'left' | 'right', imageUrl?: string, linkUrl?: string) => {
     if (!userData || !content.trim() || !selectedTopic) return;
     const customId = `comment_${Date.now()}_${userData.uid}`;
-    await setDoc(doc(db, "posts", customId), { author: userData.nickname, author_id: userData.uid, title: null, content, parentId: parentPost ? parentPost.id : selectedTopic.id, rootId: selectedTopic.id, side: side || 'left', type: 'comment', authorInfo: { level: userData.level, friendCount: friends.length, totalLikes: userData.likes }, createdAt: serverTimestamp(), likes: 0, dislikes: 0 });
+    await setDoc(doc(db, "comments", customId), { author: userData.nickname, author_id: userData.uid, title: null, content, parentId: parentPost ? parentPost.id : selectedTopic.id, rootId: selectedTopic.id, side: side || 'left', type: 'comment', authorInfo: { level: userData.level, friendCount: friends.length, totalLikes: userData.likes }, createdAt: serverTimestamp(), likes: 0, dislikes: 0, ...(imageUrl ? { imageUrl } : {}), ...(linkUrl ? { linkUrl } : {}) });
+    await updateDoc(doc(db, "posts", selectedTopic.id), { commentCount: increment(1) });
     await updateDoc(doc(db, "users", userData.uid), { likes: increment(1) });
   };
 
@@ -413,7 +442,8 @@ function App() {
     e.preventDefault(); if (!userData || !newContent.trim() || !selectedTopic) return;
     setIsSubmitting(true);
     const customId = `comment_${Date.now()}_${userData.uid}`;
-    await setDoc(doc(db, "posts", customId), { author: userData.nickname, author_id: userData.uid, title: selectedType === 'formal' ? newTitle : null, content: newContent, parentId: replyTarget ? replyTarget.id : selectedTopic.id, rootId: selectedTopic.id, side: selectedSide, type: selectedType, authorInfo: { level: userData.level, friendCount: friends.length, totalLikes: userData.likes }, createdAt: serverTimestamp(), likes: 0, dislikes: 0 });
+    await setDoc(doc(db, "comments", customId), { author: userData.nickname, author_id: userData.uid, title: selectedType === 'formal' ? newTitle : null, content: newContent, parentId: replyTarget ? replyTarget.id : selectedTopic.id, rootId: selectedTopic.id, side: selectedSide, type: selectedType, authorInfo: { level: userData.level, friendCount: friends.length, totalLikes: userData.likes }, createdAt: serverTimestamp(), likes: 0, dislikes: 0 });
+    await updateDoc(doc(db, "posts", selectedTopic.id), { commentCount: increment(1) });
     await updateDoc(doc(db, "users", userData.uid), { likes: increment(selectedType === 'formal' ? 2 : 1) });
     setNewTitle(""); setNewContent(""); setReplyTarget(null); setIsSubmitting(false);
   };

@@ -22,9 +22,10 @@ interface Props {
   content: string;
   onChange: (html: string) => void;
   onImageUpload: (file: File) => Promise<string | null>;
+  placeholder?: string;
 }
 
-const TiptapEditor = ({ content, onChange, onImageUpload }: Props) => {
+const TiptapEditor = ({ content, onChange, onImageUpload, placeholder }: Props) => {
   const [preview, setPreview] = useState<OgData | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
 
@@ -60,7 +61,7 @@ const TiptapEditor = ({ content, onChange, onImageUpload }: Props) => {
         HTMLAttributes: { class: 'text-blue-600 underline cursor-pointer' },
       }),
       Placeholder.configure({
-        placeholder: '나누고 싶은 글을 자유롭게 작성하세요. 이미지를 붙여넣거나 드래그할 수 있어요.',
+        placeholder: placeholder ?? '나누고 싶은 글을 자유롭게 작성하세요. 이미지를 붙여넣거나 드래그할 수 있어요.',
       }),
     ],
     content,
