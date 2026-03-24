@@ -41,6 +41,9 @@ const PandoraDetail = ({ post }: Props) => {
         </div>
       )}
 
+      {/* 구분선 */}
+      {hasFactCheck && <hr className="border-slate-200" />}
+
       {/* 팩트체크 결과 */}
       {hasFactCheck && (
         <div className="flex flex-col gap-3 px-4 py-4 rounded-xl border border-amber-100 bg-amber-50/40">
