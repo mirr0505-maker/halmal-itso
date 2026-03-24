@@ -15,7 +15,7 @@ interface Props {
   onLikeClick?: (e: any, id: string) => void;
   currentNickname?: string;
   category: string;
-  onInlineReply?: (content: string, parentPost: Post | null) => Promise<void>;
+  onInlineReply?: (content: string, parentPost: Post | null, side?: 'left' | 'right') => Promise<void>;
   rootPost?: Post;
 }
 
@@ -109,6 +109,155 @@ const DebateBoard = ({
       </div>
     );
   };
+
+  // 🚀 판도라의 상자 전용 레이아웃 — 지그재그 + 인라인 입력 + 핀 고정
+  if (rule.boardType === 'pandora') {
+    const topLevel = allChildPosts.filter(p => p.parentId === p.rootId);
+    const zigzag = [...topLevel].sort((a, b) => {
+      if (a.id === pinnedCommentId) return -1;
+      if (b.id === pinnedCommentId) return 1;
+      return (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0);
+    });
+
+    const pandoraSubmit = async (side: 'left' | 'right') => {
+      if (!inlineContent.trim() || isInlineSubmitting) return;
+      setIsInlineSubmitting(true);
+      await onInlineReply?.(inlineContent, null, side);
+      setInlineContent(''); setActiveId(null); setIsInlineSubmitting(false);
+    };
+
+    const formatTime = (ts: any) => {
+      if (!ts) return '';
+      const d = new Date(ts.seconds * 1000);
+      const diff = Math.floor((Date.now() - d.getTime()) / 60000);
+      if (diff < 1) return '방금';
+      if (diff < 60) return `${diff}분 전`;
+      if (diff < 1440) return `${Math.floor(diff / 60)}시간 전`;
+      return d.toLocaleDateString('ko-KR', { month: '2-digit', day: '2-digit' });
+    };
+
+    return (
+      <div className="flex flex-col bg-white min-h-[200px] mt-0">
+        {/* 헤더 */}
+        <div className="py-3 md:px-8 border-b border-slate-100 flex items-center justify-between sticky top-0 z-10 bg-white">
+          <h4 className="text-[14px] font-[1000] text-slate-700 tracking-tight flex items-center gap-3">
+            <span className="flex items-center gap-1.5">
+              <span className="w-2 h-2 bg-blue-400 rounded-full" />
+              <span className="text-blue-600">동의 {leftPosts.length}</span>
+            </span>
+            <span className="text-slate-200">·</span>
+            <span className="flex items-center gap-1.5">
+              <span className="w-2 h-2 bg-rose-400 rounded-full" />
+              <span className="text-rose-500">반박 {rightPosts.length}</span>
+            </span>
+          </h4>
+          <span className="text-[11px] font-bold text-slate-300">전체 {topLevel.length}</span>
+        </div>
+
+        {/* 지그재그 댓글 목록 */}
+        <div className="flex flex-col gap-2.5 px-4 py-4">
+          {zigzag.length === 0 && (
+            <div className="py-16 text-center text-slate-300 font-bold text-xs">첫 번째 의견을 남겨보세요.</div>
+          )}
+          {zigzag.map(post => {
+            const isLeft = post.side === 'left';
+            const isPinned = post.id === pinnedCommentId;
+            const isLiked = currentNickname && (post.likedBy || []).includes(currentNickname);
+            return (
+              <div key={post.id} className={`flex ${isLeft ? 'justify-start' : 'justify-end'}`}>
+                <div className={`w-[84%] rounded-xl border px-4 py-3 transition-all ${
+                  isPinned
+                    ? 'bg-amber-50 border-amber-200 ring-1 ring-amber-300'
+                    : isLeft
+                      ? 'bg-blue-50 border-blue-100'
+                      : 'bg-rose-50 border-rose-100'
+                }`}>
+                  {isPinned && (
+                    <div className="text-[10px] font-black text-amber-600 mb-1.5 flex items-center gap-1">
+                      <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>
+                      작성자가 고정한 댓글
+                    </div>
+                  )}
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className={`text-[10px] font-[1000] px-2 py-0.5 rounded-full ${isLeft ? 'bg-blue-100 text-blue-600' : 'bg-rose-100 text-rose-600'}`}>
+                      {isLeft ? '동의' : '반박'}
+                    </span>
+                    <div className="flex items-center gap-2">
+                      {isRootAuthor && (
+                        <button
+                          onClick={() => handlePin(post.id)}
+                          title={isPinned ? '고정 해제' : '댓글 고정'}
+                          className={`text-[10px] transition-colors ${isPinned ? 'text-amber-500' : 'text-slate-300 hover:text-amber-400'}`}
+                        >
+                          <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>
+                        </button>
+                      )}
+                      <button
+                        onClick={(e) => { e.stopPropagation(); onLikeClick?.(e, post.id); }}
+                        className={`flex items-center gap-1 text-[11px] font-bold transition-colors ${isLiked ? 'text-rose-500' : 'text-slate-300 hover:text-rose-400'}`}
+                      >
+                        <svg className={`w-3 h-3 ${isLiked ? 'fill-current' : 'fill-none'}`} stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+                        {post.likes || 0}
+                      </button>
+                    </div>
+                  </div>
+                  <p className={`text-[13px] font-medium leading-relaxed whitespace-pre-line ${isLeft ? 'text-blue-900' : 'text-rose-900'}`}>
+                    {post.content}
+                  </p>
+                  <div className="flex items-center justify-between mt-2">
+                    <span className={`text-[11px] font-[1000] ${isLeft ? 'text-blue-400' : 'text-rose-400'}`}>{post.author}</span>
+                    <span className="text-[10px] text-slate-300 font-bold">{formatTime(post.createdAt)}</span>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* 하단 인라인 입력 */}
+        <div className="border-t border-slate-100">
+          {!currentNickname ? (
+            <div className="flex items-center gap-2 px-6 py-4 text-[13px] font-bold text-slate-400">
+              <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+              댓글을 작성하려면 로그인이 필요합니다.
+            </div>
+          ) : activeId === 'agree' || activeId === 'refute' ? (
+            <div className={`flex items-center gap-2 px-4 py-2.5 border-t ${activeId === 'agree' ? 'bg-blue-50 border-blue-100' : 'bg-rose-50 border-rose-100'}`}>
+              <span className={`text-[10px] font-[1000] px-2 py-0.5 rounded-full shrink-0 ${activeId === 'agree' ? 'bg-blue-100 text-blue-600' : 'bg-rose-100 text-rose-600'}`}>
+                {activeId === 'agree' ? '동의' : '반박'}
+              </span>
+              <input
+                autoFocus
+                type="text"
+                value={inlineContent}
+                onChange={e => setInlineContent(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) pandoraSubmit(activeId === 'agree' ? 'left' : 'right'); }}
+                placeholder={activeId === 'agree' ? '동의하는 이유를 작성하세요...' : '반박하는 이유를 작성하세요...'}
+                className={`flex-1 bg-white border rounded-lg px-3 py-2 text-[13px] font-bold text-slate-700 outline-none transition-all ${activeId === 'agree' ? 'border-blue-200 focus:border-blue-400' : 'border-rose-200 focus:border-rose-400'}`}
+              />
+              <button onClick={() => { setActiveId(null); setInlineContent(''); }} className="px-3 py-1.5 text-[11px] font-bold text-slate-400 hover:text-slate-600 rounded-md transition-colors shrink-0">취소</button>
+              <button
+                onClick={() => pandoraSubmit(activeId === 'agree' ? 'left' : 'right')}
+                disabled={isInlineSubmitting || !inlineContent.trim()}
+                className={`px-3 py-1.5 text-[11px] font-bold text-white rounded-md disabled:opacity-50 transition-colors shrink-0 ${activeId === 'agree' ? 'bg-blue-500 hover:bg-blue-600' : 'bg-rose-500 hover:bg-rose-600'}`}
+              >댓글 달기</button>
+            </div>
+          ) : (
+            <div className="flex gap-2 px-4 py-3">
+              <button
+                onClick={() => openInline('agree')}
+                className="flex-1 py-2.5 rounded-xl text-[12px] font-[1000] bg-blue-50 text-blue-500 hover:bg-blue-100 border border-blue-100 transition-all"
+              >동의 의견 달기...</button>
+              <button
+                onClick={() => openInline('refute')}
+                className="flex-1 py-2.5 rounded-xl text-[12px] font-[1000] bg-rose-50 text-rose-500 hover:bg-rose-100 border border-rose-100 transition-all"
+              >반박 의견 달기...</button>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   // 🚀 단일 리스트형 레이아웃 (나의 이야기, 뼈때리는 글, 지식 소매상 등)
   if (rule.boardType === 'single' || rule.boardType === 'qa' || rule.boardType === 'onecut') {

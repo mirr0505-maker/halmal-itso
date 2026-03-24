@@ -402,10 +402,10 @@ function App() {
     setIsCreateOpen(false); setEditingPost(null);
   };
 
-  const handleInlineReply = async (content: string, parentPost: Post | null) => {
+  const handleInlineReply = async (content: string, parentPost: Post | null, side?: 'left' | 'right') => {
     if (!userData || !content.trim() || !selectedTopic) return;
     const customId = `comment_${Date.now()}_${userData.uid}`;
-    await setDoc(doc(db, "posts", customId), { author: userData.nickname, author_id: userData.uid, title: null, content, parentId: parentPost ? parentPost.id : selectedTopic.id, rootId: selectedTopic.id, side: 'left', type: 'comment', authorInfo: { level: userData.level, friendCount: friends.length, totalLikes: userData.likes }, createdAt: serverTimestamp(), likes: 0, dislikes: 0 });
+    await setDoc(doc(db, "posts", customId), { author: userData.nickname, author_id: userData.uid, title: null, content, parentId: parentPost ? parentPost.id : selectedTopic.id, rootId: selectedTopic.id, side: side || 'left', type: 'comment', authorInfo: { level: userData.level, friendCount: friends.length, totalLikes: userData.likes }, createdAt: serverTimestamp(), likes: 0, dislikes: 0 });
     await updateDoc(doc(db, "users", userData.uid), { likes: increment(1) });
   };
 
