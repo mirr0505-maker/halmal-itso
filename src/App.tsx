@@ -12,7 +12,7 @@ import Sidebar from './components/Sidebar';
 import type { MenuId } from './components/Sidebar';
 import SubNavbar from './components/SubNavbar';
 import CategoryHeader from './components/CategoryHeader';
-import { TEST_ACCOUNTS, MENU_MESSAGES } from './constants';
+import { TEST_ACCOUNTS, MENU_MESSAGES, POST_FILTER, FRIENDS_MENU_ALLOWED_NICKNAMES, EXTERNAL_URLS } from './constants';
 // 조건부 렌더링 컴포넌트 — lazy load (청크 분리)
 const MyPage = lazy(() => import('./components/MyPage'));
 const PostDetailModal = lazy(() => import('./components/PostDetailModal'));
@@ -258,14 +258,14 @@ function App() {
     }
 
     if (activeMenu === 'friends') {
-      const allowedNicknames = ["깐부1호", "깐부2호", "깐부3호", "깐부4호", "흑무영"];
-      const others = Object.values(allUsers).filter(u => u.nickname && u.nickname !== userData?.nickname && !u.uid.startsWith('nickname_') && allowedNicknames.includes(u.nickname));
+      // 개발 단계: FRIENDS_MENU_ALLOWED_NICKNAMES에 등록된 닉네임만 표시 (실 서비스 시 전체 유저로 변경)
+      const others = Object.values(allUsers).filter(u => u.nickname && u.nickname !== userData?.nickname && !u.uid.startsWith('nickname_') && FRIENDS_MENU_ALLOWED_NICKNAMES.includes(u.nickname));
       return (
         <div className="w-full max-w-4xl mx-auto py-10 px-4 animate-in fade-in">
           <div className="text-center mb-12"><h2 className="text-3xl font-[1000] text-slate-900 mb-2">🤝 깐부 맺기 홍보</h2><p className="text-slate-500 font-bold">새로운 인연을 맺고 깊은 토론을 나눠보세요.</p></div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">{others.map(u => (
             <div key={u.uid} className="bg-white border border-slate-100 p-6 rounded-2xl flex items-center justify-between shadow-sm">
-              <div className="flex items-center gap-4"><div className="w-14 h-14 rounded-full overflow-hidden bg-slate-50 shrink-0"><img src={u.avatarUrl || `https://api.dicebear.com/7.x/adventurer/svg?seed=${u.nickname}`} alt="" className="w-full h-full object-cover" /></div><div><h3 className="font-[1000] text-slate-900">{u.nickname}</h3><p className="text-xs text-slate-400 font-bold">깐부 {followerCounts[u.nickname] || 0} · 좋아요 {u.likes?.toLocaleString() || 0}</p></div></div>
+              <div className="flex items-center gap-4"><div className="w-14 h-14 rounded-full overflow-hidden bg-slate-50 shrink-0"><img src={u.avatarUrl || `${EXTERNAL_URLS.AVATAR_BASE}${u.nickname}`} alt="" className="w-full h-full object-cover" /></div><div><h3 className="font-[1000] text-slate-900">{u.nickname}</h3><p className="text-xs text-slate-400 font-bold">깐부 {followerCounts[u.nickname] || 0} · 좋아요 {u.likes?.toLocaleString() || 0}</p></div></div>
               <button onClick={() => toggleFriend(u.nickname)} className={`px-5 py-2 rounded-xl text-xs font-black transition-all ${friends.includes(u.nickname) ? 'bg-slate-100 text-slate-400' : 'bg-blue-600 text-white hover:bg-blue-700 shadow-md'}`}>{friends.includes(u.nickname) ? '깐부해제' : '+ 깐부맺기'}</button>
             </div>
           ))}</div>
@@ -339,28 +339,29 @@ function App() {
     }
 
     const now = new Date();
-    const twoHoursAgo = new Date(now.getTime() - 2 * 60 * 60 * 1000);
+    const newPostCutoff = new Date(now.getTime() - POST_FILTER.NEW_POST_WINDOW_MS); // 새글/등록글 경계 시각
 
     let filteredPosts = basePosts;
     if (activeTab === 'any') {
+      // 새글: 게시 후 NEW_POST_WINDOW_MS(2시간) 이내
       filteredPosts = basePosts.filter(p => {
         const createdAt = p.createdAt?.toDate ? p.createdAt.toDate() : (p.createdAt?.seconds ? new Date(p.createdAt.seconds * 1000) : null);
-        return createdAt && createdAt > twoHoursAgo;
+        return createdAt && createdAt > newPostCutoff;
       });
     } else if (activeTab === 'recent') {
-      // 등록글: 새글(2시간) 심사를 통과한 글 — 2시간 경과 + 좋아요 3개 이상
+      // 등록글: 새글 심사 통과 — 2시간 경과 + 좋아요 REGISTERED_MIN_LIKES(3개) 이상
       filteredPosts = basePosts.filter(p => {
         const createdAt = p.createdAt?.toDate ? p.createdAt.toDate() : (p.createdAt?.seconds ? new Date(p.createdAt.seconds * 1000) : null);
-        return (p.likes || 0) >= 3 && (!createdAt || createdAt <= twoHoursAgo);
+        return (p.likes || 0) >= POST_FILTER.REGISTERED_MIN_LIKES && (!createdAt || createdAt <= newPostCutoff);
       });
     } else if (activeTab === 'best') {
-      filteredPosts = basePosts.filter(p => (p.likes || 0) >= 10);
+      filteredPosts = basePosts.filter(p => (p.likes || 0) >= POST_FILTER.BEST_MIN_LIKES);
     } else if (activeTab === 'rank') {
-      filteredPosts = basePosts.filter(p => (p.likes || 0) >= 30);
+      filteredPosts = basePosts.filter(p => (p.likes || 0) >= POST_FILTER.RANK_MIN_LIKES);
     } else if (activeTab === 'friend') {
-      // 깐부글: 좋아요 3개 이상 + 팔로우 유저 (시간 제한 없음 — 친구들의 좋은 글 모아보기)
+      // 깐부글: 좋아요 REGISTERED_MIN_LIKES(3개) 이상 + 팔로우 유저 (시간 제한 없음)
       filteredPosts = basePosts.filter(p =>
-        friends.includes(p.author) && (p.likes || 0) >= 3
+        friends.includes(p.author) && (p.likes || 0) >= POST_FILTER.REGISTERED_MIN_LIKES
       );
       // 특정 깐부 선택 시 추가 필터
       if (selectedFriend) filteredPosts = filteredPosts.filter(p => p.author === selectedFriend);
@@ -369,7 +370,7 @@ function App() {
     // 특정 작가 피드 보기 (A 탭 칩 또는 글카드 작가 클릭)
     if (viewingAuthor) {
       const authorPosts = filterBySearch(basePosts.filter(p => p.author === viewingAuthor));
-      const avatarSrc = `https://api.dicebear.com/7.x/adventurer/svg?seed=${viewingAuthor}`;
+      const avatarSrc = `${EXTERNAL_URLS.AVATAR_BASE}${viewingAuthor}`;
       return (
         <div className="w-full animate-in fade-in">
           <div className="flex items-center gap-2 px-1 py-2 mb-1">
@@ -402,7 +403,7 @@ function App() {
                 onClick={() => setSelectedFriend(selectedFriend === nick ? null : nick)}
                 className={`flex items-center gap-1.5 pl-1.5 pr-3 py-1 rounded-full text-[11px] font-[1000] transition-all shrink-0 ${selectedFriend === nick ? 'bg-blue-600 text-white shadow-sm' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}
               >
-                <img src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${nick}`} className="w-5 h-5 rounded-full bg-white" alt="" />
+                <img src={`${EXTERNAL_URLS.AVATAR_BASE}${nick}`} className="w-5 h-5 rounded-full bg-white" alt="" />
                 {nick}
               </button>
             ))}

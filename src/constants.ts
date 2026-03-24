@@ -1,4 +1,29 @@
-// src/constants.ts — 앱 전역 설정값 (메뉴 구성, 테스트 계정)
+// src/constants.ts — 앱 전역 설정값 (메뉴 구성, 테스트 계정, 필터 기준)
+
+// 🚀 홈 피드 필터링 기준값 — blueprint.md "필터링 로직 (절대 불변)" 과 반드시 동기화
+export const POST_FILTER = {
+  NEW_POST_WINDOW_MS: 2 * 60 * 60 * 1000, // 새글 노출 시간: 2시간(ms)
+  REGISTERED_MIN_LIKES: 3,                 // 등록글 진입 최소 좋아요 수
+  BEST_MIN_LIKES: 10,                      // 인기글 최소 좋아요 수
+  RANK_MIN_LIKES: 30,                      // 최고글 최소 좋아요 수
+  CATEGORY_MIN_LIKES: 3,                   // 카테고리 뷰 최소 좋아요 수
+  GOLD_STAR_MIN_LEVEL: 5,                  // 골드스타 부여 최소 레벨
+} as const;
+
+// 🚀 땡스볼 관련 제한값
+export const THANKSBALL = {
+  MESSAGE_MAX_LENGTH: 50, // 응원 메시지 최대 글자 수
+} as const;
+
+// 🚀 외부 서비스 URL — URL 변경 시 이곳만 수정
+export const EXTERNAL_URLS = {
+  AVATAR_BASE: 'https://api.dicebear.com/7.x/adventurer/svg?seed=', // 아바타 이미지 서비스
+  LINK_PREVIEW_WORKER: 'https://halmal-link-preview.mirr0505.workers.dev', // OG 링크 미리보기 Worker
+} as const;
+
+// 🚀 깐부맺기 메뉴 — 현재 테스트/개발 단계라 허용 닉네임만 표시
+// TODO: 실 서비스 전환 시 이 배열 제거 후 전체 유저 표시로 변경
+export const FRIENDS_MENU_ALLOWED_NICKNAMES = ["깐부1호", "깐부2호", "깐부3호", "깐부4호", "흑무영"];
 
 export const TEST_ACCOUNTS = [
   { nickname: "깐부1호", email: "test1@halmal.com", bio: "1번 테스트 계정이오.", level: 1 },

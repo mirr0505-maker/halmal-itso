@@ -13,8 +13,7 @@ import { useEffect, useState } from 'react';
 import EditorToolbar from './EditorToolbar';
 import LinkPreviewCard from './LinkPreviewCard';
 import type { OgData } from './LinkPreviewCard';
-
-const LINK_PREVIEW_WORKER = 'https://halmal-link-preview.mirr0505.workers.dev';
+import { EXTERNAL_URLS } from '../constants';
 
 const URL_PATTERN = /^https?:\/\/[^\s]{4,}$/;
 
@@ -33,7 +32,7 @@ const TiptapEditor = ({ content, onChange, onImageUpload, placeholder }: Props) 
     setPreviewLoading(true);
     setPreview(null);
     try {
-      const res = await fetch(`${LINK_PREVIEW_WORKER}?url=${encodeURIComponent(url)}`);
+      const res = await fetch(`${EXTERNAL_URLS.LINK_PREVIEW_WORKER}?url=${encodeURIComponent(url)}`);
       const data = await res.json() as OgData & { error?: string };
       if (!data.error) setPreview(data);
     } catch {

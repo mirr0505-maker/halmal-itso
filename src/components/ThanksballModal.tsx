@@ -1,5 +1,6 @@
 // src/components/ThanksballModal.tsx
 import { useState } from 'react';
+import { THANKSBALL } from '../constants';
 import { db, auth } from '../firebase';
 import { collection, addDoc, doc, runTransaction, updateDoc, increment, serverTimestamp } from 'firebase/firestore';
 
@@ -190,7 +191,7 @@ const ThanksballModal = ({ postId, postAuthor, postTitle, currentNickname, allUs
             {/* 응원 메시지 */}
             <textarea
               value={message}
-              onChange={e => setMessage(e.target.value.slice(0, 50))}
+              onChange={e => setMessage(e.target.value.slice(0, THANKSBALL.MESSAGE_MAX_LENGTH))}
               placeholder="응원 메시지 남기기 (선택, 50자)"
               className="w-full border border-slate-200 rounded-xl px-3 py-2 text-[13px] font-medium resize-none h-[60px] outline-none focus:border-blue-400 transition-colors mb-1"
             />

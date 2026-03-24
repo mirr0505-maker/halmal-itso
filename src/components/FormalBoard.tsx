@@ -22,7 +22,8 @@ const FormalBoard = ({ agreePosts, disagreePosts, onPostClick, currentUserData, 
   const [editTitle, setEditTitle] = useState("");
   const [editContent, setEditContent] = useState("");
 
-  const isMyPost = (author: string) => currentNickname ? author === currentNickname : author === "흑무영";
+  // 로그인 상태에서만 내 글 여부 판별 — 비로그인 시 항상 false (수정/삭제 버튼 미노출)
+  const isMyPost = (author: string) => !!currentNickname && author === currentNickname;
 
   const renderAuthorInfo = (post: Post) => {
     const isMe = isMyPost(post.author);
