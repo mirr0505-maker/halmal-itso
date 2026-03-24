@@ -22,6 +22,7 @@ const CATEGORY_COMMENT_MAP: Record<string, React.FC<any>> = {
   '지식 소매상':         CommentKnowledge, // backward compat
   '신포도와 여우':       CommentBoneHitting,
   '뼈때리는 글':         CommentBoneHitting, // backward compat
+  '양치기 소년의 외침':  CommentBoneHitting,
   '마법 수정 구슬':      CommentLocalNews,
   '현지 소식':           CommentLocalNews, // backward compat
   '유배·귀양지':         CommentExile,
@@ -84,6 +85,7 @@ export const CATEGORY_RULES: Record<string, {
   "지식 소매상":          { allowDisagree: false, allowFormal: false, boardType: 'qa',       placeholder: "궁금한 점을 묻거나 지식을 나눠주세요...", tab1: "💬 질문/답변", tab2: "👍 유용해요" }, // backward compat
   "마법 수정 구슬":       { allowDisagree: true,  allowFormal: false, boardType: 'info',     placeholder: "현지의 생생한 정보를 공유해 주세요...", tab1: "👍 유용해요", tab2: "👎 별로예요" },
   "현지 소식":            { allowDisagree: true,  allowFormal: false, boardType: 'info',     placeholder: "현지의 생생한 정보를 공유해 주세요...", tab1: "👍 유용해요", tab2: "👎 별로예요" },    // backward compat
+  "양치기 소년의 외침":   { allowDisagree: false, allowFormal: false, boardType: 'single',   placeholder: "긴급 소식에 대한 한마디를 남겨보세요...", tab1: "💬 댓글 전용", tab2: "👍 공감" },
   "한컷":                 { allowDisagree: true,  allowFormal: false, boardType: 'onecut',   placeholder: "한컷에 대한 생각을 남겨보세요...", tab1: "👍 동의", tab2: "👎 반대" }
 };
 

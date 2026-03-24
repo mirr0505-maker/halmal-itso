@@ -405,6 +405,8 @@ const DebateBoard = ({
       label = "격리 구역 기록"; colorClass = "text-slate-500"; pointColor = "bg-slate-400";
     } else if (category === '신포도와 여우' || category === '뼈때리는 글') {
       label = "뼈때리는 글"; colorClass = "text-purple-600"; pointColor = "bg-purple-500";
+    } else if (category === '양치기 소년의 외침') {
+      label = "긴급 댓글"; colorClass = "text-red-600"; pointColor = "bg-red-500";
     } else if (rule.boardType === 'onecut') {
       label = "한컷 반응"; colorClass = "text-rose-600"; pointColor = "bg-rose-500";
     } else {

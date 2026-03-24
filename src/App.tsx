@@ -32,6 +32,7 @@ const CREATE_MENU_COMPONENTS: Record<string, ReturnType<typeof lazy>> = {
   knowledge_seller:lazy(() => import('./components/CreateKnowledge')),
   bone_hitting:    lazy(() => import('./components/CreateBoneHitting')),
   local_news:      lazy(() => import('./components/CreateLocalNews')),
+  crying_boy:      lazy(() => import('./components/CreateCryingBoy')),
   exile_place:     lazy(() => import('./components/CreateExile')),
   market:          lazy(() => import('./components/CreateMarket')),
 };
