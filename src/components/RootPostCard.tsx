@@ -6,6 +6,7 @@ import type { Post } from '../types';
 import { getReputationLabel, formatKoreanNumber, getCategoryDisplayName } from '../utils';
 import { CATEGORY_RULES } from './DiscussionView';
 import ThanksballModal from './ThanksballModal';
+import PandoraDetail from './PandoraDetail';
 
 interface Props {
   post: Post;
@@ -103,14 +104,19 @@ const RootPostCard = ({
           </div>
         )}
 
-        <div className="flex flex-wrap gap-2 mb-8">
+        <div className="flex flex-wrap gap-2 mb-6">
           {(post.tags || []).map((tag, idx) => (
             <span key={idx} className="text-[11px] font-bold text-slate-400 before:content-['#']">
               {tag.replace('#', '')}
             </span>
           ))}
         </div>
-        
+
+        {/* 판도라의 상자 전용: 출처 + 팩트체크 결과 */}
+        {CATEGORY_RULES[post.category || '']?.boardType === 'pandora' && (
+          <PandoraDetail post={post} />
+        )}
+
         {/* 작성자 & 인터랙션 바 (박스 형태) */}
         <div className="flex flex-col md:flex-row items-center justify-between gap-4 p-4 border border-slate-100 rounded-2xl bg-slate-50/30 mb-6">
           <div className="flex items-center gap-4">
