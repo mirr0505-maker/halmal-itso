@@ -85,7 +85,7 @@ export const CATEGORY_RULES: Record<string, {
   "지식 소매상":          { allowDisagree: false, allowFormal: false, boardType: 'qa',       placeholder: "궁금한 점을 묻거나 지식을 나눠주세요...", tab1: "💬 질문/답변", tab2: "👍 유용해요" }, // backward compat
   "마법 수정 구슬":       { allowDisagree: true,  allowFormal: false, boardType: 'info',     placeholder: "현지의 생생한 정보를 공유해 주세요...", tab1: "👍 유용해요", tab2: "👎 별로예요" },
   "현지 소식":            { allowDisagree: true,  allowFormal: false, boardType: 'info',     placeholder: "현지의 생생한 정보를 공유해 주세요...", tab1: "👍 유용해요", tab2: "👎 별로예요" },    // backward compat
-  "양치기 소년의 외침":   { allowDisagree: false, allowFormal: false, boardType: 'single',   placeholder: "긴급 소식에 대한 한마디를 남겨보세요...", tab1: "💬 댓글 전용", tab2: "👍 공감" },
+  "양치기 소년의 외침":   { allowDisagree: false, allowFormal: false, boardType: 'single',   placeholder: "긴급 속보에 대한 의견을 남겨주세요", tab1: "💬 댓글 전용", tab2: "👍 공감", allowInlineReply: true, hideEmptyMessage: true },
   "한컷":                 { allowDisagree: true,  allowFormal: false, boardType: 'onecut',   placeholder: "한컷에 대한 생각을 남겨보세요...", tab1: "👍 동의", tab2: "👎 반대" }
 };
 
@@ -140,7 +140,7 @@ const DiscussionView = ({
           />
         )}
 
-        {rootPost.category && !['너와 나의 이야기', '나의 이야기'].includes(rootPost.category) && rule.boardType !== 'pandora' && (
+        {rootPost.category && !['너와 나의 이야기', '나의 이야기', '양치기 소년의 외침'].includes(rootPost.category) && rule.boardType !== 'pandora' && (
           !currentNickname ? (
             <div className="flex items-center justify-center gap-2 px-6 py-4 bg-slate-50 border-b border-slate-100 text-[13px] font-bold text-slate-400">
               <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
@@ -160,6 +160,7 @@ const DiscussionView = ({
               setNewContent={setNewContent}
               isSubmitting={isSubmitting}
               handleSubmit={handleSubmit}
+              placeholder={rule.placeholder}
             />
           )
         )}

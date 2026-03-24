@@ -46,10 +46,10 @@ const PandoraDetail = ({ post }: Props) => {
 
       {/* 팩트체크 결과 */}
       {hasFactCheck && (
-        <div className="flex flex-col gap-3 px-4 py-4 rounded-xl border border-amber-100 bg-amber-50/40">
+        <div className="flex flex-col gap-3">
           <div className="flex items-center gap-2">
             <span className="w-1 h-4 bg-amber-400 rounded-full" />
-            <span className="text-[11px] font-black text-amber-600 uppercase tracking-widest">팩트체크 결과</span>
+            <span className="text-[14px] font-black text-amber-600 uppercase tracking-widest">팩트체크 결과</span>
             {post.verdict && (
               <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-lg border ${VERDICT_MAP[post.verdict].className}`}>
                 {VERDICT_MAP[post.verdict].label}
@@ -64,7 +64,7 @@ const PandoraDetail = ({ post }: Props) => {
           )}
 
           {(post.factCheckSources?.filter(s => s.trim()) ?? []).length > 0 && (
-            <div className="flex flex-col gap-1.5 pt-1 border-t border-amber-100">
+            <div className="flex flex-col gap-1.5 pt-1 border-t border-slate-100">
               <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">팩트체크 출처</span>
               {post.factCheckSources!.filter(s => s.trim()).map((src, i) => (
                 <a

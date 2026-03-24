@@ -16,12 +16,14 @@ interface Props {
   setNewContent: (c: string) => void;
   isSubmitting: boolean;
   handleSubmit: (e: FormEvent) => Promise<void>;
+  placeholder?: string;
 }
 
 const CommentBoneHitting = ({
   replyTarget, setReplyTarget,
   newContent, setNewContent,
   isSubmitting, handleSubmit,
+  placeholder = '뼈때리는 한마디를 남겨보세요...',
 }: Props) => {
   const [isInputFocused, setIsInputFocused] = useState(false);
 
@@ -44,7 +46,7 @@ const CommentBoneHitting = ({
             value={newContent}
             onChange={e => setNewContent(e.target.value)}
             onFocus={() => setIsInputFocused(true)}
-            placeholder="뼈때리는 한마디를 남겨보세요..."
+            placeholder={placeholder}
             className={`w-full bg-white border border-slate-200 rounded-lg px-5 py-4 text-[13px] font-bold text-slate-700 outline-none focus:border-slate-400 transition-all resize-none shadow-sm ${isInputFocused ? 'h-32' : 'h-20'}`}
           />
           <button
