@@ -185,7 +185,7 @@ const RootPostCard = ({
             {CATEGORY_RULES[post.category || ""]?.allowDisagree && (
               <>
                 <span>동의 <span className="font-black text-slate-700">{formatKoreanNumber(uniqueAgreeCount)}</span></span>
-                <span>비동의 <span className="font-black text-slate-700">{formatKoreanNumber(uniqueDisagreeCount)}</span></span>
+                <span>{CATEGORY_RULES[post.category || ""]?.boardType === 'pandora' ? '반박' : '비동의'} <span className="font-black text-slate-700">{formatKoreanNumber(uniqueDisagreeCount)}</span></span>
               </>
             )}
           </div>
