@@ -35,10 +35,17 @@
 - 업로드 경로: `uploads/{userId}/{filename}`
 - 공개 URL 베이스: `https://pub-9e6af273cd034aa6b7857343d0745224.r2.dev`
 
+### Cloudflare Workers (링크 미리보기)
+- 엔드포인트: `https://halmal-link-preview.mirr0505.workers.dev`
+- 소스: `workers/src/index.ts` — OG 태그 파싱, 내부 IP 차단, CORS 제한
+- 배포: `workers/` 디렉토리에서 `npx wrangler deploy` (wrangler 로그인 필요)
+- CORS 허용: `halmal-itso.web.app` + `localhost:5173/4173`
+- **Workers 코드 수정 시**: `npm run build` 후 `npx wrangler deploy` 별도 실행 필요 (Firebase deploy와 별개)
+
 ### HTML 렌더링
 - 에디터 출력은 `dangerouslySetInnerHTML={{ __html: post.content }}` 사용
-- `prose` Tailwind 클래스로 스타일 안정화
-- 목록 뷰에서 이미지는 `display:none` (line-clamp-3 적용)
+- `@tailwindcss/typography` 미설치 → `prose` 클래스 무효. Tailwind arbitrary selector 사용 (`[&_p]:mb-4` 등)
+- 목록 뷰에서 이미지는 `[&_img]:hidden` (line-clamp 적용)
 
 ### TypeScript
 - 빌드 에러 0 유지 (`npm run build` 확인)
@@ -59,6 +66,8 @@
 | `RootPostCard.tsx` | 하단 통계 바 3컬럼 구조(댓글\|땡스볼\|동의) 유지. `onBack` prop 체인 보호. |
 | `ThanksballModal.tsx` | `sentBalls` + `notifications` + `thanksballTotal` 3곳 동시 쓰기 — 하나라도 누락 금지. |
 | `NotificationBell.tsx` | `notifications/{nick}/items` 실시간 구독. `writeBatch`로 일괄 읽음 처리. |
+| `EditorToolbar.tsx` | 링크 삽입 후 Workers 호출 → `LinkPreviewCard` 표시. `fetchPreview` 내부 상태 보호. |
+| `LinkPreviewCard.tsx` | OgData 타입 export — EditorToolbar에서 import해 사용. |
 
 ---
 

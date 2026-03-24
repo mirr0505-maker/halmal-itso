@@ -2,7 +2,7 @@
 
 이 문서는 **할말있소(HALMAL-ITSO)** 프로젝트의 설계 원칙, 현재 구현 상태, 그리고 AI 개발자의 **절대적 행동 지침**을 담은 단일 진실 소스(Single Source of Truth)입니다.
 
-> 최종 갱신: 2026-03-23 v8 (코드 실측 기준)  |  현재 브랜치: `main`
+> 최종 갱신: 2026-03-24 v9 (코드 실측 기준)  |  현재 브랜치: `main`
 
 ---
 
@@ -41,6 +41,7 @@
 | **에디터** | Tiptap | 3.20.1 |
 | **DB / Auth** | Firebase (Firestore + Auth) | 12.10.0 |
 | **파일 스토리지** | Cloudflare R2 (AWS SDK S3) | 3.1000.0 |
+| **링크 미리보기** | Cloudflare Workers (자체 OG 파싱) | wrangler 4.76.0 |
 
 ### Tiptap 익스텐션 목록
 - `@tiptap/starter-kit` — 기본 세트 (bold, italic, strike, heading, list, blockquote, code 등)
@@ -61,6 +62,10 @@
 ### 3.1 파일 구조
 
 ```
+/workers                     # Cloudflare Workers 프로젝트 (별도 배포)
+├── src/index.ts             # OG 태그 파싱 엔드포인트 (내부 IP 차단, CORS, 100KB 제한)
+└── wrangler.toml            # Workers 설정 (name: halmal-link-preview)
+
 /src
 ├── App.tsx                  # 루트 컴포넌트 (전역 상태 관리, 라우팅 레이아웃) ~330줄
 ├── main.tsx                 # 진입점
@@ -119,7 +124,8 @@
     ├── CreateKanbuRoomModal.tsx # 깐부방 개설 모달
     ├── ThanksballModal.tsx  # 땡스볼 전송 모달 (볼 선택·메시지·티어 표시)
     ├── NotificationBell.tsx # 헤더 알림 벨 (땡스볼 수신 알림, 실시간 뱃지)
-    └── RankingView.tsx      # 랭킹 페이지 (좋아요·땡스볼 × 유저·글 4개 뷰)
+    ├── RankingView.tsx      # 랭킹 페이지 (좋아요·땡스볼·조회수 × 유저·글 6개 뷰)
+    └── LinkPreviewCard.tsx  # 링크 OG 미리보기 카드 (EditorToolbar에서 사용, OgData 타입 export)
 ```
 
 ### 3.2 상태 관리 (`App.tsx`)
@@ -369,6 +375,15 @@ interface KanbuChat {
   - `RankingView.tsx` 조회수 탭(`👁 조회수`) 추가: 메인탭 3개(좋아요·땡스볼·조회수) × 서브탭 2개(유저·글) = 6개 뷰. 유저 랭킹은 글쓴이별 `viewCount` 합산. 표시: `👁 N회` (파란색).
   - 향후 레벨·평판 로직에 활용 가능한 확장 설계.
 
+- [x] **링크 미리보기 (Cloudflare Workers)**:
+  - Firebase Spark 플랜(무료) 제약으로 Cloud Functions 대신 Cloudflare Workers 사용.
+  - 엔드포인트: `https://halmal-link-preview.mirr0505.workers.dev?url=<URL>`
+  - OG 태그(`og:title`, `og:description`, `og:image`, `og:site_name`) + Twitter Card + `<title>` 파싱. 외부 라이브러리 없음.
+  - 보안: http/https 프로토콜 검증, 내부 IP 대역 차단, 6초 타임아웃, 응답 100KB 제한, CORS 허용 도메인 화이트리스트.
+  - 무료 한도: 10만 회/일.
+  - `EditorToolbar.tsx`: 링크 삽입 후 Workers 호출 → `LinkPreviewCard` 에디터 하단 표시. X 버튼으로 닫기.
+  - `LinkPreviewCard.tsx`: 로딩 스켈레톤 + 이미지/제목/설명/사이트명 카드 UI.
+
 ### 🛠️ 진행 중 / 개선 필요 사항
 - [ ] **에디터 보완**: `bubble-menu` 활성화 (텍스트 선택 시 서식 도구 노출).
 - [ ] **검색 엔진**: Firestore 텍스트 검색 한계 보완 (현재는 클라이언트 사이드 필터링).
@@ -383,6 +398,17 @@ interface KanbuChat {
 
 ---
 
-## 9. Cloudflare R2 & Firebase 규칙 (동일 유지)
-- R2: 비ASCII 파일명 금지, `uploads/{userId}/{filename}` 경로.
-- Firebase: `post_timestamp_nickname` ID 규칙 준수.
+## 9. 외부 서비스 규칙
+
+### Cloudflare R2 (이미지 스토리지)
+- 비ASCII 파일명 금지, `uploads/{userId}/{filename}` 경로.
+- 공개 URL: `https://pub-9e6af273cd034aa6b7857343d0745224.r2.dev`
+
+### Cloudflare Workers (링크 미리보기)
+- 소스: `workers/src/index.ts` | 배포: `cd workers && npx wrangler deploy`
+- Firebase deploy와 **별개** — 소스 수정 시 wrangler deploy 별도 실행 필요.
+- ALLOWED_ORIGIN 환경변수: `wrangler.toml`의 `[vars]` 섹션에서 관리.
+
+### Firebase
+- `post_timestamp_nickname` ID 규칙 준수.
+- Spark(무료) 플랜 — Cloud Functions 사용 불가.
