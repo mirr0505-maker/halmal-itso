@@ -2,7 +2,7 @@
 
 이 문서는 **할말있소(HALMAL-ITSO)** 프로젝트의 설계 원칙, 현재 구현 상태, 그리고 AI 개발자의 **절대적 행동 지침**을 담은 단일 진실 소스(Single Source of Truth)입니다.
 
-> 최종 갱신: 2026-03-24 v11 (코드 실측 기준)  |  현재 브랜치: `main`
+> 최종 갱신: 2026-03-24 v12 (코드 실측 기준)  |  현재 브랜치: `main`
 
 ---
 
@@ -233,7 +233,7 @@ interface KanbuChat {
 |---------|--------------|-----------------|----------|
 | `onecut` | 한컷 | (isOneCut 플래그) | 9:16 세로형 이미지 전용 |
 | `my_story` | 너와 나의 이야기 | 너와 나의 이야기 | 일상, 공감 위주 |
-| `naked_king` | 판도라의 상자 | 판도라의 상자 | 팩트체크 보드 (구: 벌거벗은 임금님 → migrate 완료) |
+| `naked_king` | 판도라의 상자 | 판도라의 상자 | 지그재그 댓글 보드 (동의/반박 인라인 입력, 핀 고정, boardType: pandora) |
 | `donkey_ears` | 솔로몬의 재판 | 솔로몬의 재판 | 찬/반 토론, 정식 연계글 허용 (구: 임금님 귀는 당나귀 귀 → migrate 완료) |
 | `knowledge_seller` | 황금알을 낳는 거위 | 황금알을 낳는 거위 | Q&A 보드 (구: 지식 소매상 → migrate 완료) |
 | `bone_hitting` | 신포도와 여우 | 신포도와 여우 | 명언, 짧은 글 (구: 뼈때리는 글 → migrate 완료) |
@@ -392,6 +392,14 @@ interface KanbuChat {
   - App.tsx: `selectedFriend`(string|null), `viewingAuthor`(string|null) 상태 추가. `useEffect`로 activeMenu/activeTab 변경 시 자동 초기화.
   - AnyTalkList.tsx: `onAuthorClick?: (author: string) => void` prop 추가. 작가 영역에 `e.stopPropagation()` 적용(카드 클릭과 분리).
 
+- [x] **판도라의 상자 댓글 구조 전면 개편**:
+  - `CATEGORY_RULES`: boardType `'factcheck'` → `'pandora'` 신규 타입. 탭 레이블 진실/거짓 → **동의/반박** 통일.
+  - **지그재그 레이아웃**: 시간순(오름차순) 정렬, 동의(left)=왼쪽 정렬 파란색 계열(`bg-blue-50`), 반박(right)=오른쪽 정렬 붉은색 계열(`bg-rose-50`). 카드 폭 84%, 대댓글 없는 단층 구조.
+  - **인라인 입력**: `[동의 의견 달기...]` `[반박 의견 달기...]` 버튼 클릭 → 진영 색상 인라인 input → Enter 제출. CommentNakedKing 폼 미렌더링(DiscussionView 조건 추가).
+  - **작성자 고정 댓글**: 글 작성자에게만 핀 버튼 노출. 고정 시 상단 정렬 + 앰버색 하이라이트 + "작성자가 고정한 댓글" 배지.
+  - `App.tsx` `handleInlineReply`: `side?: 'left' | 'right'` 파라미터 추가 (기본값 'left').
+  - `DebateBoard.tsx` Props `onInlineReply` 시그니처도 동일하게 업데이트.
+
 ### 🛠️ 진행 중 / 개선 필요 사항
 - [ ] **에디터 보완**: `bubble-menu` 활성화 (텍스트 선택 시 서식 도구 노출).
 - [ ] **검색 엔진**: Firestore 텍스트 검색 한계 보완 (현재는 클라이언트 사이드 필터링).
@@ -403,6 +411,7 @@ interface KanbuChat {
 ### 📐 아키텍처 결정 기록
 - **Submit 로직 중복 없음**: Comment 컴포넌트(7개)는 UI 전담, Firestore 쓰기는 App.tsx `handleCommentSubmit` 단일 함수로 집중. Custom hook 추가 불필요.
 - **CATEGORY_RULES 확장 방식**: 카테고리별 동작 변경 시 카테고리명 하드코딩 금지 → `CATEGORY_RULES`에 속성 추가 후 컴포넌트에서 `rule.속성명` 참조. 현재 속성: `allowDisagree`, `allowFormal`, `boardType`, `placeholder`, `tab1/2`, `allowInlineReply`, `hideEmptyMessage`.
+- **boardType 종류**: `single`(단일 리스트), `debate`(2컬럼 대립), `qa`(Q&A), `info`(정보 공유 2컬럼), `pandora`(지그재그 동의/반박), `onecut`(한컷 반응).
 
 ---
 
