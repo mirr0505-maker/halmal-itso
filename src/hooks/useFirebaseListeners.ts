@@ -16,49 +16,49 @@ export function useFirebaseListeners() {
   const [kanbuRooms, setKanbuRooms] = useState<KanbuRoom[]>([]);
 
   useEffect(() => {
-    // 컬렉션 구독은 인증 후에만 시작 (인증 전 구독 시 request.auth=null → 권한 오류)
-    let unsubRooms: (() => void) | null = null;
-    let unsubPosts: (() => void) | null = null;
     let unsubUsers: (() => void) | null = null;
     let unsubUserDoc: (() => void) | null = null;
 
-    const setupCollectionSubs = () => {
-      if (unsubRooms) return; // 이미 구독 중
-      unsubRooms = onSnapshot(collection(db, "kanbu_rooms"), (snapshot) => {
-        const rooms = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as KanbuRoom));
-        rooms.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
-        setKanbuRooms(rooms);
-      }, (err) => console.error('[kanbu_rooms onSnapshot]', err));
+    // 🚀 공개 컬렉션 구독 — 비로그인도 읽기 가능 (Firestore rules: allow read: if true)
+    // posts, kanbu_rooms은 인증 없이 바로 구독 시작 → 비로그인 사용자도 글 목록 열람 가능
+    const unsubRooms = onSnapshot(collection(db, "kanbu_rooms"), (snapshot) => {
+      const rooms = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as KanbuRoom));
+      rooms.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+      setKanbuRooms(rooms);
+    }, (err) => console.error('[kanbu_rooms onSnapshot]', err));
 
-      unsubPosts = onSnapshot(collection(db, "posts"), (snapshot) => {
-        const posts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Post));
-        posts.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
-        setAllRootPosts(posts);
-      }, (err) => console.error('[posts onSnapshot]', err));
+    const unsubPosts = onSnapshot(collection(db, "posts"), (snapshot) => {
+      const posts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Post));
+      posts.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+      setAllRootPosts(posts);
+    }, (err) => console.error('[posts onSnapshot]', err));
 
-      unsubUsers = onSnapshot(collection(db, "users"), (snapshot) => {
-        const users: Record<string, any> = {};
-        const fCounts: Record<string, number> = {};
-        snapshot.docs.forEach(docSnap => {
-          const data = docSnap.data();
-          const userObj = { ...data, uid: docSnap.id };
-          users[docSnap.id] = userObj;
-          if (data.nickname) users[`nickname_${data.nickname}`] = userObj;
-          if (data.friendList) {
-            data.friendList.forEach((nickname: string) => {
-              fCounts[nickname] = (fCounts[nickname] || 0) + 1;
-            });
-          }
-        });
-        setAllUsers(users);
-        setFollowerCounts(fCounts);
-      }, (err) => console.error('[users onSnapshot]', err));
-    };
-
-    // 로그인 상태 변경 감지 + 내 유저 문서 실시간 구독
+    // 🚀 인증 전용 구독 — users 컬렉션은 로그인 사용자만 읽기 가능 (개인정보 보호)
+    // 로그인 시: users 전체 + 내 유저 문서 구독 시작
+    // 로그아웃 시: 구독 해제, userData 초기화
     const unsubAuth = onAuthStateChanged(auth, (user) => {
       if (user) {
-        setupCollectionSubs(); // 인증 확인 후 컬렉션 구독 시작
+        // users 컬렉션 — 닉네임·레벨·평판 표시에 필요, 인증 후에만 구독
+        if (!unsubUsers) {
+          unsubUsers = onSnapshot(collection(db, "users"), (snapshot) => {
+            const users: Record<string, any> = {};
+            const fCounts: Record<string, number> = {};
+            snapshot.docs.forEach(docSnap => {
+              const data = docSnap.data();
+              const userObj = { ...data, uid: docSnap.id };
+              users[docSnap.id] = userObj;
+              if (data.nickname) users[`nickname_${data.nickname}`] = userObj;
+              if (data.friendList) {
+                data.friendList.forEach((nickname: string) => {
+                  fCounts[nickname] = (fCounts[nickname] || 0) + 1;
+                });
+              }
+            });
+            setAllUsers(users);
+            setFollowerCounts(fCounts);
+          }, (err) => console.error('[users onSnapshot]', err));
+        }
+
         if (unsubUserDoc) unsubUserDoc();
         unsubUserDoc = onSnapshot(doc(db, "users", user.uid), (docSnap) => {
           if (docSnap.exists()) {
@@ -81,16 +81,17 @@ export function useFirebaseListeners() {
           setIsLoading(false);
         });
       } else {
-        if (unsubUserDoc) unsubUserDoc();
-        unsubUserDoc = null;
+        // 비로그인: users 구독 불필요, userData만 초기화
+        if (unsubUsers) { unsubUsers(); unsubUsers = null; }
+        if (unsubUserDoc) { unsubUserDoc(); unsubUserDoc = null; }
         setUserData(null);
         setIsLoading(false);
       }
     });
 
     return () => {
-      if (unsubRooms) unsubRooms();
-      if (unsubPosts) unsubPosts();
+      unsubRooms();
+      unsubPosts();
       if (unsubUsers) unsubUsers();
       if (unsubUserDoc) unsubUserDoc();
       unsubAuth();

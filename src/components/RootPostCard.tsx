@@ -41,9 +41,11 @@ const RootPostCard = ({
   const [showThanksball, setShowThanksball] = useState(false);
   const [copied, setCopied] = useState(false); // 공유 URL 복사 완료 피드백용
 
-  // 🚀 글 공유 URL 복사: ?post=글ID 형식으로 클립보드에 저장
+  // 🚀 글 공유 URL 복사: ?post=topic_타임스탬프 형식 (UID 노출 방지)
+  // 예) topic_1234567890123_AbCxYz → ?post=topic_1234567890123
   const handleCopyUrl = () => {
-    const shareUrl = `${window.location.origin}?post=${post.id}`;
+    const shareToken = post.id.split('_').slice(0, 2).join('_'); // "topic_타임스탬프" 까지만
+    const shareUrl = `${window.location.origin}?post=${shareToken}`;
     navigator.clipboard.writeText(shareUrl).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000); // 2초 후 버튼 원상복귀

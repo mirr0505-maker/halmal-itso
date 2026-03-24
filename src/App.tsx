@@ -92,7 +92,11 @@ function App() {
   // - 처리 완료 후 pendingSharedPostId를 null로 초기화해 재실행 방지
   useEffect(() => {
     if (!pendingSharedPostId || allRootPosts.length === 0) return;
-    const sharedPost = allRootPosts.find(p => p.id === pendingSharedPostId);
+    // topic_타임스탬프 로 시작하는 글 검색 (URL에 UID 노출 방지를 위해 타임스탬프까지만 공유)
+    // 하위 호환: 구버전 전체 ID 직접 매칭도 지원
+    const sharedPost = allRootPosts.find(p =>
+      p.id === pendingSharedPostId || p.id.startsWith(pendingSharedPostId + '_')
+    );
     if (sharedPost) {
       setSelectedTopic(sharedPost);
       setPendingSharedPostId(null);
