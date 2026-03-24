@@ -156,9 +156,6 @@ const DebateBoard = ({
 
         {/* 지그재그 댓글 목록 */}
         <div className="flex flex-col gap-2.5 px-4 py-4">
-          {zigzag.length === 0 && (
-            <div className="py-16 text-center text-slate-300 font-bold text-xs">첫 번째 의견을 남겨보세요.</div>
-          )}
           {zigzag.map(post => {
             const isLeft = post.side === 'left';
             const isPinned = post.id === pinnedCommentId;
