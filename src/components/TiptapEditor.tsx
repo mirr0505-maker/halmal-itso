@@ -119,12 +119,14 @@ const TiptapEditor = ({ content, onChange, onImageUpload, placeholder }: Props) 
   return (
     <div className="flex flex-col w-full bg-white">
       <EditorToolbar editor={editor} onImageUpload={onImageUpload} onLinkInserted={fetchPreview} />
-      <LinkPreviewCard data={preview} loading={previewLoading} onClose={() => setPreview(null)} />
 
       {/* 에디터 본문 */}
       <div className="flex-1">
         <EditorContent editor={editor} />
       </div>
+
+      {/* 🚀 URL 붙여넣기 미리보기 — 에디터 본문 아래에 표시 */}
+      <LinkPreviewCard data={preview} loading={previewLoading} onClose={() => setPreview(null)} />
 
       <style>{`
         .ProseMirror p.is-editor-empty:first-child::before {

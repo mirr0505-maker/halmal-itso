@@ -2,7 +2,7 @@
 
 이 문서는 **할말있소(HALMAL-ITSO)** 프로젝트의 설계 원칙, 현재 구현 상태, 그리고 AI 개발자의 **절대적 행동 지침**을 담은 단일 진실 소스(Single Source of Truth)입니다.
 
-> 최종 갱신: 2026-03-24 v14 (코드 실측 기준)  |  현재 브랜치: `main`
+> 최종 갱신: 2026-03-25 v15 (코드 실측 기준)  |  현재 브랜치: `main`
 
 ---
 
@@ -318,7 +318,7 @@ interface KanbuChat {
 
 ## 8. 현재 구현 상태 (2026-03-24 기준, 코드 실측)
 
-### ✅ 완료된 핵심 기능 (2026-03-24 갱신)
+### ✅ 완료된 핵심 기능 (2026-03-25 갱신)
 - [x] **Tiptap 프리미엄 에디터**: 스티키 툴바, 이미지 R2 업로드(드래그&드롭/붙여넣기), 마크다운 호환 스타일.
 - [x] **상세 뷰 리뉴얼**: 콤팩트한 2컬럼 레이아웃, 카테고리별 맞춤형 탭 UI(동의/반대/질문 등).
 - [x] **한컷 시스템 고도화**: 그리드 상세 뷰, OneCutListSidebar, 일반 게시글 연동 버튼, 동의/반대 투표.
@@ -471,6 +471,17 @@ interface KanbuChat {
   - `useFirebaseListeners.ts`: posts 리스너만 유지 (allRootPosts). allChildPosts 전역 리스너 제거.
   - `handleLike`, `PostCard.handleDelete`: `rootId` 유무로 컬렉션 자동 분기.
 
+- [x] **SNS 공유 OG 태그 및 브랜딩 (2026-03-25)**:
+  - `index.html`: 타이틀·og:title·og:site_name·twitter:title 전면 변경 → **"GLove - 글러브, 집단지성의 힘"** (기존: "할말있소 — 집단지성의 힘")
+  - og:image: GLove 로고 이미지(`og-image.jpg`, 243KB)를 `public/` 폴더에 배치 → Firebase Hosting에서 직접 서빙(`https://halmal-itso.web.app/og-image.jpg`). R2 경유 시 카카오 크롤러 접근 불가 이슈 해결.
+  - 카카오톡 OG 캐시 초기화 후 이미지·타이틀 정상 표시 확인.
+
+- [x] **게시글 URL OG 미리보기 개선 (2026-03-25)**:
+  - `RootPostCard.tsx`: `post.linkUrl`이 없는 기존 게시글도 본문 HTML에서 첫 번째 `<a href="http...">` 추출(`DOMParser`)해 OG fetch → 미리보기 카드 표시. `contentLinkUrl` 상태로 관리.
+  - OG fetch 트리거: `post.linkUrl` 우선 → 없으면 `contentLinkUrl` fallback (두 useEffect 분리).
+  - 본문 `<a>` 태그 스타일: 이미 `[&_a]:text-blue-400 [&_a]:underline` 적용 중 (기존 구현 확인).
+  - `TiptapEditor.tsx`: 글 작성 시 URL 붙여넣기 미리보기 카드 위치 변경 — 툴바 아래(에디터 위) → **에디터 본문 아래**로 이동.
+
 ### 🛠️ 진행 중 / 개선 필요 사항
 - [ ] **에디터 보완**: `bubble-menu` 활성화 (텍스트 선택 시 서식 도구 노출).
 - [ ] **검색 엔진**: Firestore 텍스트 검색 한계 보완 (현재는 클라이언트 사이드 필터링).
@@ -499,4 +510,8 @@ interface KanbuChat {
 
 ### Firebase
 - `post_timestamp_nickname` ID 규칙 준수.
-- Spark(무료) 플랜 — Cloud Functions 사용 불가.
+- 현재 Spark(무료) 플랜 — Cloud Functions 사용 불가.
+- **Blaze 플랜 업그레이드 예정** → 업그레이드 시 아래 기능 구현 가능:
+  - 글별 동적 OG 태그 (카카오톡 공유 시 글 제목·내용 미리보기)
+  - 구현 방식: Cloud Function이 `?post=topic_타임스탬프` 요청을 가로채 Firestore에서 글 조회 후 OG 태그가 담긴 HTML 반환
+  - 현재 임시 조치: `index.html`에 앱 공통 OG 태그 적용 중 (모든 공유가 동일한 앱 브랜딩으로 표시)
