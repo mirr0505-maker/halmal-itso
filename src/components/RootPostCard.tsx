@@ -1,10 +1,13 @@
 // src/components/RootPostCard.tsx
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { db } from '../firebase';
 import { doc, deleteDoc } from 'firebase/firestore';
 import type { Post } from '../types';
 import { getReputationLabel, formatKoreanNumber, getCategoryDisplayName } from '../utils';
 import { CATEGORY_RULES } from './DiscussionView';
+import LinkPreviewCard from './LinkPreviewCard';
+import type { OgData } from './LinkPreviewCard';
+import { EXTERNAL_URLS } from '../constants';
 import ThanksballModal from './ThanksballModal';
 import PandoraDetail from './PandoraDetail';
 
@@ -38,6 +41,20 @@ const RootPostCard = ({
   const isMyPost = post.author === currentNickname;
   const isLikedByMe = currentNickname && post.likedBy?.includes(currentNickname);
   const [showSelfMsg, setShowSelfMsg] = useState(false);
+
+  // 🚀 linkUrl OG 미리보기: 게시된 글에서도 링크 카드 표시
+  const [ogData, setOgData] = useState<OgData | null>(null);
+  const [ogLoading, setOgLoading] = useState(false);
+  const [showLinkPreview, setShowLinkPreview] = useState(true);
+  useEffect(() => {
+    if (!post.linkUrl) return;
+    setOgLoading(true);
+    fetch(`${EXTERNAL_URLS.LINK_PREVIEW_WORKER}?url=${encodeURIComponent(post.linkUrl)}`)
+      .then(r => r.json())
+      .then((data: OgData & { error?: string }) => { if (!data.error) setOgData(data); })
+      .catch(() => {})
+      .finally(() => setOgLoading(false));
+  }, [post.linkUrl]);
   const [showThanksball, setShowThanksball] = useState(false);
   const [copied, setCopied] = useState(false); // 공유 URL 복사 완료 피드백용
 
@@ -134,9 +151,15 @@ const RootPostCard = ({
 
         {post.linkUrl && (
           <div className="mb-6">
-            <a href={post.linkUrl} target="_blank" rel="noopener noreferrer" className="text-[13px] font-bold text-blue-500 hover:text-blue-600 hover:underline transition-all">
-              {post.linkUrl}
-            </a>
+            {showLinkPreview && (ogLoading || ogData) ? (
+              // OG 미리보기 카드 (로딩 중이거나 데이터 있을 때)
+              <LinkPreviewCard data={ogData} loading={ogLoading} onClose={() => setShowLinkPreview(false)} />
+            ) : (
+              // OG fetch 실패 또는 미리보기 닫은 경우 — URL 텍스트 fallback
+              <a href={post.linkUrl} target="_blank" rel="noopener noreferrer" className="text-[13px] font-bold text-blue-500 hover:text-blue-600 hover:underline transition-all">
+                {post.linkUrl}
+              </a>
+            )}
           </div>
         )}
 

@@ -454,6 +454,8 @@ function App() {
       await updateDoc(doc(db, "users", userData.uid), { likes: increment(5) });
     }
     setIsCreateOpen(false); setEditingPost(null);
+    setActiveMenu('home'); setActiveTab('any'); // 🚀 글 작성 완료 후 새글 탭으로 이동 — 방금 올린 글을 바로 확인 가능
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleInlineReply = async (content: string, parentPost: Post | null, side?: 'left' | 'right', imageUrl?: string, linkUrl?: string) => {

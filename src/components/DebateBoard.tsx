@@ -490,7 +490,7 @@ const DebateBoard = ({
               <div className="flex items-center gap-2 px-4 py-2.5 bg-slate-50 border-t border-slate-100">
                 <input autoFocus type="text" value={inlineContent} onChange={e => setInlineContent(e.target.value)}
                   onKeyDown={e => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) submitInline(null); }}
-                  placeholder="따뜻한 공감의 한마디를 남겨보세요..."
+                  placeholder={rule.placeholder}
                   className="flex-1 bg-white border border-slate-200 rounded-lg px-3 py-2 text-[13px] font-bold text-slate-700 outline-none focus:border-slate-400" />
                 <button onClick={() => { setActiveId(null); setInlineContent(''); }}
                   className="px-3 py-1.5 text-[11px] font-bold text-slate-400 hover:text-slate-600 rounded-md transition-colors shrink-0">취소</button>
