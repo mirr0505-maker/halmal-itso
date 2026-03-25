@@ -1,4 +1,4 @@
-// src/components/OneCutCommentBoard.tsx — 한컷 댓글: 작성자(좌) ↔ 독자(우) 지그재그 채팅형
+// src/components/OneCutCommentBoard.tsx — 황금알을 낳는 거위 댓글: 작성자(좌) ↔ 독자(우) 지그재그 채팅형
 // 🚀 좌=작성자(side:'left') / 우=독자(side:'right') — currentNickname vs rootPost.author로 자동 결정
 // 🚀 고정·땡스볼: 독자 댓글(우)에만 허용 / 독자는 작성자 댓글에 대댓글 가능
 

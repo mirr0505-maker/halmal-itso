@@ -1,9 +1,8 @@
 // src/components/OneCutDetailView.tsx — 한컷 상세 뷰 (이미지 + 댓글 + 우측 한컷 목록)
-// 🚀 댓글 구조 업그레이드: 작성자(좌) ↔ 독자(우) 지그재그 — OneCutCommentBoard 사용
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import type { Post } from '../types';
 import { formatKoreanNumber, getReputationLabel } from '../utils';
-import OneCutCommentBoard from './OneCutCommentBoard';
+import DebateBoard from './DebateBoard';
 import OneCutListSidebar from './OneCutListSidebar';
 
 interface Props {
@@ -13,7 +12,12 @@ interface Props {
   onTopicChange: (post: Post) => void;
   userData: any;
   friends: string[];
-  onInlineReply?: (content: string, parentPost: Post | null, side?: 'left' | 'right') => Promise<void>;
+  handleSubmit: (e: React.FormEvent) => Promise<void>;
+  selectedSide: 'left' | 'right';
+  setSelectedSide: (side: 'left' | 'right') => void;
+  newContent: string;
+  setNewContent: (c: string) => void;
+  isSubmitting: boolean;
   onLikeClick?: (e: React.MouseEvent | null, postId: string) => void;
   currentNickname?: string;
   allUsers?: Record<string, any>;
@@ -23,8 +27,9 @@ interface Props {
 }
 
 const OneCutDetailView = ({
-  rootPost, allPosts, otherTopics, onTopicChange, userData,
-  onInlineReply, onLikeClick, currentNickname, allUsers = {}, followerCounts = {}, commentCounts = {}, onEditPost
+  rootPost, allPosts, otherTopics, onTopicChange, userData, friends,
+  handleSubmit, selectedSide, setSelectedSide, newContent, setNewContent, isSubmitting,
+  onLikeClick, currentNickname, allUsers = {}, followerCounts = {}, commentCounts = {}, onEditPost
 }: Props) => {
   const [imageError, setImageError] = useState(false);
 
@@ -141,6 +146,24 @@ const OneCutDetailView = ({
               </div>
             </div>
 
+            {/* 투표 + 댓글 입력 폼 */}
+            <div className="w-[65%] py-2 border-x border-slate-100 space-y-2">
+              <div className="grid grid-cols-2 gap-1.5">
+                <button onClick={() => setSelectedSide('left')} className={`py-1.5 rounded-[4px] font-[1000] text-sm transition-all flex items-center justify-center gap-1.5 border-2 ${selectedSide === 'left' ? 'bg-emerald-500 text-white border-emerald-400' : 'bg-white text-emerald-500 border-emerald-100 hover:border-emerald-200'}`}>
+                  <span>👍</span>
+                  <span className="font-bold text-[11px]">동의 {formatKoreanNumber(allPosts.filter(p => p.side === 'left').length)}</span>
+                </button>
+                <button onClick={() => setSelectedSide('right')} className={`py-1.5 rounded-[4px] font-[1000] text-sm transition-all flex items-center justify-center gap-1.5 border-2 ${selectedSide === 'right' ? 'bg-rose-500 text-white border-rose-400' : 'bg-white text-rose-500 border-rose-100 hover:border-rose-200'}`}>
+                  <span>👎</span>
+                  <span className="font-bold text-[11px]">반대 {formatKoreanNumber(allPosts.filter(p => p.side === 'right').length)}</span>
+                </button>
+              </div>
+              <form onSubmit={handleSubmit} className="relative">
+                <textarea value={newContent} onChange={e => setNewContent(e.target.value)} placeholder="한컷에 대한 생각을 남겨주시오..." className="w-full bg-white border border-slate-200 rounded-[4px] px-3 py-2 text-[12px] font-bold outline-none focus:border-slate-400 transition-all resize-none h-16 shadow-sm" />
+                <button type="submit" disabled={isSubmitting || !newContent.trim()} className="absolute bottom-2 right-2 bg-slate-900 text-white px-3 py-1 rounded-md text-[10px] font-[1000] shadow-md hover:bg-blue-600 transition-all uppercase tracking-wider active:scale-95 disabled:opacity-50">전송 🚀</button>
+              </form>
+            </div>
+
             {/* 원본글 링크 */}
             {linkedPost && (
               <div className="w-[65%] pb-2 border-x border-slate-100">
@@ -152,17 +175,17 @@ const OneCutDetailView = ({
               </div>
             )}
 
-            {/* 🚀 좌우 지그재그 댓글: 작성자(좌) ↔ 독자(우) */}
+            {/* 댓글 목록 */}
             <div className="w-[65%] border-x border-slate-100">
-              <OneCutCommentBoard
+              <DebateBoard
                 allChildPosts={allPosts}
-                rootPost={rootPost}
-                currentNickname={currentNickname}
+                setReplyTarget={() => {}}
+                onPostClick={() => {}}
                 currentUserData={userData}
+                currentUserFriends={friends}
                 onLikeClick={onLikeClick}
-                onInlineReply={onInlineReply}
-                allUsers={allUsers}
-                followerCounts={followerCounts}
+                currentNickname={currentNickname}
+                category="한컷"
               />
             </div>
 

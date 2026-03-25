@@ -3,6 +3,7 @@ import React, { useEffect } from 'react';
 import type { Post } from '../types';
 import RootPostCard from './RootPostCard';
 import DebateBoard from './DebateBoard';
+import OneCutCommentBoard from './OneCutCommentBoard'; // 🚀 황금알을 낳는 거위 작성자(좌)↔독자(우) 지그재그 보드
 import CommentMyStory from './CommentMyStory';
 import CommentNakedKing from './CommentNakedKing';
 import CommentDebate from './CommentDebate';
@@ -137,7 +138,7 @@ const DiscussionView = ({
           />
         )}
 
-        {rootPost.category && !['너와 나의 이야기', '양치기 소년의 외침', '신포도와 여우'].includes(rootPost.category) && rule.boardType !== 'pandora' && (
+        {rootPost.category && !['너와 나의 이야기', '양치기 소년의 외침', '신포도와 여우', '황금알을 낳는 거위'].includes(rootPost.category) && rule.boardType !== 'pandora' && (
           !currentNickname ? (
             <div className="flex items-center justify-center gap-2 px-6 py-4 bg-slate-50 border-b border-slate-100 text-[13px] font-bold text-slate-400">
               <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
@@ -162,23 +163,39 @@ const DiscussionView = ({
           )
         )}
 
-        <div className="bg-white">
-          <DebateBoard
-            allChildPosts={allPosts}
-            setReplyTarget={setReplyTarget}
-            onPostClick={onTopicChange}
-            currentUserData={userData}
-            currentUserFriends={friends}
-            onLikeClick={onLikeClick}
-            currentNickname={currentNickname}
-            category={rootPost.category || "나의 이야기"}
-            onInlineReply={onInlineReply}
-            onOpenLinkedPost={onOpenLinkedPost}
-            rootPost={rootPost}
-            allUsers={allUsers}
-            followerCounts={followerCounts}
-          />
-        </div>
+        {/* 🚀 황금알을 낳는 거위: 작성자(좌) ↔ 독자(우) 지그재그 전용 보드 */}
+        {rootPost.category === '황금알을 낳는 거위' ? (
+          <div className="bg-white px-4">
+            <OneCutCommentBoard
+              allChildPosts={allPosts}
+              rootPost={rootPost}
+              currentNickname={currentNickname}
+              currentUserData={userData}
+              onLikeClick={onLikeClick}
+              onInlineReply={onInlineReply}
+              allUsers={allUsers}
+              followerCounts={followerCounts}
+            />
+          </div>
+        ) : (
+          <div className="bg-white">
+            <DebateBoard
+              allChildPosts={allPosts}
+              setReplyTarget={setReplyTarget}
+              onPostClick={onTopicChange}
+              currentUserData={userData}
+              currentUserFriends={friends}
+              onLikeClick={onLikeClick}
+              currentNickname={currentNickname}
+              category={rootPost.category || "나의 이야기"}
+              onInlineReply={onInlineReply}
+              onOpenLinkedPost={onOpenLinkedPost}
+              rootPost={rootPost}
+              allUsers={allUsers}
+              followerCounts={followerCounts}
+            />
+          </div>
+        )}
       </div>
 
       {/* 우측: 같은 카테고리 관련 글 목록 */}
