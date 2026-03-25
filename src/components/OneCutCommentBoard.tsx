@@ -7,6 +7,7 @@ import ThanksballModal from './ThanksballModal';
 import type { Post } from '../types';
 import { db } from '../firebase';
 import { doc, updateDoc } from 'firebase/firestore';
+import { formatKoreanNumber, getReputationLabel } from '../utils';
 
 interface Props {
   allChildPosts: Post[];
@@ -21,7 +22,7 @@ interface Props {
 
 const OneCutCommentBoard = ({
   allChildPosts, rootPost, currentNickname,
-  onLikeClick, onInlineReply, allUsers = {},
+  onLikeClick, onInlineReply, allUsers = {}, followerCounts = {},
 }: Props) => {
   // 현재 유저가 글 작성자인지 여부
   const isRootAuthor = !!(currentNickname && rootPost.author === currentNickname);
@@ -128,6 +129,8 @@ const OneCutCommentBoard = ({
           const replies = getReplies(post.id);
           const postAuthorData = (post.author_id && allUsers[post.author_id]) || allUsers[`nickname_${post.author}`];
           const displayLevel = postAuthorData ? postAuthorData.level : (post.authorInfo?.level || 1);
+          const displayLikes = postAuthorData ? (postAuthorData.likes || postAuthorData.totalLikes || 0) : (post.authorInfo?.totalLikes || 0);
+          const realFollowers = followerCounts?.[post.author] || 0;
 
           return (
             <div key={post.id} className="relative z-10 px-2">
@@ -149,80 +152,78 @@ const OneCutCommentBoard = ({
                     </div>
                   )}
 
-                  {/* 아바타 + 닉네임 + 시간 */}
-                  <div className={`flex items-center gap-1.5 mb-2 ${isAuthorComment ? 'flex-row-reverse' : ''}`}>
-                    <div className="w-5 h-5 rounded-full overflow-hidden shrink-0 border border-slate-200">
-                      <img src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${post.author}`} alt="" className="w-full h-full object-cover" />
-                    </div>
-                    <div className={`flex flex-col gap-0.5 min-w-0 ${isAuthorComment ? 'items-end' : ''}`}>
-                      <div className="flex items-center gap-1">
-                        <span className={`font-black text-[11px] leading-none truncate ${isAuthorComment ? 'text-rose-700' : 'text-blue-700'}`}>{post.author}</span>
-                        {isAuthorComment && (
-                          <span className="text-[9px] font-black text-rose-400 bg-rose-100 px-1 py-0.5 rounded leading-none shrink-0">제공자</span>
-                        )}
+                  {/* 아바타+정보(좌) ↔ 액션버튼(우) — DebateBoard 동일 구조 */}
+                  <div className={`flex items-center justify-between mb-2 ${isAuthorComment ? 'flex-row-reverse' : ''}`}>
+                    <div className={`flex items-center gap-2 ${isAuthorComment ? 'flex-row-reverse' : ''}`}>
+                      <div className="w-7 h-7 rounded-full overflow-hidden shrink-0 border border-slate-200">
+                        <img src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${post.author}`} alt="" className="w-full h-full object-cover" />
                       </div>
-                      <span className="text-[9px] font-bold text-slate-300">Lv {displayLevel} · {formatTime(post.createdAt)}</span>
+                      <div className={`flex flex-col ${isAuthorComment ? 'items-end' : ''}`}>
+                        <div className="flex items-center gap-2">
+                          <span className={`font-black text-[12px] leading-none ${isAuthorComment ? 'text-rose-800' : 'text-blue-800'}`}>{post.author}</span>
+                          <span className="text-[9px] font-bold text-slate-300">{formatTime(post.createdAt)}</span>
+                        </div>
+                        <span className="text-[9px] text-slate-400 font-bold leading-tight mt-0.5">
+                          Lv {displayLevel} · {getReputationLabel(displayLikes)} · 깐부 {formatKoreanNumber(realFollowers)}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* 액션 버튼들 — 반대편 끝 */}
+                    <div className="flex items-center gap-2">
+                      {/* 핀: 작성자(isRootAuthor)만, 독자 댓글(!isAuthorComment)에만 */}
+                      {isRootAuthor && !isAuthorComment && (
+                        <button
+                          onClick={() => handlePin(post.id)}
+                          title={isPinned ? '고정 해제' : '댓글 고정'}
+                          className={`text-[10px] transition-colors ${isPinned ? 'text-amber-500' : 'text-slate-300 hover:text-amber-400'}`}
+                        >
+                          <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>
+                        </button>
+                      )}
+                      {/* 좋아요 */}
+                      <button
+                        onClick={(e) => { e.stopPropagation(); onLikeClick?.(e, post.id); }}
+                        className={`flex items-center gap-1 text-[11px] font-bold transition-colors ${isLiked ? 'text-rose-500' : 'text-slate-300 hover:text-rose-400'}`}
+                      >
+                        <svg className={`w-3 h-3 ${isLiked ? 'fill-current' : 'fill-none'}`} stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                          <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+                        </svg>
+                        {post.likes || 0}
+                      </button>
+                      {/* 땡스볼 수신 표시 */}
+                      {(post.thanksballTotal || 0) > 0 && (
+                        <span className="flex items-center gap-1 text-[11px] font-bold text-amber-400">
+                          <span className="text-[13px] leading-none">⚾</span>
+                          {post.thanksballTotal}
+                        </span>
+                      )}
+                      {/* 땡스볼 보내기: 작성자(isRootAuthor)만, 독자 댓글(!isAuthorComment)에만 */}
+                      {isRootAuthor && !isAuthorComment && post.author !== currentNickname && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setThanksballTarget({ docId: post.id, recipient: post.author }); }}
+                          className="flex items-center gap-1 text-[11px] font-bold text-slate-300 hover:text-amber-500 transition-colors"
+                          title="땡스볼 보내기"
+                        >
+                          <span className="text-[13px] leading-none">⚾</span>
+                        </button>
+                      )}
+                      {/* 답글: 독자(!isRootAuthor)만, 작성자 댓글(isAuthorComment)에만 */}
+                      {!isRootAuthor && isAuthorComment && currentNickname && (
+                        <button
+                          onClick={() => { setReplyTarget(prev => prev?.id === post.id ? null : post); setReplyContent(''); }}
+                          className="text-[10px] font-black text-slate-300 hover:text-blue-500 transition-colors"
+                        >
+                          답글
+                        </button>
+                      )}
                     </div>
                   </div>
 
                   {/* 본문 */}
-                  <p className={`text-[12px] font-medium leading-relaxed whitespace-pre-line mb-2 ${isAuthorComment ? 'text-rose-900 text-right' : 'text-blue-900'}`}>
+                  <p className={`text-[13px] font-medium leading-relaxed whitespace-pre-line ${isAuthorComment ? 'text-rose-900 text-right' : 'text-blue-900'}`}>
                     {post.content}
                   </p>
-
-                  {/* 액션 버튼 */}
-                  <div className={`flex items-center gap-2 ${isAuthorComment ? 'flex-row-reverse' : ''}`}>
-                    {/* 좋아요 */}
-                    <button
-                      onClick={(e) => { e.stopPropagation(); onLikeClick?.(e, post.id); }}
-                      className={`flex items-center gap-0.5 text-[10px] font-bold transition-colors ${isLiked ? 'text-rose-500' : 'text-slate-300 hover:text-rose-400'}`}
-                    >
-                      <svg className={`w-3 h-3 ${isLiked ? 'fill-current' : 'fill-none'}`} stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                        <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
-                      </svg>
-                      {post.likes || 0}
-                    </button>
-
-                    {/* 땡스볼 수신 표시 */}
-                    {(post.thanksballTotal || 0) > 0 && (
-                      <span className="flex items-center gap-0.5 text-[10px] font-bold text-amber-400">
-                        <span className="text-[11px] leading-none">⚾</span>
-                        {post.thanksballTotal}
-                      </span>
-                    )}
-
-                    {/* 핀: 작성자(isRootAuthor)만, 독자 댓글(!isAuthorComment)에만 */}
-                    {isRootAuthor && !isAuthorComment && (
-                      <button
-                        onClick={() => handlePin(post.id)}
-                        title={isPinned ? '고정 해제' : '댓글 고정'}
-                        className={`text-[10px] transition-colors ${isPinned ? 'text-amber-500' : 'text-slate-300 hover:text-amber-400'}`}
-                      >
-                        <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>
-                      </button>
-                    )}
-
-                    {/* 땡스볼 보내기: 작성자(isRootAuthor)만, 독자 댓글(!isAuthorComment)에만 */}
-                    {isRootAuthor && !isAuthorComment && post.author !== currentNickname && (
-                      <button
-                        onClick={(e) => { e.stopPropagation(); setThanksballTarget({ docId: post.id, recipient: post.author }); }}
-                        className="text-[10px] font-bold text-slate-300 hover:text-amber-500 transition-colors"
-                        title="땡스볼 보내기"
-                      >
-                        <span className="text-[12px] leading-none">⚾</span>
-                      </button>
-                    )}
-
-                    {/* 답글: 독자(!isRootAuthor)만, 작성자 댓글(isAuthorComment)에만 */}
-                    {!isRootAuthor && isAuthorComment && currentNickname && (
-                      <button
-                        onClick={() => { setReplyTarget(prev => prev?.id === post.id ? null : post); setReplyContent(''); }}
-                        className="text-[10px] font-black text-slate-300 hover:text-blue-500 transition-colors"
-                      >
-                        답글
-                      </button>
-                    )}
-                  </div>
                 </div>
               </div>
 
