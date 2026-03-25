@@ -2,7 +2,7 @@
 
 이 문서는 **할말있소(HALMAL-ITSO)** 프로젝트의 설계 원칙, 현재 구현 상태, 그리고 AI 개발자의 **절대적 행동 지침**을 담은 단일 진실 소스(Single Source of Truth)입니다.
 
-> 최종 갱신: 2026-03-25 v15 (코드 실측 기준)  |  현재 브랜치: `main`
+> 최종 갱신: 2026-03-25 v16 (코드 실측 기준)  |  현재 브랜치: `main`
 
 ---
 
@@ -85,7 +85,7 @@
     ├── PostCard.tsx         # 공통 포스트 카드 컴포넌트
     ├── PostDetailModal.tsx  # 포스트 오버레이 상세 모달
     ├── DiscussionView.tsx   # 일반글 상세 뷰 (2컬럼 레이아웃, CATEGORY_RULES 정의)
-    ├── FormalBoard.tsx      # 동의/비동의 정식 연계글 2컬럼 보드 (DiscussionView 내 사용)
+    ├── FormalBoard.tsx      # 동의/비동의 정식 연계글 2컬럼 보드 (deprecated — 현재 활성 카테고리 미사용)
     ├── RootPostCard.tsx     # 상세 뷰 상단 포스트 카드
     ├── DebateBoard.tsx      # 댓글 목록 (스레드 구조, 최신순/공감순 정렬)
     ├── CommentMyStory.tsx   # 너와 나의 이야기 댓글 폼 (단순 공감형)
@@ -258,7 +258,7 @@ interface KanbuChat {
 | `onecut` | 한컷 | (isOneCut 플래그) | 9:16 세로형 이미지 전용 |
 | `my_story` | 너와 나의 이야기 | 너와 나의 이야기 | 일상, 공감 위주 |
 | `naked_king` | 판도라의 상자 | 판도라의 상자 | 지그재그 댓글 보드 (동의/반박 인라인 입력, 핀 고정, boardType: pandora) |
-| `donkey_ears` | 솔로몬의 재판 | 솔로몬의 재판 | 찬/반 토론, 정식 연계글 허용 (구: 임금님 귀는 당나귀 귀 → migrate 완료) |
+| `donkey_ears` | 솔로몬의 재판 | 솔로몬의 재판 | 동의/비동의 지그재그 pandora 댓글 보드 + 연계글 팝업(CreateDebate). boardType: pandora |
 | `knowledge_seller` | 황금알을 낳는 거위 | 황금알을 낳는 거위 | Q&A 보드 (구: 지식 소매상 → migrate 완료) |
 | `bone_hitting` | 신포도와 여우 | 신포도와 여우 | 명언, 짧은 글 (구: 뼈때리는 글 → migrate 완료) |
 | `local_news` | 마법 수정 구슬 | 마법 수정 구슬 | 정보 공유 보드 (구: 현지 소식 → migrate 완료) |
@@ -482,6 +482,23 @@ interface KanbuChat {
   - 본문 `<a>` 태그 스타일: 이미 `[&_a]:text-blue-400 [&_a]:underline` 적용 중 (기존 구현 확인).
   - `TiptapEditor.tsx`: 글 작성 시 URL 붙여넣기 미리보기 카드 위치 변경 — 툴바 아래(에디터 위) → **에디터 본문 아래**로 이동.
 
+- [x] **솔로몬의 재판 pandora 전환 + 연계글 팝업 (2026-03-25)**:
+  - `CATEGORY_RULES`: boardType `'debate'` → `'pandora'`, tab2 "반대" → "비동의", `allowInlineReply: true`, `hintAgree/hintRefute/placeholderAgree/placeholderRefute` 추가.
+  - `DebateBoard.tsx`: pandora 레이아웃 하단에 **연계글 버튼** 추가 (솔로몬 카테고리 한정). "동의 연계글 작성..." / "비동의 연계글 작성..." 버튼 → `onOpenLinkedPost(side)` 호출.
+  - `CreateDebate.tsx`: `linkedTitle?: string`, `linkedSide?: 'left'|'right'` prop 추가. 제목 readOnly + 입장 자동설정(left→pro, right→con). 헤더 "연계글 작성" 라벨.
+  - `App.tsx`: `linkedPostSide` 상태 + `handleLinkedPostSubmit` (연계글 등록 후 원글로 복귀, 홈 이동 안 함) + `CreateDebate` lazy import 추가.
+  - `DiscussionView.tsx`: `onOpenLinkedPost` prop 체인 추가 → `DebateBoard`에 전달.
+
+- [x] **구버전 backward compat 용어 전면 제거 (2026-03-25)**:
+  - `CATEGORY_COMMENT_MAP` / `CATEGORY_RULES`에서 삭제: `나의 이야기`, `임금님 귀는 당나귀 귀`, `벌거벗은 임금님`, `뼈때리는 글`, `지식 소매상`, `현지 소식`.
+  - 기본값 fallback `"나의 이야기"` → `"너와 나의 이야기"` (DiscussionView, DebateBoard).
+  - App.tsx myStory 배열 / 카테고리 필터에서 `나의 이야기` 제거.
+  - DebateBoard `'뼈때리는 글'` 조건 제거.
+  - CommentForm 제외 목록에서 `나의 이야기`, `뼈때리는 글` 제거.
+
+- [x] **판도라의 상자 CategoryHeader 설명 업데이트 (2026-03-25)**:
+  - `constants.ts` `naked_king.description`: "사회 전반 퍼져 있는...사실 확인" → **"정치, 역사, 사회, 문화, 종교, 교육, 군사, 체육 등 사회 전반 이슈에 대한 거침없는 진실 공개 및 사실 확인"**.
+
 ### 🛠️ 진행 중 / 개선 필요 사항
 - [ ] **에디터 보완**: `bubble-menu` 활성화 (텍스트 선택 시 서식 도구 노출).
 - [ ] **검색 엔진**: Firestore 텍스트 검색 한계 보완 (현재는 클라이언트 사이드 필터링).
@@ -493,7 +510,8 @@ interface KanbuChat {
 ### 📐 아키텍처 결정 기록
 - **Submit 로직 중복 없음**: Comment 컴포넌트(7개)는 UI 전담, Firestore 쓰기는 App.tsx `handleCommentSubmit` 단일 함수로 집중. Custom hook 추가 불필요.
 - **CATEGORY_RULES 확장 방식**: 카테고리별 동작 변경 시 카테고리명 하드코딩 금지 → `CATEGORY_RULES`에 속성 추가 후 컴포넌트에서 `rule.속성명` 참조. 현재 속성: `allowDisagree`, `allowFormal`, `boardType`, `placeholder`, `tab1/2`, `allowInlineReply`, `hideEmptyMessage`.
-- **boardType 종류**: `single`(단일 리스트), `debate`(2컬럼 대립), `qa`(Q&A), `info`(정보 공유 2컬럼), `pandora`(지그재그 동의/반박), `onecut`(한컷 반응).
+- **boardType 종류**: `single`(단일 리스트), `qa`(Q&A), `info`(정보 공유 2컬럼), `pandora`(지그재그 동의/반박, 판도라의 상자·솔로몬의 재판·마법 수정 구슬), `onecut`(한컷 반응). (`debate` 타입 제거 — 솔로몬의 재판이 pandora로 전환됨)
+- **CATEGORY_RULES 확장 속성**: `allowDisagree`, `allowFormal`, `boardType`, `placeholder`, `tab1/2`, `allowInlineReply`, `hideEmptyMessage`, `hintAgree`, `hintRefute`, `placeholderAgree`, `placeholderRefute`, `hideAttachment`.
 
 ---
 

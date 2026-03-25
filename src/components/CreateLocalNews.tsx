@@ -13,16 +13,42 @@ interface Props {
 }
 
 const CreateLocalNews = ({ userData, editingPost, onSubmit, onClose }: Props) => {
+  // 🚀 국내/해외 지역 분리: "국내:서울 강남구" 또는 "해외:도쿄 시부야" 형식으로 저장
+  const existingLocation = editingPost?.location || '';
+  const [domesticLoc, setDomesticLoc] = useState(existingLocation.startsWith('국내:') ? existingLocation.slice(3) : '');
+  const [overseasLoc, setOverseasLoc] = useState(existingLocation.startsWith('해외:') ? existingLocation.slice(3) : '');
+
   const [postData, setPostData] = useState<Partial<Post>>({
     title: editingPost?.title || '',
     content: editingPost?.content || '',
     category: '마법 수정 구슬',
     tags: editingPost?.tags || ['', '', '', '', ''],
-    location: editingPost?.location || '',
+    location: existingLocation,
     isOneCut: false,
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+
+  // 🚀 국내 입력 시: 해외 잠금, location + tags[3] 자동 업데이트
+  // Array.from으로 5칸 보장 — tags가 5개 미만이면 중간에 undefined 구멍이 생겨 .trim() 에러 발생
+  const handleDomesticChange = (val: string) => {
+    setDomesticLoc(val);
+    if (val) setOverseasLoc('');
+    const location = val ? `국내:${val}` : '';
+    const newTags = Array.from({ length: 5 }, (_, i) => (postData.tags || [])[i] ?? '');
+    newTags[3] = val ? `국내 ${val}` : '';
+    setPostData(p => ({ ...p, location, tags: newTags }));
+  };
+
+  // 🚀 해외 입력 시: 국내 잠금, location + tags[3] 자동 업데이트
+  const handleOverseasChange = (val: string) => {
+    setOverseasLoc(val);
+    if (val) setDomesticLoc('');
+    const location = val ? `해외:${val}` : '';
+    const newTags = Array.from({ length: 5 }, (_, i) => (postData.tags || [])[i] ?? '');
+    newTags[3] = val ? `해외 ${val}` : '';
+    setPostData(p => ({ ...p, location, tags: newTags }));
+  };
 
   const uploadFile = async (file: File): Promise<string | null> => {
     if (!userData) return null;
@@ -49,8 +75,14 @@ const CreateLocalNews = ({ userData, editingPost, onSubmit, onClose }: Props) =>
     if (!userData || !postData.content?.trim() || isSubmitting) return;
     setIsSubmitting(true);
     try {
-      const filteredTags = (postData.tags || []).filter(t => t.trim() !== '');
-      await onSubmit({ ...postData, tags: filteredTags }, editingPost?.id);
+      const filteredTags = (postData.tags || []).filter(t => t?.trim() !== '');
+      // undefined 필드 제거 — Firestore updateDoc는 undefined 값을 거부함
+      const cleanData = Object.fromEntries(
+        Object.entries({ ...postData, tags: filteredTags }).filter(([, v]) => v !== undefined)
+      ) as Partial<Post>;
+      await onSubmit(cleanData, editingPost?.id);
+    } catch (e: any) {
+      alert(`저장 실패: ${e?.message || '알 수 없는 오류'}`);
     } finally { setIsSubmitting(false); }
   };
 
@@ -75,11 +107,30 @@ const CreateLocalNews = ({ userData, editingPost, onSubmit, onClose }: Props) =>
           <input type="text" placeholder="제목을 입력하세요" value={postData.title || ''} onChange={(e) => setPostData({ ...postData, title: e.target.value })} className="w-full bg-transparent text-[18px] font-bold text-slate-900 outline-none placeholder:text-slate-200 placeholder:font-normal" />
         </div>
 
-        {/* 발생 지역 */}
-        <div className="flex items-center gap-3 px-5 py-2.5 border-b border-slate-100 shrink-0">
-          <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest shrink-0">발생 지역</span>
-          <input type="text" placeholder="예: 서울 강남구, 도쿄 시부야, 뉴욕..." value={postData.location || ''} onChange={(e) => setPostData(p => ({ ...p, location: e.target.value }))}
-            className="flex-1 bg-transparent text-[13px] font-bold text-slate-700 outline-none border-b border-slate-200 focus:border-slate-500 pb-px placeholder:text-slate-300 placeholder:font-normal" />
+        {/* 🚀 발생 지역 — 국내/해외 상호 배타 입력 */}
+        <div className="flex items-center gap-0 border-b border-slate-100 shrink-0 divide-x divide-slate-100">
+          <div className="flex items-center gap-2 px-5 py-2.5 flex-1">
+            <span className="text-[10px] font-black text-blue-400 tracking-widest shrink-0 whitespace-nowrap">📍 국내</span>
+            <input
+              type="text"
+              placeholder="예: 서울 강남구, 부산 해운대..."
+              value={domesticLoc}
+              onChange={e => handleDomesticChange(e.target.value)}
+              disabled={!!overseasLoc}
+              className="flex-1 bg-transparent text-[13px] font-bold text-slate-700 outline-none border-b border-slate-200 focus:border-blue-400 pb-px placeholder:text-slate-300 placeholder:font-normal disabled:opacity-30 disabled:cursor-not-allowed"
+            />
+          </div>
+          <div className="flex items-center gap-2 px-5 py-2.5 flex-1">
+            <span className="text-[10px] font-black text-indigo-400 tracking-widest shrink-0 whitespace-nowrap">🌐 해외</span>
+            <input
+              type="text"
+              placeholder="예: 도쿄 시부야, 뉴욕..."
+              value={overseasLoc}
+              onChange={e => handleOverseasChange(e.target.value)}
+              disabled={!!domesticLoc}
+              className="flex-1 bg-transparent text-[13px] font-bold text-slate-700 outline-none border-b border-slate-200 focus:border-indigo-400 pb-px placeholder:text-slate-300 placeholder:font-normal disabled:opacity-30 disabled:cursor-not-allowed"
+            />
+          </div>
         </div>
 
         {/* 에디터 */}

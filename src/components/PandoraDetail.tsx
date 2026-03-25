@@ -6,9 +6,9 @@ interface Props {
 }
 
 const VERDICT_MAP = {
-  fact:      { label: '✅ 사실',  className: 'text-emerald-700 bg-emerald-50 border-emerald-300' },
-  false:     { label: '❌ 허위',  className: 'text-rose-600    bg-rose-50    border-rose-300' },
-  uncertain: { label: '🔍 미정',  className: 'text-slate-500   bg-slate-50   border-slate-300' },
+  fact:      { label: '✅ 사실 확인', className: 'text-emerald-700 bg-emerald-50 border-emerald-300' },
+  false:     { label: '❌ 허위 판명', className: 'text-rose-600    bg-rose-50    border-rose-300' },
+  uncertain: { label: '🔍 미정.보류', className: 'text-slate-500   bg-slate-50   border-slate-300' },
 } as const;
 
 const PandoraDetail = ({ post }: Props) => {

@@ -16,15 +16,19 @@ interface Props {
   editingPost: Post | null;
   onSubmit: (postData: Partial<Post>, postId?: string) => Promise<void>;
   onClose: () => void;
+  linkedTitle?: string;             // 연계글 모드: 제목 고정 (readOnly)
+  linkedSide?: 'left' | 'right';   // 연계글 모드: 입장 자동 설정 (left→pro, right→con)
 }
 
-const CreateDebate = ({ userData, editingPost, onSubmit, onClose }: Props) => {
+const CreateDebate = ({ userData, editingPost, onSubmit, onClose, linkedTitle, linkedSide }: Props) => {
+  // 연계글 모드일 때: linkedSide 기반으로 입장 초기값 결정
+  const initialPosition = linkedSide === 'left' ? 'pro' : linkedSide === 'right' ? 'con' : (editingPost?.debatePosition || 'neutral');
   const [postData, setPostData] = useState<Partial<Post>>({
-    title: editingPost?.title || '',
+    title: linkedTitle || editingPost?.title || '',
     content: editingPost?.content || '',
     category: '솔로몬의 재판',
     tags: editingPost?.tags || ['', '', '', '', ''],
-    debatePosition: editingPost?.debatePosition || 'neutral',
+    debatePosition: initialPosition,
     isOneCut: false,
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -66,7 +70,7 @@ const CreateDebate = ({ userData, editingPost, onSubmit, onClose }: Props) => {
         {/* 헤더 */}
         <div className="flex items-center justify-between px-5 h-12 border-b border-slate-100 shrink-0">
           <div className="flex items-center gap-2.5">
-            <span className="text-[12px] font-bold text-slate-400 tracking-wide uppercase">{editingPost ? '글 수정' : '새 글 기록'}</span>
+            <span className="text-[12px] font-bold text-slate-400 tracking-wide uppercase">{editingPost ? '글 수정' : linkedTitle ? '연계글 작성' : '새 글 기록'}</span>
             <span className="text-[11px] font-bold text-blue-500">👂 솔로몬의 재판</span>
             {isUploading && <span className="flex items-center gap-1.5 text-[11px] font-bold text-blue-500"><span className="w-2.5 h-2.5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin inline-block" />이미지 업로드 중</span>}
           </div>
@@ -78,7 +82,14 @@ const CreateDebate = ({ userData, editingPost, onSubmit, onClose }: Props) => {
 
         {/* 제목 */}
         <div className="flex items-center px-5 py-3 border-b border-slate-100 shrink-0">
-          <input type="text" placeholder="제목을 입력하세요" value={postData.title || ''} onChange={(e) => setPostData({ ...postData, title: e.target.value })} className="w-full bg-transparent text-[18px] font-bold text-slate-900 outline-none placeholder:text-slate-200 placeholder:font-normal" />
+          <input
+            type="text"
+            placeholder="제목을 입력하세요"
+            value={postData.title || ''}
+            onChange={linkedTitle ? undefined : (e) => setPostData({ ...postData, title: e.target.value })}
+            readOnly={!!linkedTitle}
+            className={`w-full bg-transparent text-[18px] font-bold outline-none placeholder:text-slate-200 placeholder:font-normal ${linkedTitle ? 'text-slate-400 cursor-default' : 'text-slate-900'}`}
+          />
         </div>
 
         {/* 입장 선택 */}

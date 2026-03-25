@@ -12,19 +12,13 @@ import CommentLocalNews from './CommentLocalNews';
 import CommentExile from './CommentExile';
 
 const CATEGORY_COMMENT_MAP: Record<string, React.FC<any>> = {
-  '나의 이야기':         CommentMyStory,   // backward compat
   '너와 나의 이야기':    CommentMyStory,
   '판도라의 상자':       CommentNakedKing,
-  '벌거벗은 임금님':     CommentNakedKing, // backward compat
   '솔로몬의 재판':       CommentDebate,
-  '임금님 귀는 당나귀 귀': CommentDebate,  // backward compat
   '황금알을 낳는 거위':  CommentKnowledge,
-  '지식 소매상':         CommentKnowledge, // backward compat
   '신포도와 여우':       CommentBoneHitting,
-  '뼈때리는 글':         CommentBoneHitting, // backward compat
   '양치기 소년의 외침':  CommentBoneHitting,
   '마법 수정 구슬':      CommentLocalNews,
-  '현지 소식':           CommentLocalNews, // backward compat
   '유배·귀양지':         CommentExile,
 };
 import RelatedPostsSidebar from './RelatedPostsSidebar';
@@ -58,6 +52,7 @@ interface Props {
   toggleBlock?: (author: string) => void;
   onEditPost?: (post: Post) => void;
   onInlineReply?: (content: string, parentPost: Post | null, side?: 'left' | 'right', imageUrl?: string, linkUrl?: string) => Promise<void>;
+  onOpenLinkedPost?: (side: 'left' | 'right') => void;  // 솔로몬의 재판 연계글 팝업 트리거
   onBack?: () => void;
 }
 
@@ -69,22 +64,22 @@ export const CATEGORY_RULES: Record<string, {
   placeholder: string,
   tab1: string,
   tab2?: string,
-  allowInlineReply?: boolean,  // 인라인 답글 폼 활성화 여부
-  hideEmptyMessage?: boolean,  // 빈 상태 메시지 숨김 여부
+  allowInlineReply?: boolean,   // 인라인 답글 폼 활성화 여부
+  hideEmptyMessage?: boolean,   // 빈 상태 메시지 숨김 여부
+  hintAgree?: string,           // pandora 좌측 힌트 텍스트 (미지정 시 tab1 기반 자동 생성)
+  hintRefute?: string,          // pandora 우측 힌트 텍스트
+  placeholderAgree?: string,    // pandora 좌측 textarea placeholder
+  placeholderRefute?: string,   // pandora 우측 textarea placeholder
+  hideAttachment?: boolean,     // pandora 이미지·링크 첨부 버튼 숨김 여부
 }> = {
-  "나의 이야기":          { allowDisagree: false, allowFormal: false, boardType: 'single',   placeholder: "따뜻한 공감의 한마디를 남겨보세요...", tab1: "💬 댓글 전용", tab2: "👍 공감", allowInlineReply: true, hideEmptyMessage: true },  // backward compat
   "너와 나의 이야기":     { allowDisagree: false, allowFormal: false, boardType: 'single',   placeholder: "따뜻한 공감의 한마디를 남겨보세요...", tab1: "💬 댓글 전용", tab2: "👍 공감", allowInlineReply: true, hideEmptyMessage: true },
-  "솔로몬의 재판":        { allowDisagree: true,  allowFormal: true,  boardType: 'debate',   placeholder: "논리적인 의견을 펼쳐보세요...", tab1: "👍 동의", tab2: "👎 반대" },
-  "임금님 귀는 당나귀 귀":{ allowDisagree: true,  allowFormal: true,  boardType: 'debate',   placeholder: "논리적인 의견을 펼쳐보세요...", tab1: "👍 동의", tab2: "👎 반대" },                  // backward compat
+  "솔로몬의 재판":        { allowDisagree: true,  allowFormal: false, boardType: 'pandora',  placeholder: "논리적인 의견을 펼쳐보세요...", tab1: "동의", tab2: "비동의", allowInlineReply: true, hintAgree: "동의하는 이유를 작성하세요", hintRefute: "비동의하는 이유를 작성하세요", placeholderAgree: "동의 근거를 적어주세요...", placeholderRefute: "비동의 이유를 적어주세요..." },
   "판도라의 상자":        { allowDisagree: true,  allowFormal: false, boardType: 'pandora',   placeholder: "정확한 팩트를 제시해 주세요...", tab1: "동의", tab2: "반박", allowInlineReply: true },
-  "벌거벗은 임금님":      { allowDisagree: true,  allowFormal: false, boardType: 'pandora',   placeholder: "정확한 팩트를 제시해 주세요...", tab1: "동의", tab2: "반박", allowInlineReply: true },    // backward compat
   "유배·귀양지":          { allowDisagree: true,  allowFormal: false, boardType: 'single',   placeholder: "글을 남겨보세요...", tab1: "👍 동의", tab2: "👎 반대" },
   "신포도와 여우":        { allowDisagree: false, allowFormal: false, boardType: 'single',   placeholder: "뼈때리는 한마디를 남겨보세요...", tab1: "💬 댓글 전용", tab2: "👍 공감", allowInlineReply: true, hideEmptyMessage: true },
-  "뼈때리는 글":          { allowDisagree: false, allowFormal: false, boardType: 'single',   placeholder: "뼈때리는 한마디를 남겨보세요...", tab1: "💬 댓글 전용", tab2: "👍 공감", allowInlineReply: true, hideEmptyMessage: true },             // backward compat
   "황금알을 낳는 거위":   { allowDisagree: false, allowFormal: false, boardType: 'qa',       placeholder: "궁금한 점을 묻거나 지식을 나눠주세요...", tab1: "💬 질문/답변", tab2: "👍 유용해요" },
-  "지식 소매상":          { allowDisagree: false, allowFormal: false, boardType: 'qa',       placeholder: "궁금한 점을 묻거나 지식을 나눠주세요...", tab1: "💬 질문/답변", tab2: "👍 유용해요" }, // backward compat
-  "마법 수정 구슬":       { allowDisagree: true,  allowFormal: false, boardType: 'info',     placeholder: "현지의 생생한 정보를 공유해 주세요...", tab1: "👍 유용해요", tab2: "👎 별로예요" },
-  "현지 소식":            { allowDisagree: true,  allowFormal: false, boardType: 'info',     placeholder: "현지의 생생한 정보를 공유해 주세요...", tab1: "👍 유용해요", tab2: "👎 별로예요" },    // backward compat
+  "마법 수정 구슬":       { allowDisagree: true,  allowFormal: false, boardType: 'pandora',  placeholder: "현지의 생생한 정보를 공유해 주세요...", tab1: "유용해요", tab2: "별로예요", allowInlineReply: true, hintAgree: "유용한 정보 고마워요", hintRefute: "별로라고 생각해요 그래도 정보 고마워요", placeholderAgree: "유용한 정보 감사 댓글 적어 주세요", placeholderRefute: "정보가 별로인 이유가 뭔가요 적어 주세요", hideAttachment: true },
+  "현지 소식":            { allowDisagree: true,  allowFormal: false, boardType: 'pandora',  placeholder: "현지의 생생한 정보를 공유해 주세요...", tab1: "유용해요", tab2: "별로예요", allowInlineReply: true, hintAgree: "유용한 정보 고마워요", hintRefute: "별로라고 생각해요 그래도 정보 고마워요", placeholderAgree: "유용한 정보 감사 댓글 적어 주세요", placeholderRefute: "정보가 별로인 이유가 뭔가요 적어 주세요", hideAttachment: true }, // backward compat
   "양치기 소년의 외침":   { allowDisagree: false, allowFormal: false, boardType: 'single',   placeholder: "긴급 속보에 대한 의견을 남겨주세요", tab1: "💬 댓글 전용", tab2: "👍 공감", allowInlineReply: true, hideEmptyMessage: true },
   "한컷":                 { allowDisagree: true,  allowFormal: false, boardType: 'onecut',   placeholder: "한컷에 대한 생각을 남겨보세요...", tab1: "👍 동의", tab2: "👎 반대" }
 };
@@ -93,10 +88,10 @@ const DiscussionView = ({
   rootPost, allPosts, otherTopics, onTopicChange, userData, friends, onToggleFriend,
   replyTarget, setReplyTarget, handleSubmit, selectedSide, setSelectedSide,
   selectedType, setSelectedType, newTitle, setNewTitle, newContent, setNewContent, isSubmitting,
-  commentCounts = {}, onLikeClick, currentNickname, allUsers = {}, followerCounts = {}, onEditPost, onInlineReply, onBack
+  commentCounts = {}, onLikeClick, currentNickname, allUsers = {}, followerCounts = {}, onEditPost, onInlineReply, onOpenLinkedPost, onBack
 }: Props) => {
-  const rule = CATEGORY_RULES[rootPost.category || "나의 이야기"] || CATEGORY_RULES["나의 이야기"];
-  const CommentForm = CATEGORY_COMMENT_MAP[rootPost.category || '나의 이야기'] ?? CommentMyStory;
+  const rule = CATEGORY_RULES[rootPost.category || "너와 나의 이야기"] || CATEGORY_RULES["너와 나의 이야기"];
+  const CommentForm = CATEGORY_COMMENT_MAP[rootPost.category || '너와 나의 이야기'] ?? CommentMyStory;
 
   useEffect(() => {
     if (!rule.allowDisagree && selectedSide === 'right') setSelectedSide('left');
@@ -140,7 +135,7 @@ const DiscussionView = ({
           />
         )}
 
-        {rootPost.category && !['너와 나의 이야기', '나의 이야기', '양치기 소년의 외침', '신포도와 여우', '뼈때리는 글'].includes(rootPost.category) && rule.boardType !== 'pandora' && (
+        {rootPost.category && !['너와 나의 이야기', '양치기 소년의 외침', '신포도와 여우'].includes(rootPost.category) && rule.boardType !== 'pandora' && (
           !currentNickname ? (
             <div className="flex items-center justify-center gap-2 px-6 py-4 bg-slate-50 border-b border-slate-100 text-[13px] font-bold text-slate-400">
               <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
@@ -176,6 +171,7 @@ const DiscussionView = ({
             currentNickname={currentNickname}
             category={rootPost.category || "나의 이야기"}
             onInlineReply={onInlineReply}
+            onOpenLinkedPost={onOpenLinkedPost}
             rootPost={rootPost}
             allUsers={allUsers}
             followerCounts={followerCounts}

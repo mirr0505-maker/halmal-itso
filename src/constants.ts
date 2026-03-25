@@ -51,7 +51,7 @@ export const MENU_MESSAGES: Record<string, { title: string, description: string,
   naked_king: {
     emoji: "👑",
     title: "판도라의 상자",
-    description: "사회 전반 퍼져 있는, 또는 퍼지고 있는 거짓에 대한 거침없는 진실 공개, 가짜 조작/왜곡 뉴스 기사 등의 사실 확인"
+    description: "정치, 역사, 사회, 문화, 종교, 교육, 군사, 체육 등 사회 전반 이슈에 대한 거침없는 진실 공개 및 사실 확인"
   },
   donkey_ears: {
     emoji: "👂",

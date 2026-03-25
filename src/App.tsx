@@ -25,6 +25,7 @@ const KanbuRoomList = lazy(() => import('./components/KanbuRoomList'));
 const KanbuRoomView = lazy(() => import('./components/KanbuRoomView'));
 const CreateKanbuRoomModal = lazy(() => import('./components/CreateKanbuRoomModal'));
 const RankingView = lazy(() => import('./components/RankingView'));
+const CreateDebate = lazy(() => import('./components/CreateDebate')); // 연계글 팝업 전용
 const CREATE_MENU_COMPONENTS: Record<string, ReturnType<typeof lazy>> = {
   my_story:        lazy(() => import('./components/CreateMyStory')),
   naked_king:      lazy(() => import('./components/CreateNakedKing')),
@@ -69,6 +70,7 @@ function App() {
   const [activeTab, setActiveTab] = useState<'any' | 'recent' | 'best' | 'rank' | 'friend'>('any');
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editingPost, setEditingPost] = useState<Post | null>(null);
+  const [linkedPostSide, setLinkedPostSide] = useState<'left' | 'right' | null>(null); // 솔로몬의 재판 연계글 팝업
   const [selectedRoom, setSelectedRoom] = useState<KanbuRoom | null>(null);
   const [isCreateRoomOpen, setIsCreateRoomOpen] = useState(false);
   const [selectedFriend, setSelectedFriend] = useState<string | null>(null);
@@ -264,6 +266,10 @@ function App() {
       if (activeMenu === 'onecut' || editingPost?.isOneCut || selectedTopic?.isOneCut) {
         return <CreateOneCutBox userData={userData} editingPost={editingPost} allPosts={allRootPosts} onSubmit={handlePostSubmit} onClose={() => { setIsCreateOpen(false); setEditingPost(null); }} />;
       }
+      // 솔로몬의 재판 연계글 팝업 — linkedPostSide가 있으면 CreateDebate를 연계글 모드로 렌더링
+      if (linkedPostSide !== null) {
+        return <CreateDebate userData={userData} editingPost={null} onSubmit={handleLinkedPostSubmit} onClose={() => { setIsCreateOpen(false); setLinkedPostSide(null); }} linkedTitle="[연계글]" linkedSide={linkedPostSide} />;
+      }
       if (CREATE_MENU_COMPONENTS[activeMenu]) {
         const CreateComponent = CREATE_MENU_COMPONENTS[activeMenu];
         return <CreateComponent userData={userData} editingPost={editingPost} onSubmit={handlePostSubmit} onClose={() => { setIsCreateOpen(false); setEditingPost(null); }} />;
@@ -328,11 +334,11 @@ function App() {
       }
       return <DiscussionView rootPost={livePost} allPosts={allChildPosts.filter(p => p.rootId === livePost.id)} otherTopics={allRootPosts.filter(p => {
           if (p.id === livePost.id) return false;
-          const myStory = ['너와 나의 이야기', '나의 이야기'];
+          const myStory = ['너와 나의 이야기'];
           const liveIsMyStory = !livePost.category || myStory.includes(livePost.category);
           if (liveIsMyStory) return !p.category || myStory.includes(p.category || '');
           return p.category === livePost.category;
-        })} onTopicChange={handleViewPost} userData={userData} friends={friends} onToggleFriend={toggleFriend} onPostClick={() => {}} replyTarget={replyTarget} setReplyTarget={setReplyTarget} handleSubmit={handleCommentSubmit} selectedSide={selectedSide} setSelectedSide={setSelectedSide} selectedType={selectedType} setSelectedType={setSelectedType} newTitle={newTitle} setNewTitle={setNewTitle} newContent={newContent} setNewContent={setNewContent} isSubmitting={isSubmitting} commentCounts={commentCounts} onLikeClick={handleLike} currentNickname={userData?.nickname} allUsers={allUsers} followerCounts={followerCounts} toggleBlock={toggleBlock} onEditPost={(post) => { setEditingPost(post); setIsCreateOpen(true); }} onInlineReply={handleInlineReply} onBack={() => { setSelectedTopic(null); setReplyTarget(null); setEditingPost(null); }} />;
+        })} onTopicChange={handleViewPost} userData={userData} friends={friends} onToggleFriend={toggleFriend} onPostClick={() => {}} replyTarget={replyTarget} setReplyTarget={setReplyTarget} handleSubmit={handleCommentSubmit} selectedSide={selectedSide} setSelectedSide={setSelectedSide} selectedType={selectedType} setSelectedType={setSelectedType} newTitle={newTitle} setNewTitle={setNewTitle} newContent={newContent} setNewContent={setNewContent} isSubmitting={isSubmitting} commentCounts={commentCounts} onLikeClick={handleLike} currentNickname={userData?.nickname} allUsers={allUsers} followerCounts={followerCounts} toggleBlock={toggleBlock} onEditPost={(post) => { setEditingPost(post); setIsCreateOpen(true); }} onInlineReply={handleInlineReply} onOpenLinkedPost={(side) => { setLinkedPostSide(side); setIsCreateOpen(true); }} onBack={() => { setSelectedTopic(null); setReplyTarget(null); setEditingPost(null); }} />;
     }
 
     if (activeMenu === 'onecut') {
@@ -348,7 +354,7 @@ function App() {
       const categoryKey = menuInfo.title;
       basePosts = basePosts.filter(p =>
         menuInfo.title === "너와 나의 이야기"
-          ? (p.category === "너와 나의 이야기" || p.category === "나의 이야기" || p.category === undefined)
+          ? (p.category === "너와 나의 이야기" || p.category === undefined)
           : (p.category === categoryKey)
       );
       // 🚀 카테고리별 보기: 살아남은 글(좋아요 3개 이상)만 노출
@@ -439,12 +445,33 @@ function App() {
 
   const handlePostSubmit = async (postData: Partial<Post>, postId?: string) => {
     if (!userData) return;
-    if (postId) {
-      await updateDoc(doc(db, "posts", postId), postData);
-      // onSnapshot 지연 대비: allRootPosts와 selectedTopic 즉시 갱신
-      setAllRootPosts(prev => prev.map(p => p.id === postId ? { ...p, ...postData } : p));
-      setSelectedTopic(prev => prev && prev.id === postId ? { ...prev, ...postData } : prev);
-    } else {
+    try {
+      if (postId) {
+        await updateDoc(doc(db, "posts", postId), postData);
+        // onSnapshot 지연 대비: allRootPosts와 selectedTopic 즉시 갱신
+        setAllRootPosts(prev => prev.map(p => p.id === postId ? { ...p, ...postData } : p));
+        setSelectedTopic(prev => prev && prev.id === postId ? { ...prev, ...postData } : prev);
+      } else {
+        const customId = `topic_${Date.now()}_${userData.uid}`;
+        await setDoc(doc(db, "posts", customId), {
+          ...postData, author: userData.nickname, author_id: userData.uid,
+          authorInfo: { level: userData.level, friendCount: friends.length, totalLikes: userData.likes },
+          parentId: null, rootId: null, side: 'left', type: 'formal', createdAt: serverTimestamp(), likes: 0, dislikes: 0
+        });
+        await updateDoc(doc(db, "users", userData.uid), { likes: increment(5) });
+      }
+      setIsCreateOpen(false); setEditingPost(null);
+      setActiveMenu('home'); setActiveTab('any'); // 🚀 글 작성 완료 후 새글 탭으로 이동
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch (e: any) {
+      alert(`저장 실패: ${e?.message || '알 수 없는 오류'}`);
+    }
+  };
+
+  // 🚀 솔로몬의 재판 연계글 제출: 새 글 생성 후 현재 솔로몬 글로 돌아옴 (홈으로 이동 안 함)
+  const handleLinkedPostSubmit = async (postData: Partial<Post>) => {
+    if (!userData) return;
+    try {
       const customId = `topic_${Date.now()}_${userData.uid}`;
       await setDoc(doc(db, "posts", customId), {
         ...postData, author: userData.nickname, author_id: userData.uid,
@@ -452,10 +479,12 @@ function App() {
         parentId: null, rootId: null, side: 'left', type: 'formal', createdAt: serverTimestamp(), likes: 0, dislikes: 0
       });
       await updateDoc(doc(db, "users", userData.uid), { likes: increment(5) });
+      setIsCreateOpen(false);
+      setLinkedPostSide(null);
+      // selectedTopic 유지 → 솔로몬의 재판 원글로 돌아감
+    } catch (e: any) {
+      alert(`연계글 저장 실패: ${e?.message || '알 수 없는 오류'}`);
     }
-    setIsCreateOpen(false); setEditingPost(null);
-    setActiveMenu('home'); setActiveTab('any'); // 🚀 글 작성 완료 후 새글 탭으로 이동 — 방금 올린 글을 바로 확인 가능
-    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleInlineReply = async (content: string, parentPost: Post | null, side?: 'left' | 'right', imageUrl?: string, linkUrl?: string) => {

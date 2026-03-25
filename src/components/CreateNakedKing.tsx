@@ -70,10 +70,10 @@ const CreateNakedKing = ({ userData, editingPost, onSubmit, onClose }: Props) =>
     } finally { setIsSubmitting(false); }
   };
 
-  const verdictOptions: { value: 'fact' | 'false' | 'uncertain'; label: string; color: string }[] = [
-    { value: 'fact',      label: '✅ 사실',  color: 'bg-emerald-50 text-emerald-700 border-emerald-300' },
-    { value: 'false',     label: '❌ 허위',  color: 'bg-rose-50 text-rose-600 border-rose-300' },
-    { value: 'uncertain', label: '🔍 미정',  color: 'bg-slate-50 text-slate-500 border-slate-300' },
+  const verdictOptions: { value: 'fact' | 'false' | 'uncertain'; label: string; tag: string; color: string }[] = [
+    { value: 'fact',      label: '✅ 사실 확인', tag: '사실 확인', color: 'bg-emerald-50 text-emerald-700 border-emerald-300' },
+    { value: 'false',     label: '❌ 허위 판명', tag: '허위 판명', color: 'bg-rose-50 text-rose-600 border-rose-300' },
+    { value: 'uncertain', label: '🔍 미정.보류', tag: '미정.보류', color: 'bg-slate-50 text-slate-500 border-slate-300' },
   ];
 
   return (
@@ -148,7 +148,13 @@ const CreateNakedKing = ({ userData, editingPost, onSubmit, onClose }: Props) =>
                 <button
                   key={opt.value}
                   type="button"
-                  onClick={() => setPostData(p => ({ ...p, verdict: p.verdict === opt.value ? undefined : opt.value }))}
+                  onClick={() => setPostData(p => {
+                    const isDeselecting = p.verdict === opt.value;
+                    const newTags = [...(p.tags || ['', '', '', '', ''])];
+                    // 🚀 판정 선택 시 tags[4]에 자동 해시태그 등록, 해제 시 삭제
+                    newTags[4] = isDeselecting ? '' : opt.tag;
+                    return { ...p, verdict: isDeselecting ? undefined : opt.value, tags: newTags };
+                  })}
                   className={`px-3 py-1.5 rounded-lg text-[11px] font-bold border transition-all ${postData.verdict === opt.value ? opt.color : 'bg-white text-slate-400 border-slate-200 hover:bg-slate-50'}`}
                 >
                   {opt.label}

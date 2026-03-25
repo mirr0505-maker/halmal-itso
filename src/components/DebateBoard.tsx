@@ -20,15 +20,16 @@ interface Props {
   currentNickname?: string;
   category: string;
   onInlineReply?: (content: string, parentPost: Post | null, side?: 'left' | 'right', imageUrl?: string, linkUrl?: string) => Promise<void>;
+  onOpenLinkedPost?: (side: 'left' | 'right') => void;  // 솔로몬의 재판 연계글 팝업 트리거
   rootPost?: Post;
   allUsers?: Record<string, any>;
   followerCounts?: Record<string, number>;
 }
 
 const DebateBoard = ({
-  allChildPosts, setReplyTarget, onPostClick, onLikeClick, currentNickname, category, onInlineReply, rootPost, allUsers = {}, followerCounts = {}
+  allChildPosts, setReplyTarget, onPostClick, onLikeClick, currentNickname, category, onInlineReply, onOpenLinkedPost, rootPost, allUsers = {}, followerCounts = {}
 }: Props) => {
-  const rule = CATEGORY_RULES[category] || CATEGORY_RULES["나의 이야기"];
+  const rule = CATEGORY_RULES[category] || CATEGORY_RULES["너와 나의 이야기"];
 
   const leftPosts = allChildPosts.filter(p => p.side === 'left');
   const rightPosts = allChildPosts.filter(p => p.side === 'right');
@@ -196,12 +197,12 @@ const DebateBoard = ({
           <h4 className="text-[14px] font-[1000] text-slate-700 tracking-tight flex items-center gap-3">
             <span className="flex items-center gap-1.5">
               <span className="w-2 h-2 bg-blue-400 rounded-full" />
-              <span className="text-blue-600">동의 {leftPosts.length}</span>
+              <span className="text-blue-600">{rule.tab1} {leftPosts.length}</span>
             </span>
             <span className="text-slate-200">·</span>
             <span className="flex items-center gap-1.5">
               <span className="w-2 h-2 bg-rose-400 rounded-full" />
-              <span className="text-rose-500">반박 {rightPosts.length}</span>
+              <span className="text-rose-500">{rule.tab2} {rightPosts.length}</span>
             </span>
           </h4>
           {isRootAuthor && (
@@ -329,22 +330,25 @@ const DebateBoard = ({
             <div className={`flex flex-col gap-2.5 px-4 py-3 border-t ${activeId === 'agree' ? 'bg-blue-50 border-blue-100' : 'bg-rose-50 border-rose-100'}`}>
               {/* 힌트 + 첨부 아이콘 */}
               <div className={`flex items-center gap-2 text-[11px] font-bold ${activeId === 'agree' ? 'text-blue-400' : 'text-rose-400'}`}>
-                <span>{activeId === 'agree' ? '동의하는 근거를 작성하세요.' : '반박하는 근거를 작성하세요.'}</span>
-                <input ref={pandoraFileRef} type="file" accept="image/*" className="hidden" onChange={async e => {
-                  const file = e.target.files?.[0];
-                  if (file) { const url = await uploadPandoraImage(file); if (url) setPandoraImageUrl(url); }
-                  e.target.value = '';
-                }} />
-                <button onClick={() => pandoraFileRef.current?.click()} disabled={pandoraUploading} title="이미지 첨부"
-                  className={`transition-opacity hover:opacity-70 ${pandoraImageUrl ? 'opacity-100' : 'opacity-60'} ${pandoraUploading ? 'opacity-30' : ''}`}>
-                  {pandoraUploading
-                    ? <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
-                    : '📷'}
-                </button>
-                <button onClick={() => setPandoraShowLink(prev => !prev)} title="링크 첨부"
-                  className={`transition-opacity hover:opacity-70 ${pandoraLinkUrl ? 'opacity-100' : 'opacity-60'}`}>
-                  🔗
-                </button>
+                <span>{activeId === 'agree' ? (rule.hintAgree ?? `${rule.tab1} 근거를 작성하세요.`) : (rule.hintRefute ?? `${rule.tab2} 근거를 작성하세요.`)}</span>
+                {/* hideAttachment가 없는 카테고리(판도라 등)에서만 이미지·링크 첨부 버튼 표시 */}
+                {!rule.hideAttachment && (<>
+                  <input ref={pandoraFileRef} type="file" accept="image/*" className="hidden" onChange={async e => {
+                    const file = e.target.files?.[0];
+                    if (file) { const url = await uploadPandoraImage(file); if (url) setPandoraImageUrl(url); }
+                    e.target.value = '';
+                  }} />
+                  <button onClick={() => pandoraFileRef.current?.click()} disabled={pandoraUploading} title="이미지 첨부"
+                    className={`transition-opacity hover:opacity-70 ${pandoraImageUrl ? 'opacity-100' : 'opacity-60'} ${pandoraUploading ? 'opacity-30' : ''}`}>
+                    {pandoraUploading
+                      ? <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
+                      : '📷'}
+                  </button>
+                  <button onClick={() => setPandoraShowLink(prev => !prev)} title="링크 첨부"
+                    className={`transition-opacity hover:opacity-70 ${pandoraLinkUrl ? 'opacity-100' : 'opacity-60'}`}>
+                    🔗
+                  </button>
+                </>)}
               </div>
               {/* 이미지 미리보기 */}
               {pandoraImageUrl && (
@@ -394,7 +398,7 @@ const DebateBoard = ({
                     }
                   }
                 }}
-                placeholder={activeId === 'agree' ? '동의하는 이유를 작성하세요... (Ctrl+Enter로 등록)' : '반박하는 이유를 작성하세요... (Ctrl+Enter로 등록)'}
+                placeholder={activeId === 'agree' ? (rule.placeholderAgree ?? `${rule.tab1} 이유를 작성하세요... (Ctrl+Enter로 등록)`) : (rule.placeholderRefute ?? `${rule.tab2} 이유를 작성하세요... (Ctrl+Enter로 등록)`)}
                 rows={3}
                 className={`w-full bg-white border rounded-lg px-3 py-2 text-[13px] font-bold text-slate-700 outline-none resize-none transition-all ${activeId === 'agree' ? 'border-blue-200 focus:border-blue-400' : 'border-rose-200 focus:border-rose-400'}`}
               />
@@ -409,9 +413,19 @@ const DebateBoard = ({
               </div>
             </div>
           ) : (
-            <div className="flex gap-2 px-4 py-3">
-              <button onClick={() => openInline('agree')} className="flex-1 py-2.5 rounded-xl text-[12px] font-[1000] bg-blue-50 text-blue-500 hover:bg-blue-100 border border-blue-100 transition-all">동의 의견 달기...</button>
-              <button onClick={() => openInline('refute')} className="flex-1 py-2.5 rounded-xl text-[12px] font-[1000] bg-rose-50 text-rose-500 hover:bg-rose-100 border border-rose-100 transition-all">반박 의견 달기...</button>
+            <div className="flex flex-col gap-2 px-4 py-3">
+              <div className="flex gap-2">
+                <button onClick={() => openInline('agree')} className="flex-1 py-2.5 rounded-xl text-[12px] font-[1000] bg-blue-50 text-blue-500 hover:bg-blue-100 border border-blue-100 transition-all">{rule.tab1} 댓글...</button>
+                <button onClick={() => openInline('refute')} className="flex-1 py-2.5 rounded-xl text-[12px] font-[1000] bg-rose-50 text-rose-500 hover:bg-rose-100 border border-rose-100 transition-all">{rule.tab2} 댓글...</button>
+              </div>
+              {/* 🚀 솔로몬의 재판 전용 연계글 버튼: 동의/비동의측 새 글 작성 팝업 트리거 */}
+              {category === '솔로몬의 재판' && onOpenLinkedPost && (
+                <div className="flex items-center gap-2">
+                  <span className="text-[9px] font-black text-slate-300 uppercase tracking-widest shrink-0">연계글</span>
+                  <button onClick={() => onOpenLinkedPost('left')} className="flex-1 py-2 rounded-lg text-[11px] font-[1000] bg-blue-50 text-blue-400 hover:bg-blue-100 border border-blue-100 transition-all">동의 연계글 작성...</button>
+                  <button onClick={() => onOpenLinkedPost('right')} className="flex-1 py-2 rounded-lg text-[11px] font-[1000] bg-rose-50 text-rose-400 hover:bg-rose-100 border border-rose-100 transition-all">비동의 연계글 작성...</button>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -442,7 +456,7 @@ const DebateBoard = ({
       label = "지식 답변"; colorClass = "text-blue-600"; pointColor = "bg-blue-500";
     } else if (category === '유배·귀양지') {
       label = "격리 구역 기록"; colorClass = "text-slate-500"; pointColor = "bg-slate-400";
-    } else if (category === '신포도와 여우' || category === '뼈때리는 글') {
+    } else if (category === '신포도와 여우') {
       label = "뼈때리는 글"; colorClass = "text-purple-600"; pointColor = "bg-purple-500";
     } else if (category === '양치기 소년의 외침') {
       label = "긴급 댓글"; colorClass = "text-red-600"; pointColor = "bg-red-500";

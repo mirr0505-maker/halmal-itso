@@ -146,10 +146,19 @@ const RootPostCard = ({
 
         <h2 className={`text-[22px] font-[1000] mb-5 leading-snug tracking-tighter max-w-4xl ${isDark ? 'text-white' : 'text-slate-900'}`}>{post.title}</h2>
 
-        {CATEGORY_RULES[post.category || '']?.boardType === 'pandora' && (
+        {/* 판도라의 상자 전용 — 마법 수정 구슬 등 다른 pandora 카테고리 제외 */}
+        {post.category === '판도라의 상자' && (
           <div className="flex items-center gap-2 mb-3">
             <span className="w-1 h-4 bg-blue-400 rounded-full" />
             <span className="text-[14px] font-black text-blue-600 uppercase tracking-widest">검증 대상</span>
+          </div>
+        )}
+        {/* 🚀 마법 수정 구슬 지역 배지 — 제목 바로 아래 표시 */}
+        {post.location && (
+          <div className="flex items-center gap-2 mb-3">
+            <span className="text-[12px] font-black text-indigo-600 bg-indigo-50 border border-indigo-200 px-3 py-1 rounded-lg">
+              📍 {post.location.includes(':') ? post.location.split(':')[1] : post.location}
+            </span>
           </div>
         )}
 
@@ -184,8 +193,8 @@ const RootPostCard = ({
           ))}
         </div>
 
-        {/* 판도라의 상자 전용: 출처 + 팩트체크 결과 */}
-        {CATEGORY_RULES[post.category || '']?.boardType === 'pandora' && (
+        {/* 판도라의 상자 전용: 출처 + 팩트체크 결과 — 마법 수정 구슬 등 제외 */}
+        {post.category === '판도라의 상자' && (
           <PandoraDetail post={post} />
         )}
 

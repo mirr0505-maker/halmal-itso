@@ -145,9 +145,10 @@ const AnyTalkList = ({
                   <span className="text-[8px] font-[1000] text-blue-500 bg-blue-50 px-2 py-0.5 rounded-md uppercase tracking-widest border border-blue-100/30">
                     {getCategoryDisplayName(post.category)}
                   </span>
-                  {post.verdict === 'fact'      && <span className="text-[8px] font-[1000] text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md">✅ 사실</span>}
-                  {post.verdict === 'false'     && <span className="text-[8px] font-[1000] text-rose-600    bg-rose-50    border border-rose-200    px-2 py-0.5 rounded-md">❌ 허위</span>}
-                  {post.verdict === 'uncertain' && <span className="text-[8px] font-[1000] text-slate-500   bg-slate-50   border border-slate-200   px-2 py-0.5 rounded-md">🔍 미정</span>}
+                  {post.verdict === 'fact'      && <span className="text-[8px] font-[1000] text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md">✅ 사실 확인</span>}
+                  {post.verdict === 'false'     && <span className="text-[8px] font-[1000] text-rose-600    bg-rose-50    border border-rose-200    px-2 py-0.5 rounded-md">❌ 허위 판명</span>}
+                  {post.verdict === 'uncertain' && <span className="text-[8px] font-[1000] text-slate-500   bg-slate-50   border border-slate-200   px-2 py-0.5 rounded-md">🔍 미정.보류</span>}
+                  {post.location && <span className="text-[8px] font-[1000] text-indigo-600 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-md">📍 {post.location.includes(':') ? post.location.split(':')[1] : post.location}</span>}
                 </div>
 
                 <div className="flex items-center justify-between">
