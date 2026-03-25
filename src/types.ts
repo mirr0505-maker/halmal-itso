@@ -38,12 +38,14 @@ export interface Post {
   factCheckSources?: string[]; // 팩트체크 출처 링크 목록
   debatePosition?: 'pro' | 'con' | 'neutral'; // 임금님 귀는 당나귀 귀: 초기 입장
   location?: string;       // 현지 소식: 발생 지역
-  infoPrice?: number;      // 지식 소매상: 정보 가치(포인트)
+  infoPrice?: number;      // 지식 소매상: 정보 가치(포인트, 레거시)
+  infoFields?: string[];   // 황금알을 낳는 거위: 정보 분야 (최대 2개)
   bgColor?: string;        // 뼈때리는 글: 배경색
 
   // 🚀 한컷 관련 필드
   isOneCut?: boolean;      // 한컷 게시물 여부
   linkedPostId?: string;   // 연계된 원본 게시글 ID
+  linkedPostTitle?: string; // 연계된 원본 게시글 제목 (연계글 작성 시 저장)
 
   // 🚀 깐부방 관련
   kanbuRoomId?: string;    // 소속 깐부방 ID
@@ -85,5 +87,44 @@ export interface KanbuChat {
   author: string;
   authorId: string;
   content: string;
+  createdAt: any;
+}
+
+// 🚀 우리들의 따뜻한 장갑: 커뮤니티 시스템 타입 정의
+
+export interface Community {
+  id: string;                    // community_timestamp_uid 형식
+  name: string;                  // 커뮤니티명
+  description?: string;          // 한 줄 설명
+  category: string;              // 취미|스포츠|게임|독서|요리|반려동물|여행|음악|개발|기타
+  isPrivate: boolean;            // 비밀 장갑 여부 (true = 초대 전용)
+  creatorId: string;
+  creatorNickname: string;
+  creatorLevel: number;
+  memberCount: number;           // increment 비정규화 (Firestore 읽기 비용 절감)
+  postCount: number;             // increment 비정규화
+  coverColor?: string;           // 커뮤니티 대표 색상 (미지정 시 기본값)
+  createdAt: any;
+}
+
+export interface CommunityMember {
+  userId: string;
+  nickname: string;
+  joinedAt: any;
+  role: 'owner' | 'member';
+}
+
+export interface CommunityPost {
+  id: string;                    // cpost_timestamp_uid 형식
+  communityId: string;           // 소속 커뮤니티 ID
+  communityName: string;         // 조회 최적화용 비정규화 (커뮤니티명)
+  author: string;
+  author_id: string;
+  title?: string;
+  content: string;               // HTML (TiptapEditor)
+  imageUrl?: string;
+  likes: number;
+  likedBy?: string[];
+  commentCount: number;
   createdAt: any;
 }

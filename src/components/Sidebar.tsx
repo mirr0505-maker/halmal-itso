@@ -14,6 +14,7 @@ export type MenuId =
   | 'exile_place'
   | 'kanbu_room'
   | 'friends'
+  | 'glove'
   | 'ranking'
   | 'mypage';
 
@@ -205,6 +206,28 @@ const Sidebar = ({ activeMenu, setActiveMenu, kanbuRoomCount = 0 }: Props) => {
     <aside className="w-36 hidden md:flex flex-col h-full bg-white border-r border-slate-100 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
       <nav className="flex-1 px-2 pt-3 space-y-0.5 pb-4">
         {mainServiceMenus.map(renderMenuButton)}
+
+        <div className="my-2.5 px-4">
+          <div className="h-px bg-slate-100 w-full" />
+        </div>
+
+        {/* 🚀 우리들의 따뜻한 장갑: 커뮤니티 섹션 — 랭킹 위 배치 */}
+        <button
+          onClick={() => setActiveMenu('glove')}
+          className={`w-full flex flex-row items-center gap-2 px-2.5 py-1.5 rounded-xl transition-all duration-150 border-2 ${
+            activeMenu === 'glove'
+              ? 'bg-blue-50/40 text-blue-600 border-blue-100 shadow-sm shadow-blue-50 scale-[1.02]'
+              : 'bg-transparent text-slate-400 border-transparent hover:bg-slate-50 hover:text-slate-600'
+          }`}
+        >
+          <span className={`transition-colors duration-150 shrink-0 text-[16px] leading-none ${activeMenu === 'glove' ? 'text-blue-600' : 'text-slate-300'}`}>
+            🧤
+          </span>
+          <div className="flex flex-col items-start min-w-0 flex-1 overflow-hidden">
+            <span className={`text-[12px] tracking-tight whitespace-nowrap ${activeMenu === 'glove' ? 'font-black' : 'font-bold'}`}>우리들의 장갑</span>
+            <span className="text-[9px] font-bold text-slate-300 whitespace-nowrap leading-none mt-0.5">커뮤니티</span>
+          </div>
+        </button>
 
         <div className="my-2.5 px-4">
           <div className="h-px bg-slate-100 w-full" />

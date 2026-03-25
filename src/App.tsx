@@ -3,7 +3,7 @@ import { useState, useEffect, lazy, Suspense } from 'react';
 import { db, auth, googleProvider } from './firebase';
 import { signInWithPopup, signOut, setPersistence, browserLocalPersistence, signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
 import { serverTimestamp, doc, setDoc, updateDoc, increment, arrayUnion, arrayRemove, collection, onSnapshot, query, where } from 'firebase/firestore';
-import type { Post, KanbuRoom } from './types';
+import type { Post, KanbuRoom, Community } from './types';
 import { useFirebaseListeners } from './hooks/useFirebaseListeners';
 // 항상 초기 화면에 필요한 컴포넌트 — 정적 import 유지
 import AnyTalkList from './components/AnyTalkList';
@@ -26,6 +26,13 @@ const KanbuRoomView = lazy(() => import('./components/KanbuRoomView'));
 const CreateKanbuRoomModal = lazy(() => import('./components/CreateKanbuRoomModal'));
 const RankingView = lazy(() => import('./components/RankingView'));
 const CreateDebate = lazy(() => import('./components/CreateDebate')); // 연계글 팝업 전용
+// 🚀 우리들의 따뜻한 장갑: 커뮤니티 컴포넌트
+const GloveNavBar = lazy(() => import('./components/GloveNavBar'));
+const CommunityList = lazy(() => import('./components/CommunityList'));
+const MyCommunityList = lazy(() => import('./components/MyCommunityList'));
+const CommunityFeed = lazy(() => import('./components/CommunityFeed'));
+const CommunityView = lazy(() => import('./components/CommunityView'));
+const CreateCommunityModal = lazy(() => import('./components/CreateCommunityModal'));
 const CREATE_MENU_COMPONENTS: Record<string, ReturnType<typeof lazy>> = {
   my_story:        lazy(() => import('./components/CreateMyStory')),
   naked_king:      lazy(() => import('./components/CreateNakedKing')),
@@ -49,6 +56,9 @@ function App() {
     blocks,
     isLoading,
     kanbuRooms,
+    communities,
+    joinedCommunityIds,
+    setJoinedCommunityIds,
   } = useFirebaseListeners();
 
   // 댓글 컬렉션 분리 — 상태
@@ -73,6 +83,10 @@ function App() {
   const [linkedPostSide, setLinkedPostSide] = useState<'left' | 'right' | null>(null); // 솔로몬의 재판 연계글 팝업
   const [selectedRoom, setSelectedRoom] = useState<KanbuRoom | null>(null);
   const [isCreateRoomOpen, setIsCreateRoomOpen] = useState(false);
+  // 🚀 우리들의 따뜻한 장갑: 커뮤니티 상태
+  const [gloveSubTab, setGloveSubTab] = useState<'list' | 'mine' | 'feed' | 'create'>('list');
+  const [selectedCommunity, setSelectedCommunity] = useState<Community | null>(null);
+  const [isCreateCommunityOpen, setIsCreateCommunityOpen] = useState(false);
   const [selectedFriend, setSelectedFriend] = useState<string | null>(null);
   const [viewingAuthor, setViewingAuthor] = useState<string | null>(null);
 
@@ -88,6 +102,8 @@ function App() {
 
   useEffect(() => { if (replyTarget) { setSelectedType('comment'); setNewTitle(""); } }, [replyTarget]);
   useEffect(() => { setSelectedFriend(null); setViewingAuthor(null); }, [activeMenu, activeTab]);
+  // 🚀 장갑 메뉴 이탈 시 커뮤니티 선택 초기화
+  useEffect(() => { if (activeMenu !== 'glove') { setSelectedCommunity(null); } }, [activeMenu]);
 
   // 🚀 공유 링크로 접근 시: allRootPosts가 로드되면 해당 글을 찾아 자동으로 상세 뷰 오픈
   // - allRootPosts가 아직 빈 배열이면 대기, 로드 완료 후 실행
@@ -150,6 +166,70 @@ function App() {
       createdAt: serverTimestamp(),
     });
     setIsCreateRoomOpen(false);
+  };
+
+  // 🚀 커뮤니티 개설 핸들러 — Lv3 이상 확인 후 communities 컬렉션에 문서 생성
+  // GLOVE_CREATE_MIN_LEVEL 상수를 바꾸면 개설 레벨 조건 일괄 변경
+  const GLOVE_CREATE_MIN_LEVEL = 3;
+  const handleCreateCommunity = async (data: { name: string; description: string; category: string; isPrivate: boolean; coverColor?: string }) => {
+    if (!userData) return;
+    if ((userData.level || 1) < GLOVE_CREATE_MIN_LEVEL) {
+      alert(`커뮤니티 개설은 Lv${GLOVE_CREATE_MIN_LEVEL} 이상만 가능합니다. (현재 Lv${userData.level || 1})`);
+      return;
+    }
+    const communityId = `community_${Date.now()}_${userData.uid}`;
+    await setDoc(doc(db, 'communities', communityId), {
+      name: data.name,
+      description: data.description || '',
+      category: data.category,
+      isPrivate: data.isPrivate,
+      coverColor: data.coverColor || '',
+      creatorId: userData.uid,
+      creatorNickname: userData.nickname,
+      creatorLevel: userData.level || 1,
+      memberCount: 1,
+      postCount: 0,
+      createdAt: serverTimestamp(),
+    });
+    // 개설자를 community_memberships 플랫 컬렉션에 자동 추가 (userId 기반 역조회 가능)
+    const membershipId = `${communityId}_${userData.uid}`;
+    await setDoc(doc(db, 'community_memberships', membershipId), {
+      communityId,
+      communityName: data.name,
+      userId: userData.uid,
+      nickname: userData.nickname,
+      role: 'owner',
+      joinedAt: serverTimestamp(),
+    });
+    setIsCreateCommunityOpen(false);
+    setGloveSubTab('mine');
+  };
+
+  // 🚀 커뮤니티 가입 핸들러 — membership 문서 생성 + memberCount increment + 로컬 상태 즉시 반영
+  const handleJoinCommunity = async (community: Community) => {
+    if (!userData) { alert('로그인이 필요합니다.'); return; }
+    const membershipId = `${community.id}_${userData.uid}`;
+    await setDoc(doc(db, 'community_memberships', membershipId), {
+      communityId: community.id,
+      communityName: community.name,
+      userId: userData.uid,
+      nickname: userData.nickname,
+      role: 'member',
+      joinedAt: serverTimestamp(),
+    });
+    await updateDoc(doc(db, 'communities', community.id), { memberCount: increment(1) });
+    setJoinedCommunityIds(prev => [...prev, community.id]);
+  };
+
+  // 🚀 커뮤니티 탈퇴 핸들러 — membership 문서 삭제 + memberCount decrement + 로컬 상태 즉시 반영
+  const handleLeaveCommunity = async (community: Community) => {
+    if (!userData) return;
+    if (!window.confirm(`'${community.name}'에서 탈퇴하시겠소?`)) return;
+    const membershipId = `${community.id}_${userData.uid}`;
+    const { deleteDoc } = await import('firebase/firestore');
+    await deleteDoc(doc(db, 'community_memberships', membershipId));
+    await updateDoc(doc(db, 'communities', community.id), { memberCount: increment(-1) });
+    setJoinedCommunityIds(prev => prev.filter(id => id !== community.id));
   };
 
   const handleLogin = async () => {
@@ -268,7 +348,7 @@ function App() {
       }
       // 솔로몬의 재판 연계글 팝업 — linkedPostSide가 있으면 CreateDebate를 연계글 모드로 렌더링
       if (linkedPostSide !== null) {
-        return <CreateDebate userData={userData} editingPost={null} onSubmit={handleLinkedPostSubmit} onClose={() => { setIsCreateOpen(false); setLinkedPostSide(null); }} linkedTitle="[연계글]" linkedSide={linkedPostSide} />;
+        return <CreateDebate userData={userData} editingPost={null} onSubmit={handleLinkedPostSubmit} onClose={() => { setIsCreateOpen(false); setLinkedPostSide(null); }} linkedTitle="[연계글]" linkedSide={linkedPostSide} originalPost={selectedTopic ?? undefined} />;
       }
       if (CREATE_MENU_COMPONENTS[activeMenu]) {
         const CreateComponent = CREATE_MENU_COMPONENTS[activeMenu];
@@ -314,6 +394,55 @@ function App() {
       );
     }
 
+    // 🚀 우리들의 따뜻한 장갑: 커뮤니티 라우팅
+    if (activeMenu === 'glove') {
+      return (
+        <div className="w-full animate-in fade-in">
+          <GloveNavBar
+            activeTab={gloveSubTab}
+            onTabClick={(tab) => { setGloveSubTab(tab); setSelectedCommunity(null); if (tab === 'create') setIsCreateCommunityOpen(true); }}
+          />
+          {selectedCommunity ? (
+            <CommunityView
+              community={selectedCommunity}
+              currentUserData={userData}
+              allUsers={allUsers}
+              onBack={() => setSelectedCommunity(null)}
+            />
+          ) : gloveSubTab === 'list' ? (
+            <CommunityList
+              communities={communities}
+              currentUserData={userData}
+              joinedCommunityIds={joinedCommunityIds}
+              onCommunityClick={setSelectedCommunity}
+              onJoin={handleJoinCommunity}
+            />
+          ) : gloveSubTab === 'mine' ? (
+            <MyCommunityList
+              communities={communities}
+              joinedCommunityIds={joinedCommunityIds}
+              onCommunityClick={setSelectedCommunity}
+              onLeave={handleLeaveCommunity}
+            />
+          ) : gloveSubTab === 'feed' ? (
+            <CommunityFeed
+              currentUserData={userData}
+              joinedCommunityIds={joinedCommunityIds}
+              allUsers={allUsers}
+              onCommunityClick={setSelectedCommunity}
+            />
+          ) : null}
+          {isCreateCommunityOpen && (
+            <CreateCommunityModal
+              userData={userData}
+              onSubmit={handleCreateCommunity}
+              onClose={() => { setIsCreateCommunityOpen(false); setGloveSubTab('list'); }}
+            />
+          )}
+        </div>
+      );
+    }
+
     if (activeMenu === 'kanbu_room') {
       if (selectedRoom) {
         const roomPosts = allRootPosts.filter(p => p.kanbuRoomId === selectedRoom.id);
@@ -330,7 +459,7 @@ function App() {
       const livePost = allRootPosts.find(p => p.id === selectedTopic.id) || selectedTopic;
       // 🚀 한컷 판정 로직 강화: isOneCut 플래그 또는 카테고리명이 "한컷"인 경우
       if (livePost.isOneCut || livePost.category === "한컷") {
-        return <OneCutDetailView rootPost={livePost} allPosts={allChildPosts.filter(p => p.rootId === livePost.id)} otherTopics={allRootPosts} onTopicChange={handleViewPost} userData={userData} friends={friends} handleSubmit={handleCommentSubmit} selectedSide={selectedSide} setSelectedSide={setSelectedSide} newContent={newContent} setNewContent={setNewContent} isSubmitting={isSubmitting} onLikeClick={handleLike} currentNickname={userData?.nickname} allUsers={allUsers} followerCounts={followerCounts} commentCounts={commentCounts} onEditPost={(post) => { setEditingPost(post); setIsCreateOpen(true); }} />;
+        return <OneCutDetailView rootPost={livePost} allPosts={allChildPosts.filter(p => p.rootId === livePost.id)} otherTopics={allRootPosts} onTopicChange={handleViewPost} userData={userData} friends={friends} onInlineReply={handleInlineReply} onLikeClick={handleLike} currentNickname={userData?.nickname} allUsers={allUsers} followerCounts={followerCounts} commentCounts={commentCounts} onEditPost={(post) => { setEditingPost(post); setIsCreateOpen(true); }} />;
       }
       return <DiscussionView rootPost={livePost} allPosts={allChildPosts.filter(p => p.rootId === livePost.id)} otherTopics={allRootPosts.filter(p => {
           if (p.id === livePost.id) return false;
@@ -338,7 +467,7 @@ function App() {
           const liveIsMyStory = !livePost.category || myStory.includes(livePost.category);
           if (liveIsMyStory) return !p.category || myStory.includes(p.category || '');
           return p.category === livePost.category;
-        })} onTopicChange={handleViewPost} userData={userData} friends={friends} onToggleFriend={toggleFriend} onPostClick={() => {}} replyTarget={replyTarget} setReplyTarget={setReplyTarget} handleSubmit={handleCommentSubmit} selectedSide={selectedSide} setSelectedSide={setSelectedSide} selectedType={selectedType} setSelectedType={setSelectedType} newTitle={newTitle} setNewTitle={setNewTitle} newContent={newContent} setNewContent={setNewContent} isSubmitting={isSubmitting} commentCounts={commentCounts} onLikeClick={handleLike} currentNickname={userData?.nickname} allUsers={allUsers} followerCounts={followerCounts} toggleBlock={toggleBlock} onEditPost={(post) => { setEditingPost(post); setIsCreateOpen(true); }} onInlineReply={handleInlineReply} onOpenLinkedPost={(side) => { setLinkedPostSide(side); setIsCreateOpen(true); }} onBack={() => { setSelectedTopic(null); setReplyTarget(null); setEditingPost(null); }} />;
+        })} onTopicChange={handleViewPost} userData={userData} friends={friends} onToggleFriend={toggleFriend} onPostClick={() => {}} replyTarget={replyTarget} setReplyTarget={setReplyTarget} handleSubmit={handleCommentSubmit} selectedSide={selectedSide} setSelectedSide={setSelectedSide} selectedType={selectedType} setSelectedType={setSelectedType} newTitle={newTitle} setNewTitle={setNewTitle} newContent={newContent} setNewContent={setNewContent} isSubmitting={isSubmitting} commentCounts={commentCounts} onLikeClick={handleLike} currentNickname={userData?.nickname} allUsers={allUsers} followerCounts={followerCounts} toggleBlock={toggleBlock} onEditPost={(post) => { setEditingPost(post); setIsCreateOpen(true); }} onInlineReply={handleInlineReply} onOpenLinkedPost={(side) => { setLinkedPostSide(side); setIsCreateOpen(true); }} onNavigateToPost={(postId) => { const target = allRootPosts.find(p => p.id === postId); if (target) handleViewPost(target); }} onBack={() => { setSelectedTopic(null); setReplyTarget(null); setEditingPost(null); }} />;
     }
 
     if (activeMenu === 'onecut') {

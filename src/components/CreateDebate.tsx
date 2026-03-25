@@ -16,20 +16,24 @@ interface Props {
   editingPost: Post | null;
   onSubmit: (postData: Partial<Post>, postId?: string) => Promise<void>;
   onClose: () => void;
-  linkedTitle?: string;             // 연계글 모드: 제목 고정 (readOnly)
+  linkedTitle?: string;             // 연계글 모드: '[연계글]' prefix 고정 표시 트리거
   linkedSide?: 'left' | 'right';   // 연계글 모드: 입장 자동 설정 (left→pro, right→con)
+  originalPost?: Post;              // 연계글 모드: 원본 솔로몬 글 (ID·제목 저장용)
 }
 
-const CreateDebate = ({ userData, editingPost, onSubmit, onClose, linkedTitle, linkedSide }: Props) => {
+const CreateDebate = ({ userData, editingPost, onSubmit, onClose, linkedTitle, linkedSide, originalPost }: Props) => {
   // 연계글 모드일 때: linkedSide 기반으로 입장 초기값 결정
   const initialPosition = linkedSide === 'left' ? 'pro' : linkedSide === 'right' ? 'con' : (editingPost?.debatePosition || 'neutral');
   const [postData, setPostData] = useState<Partial<Post>>({
-    title: linkedTitle || editingPost?.title || '',
+    // 연계글 모드: title은 사용자 입력 suffix만 저장, submit 시 '[연계글] ' 자동 prepend
+    title: linkedTitle ? '' : (editingPost?.title || ''),
     content: editingPost?.content || '',
     category: '솔로몬의 재판',
     tags: editingPost?.tags || ['', '', '', '', ''],
     debatePosition: initialPosition,
     isOneCut: false,
+    // 🚀 연계글 모드: 원본글 ID·제목 저장 → 상세글에서 원본글 바로가기 링크에 사용
+    ...(originalPost ? { linkedPostId: originalPost.id, linkedPostTitle: originalPost.title } : {}),
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -60,7 +64,9 @@ const CreateDebate = ({ userData, editingPost, onSubmit, onClose, linkedTitle, l
     setIsSubmitting(true);
     try {
       const filteredTags = (postData.tags || []).filter(t => t.trim() !== '');
-      await onSubmit({ ...postData, tags: filteredTags }, editingPost?.id);
+      // 연계글 모드: '[연계글] ' + 사용자 입력 제목으로 최종 title 조합
+      const finalTitle = linkedTitle ? `[연계글] ${postData.title || ''}`.trim() : postData.title;
+      await onSubmit({ ...postData, title: finalTitle, tags: filteredTags }, editingPost?.id);
     } finally { setIsSubmitting(false); }
   };
 
@@ -80,15 +86,17 @@ const CreateDebate = ({ userData, editingPost, onSubmit, onClose, linkedTitle, l
           </div>
         </div>
 
-        {/* 제목 */}
-        <div className="flex items-center px-5 py-3 border-b border-slate-100 shrink-0">
+        {/* 제목 — 연계글 모드: '[연계글]' prefix 고정 + 사용자 입력 suffix / 일반: 전체 입력 */}
+        <div className="flex items-center gap-2 px-5 py-3 border-b border-slate-100 shrink-0">
+          {linkedTitle && (
+            <span className="text-[18px] font-bold text-slate-400 shrink-0">[연계글]</span>
+          )}
           <input
             type="text"
-            placeholder="제목을 입력하세요"
+            placeholder={linkedTitle ? "제목을 입력하세요" : "제목을 입력하세요"}
             value={postData.title || ''}
-            onChange={linkedTitle ? undefined : (e) => setPostData({ ...postData, title: e.target.value })}
-            readOnly={!!linkedTitle}
-            className={`w-full bg-transparent text-[18px] font-bold outline-none placeholder:text-slate-200 placeholder:font-normal ${linkedTitle ? 'text-slate-400 cursor-default' : 'text-slate-900'}`}
+            onChange={(e) => setPostData({ ...postData, title: e.target.value })}
+            className="w-full bg-transparent text-[18px] font-bold text-slate-900 outline-none placeholder:text-slate-200 placeholder:font-normal"
           />
         </div>
 
@@ -102,6 +110,14 @@ const CreateDebate = ({ userData, editingPost, onSubmit, onClose, linkedTitle, l
             </button>
           ))}
         </div>
+
+        {/* 🚀 연계글 모드: 원본글 제목 표시 — 작성 완료 후 상세글에서 바로가기 제공 */}
+        {originalPost && (
+          <div className="flex items-center gap-3 px-5 py-2.5 border-b border-slate-100 shrink-0">
+            <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest shrink-0">원본글</span>
+            <span className="text-[12px] font-bold text-blue-500 truncate">🔗 {originalPost.title}</span>
+          </div>
+        )}
 
         {/* 에디터 */}
         <div className="flex-1 overflow-y-auto min-h-0">

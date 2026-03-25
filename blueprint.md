@@ -2,7 +2,7 @@
 
 이 문서는 **할말있소(HALMAL-ITSO)** 프로젝트의 설계 원칙, 현재 구현 상태, 그리고 AI 개발자의 **절대적 행동 지침**을 담은 단일 진실 소스(Single Source of Truth)입니다.
 
-> 최종 갱신: 2026-03-25 v16 (코드 실측 기준)  |  현재 브랜치: `main`
+> 최종 갱신: 2026-03-25 v19 (코드 실측 기준)  |  현재 브랜치: `main`
 
 ---
 
@@ -99,13 +99,14 @@
     ├── LinkSearchModal.tsx  # 한컷 작성 시 원본글 검색 팝업
     ├── OneCutList.tsx       # 한컷 목록 (그리드)
     ├── OneCutDetailView.tsx # 한컷 상세 뷰 (3컬럼 레이아웃)
+    ├── OneCutCommentBoard.tsx # 한컷 댓글 보드 — 작성자(좌) ↔ 독자(우) 지그재그, 핀·땡스볼 독자댓글에만
     ├── OneCutListSidebar.tsx # OneCutDetailView 우측 한컷 목록 사이드바
     ├── EditorToolbar.tsx    # TiptapEditor 툴바 버튼 UI
     ├── TiptapEditor.tsx     # 리치 에디터 (스티키 툴바)
     ├── CreateMyStory.tsx    # 너와 나의 이야기 작성 폼 (mood 선택)
     ├── CreateNakedKing.tsx  # 판도라의 상자 작성 폼 (2단 구조: 검증 대상 + 팩트체크 결과, verdict 배지, claimSource/claimLinkUrl/factCheckSources[])
-    ├── CreateDebate.tsx     # 솔로몬의 재판 작성 폼 (debatePosition 찬/반/중립)
-    ├── CreateKnowledge.tsx  # 황금알을 낳는 거위 작성 폼 (infoPrice 입력)
+    ├── CreateDebate.tsx     # 솔로몬의 재판 작성 폼 (debatePosition 찬/반/중립, 연계글 모드: [연계글] prefix + 원본글 표시)
+    ├── CreateKnowledge.tsx  # 황금알을 낳는 거위 작성 폼 (infoFields 분야 칩 최대 2개, tags[0]/[1] 자동 동기화)
     ├── CreateBoneHitting.tsx# 신포도와 여우 작성 폼 (bgColor 선택)
     ├── CreateLocalNews.tsx  # 마법 수정 구슬 작성 폼 (location 입력)
     ├── CreateExile.tsx      # 유배·귀양지 작성 폼 (기본형)
@@ -125,7 +126,13 @@
     ├── ThanksballModal.tsx  # 땡스볼 전송 모달 (볼 선택·메시지·티어 표시)
     ├── NotificationBell.tsx # 헤더 알림 벨 (땡스볼 수신 알림, 실시간 뱃지)
     ├── RankingView.tsx      # 랭킹 페이지 (좋아요·땡스볼·조회수 × 유저·글 6개 뷰)
-    └── LinkPreviewCard.tsx  # 링크 OG 미리보기 카드 (EditorToolbar에서 사용, OgData 타입 export)
+    ├── LinkPreviewCard.tsx  # 링크 OG 미리보기 카드 (EditorToolbar에서 사용, OgData 타입 export)
+    ├── GloveNavBar.tsx      # 우리들의 장갑 서브 탭 [친구들|나의장갑|소곤소곤|장갑나누기]
+    ├── CommunityList.tsx    # 장갑 속 친구들: 전체 커뮤니티 목록 (카테고리 필터, 가입 버튼)
+    ├── MyCommunityList.tsx  # 나의 아늑한 장갑: 가입한 커뮤니티 목록 (탈퇴 버튼)
+    ├── CommunityFeed.tsx    # 장갑 속 소곤소곤: 가입 커뮤니티 통합 최신글 피드
+    ├── CommunityView.tsx    # 개별 커뮤니티 상세 (글 목록+작성+좋아요) + CommunityPostDetail 인라인 컴포넌트 (댓글)
+    └── CreateCommunityModal.tsx # 장갑 나누기: 커뮤니티 개설 폼 (Lv3 이상, 이름/설명/분야/색상/공개여부)
 ```
 
 ### 3.2 상태 관리 (`App.tsx`)
@@ -142,6 +149,10 @@
 | `users` | 사용자 프로필, 레벨, 팔로우 등 | UID 키 + `nickname_닉네임` 키 이중 저장 |
 | `kanbu_rooms` | 깐부방 메타데이터 | 자동 ID |
 | `kanbu_rooms/{id}/chats` | 깐부방 실시간 채팅 | 자동 ID |
+| `communities` | 커뮤니티 메타데이터 (장갑) | `community_timestamp_uid` |
+| `community_memberships` | 커뮤니티 멤버십 플랫 컬렉션 (userId 역조회용) | `{communityId}_{userId}` |
+| `community_posts` | 커뮤니티 게시글 (크로스-커뮤니티 피드 쿼리 가능) | `cpost_timestamp_uid` |
+| `community_post_comments` | 커뮤니티 글 댓글 | `cpcomment_timestamp_uid` |
 | `notifications/{nick}/items` | 땡스볼·알림 수신 내역 | `addDoc` 자동 ID |
 | `sentBalls/{nick}/items` | 땡스볼 발신 내역 | `addDoc` 자동 ID |
 
@@ -192,7 +203,8 @@ interface Post {
   factChecked?: boolean;      // 판도라의 상자: 사실 확인 여부 (레거시)
   debatePosition?: 'pro' | 'con' | 'neutral'; // 솔로몬의 재판: 초기 입장
   location?: string;          // 마법 수정 구슬: 발생 지역
-  infoPrice?: number;         // 황금알을 낳는 거위: 정보 가치(포인트)
+  infoPrice?: number;         // 황금알을 낳는 거위: 정보 가치(포인트, 레거시)
+  infoFields?: string[];      // 황금알을 낳는 거위: 정보 분야 최대 2개 (주식·코인·부동산 등)
   bgColor?: string;           // 신포도와 여우: 배경색
 
   // 판도라의 상자 전용 필드 (2026-03-24 추가)
@@ -203,9 +215,10 @@ interface Post {
   factCheckSources?: string[]; // 팩트체크 출처 링크 목록 (복수)
   commentsLocked?: boolean;   // 작성자가 댓글 기능 잠금
 
-  // 한컷 관련 필드
+  // 한컷 / 연계글 관련 필드
   isOneCut?: boolean;         // 한컷 게시물 여부
   linkedPostId?: string;      // 연계된 원본 게시글 ID
+  linkedPostTitle?: string;   // 연계된 원본 게시글 제목 (솔로몬 연계글 작성 시 저장, 상세글 바로가기에 사용)
 
   // 깐부방 관련 필드
   kanbuRoomId?: string;       // 소속 깐부방 ID
@@ -264,6 +277,7 @@ interface KanbuChat {
 | `local_news` | 마법 수정 구슬 | 마법 수정 구슬 | 정보 공유 보드 (구: 현지 소식 → migrate 완료) |
 | `friends` | 깐부 맺기 | (UI 전용) | 팔로우 추천 목록 (허용 닉네임 필터 적용) |
 | `kanbu_room` | 깐부방 | (subcollection) | 깐부가 개설한 방 목록, 방별 게시판+실시간 채팅. Lv3 이상 개설. Firestore: `kanbu_rooms/{roomId}/chats` |
+| `glove` | 우리들의 따뜻한 장갑 | (커뮤니티) | 공개/비밀 커뮤니티. Lv3 이상 개설. Firestore: `communities`, `community_memberships`, `community_posts`, `community_post_comments` |
 | `market` | 마켓 | 마켓 | OneCutList 그리드 레이아웃, 게시글 없을 시 "기록된 글이 없어요" |
 | `exile_place` | 유배·귀양지 | 유배·귀양지 | 제재 유저 전용 소통 공간, 주제 없음 |
 | `ranking` | 랭킹 | (UI 전용) | 좋아요·땡스볼·조회수 × 유저·글 6개 뷰. `RankingView.tsx`. 사이드바 내정보 위 배치. |
@@ -296,7 +310,7 @@ interface KanbuChat {
 - **최대 폭**: `max-w-[1600px] mx-auto`.
 - **사이드바 (DiscussionView)**: 동일 카테고리 내 다른 글 목록('등록글 더보기').
 - **사이드바 (OneCutDetailView)**: `SideOneCuts` — 다른 한컷 최대 20개 세로 스크롤.
-- **OneCutDetailView 내부 구조**: ① 상단 헤더(제목/태그/연결글 버튼) → ② 메인 이미지(aspect-[9/16]) → ③ 텍스트 설명 → ④ 작성자 정보 바 → ⑤ 동의/반대 투표 + 댓글 폼 → ⑥ DebateBoard 댓글 목록.
+- **OneCutDetailView 내부 구조**: ① 상단 헤더(제목/태그/연결글 버튼) → ② 메인 이미지(aspect-[9/16]) → ③ 텍스트 설명 → ④ 작성자 정보 바 → ⑤ OneCutCommentBoard (작성자↔독자 지그재그 댓글).
 
 ### 7.2 리스트 뷰 (`AnyTalkList`)
 - **가변 그리드**: `minmax(280px, 1fr)` 기반 `auto-fill`, 카드 간격 `gap-2`.
@@ -498,6 +512,50 @@ interface KanbuChat {
 
 - [x] **판도라의 상자 CategoryHeader 설명 업데이트 (2026-03-25)**:
   - `constants.ts` `naked_king.description`: "사회 전반 퍼져 있는...사실 확인" → **"정치, 역사, 사회, 문화, 종교, 교육, 군사, 체육 등 사회 전반 이슈에 대한 거침없는 진실 공개 및 사실 확인"**.
+
+- [x] **황금알을 낳는 거위 분야 선택 시스템 (2026-03-25)**:
+  - `CreateKnowledge.tsx`: 정보 가치(🪙 포인트 입력) 섹션 제거 → **분야 칩 선택** UI로 교체.
+  - `INFO_FIELDS` 상수: `['주식', '코인', '부동산', '경제', '경영', '정책', '세금', '창업', '재테크', '글로벌']` 10개.
+  - 최대 2개 선택 가능. 선택된 분야는 `tags[0]`/`tags[1]`에 자동 입력 (나머지 `tags[2]~[4]`는 직접 입력).
+  - `Post.infoFields?: string[]` 신규 필드 (`types.ts` 추가).
+  - **배지 표시**: `AnyTalkList` 카드 하단 카테고리 배지 옆 + `RootPostCard` 제목 아래에 `🪙 분야명` 배지 표시.
+
+- [x] **솔로몬의 재판 연계글 원본글 바로가기 (2026-03-25)**:
+  - `Post.linkedPostTitle?: string` 신규 필드 — 연계글 작성 시 원본글 제목 저장.
+  - `CreateDebate.tsx`: 연계글 모드에서 `[연계글]` **고정 prefix** + 사용자가 제목 직접 입력 가능. 제출 시 `"[연계글] " + 입력값`으로 합산. 입장 선택 아래 원본글 제목 표시 섹션 추가.
+  - `App.tsx`: `CreateDebate` 연계글 모드에 `originalPost={selectedTopic}` 전달 → `linkedPostId` / `linkedPostTitle` Firestore 저장.
+  - `RootPostCard.tsx`: `onNavigateToPost?: (postId: string) => void` prop 추가. `linkedPostId && linkedPostTitle` 있으면 **"🔗 원본글: [제목]"** 버튼 + `debatePosition` 배지(`👍 동의` / `👎 비동의` / `🤝 중립`) 표시.
+  - `DiscussionView.tsx`: `onNavigateToPost` prop 체인 추가 → RootPostCard로 전달.
+  - `App.tsx`: `onNavigateToPost` 핸들러 — `allRootPosts`에서 postId로 글 찾아 `handleViewPost` 호출.
+
+- [x] **연계글 동의/비동의 배지 — 게시글 목록 카드 (2026-03-25)**:
+  - `AnyTalkList.tsx`: `post.linkedPostId && post.debatePosition`이 있는 연계글에 카테고리 배지 옆에 `👍 동의` / `👎 비동의` / `🤝 중립` 배지 표시.
+
+- [x] **한컷 댓글 구조 업그레이드 — 작성자(좌) ↔ 독자(우) 지그재그 (2026-03-25)**:
+  - **신규 컴포넌트 `OneCutCommentBoard.tsx`**: DebateBoard 대체. 한컷 전용 채팅형 지그재그 레이아웃.
+  - **side 자동 결정**: `currentNickname === rootPost.author` → `'left'`(작성자), 그 외 → `'right'`(독자). 투표 선택 UI 제거.
+  - **좌측 (작성자)**: 파란 배경(`bg-blue-50`), "작성자" 배지, 왼쪽 정렬 텍스트.
+  - **우측 (독자)**: 슬레이트 배경(`bg-slate-50`), 오른쪽 정렬 텍스트.
+  - **핀 고정**: 작성자만 가능 + **독자 댓글(우)에만** 핀 버튼 노출. 고정 시 앰버 하이라이트.
+  - **땡스볼**: 작성자만 발송 가능 + **독자 댓글(우)에만** ⚾ 버튼 노출. `ThanksballModal` `targetCollection="comments"` 연동.
+  - **대댓글**: **독자 → 작성자 댓글**에만 "답글" 버튼. 인라인 input + Enter 제출(IME isComposing 체크). 대댓글은 우측 정렬 서브카드로 표시.
+  - **입력 폼**: 작성자는 좌측 textarea + "✍ 작성자 코멘트", 독자는 우측 textarea + "💬 독자 댓글". Enter(Shift+Enter 제외) 단축 제출.
+  - `OneCutDetailView.tsx`: Props에서 `handleSubmit`/`selectedSide`/`setSelectedSide`/`newContent`/`setNewContent`/`isSubmitting` 제거 → `onInlineReply` 추가.
+  - `App.tsx`: OneCutDetailView 호출부 props 정리 — `handleInlineReply` 연결.
+
+- [x] **우리들의 따뜻한 장갑 — 커뮤니티 시스템 1단계 (2026-03-25)**:
+  - **사이드바**: 랭킹 위 "🧤 우리들의 장갑 (커뮤니티)" 항목 추가. `MenuId: 'glove'` 신규 타입.
+  - **Firestore 컬렉션 4종**: `communities`(메타데이터), `community_memberships`(멤버십 역조회 플랫), `community_posts`(크로스-커뮤니티 피드 쿼리용), `community_post_comments`(댓글).
+  - **ID 규칙**: `community_timestamp_uid` / `cpost_timestamp_uid` / `cpcomment_timestamp_uid` / `{communityId}_{userId}` (멤버십).
+  - **타입 3종**: `Community`, `CommunityMember`, `CommunityPost` (`types.ts` 추가).
+  - **개설 조건**: Lv3 이상. `GLOVE_CREATE_MIN_LEVEL = 3` 상수 (App.tsx, 향후 변경 용이).
+  - **GloveNavBar**: 서브탭 4개 (장갑 속 친구들 / 나의 아늑한 장갑 / 장갑 속 소곤소곤 / 장갑 나누기).
+  - **CommunityList**: 카테고리 필터 칩 (10종 + 전체), 커뮤니티 카드, 가입 버튼.
+  - **MyCommunityList**: 가입한 커뮤니티 목록, 탈퇴 버튼 (owner 제외).
+  - **CommunityView**: 커뮤니티 상세 — TiptapEditor 글 작성, 글 목록, 좋아요. `CommunityPostDetail` 인라인 오버레이 — 댓글 목록 + 댓글 작성.
+  - **CommunityFeed**: 가입 커뮤니티 통합 최신글 피드 (`where('communityId', 'in', ids)`, 최대 30개 제한).
+  - **CreateCommunityModal**: 이름/설명/분야(10종)/대표색상(8색)/공개·비밀 토글, 실시간 미리보기 카드.
+  - **useFirebaseListeners**: `communities` 전체 구독 (비로그인도 가능), 로그인 시 `community_memberships` where userId 1회 로드 → `joinedCommunityIds` 상태.
 
 ### 🛠️ 진행 중 / 개선 필요 사항
 - [ ] **에디터 보완**: `bubble-menu` 활성화 (텍스트 선택 시 서식 도구 노출).

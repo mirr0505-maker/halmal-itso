@@ -2,8 +2,8 @@
 import { useState, useEffect } from 'react';
 import { db, auth } from '../firebase';
 import { onAuthStateChanged } from 'firebase/auth';
-import { collection, onSnapshot, doc, setDoc, serverTimestamp } from 'firebase/firestore';
-import type { Post, KanbuRoom } from '../types';
+import { collection, onSnapshot, doc, setDoc, serverTimestamp, query, where, getDocs } from 'firebase/firestore';
+import type { Post, KanbuRoom, Community } from '../types';
 
 export function useFirebaseListeners() {
   const [allRootPosts, setAllRootPosts] = useState<Post[]>([]);
@@ -14,13 +14,22 @@ export function useFirebaseListeners() {
   const [blocks, setBlocks] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [kanbuRooms, setKanbuRooms] = useState<KanbuRoom[]>([]);
+  // 🚀 우리들의 따뜻한 장갑: 커뮤니티 상태
+  const [communities, setCommunities] = useState<Community[]>([]);
+  const [joinedCommunityIds, setJoinedCommunityIds] = useState<string[]>([]);
 
   useEffect(() => {
     let unsubUsers: (() => void) | null = null;
     let unsubUserDoc: (() => void) | null = null;
 
     // 🚀 공개 컬렉션 구독 — 비로그인도 읽기 가능 (Firestore rules: allow read: if true)
-    // posts, kanbu_rooms은 인증 없이 바로 구독 시작 → 비로그인 사용자도 글 목록 열람 가능
+    // posts, kanbu_rooms, communities는 인증 없이 바로 구독 시작
+    const unsubCommunities = onSnapshot(collection(db, 'communities'), (snapshot) => {
+      const list = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Community));
+      list.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+      setCommunities(list);
+    }, (err) => console.error('[communities onSnapshot]', err));
+
     const unsubRooms = onSnapshot(collection(db, "kanbu_rooms"), (snapshot) => {
       const rooms = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as KanbuRoom));
       rooms.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
@@ -59,6 +68,12 @@ export function useFirebaseListeners() {
           }, (err) => console.error('[users onSnapshot]', err));
         }
 
+        // 🚀 내가 가입한 커뮤니티 ID 목록 — 로그인 시 1회 로드 (실시간 구독 불필요)
+        // communities/{id}/members/{uid} 서브컬렉션은 collectionGroup 쿼리로 통합 조회
+        getDocs(query(collection(db, 'community_memberships'), where('userId', '==', user.uid)))
+          .then(snap => setJoinedCommunityIds(snap.docs.map(d => d.data().communityId as string)))
+          .catch(() => {});
+
         if (unsubUserDoc) unsubUserDoc();
         unsubUserDoc = onSnapshot(doc(db, "users", user.uid), (docSnap) => {
           if (docSnap.exists()) {
@@ -85,11 +100,13 @@ export function useFirebaseListeners() {
         if (unsubUsers) { unsubUsers(); unsubUsers = null; }
         if (unsubUserDoc) { unsubUserDoc(); unsubUserDoc = null; }
         setUserData(null);
+        setJoinedCommunityIds([]);
         setIsLoading(false);
       }
     });
 
     return () => {
+      unsubCommunities();
       unsubRooms();
       unsubPosts();
       if (unsubUsers) unsubUsers();
@@ -107,5 +124,8 @@ export function useFirebaseListeners() {
     blocks, setBlocks,
     isLoading,
     kanbuRooms,
+    communities,
+    joinedCommunityIds,
+    setJoinedCommunityIds,
   };
 }

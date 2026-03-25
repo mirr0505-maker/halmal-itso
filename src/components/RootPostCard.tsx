@@ -32,10 +32,11 @@ interface Props {
   onBack?: () => void;
   thanksballTotal?: number;
   allUsers?: Record<string, any>;
+  onNavigateToPost?: (postId: string) => void; // 연계글에서 원본글로 이동
 }
 
 const RootPostCard = ({
-  post, totalComment, totalFormal, uniqueAgreeCount, uniqueDisagreeCount, isFriend, onToggleFriend, userData, friendCount, onDeleteSuccess, onLikeClick, currentNickname, onEdit, onBack, thanksballTotal, allUsers = {}
+  post, totalComment, totalFormal, uniqueAgreeCount, uniqueDisagreeCount, isFriend, onToggleFriend, userData, friendCount, onDeleteSuccess, onLikeClick, currentNickname, onEdit, onBack, thanksballTotal, allUsers = {}, onNavigateToPost
 }: Props) => {
 
   const isMyPost = post.author === currentNickname;
@@ -153,6 +154,31 @@ const RootPostCard = ({
             <span className="text-[14px] font-black text-blue-600 uppercase tracking-widest">검증 대상</span>
           </div>
         )}
+        {/* 🚀 황금알을 낳는 거위 분야 배지 — 제목 바로 아래 표시 */}
+        {post.category === '황금알을 낳는 거위' && (post.infoFields || []).length > 0 && (
+          <div className="flex items-center gap-2 mb-3 flex-wrap">
+            {(post.infoFields || []).map(field => (
+              <span key={field} className="text-[12px] font-black text-yellow-700 bg-yellow-50 border border-yellow-200 px-3 py-1 rounded-lg">
+                🪙 {field}
+              </span>
+            ))}
+          </div>
+        )}
+        {/* 🚀 연계글 원본글 바로가기 + 동의/비동의 입장 배지 — linkedPostId/linkedPostTitle이 있는 연계글에만 표시 */}
+        {!post.isOneCut && post.linkedPostId && post.linkedPostTitle && onNavigateToPost && (
+          <div className="flex items-center gap-2 mb-3 flex-wrap">
+            <button
+              onClick={() => onNavigateToPost(post.linkedPostId!)}
+              className="flex items-center gap-1.5 text-[12px] font-bold text-blue-500 bg-blue-50 border border-blue-100 px-3 py-1 rounded-lg hover:bg-blue-100 transition-colors"
+            >
+              🔗 원본글: {post.linkedPostTitle}
+            </button>
+            {post.debatePosition === 'pro'     && <span className="text-[11px] font-black text-blue-700 bg-blue-50 border border-blue-200 px-2.5 py-0.5 rounded-lg">👍 동의</span>}
+            {post.debatePosition === 'con'     && <span className="text-[11px] font-black text-rose-700 bg-rose-50 border border-rose-200 px-2.5 py-0.5 rounded-lg">👎 비동의</span>}
+            {post.debatePosition === 'neutral' && <span className="text-[11px] font-black text-slate-500 bg-slate-50 border border-slate-200 px-2.5 py-0.5 rounded-lg">🤝 중립</span>}
+          </div>
+        )}
+
         {/* 🚀 마법 수정 구슬 지역 배지 — 제목 바로 아래 표시 */}
         {post.location && (
           <div className="flex items-center gap-2 mb-3">

@@ -53,6 +53,7 @@ interface Props {
   onEditPost?: (post: Post) => void;
   onInlineReply?: (content: string, parentPost: Post | null, side?: 'left' | 'right', imageUrl?: string, linkUrl?: string) => Promise<void>;
   onOpenLinkedPost?: (side: 'left' | 'right') => void;  // 솔로몬의 재판 연계글 팝업 트리거
+  onNavigateToPost?: (postId: string) => void;           // 연계글에서 원본글로 이동
   onBack?: () => void;
 }
 
@@ -88,7 +89,7 @@ const DiscussionView = ({
   rootPost, allPosts, otherTopics, onTopicChange, userData, friends, onToggleFriend,
   replyTarget, setReplyTarget, handleSubmit, selectedSide, setSelectedSide,
   selectedType, setSelectedType, newTitle, setNewTitle, newContent, setNewContent, isSubmitting,
-  commentCounts = {}, onLikeClick, currentNickname, allUsers = {}, followerCounts = {}, onEditPost, onInlineReply, onOpenLinkedPost, onBack
+  commentCounts = {}, onLikeClick, currentNickname, allUsers = {}, followerCounts = {}, onEditPost, onInlineReply, onOpenLinkedPost, onNavigateToPost, onBack
 }: Props) => {
   const rule = CATEGORY_RULES[rootPost.category || "너와 나의 이야기"] || CATEGORY_RULES["너와 나의 이야기"];
   const CommentForm = CATEGORY_COMMENT_MAP[rootPost.category || '너와 나의 이야기'] ?? CommentMyStory;
@@ -132,6 +133,7 @@ const DiscussionView = ({
             onBack={onBack}
             thanksballTotal={rootPost.thanksballTotal}
             allUsers={allUsers}
+            onNavigateToPost={onNavigateToPost}
           />
         )}
 

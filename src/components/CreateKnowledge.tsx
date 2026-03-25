@@ -12,17 +12,36 @@ interface Props {
   onClose: () => void;
 }
 
+// 🚀 황금알 정보 분야: 돈이 될 만한 정보 카테고리 10개, 최대 2개 선택
+const INFO_FIELDS = ['주식', '코인', '부동산', '경제', '경영', '정책', '세금', '창업', '재테크', '글로벌'];
+
 const CreateKnowledge = ({ userData, editingPost, onSubmit, onClose }: Props) => {
   const [postData, setPostData] = useState<Partial<Post>>({
     title: editingPost?.title || '',
     content: editingPost?.content || '',
     category: '황금알을 낳는 거위',
     tags: editingPost?.tags || ['', '', '', '', ''],
-    infoPrice: editingPost?.infoPrice ?? 0,
+    infoFields: editingPost?.infoFields || [],
     isOneCut: false,
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+
+  // 🚀 분야 칩 토글 — 최대 2개, 선택 시 tags[0]/[1]에 자동 반영 (tags[2]~[4]는 유저 직접 입력용 유지)
+  const toggleField = (field: string) => {
+    const current = postData.infoFields || [];
+    const isSelected = current.includes(field);
+    const newFields = isSelected
+      ? current.filter(f => f !== field)
+      : current.length < 2 ? [...current, field] : current;
+    if (newFields === current) return; // 최대 2개 초과 시 무시
+
+    // tags[0]~[1]에 선택된 분야 자동 입력, 나머지 유저 입력 tags[2]~[4] 보존
+    const userTags = Array.from({ length: 5 }, (_, i) => (postData.tags || [])[i] ?? '');
+    userTags[0] = newFields[0] || '';
+    userTags[1] = newFields[1] || '';
+    setPostData(p => ({ ...p, infoFields: newFields, tags: userTags }));
+  };
 
   const uploadFile = async (file: File): Promise<string | null> => {
     if (!userData) return null;
@@ -75,16 +94,31 @@ const CreateKnowledge = ({ userData, editingPost, onSubmit, onClose }: Props) =>
           <input type="text" placeholder="제목을 입력하세요" value={postData.title || ''} onChange={(e) => setPostData({ ...postData, title: e.target.value })} className="w-full bg-transparent text-[18px] font-bold text-slate-900 outline-none placeholder:text-slate-200 placeholder:font-normal" />
         </div>
 
-        {/* 정보 가치 */}
-        <div className="flex items-center gap-3 px-5 py-2.5 border-b border-slate-100 shrink-0">
-          <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest shrink-0">정보 가치</span>
-          <div className="flex items-center gap-1.5">
-            <span className="text-[13px] text-slate-400">🪙</span>
-            <input type="number" min={0} placeholder="0" value={postData.infoPrice ?? ''} onChange={(e) => setPostData(p => ({ ...p, infoPrice: Number(e.target.value) }))}
-              className="w-24 bg-transparent text-[13px] font-bold text-slate-700 outline-none border-b border-slate-200 focus:border-slate-500 pb-px placeholder:text-slate-200" />
-            <span className="text-[11px] text-slate-400 font-bold">포인트</span>
-          </div>
-          <span className="text-[10px] text-slate-300 font-medium">0 = 무료 공개</span>
+        {/* 🚀 정보 분야 선택 — 최대 2개, 선택된 분야는 상세글에 배지로 표시 */}
+        <div className="flex items-center gap-2.5 px-5 py-2.5 border-b border-slate-100 shrink-0 flex-wrap">
+          <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest shrink-0">정보 분야</span>
+          <span className="text-[9px] font-bold text-slate-200 shrink-0">최대 2개</span>
+          {INFO_FIELDS.map(field => {
+            const isSelected = (postData.infoFields || []).includes(field);
+            const isDisabled = !isSelected && (postData.infoFields || []).length >= 2;
+            return (
+              <button
+                key={field}
+                type="button"
+                onClick={() => toggleField(field)}
+                disabled={isDisabled}
+                className={`px-3 py-1 rounded-full text-[11px] font-bold transition-all border ${
+                  isSelected
+                    ? 'bg-yellow-400 text-yellow-900 border-yellow-400'
+                    : isDisabled
+                      ? 'bg-white text-slate-200 border-slate-100 cursor-not-allowed'
+                      : 'bg-white text-slate-400 border-slate-200 hover:bg-slate-50 hover:border-slate-300'
+                }`}
+              >
+                {field}
+              </button>
+            );
+          })}
         </div>
 
         {/* 에디터 */}
@@ -92,15 +126,29 @@ const CreateKnowledge = ({ userData, editingPost, onSubmit, onClose }: Props) =>
           <TiptapEditor content={postData.content || ''} onChange={(html) => setPostData(prev => ({ ...prev, content: html }))} onImageUpload={uploadFile} />
         </div>
 
-        {/* 태그 */}
+        {/* 태그 — 0/1은 분야 자동 입력(readOnly), 2~4만 직접 입력 */}
         <div className="flex items-center gap-3 px-5 py-2.5 border-t border-slate-100 bg-slate-50/60 shrink-0 flex-wrap">
           <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Tags</span>
-          {[0, 1, 2, 3, 4].map((idx) => (
-            <div key={idx} className="flex items-center gap-0.5">
-              <span className="text-slate-300 text-[12px] font-bold">#</span>
-              <input type="text" placeholder="태그" value={postData.tags?.[idx] || ''} onChange={(e) => handleTagChange(idx, e.target.value)} className="w-16 bg-transparent text-[12px] font-bold text-slate-500 outline-none border-b border-transparent focus:border-slate-300 placeholder:text-slate-200 transition-colors pb-px" />
-            </div>
-          ))}
+          {[0, 1, 2, 3, 4].map((idx) => {
+            const isAutoField = idx < 2;
+            return (
+              <div key={idx} className="flex items-center gap-0.5">
+                <span className={`text-[12px] font-bold ${isAutoField && postData.tags?.[idx] ? 'text-yellow-400' : 'text-slate-300'}`}>#</span>
+                <input
+                  type="text"
+                  placeholder={isAutoField ? '분야 자동' : '태그'}
+                  value={postData.tags?.[idx] || ''}
+                  onChange={isAutoField ? undefined : (e) => handleTagChange(idx, e.target.value)}
+                  readOnly={isAutoField}
+                  className={`w-16 bg-transparent text-[12px] font-bold outline-none border-b transition-colors pb-px ${
+                    isAutoField
+                      ? 'text-yellow-500 border-transparent cursor-default'
+                      : 'text-slate-500 border-transparent focus:border-slate-300 placeholder:text-slate-200'
+                  }`}
+                />
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>
