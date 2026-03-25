@@ -1,8 +1,8 @@
 // src/components/MyPage.tsx
 import { useState, useEffect } from 'react';
 import { db, auth } from '../firebase';
-import { collection, query, orderBy, limit, onSnapshot, doc, updateDoc, increment } from 'firebase/firestore';
-import type { Post } from '../types';
+import { collection, query, where, orderBy, limit, onSnapshot, doc, updateDoc, increment } from 'firebase/firestore';
+import type { Post, Community, CommunityPost } from '../types';
 import ActivityStats from './ActivityStats';
 import MyContentTabs from './MyContentTabs';
 import ProfileHeader from './ProfileHeader';
@@ -27,20 +27,28 @@ interface Props {
   friends: string[];
   friendCount: number;
   onPostClick: (post: Post) => void;
-  onEditPost?: (post: Post) => void; 
+  onEditPost?: (post: Post) => void;
   onToggleFriend: (author: string) => void;
   allUsers: Record<string, any>;
   followerCounts: Record<string, number>;
   toggleBlock: (author: string) => void;
   blocks: string[];
+  // 🚀 우리들의 따뜻한 장갑 관련
+  communities?: Community[];
+  joinedCommunityIds?: string[];
+  onGloveClick?: (communityId?: string) => void;
+  onLeaveGlove?: (communityId: string) => void;
 }
 
 const MyPage = ({
-  userData, allUserRootPosts, allUserChildPosts, friends, friendCount, onPostClick, onEditPost, onToggleFriend, allUsers, followerCounts
+  userData, allUserRootPosts, allUserChildPosts, friends, friendCount, onPostClick, onEditPost, onToggleFriend, allUsers, followerCounts,
+  communities = [], joinedCommunityIds = [], onGloveClick, onLeaveGlove
 }: Props) => {
-  const [activeTab, setActiveTab] = useState<'posts' | 'onecuts' | 'comments' | 'avatars' | 'friends' | 'thanksball' | 'sentball'>('posts');
+  const [activeTab, setActiveTab] = useState<'posts' | 'onecuts' | 'comments' | 'avatars' | 'friends' | 'thanksball' | 'sentball' | 'glove' | 'gloveposts'>('posts');
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [sentBalls, setSentBalls] = useState<SentBall[]>([]);
+  // 🚀 커뮤니티 글 구독 (장갑 속 글 탭)
+  const [glovePosts, setGlovePosts] = useState<CommunityPost[]>([]);
 
   useEffect(() => {
     if (!userData?.nickname) return;
@@ -53,6 +61,20 @@ const MyPage = ({
       setSentBalls(snap.docs.map(d => ({ id: d.id, ...d.data() } as SentBall)));
     });
   }, [userData?.nickname]);
+
+  // 🚀 내가 쓴 커뮤니티 글 구독
+  useEffect(() => {
+    if (!userData?.uid) return;
+    const q = query(
+      collection(db, 'community_posts'),
+      where('author_id', '==', userData.uid),
+      orderBy('createdAt', 'desc'),
+      limit(50)
+    );
+    return onSnapshot(q, snap => {
+      setGlovePosts(snap.docs.map(d => ({ id: d.id, ...d.data() } as CommunityPost)));
+    }, err => console.error('[MyPage glovePosts]', err));
+  }, [userData?.uid]);
 
   // 게시글 분리
   const standardPosts = allUserRootPosts.filter(p => !p.isOneCut);
@@ -88,7 +110,7 @@ const MyPage = ({
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* 🚀 좌측: 활동 통계 및 마일스톤 */}
           <div className="lg:col-span-1 flex flex-col gap-6">
-            <ActivityStats userData={userData} rootCount={allUserRootPosts.length} totalThanksball={totalThanksball} />
+            <ActivityStats userData={userData} rootCount={allUserRootPosts.length} totalThanksball={totalThanksball} joinedGloveCount={joinedCommunityIds.length} glovePostCount={glovePosts.length} />
 
             {/* 땡스볼 지갑 */}
             <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm">
@@ -142,7 +164,7 @@ const MyPage = ({
               <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-blue-600 to-indigo-500" />
               
               <div className="flex items-center gap-6 mb-10 border-b border-slate-50 pb-2 overflow-x-auto no-scrollbar">
-                {(['posts', 'onecuts', 'comments', 'avatars', 'friends', 'thanksball', 'sentball'] as const).map(tab => (
+                {(['posts', 'onecuts', 'comments', 'avatars', 'friends', 'thanksball', 'sentball', 'glove', 'gloveposts'] as const).map(tab => (
                   <button key={tab} onClick={() => setActiveTab(tab)} className={`pb-4 px-2 text-[15px] font-[1000] tracking-tight transition-all relative whitespace-nowrap ${activeTab === tab ? 'text-blue-600' : 'text-slate-300 hover:text-slate-500'}`}>
                     {tab === 'posts' && '나의 기록'}
                     {tab === 'onecuts' && '나의 한컷'}
@@ -165,6 +187,26 @@ const MyPage = ({
                         {sentBalls.length > 0 && (
                           <span className="text-[10px] font-[1000] text-blue-500 bg-blue-50 px-1.5 py-0.5 rounded-full border border-blue-100">
                             {sentBalls.reduce((s, b) => s + b.amount, 0)}볼
+                          </span>
+                        )}
+                      </span>
+                    )}
+                    {tab === 'glove' && (
+                      <span className="flex items-center gap-1">
+                        🧤 내 장갑
+                        {joinedCommunityIds.length > 0 && (
+                          <span className="text-[10px] font-[1000] text-teal-600 bg-teal-50 px-1.5 py-0.5 rounded-full border border-teal-100">
+                            {joinedCommunityIds.length}개
+                          </span>
+                        )}
+                      </span>
+                    )}
+                    {tab === 'gloveposts' && (
+                      <span className="flex items-center gap-1">
+                        📝 장갑 속 글
+                        {glovePosts.length > 0 && (
+                          <span className="text-[10px] font-[1000] text-teal-600 bg-teal-50 px-1.5 py-0.5 rounded-full border border-teal-100">
+                            {glovePosts.length}개
                           </span>
                         )}
                       </span>
@@ -272,6 +314,97 @@ const MyPage = ({
                               </div>
                             </div>
                             <button onClick={() => onToggleFriend(fname)} className="text-[10px] font-black text-rose-500 bg-white px-3 py-1.5 rounded-lg border border-rose-100 shadow-sm hover:bg-rose-50 transition-all">깐부해제</button>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                )}
+
+                {/* 🚀 내 장갑 탭: 가입한 커뮤니티 카드 목록 */}
+                {activeTab === 'glove' && (() => {
+                  const joinedCommunities = communities.filter(c => joinedCommunityIds.includes(c.id));
+                  return (
+                    <div className="flex flex-col gap-4">
+                      <p className="text-[12px] font-bold text-slate-400">내가 가입한 커뮤니티 장갑 목록</p>
+                      {joinedCommunities.length === 0 ? (
+                        <div className="py-20 text-center text-slate-300 font-bold italic">아직 가입한 장갑이 없어요.</div>
+                      ) : (
+                        joinedCommunities.map(c => {
+                          const isOwner = c.creatorId === userData?.uid;
+                          return (
+                            <div
+                              key={c.id}
+                              onClick={() => onGloveClick?.(c.id)}
+                              className="flex items-center justify-between gap-3 p-4 bg-slate-50 rounded-2xl border border-slate-100 cursor-pointer hover:border-teal-200 hover:bg-teal-50/30 transition-all group"
+                            >
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-0.5">
+                                  <span className="text-[13px] font-[1000] text-slate-800 group-hover:text-teal-700 transition-colors truncate">🧤 {c.name}</span>
+                                  {isOwner && (
+                                    <span className="text-[9px] font-[1000] text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded-full border border-amber-200 shrink-0">👑 개설자</span>
+                                  )}
+                                  {c.isPrivate && (
+                                    <span className="text-[9px] font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded-full border border-slate-200 shrink-0">비밀</span>
+                                  )}
+                                </div>
+                                {c.description && (
+                                  <p className="text-[11px] font-bold text-slate-400 truncate">{c.description}</p>
+                                )}
+                                <p className="text-[10px] font-bold text-slate-300 mt-0.5">{c.category} · 멤버 {c.memberCount}명 · 글 {c.postCount}개</p>
+                              </div>
+                              {/* 탈퇴 버튼 (개설자는 탈퇴 불가) */}
+                              {!isOwner && (
+                                <button
+                                  onClick={e => { e.stopPropagation(); onLeaveGlove?.(c.id); }}
+                                  className="text-[10px] font-black text-rose-500 bg-white px-3 py-1.5 rounded-lg border border-rose-100 shadow-sm hover:bg-rose-50 transition-all shrink-0"
+                                >
+                                  탈퇴
+                                </button>
+                              )}
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+                  );
+                })()}
+
+                {/* 🚀 장갑 속 글 탭: 내가 community_posts에 쓴 글 목록 */}
+                {activeTab === 'gloveposts' && (
+                  <div className="flex flex-col gap-4">
+                    <p className="text-[12px] font-bold text-slate-400">내가 커뮤니티 장갑에 쓴 글 목록</p>
+                    {glovePosts.length === 0 ? (
+                      <div className="py-20 text-center text-slate-300 font-bold italic">아직 쓴 장갑 글이 없어요.</div>
+                    ) : (
+                      glovePosts.map(post => {
+                        const formatTime = (ts: any) => {
+                          if (!ts) return '';
+                          const d = ts.seconds ? new Date(ts.seconds * 1000) : new Date(ts);
+                          const diff = Math.floor((Date.now() - d.getTime()) / 1000);
+                          if (diff < 60) return '방금 전';
+                          if (diff < 3600) return `${Math.floor(diff / 60)}분 전`;
+                          if (diff < 86400) return `${Math.floor(diff / 3600)}시간 전`;
+                          return d.toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' });
+                        };
+                        return (
+                          <div
+                            key={post.id}
+                            onClick={() => onGloveClick?.(post.communityId)}
+                            className="flex items-start gap-3 p-4 bg-slate-50 rounded-2xl border border-slate-100 cursor-pointer hover:border-teal-200 hover:bg-teal-50/30 transition-all group"
+                          >
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className="text-[9px] font-[1000] text-teal-600 bg-teal-50 px-2 py-0.5 rounded-full border border-teal-100 shrink-0">🧤 {post.communityName}</span>
+                              </div>
+                              <p className="text-[13px] font-[1000] text-slate-800 group-hover:text-teal-700 transition-colors line-clamp-1">
+                                {post.title || post.content.replace(/<[^>]+>/g, '').slice(0, 50)}
+                              </p>
+                              <div className="flex items-center gap-3 mt-1">
+                                <span className="text-[10px] font-bold text-slate-400">👍 {post.likes || 0}</span>
+                                <span className="text-[10px] font-bold text-slate-300">{formatTime(post.createdAt)}</span>
+                              </div>
+                            </div>
                           </div>
                         );
                       })

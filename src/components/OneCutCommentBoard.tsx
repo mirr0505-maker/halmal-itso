@@ -117,9 +117,7 @@ const OneCutCommentBoard = ({
       {/* 지그재그 댓글 목록 */}
       <div className="flex flex-col gap-3 py-4">
         {sortedComments.length === 0 && (
-          <p className="text-center text-[12px] font-bold text-slate-300 py-8 italic">
-            첫 번째 댓글을 남겨보세요!
-          </p>
+          <p className="text-center text-[12px] font-bold text-slate-300 py-8 italic" />
         )}
 
         {sortedComments.map(post => {
@@ -133,7 +131,7 @@ const OneCutCommentBoard = ({
           return (
             <div key={post.id}>
               {/* 메인 댓글 */}
-              <div className={`flex ${isAuthorComment ? 'justify-start' : 'justify-end'}`}>
+              <div className={`flex ${isAuthorComment ? 'justify-end' : 'justify-start'}`}>
                 <div className={`w-[84%] rounded-2xl border px-4 py-3 transition-all ${
                   isPinned
                     ? 'bg-amber-50 border-amber-200 ring-1 ring-amber-300'
@@ -151,8 +149,8 @@ const OneCutCommentBoard = ({
                   )}
 
                   {/* 아바타 + 이름 + 액션 버튼 */}
-                  <div className={`flex items-center justify-between mb-2 ${!isAuthorComment ? 'flex-row-reverse' : ''}`}>
-                    <div className={`flex items-center gap-2 ${!isAuthorComment ? 'flex-row-reverse' : ''}`}>
+                  <div className={`flex items-center justify-between mb-2 ${isAuthorComment ? 'flex-row-reverse' : ''}`}>
+                    <div className={`flex items-center gap-2 ${isAuthorComment ? 'flex-row-reverse' : ''}`}>
                       <div className="w-6 h-6 rounded-full overflow-hidden shrink-0 border border-slate-200">
                         <img
                           src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${post.author}`}
@@ -160,7 +158,7 @@ const OneCutCommentBoard = ({
                           className="w-full h-full object-cover"
                         />
                       </div>
-                      <div className={`flex flex-col ${!isAuthorComment ? 'items-end' : ''}`}>
+                      <div className={`flex flex-col ${isAuthorComment ? 'items-end' : ''}`}>
                         <div className="flex items-center gap-1.5">
                           <span className={`font-black text-[11px] leading-none ${isAuthorComment ? 'text-blue-800' : 'text-slate-700'}`}>
                             {post.author}
@@ -236,7 +234,7 @@ const OneCutCommentBoard = ({
                   </div>
 
                   {/* 본문 */}
-                  <p className={`text-[13px] font-medium leading-relaxed whitespace-pre-line ${isAuthorComment ? 'text-blue-900' : 'text-slate-700 text-right'}`}>
+                  <p className={`text-[13px] font-medium leading-relaxed whitespace-pre-line ${isAuthorComment ? 'text-blue-900 text-right' : 'text-slate-700'}`}>
                     {post.content}
                   </p>
                 </div>
@@ -244,7 +242,7 @@ const OneCutCommentBoard = ({
 
               {/* 독자 → 작성자 댓글 인라인 답글 폼 */}
               {replyTarget?.id === post.id && (
-                <div className="ml-8 mt-1.5 flex items-center gap-2 px-3 py-2 bg-slate-50 rounded-xl border border-slate-200">
+                <div className="mr-8 mt-1.5 flex items-center gap-2 px-3 py-2 bg-slate-50 rounded-xl border border-slate-200">
                   <input
                     autoFocus
                     type="text"
@@ -274,16 +272,16 @@ const OneCutCommentBoard = ({
 
               {/* 대댓글 목록 (작성자 댓글 하위 독자 답글, 우측 정렬) */}
               {replies.length > 0 && (
-                <div className="ml-8 mt-1.5 flex flex-col gap-1.5">
+                <div className="mr-8 mt-1.5 flex flex-col gap-1.5">
                   {replies.map(reply => {
                     const isReplyLiked = !!(currentNickname && (reply.likedBy || []).includes(currentNickname));
                     const replyAuthorData = (reply.author_id && allUsers[reply.author_id]) || allUsers[`nickname_${reply.author}`];
                     const replyLevel = replyAuthorData ? replyAuthorData.level : (reply.authorInfo?.level || 1);
                     return (
-                      <div key={reply.id} className="flex justify-end">
+                      <div key={reply.id} className="flex justify-start">
                         <div className="w-[90%] bg-white rounded-xl border border-slate-200 px-3 py-2">
-                          <div className="flex items-center justify-between mb-1 flex-row-reverse">
-                            <div className="flex items-center gap-1.5 flex-row-reverse">
+                          <div className="flex items-center justify-between mb-1">
+                            <div className="flex items-center gap-1.5">
                               <div className="w-5 h-5 rounded-full overflow-hidden border border-slate-200">
                                 <img src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${reply.author}`} alt="" className="w-full h-full object-cover" />
                               </div>
@@ -301,7 +299,7 @@ const OneCutCommentBoard = ({
                               {reply.likes || 0}
                             </button>
                           </div>
-                          <p className="text-[12px] font-medium text-slate-700 text-right leading-relaxed whitespace-pre-line">{reply.content}</p>
+                          <p className="text-[12px] font-medium text-slate-700 leading-relaxed whitespace-pre-line">{reply.content}</p>
                         </div>
                       </div>
                     );
@@ -324,7 +322,7 @@ const OneCutCommentBoard = ({
             <span className={`text-[10px] font-black uppercase tracking-widest ${isRootAuthor ? 'text-blue-400' : 'text-slate-400'}`}>
               {isRootAuthor ? '✍ 작성자 코멘트' : '💬 독자 댓글'}
             </span>
-            <div className={`flex items-end gap-2 ${!isRootAuthor ? 'flex-row-reverse' : ''}`}>
+            <div className={`flex items-end gap-2 ${isRootAuthor ? 'flex-row-reverse' : ''}`}>
               <textarea
                 value={inputContent}
                 onChange={e => setInputContent(e.target.value)}
@@ -334,15 +332,15 @@ const OneCutCommentBoard = ({
                     handleSubmit();
                   }
                 }}
-                placeholder={isRootAuthor ? '독자들에게 코멘트를 남기세요...' : '작품에 대한 생각을 남겨보세요...'}
-                className={`flex-1 bg-white border rounded-xl px-3 py-2 text-[12px] font-bold outline-none focus:border-slate-400 transition-all resize-none h-14 ${isRootAuthor ? 'border-blue-200 text-slate-900' : 'border-slate-200 text-slate-900 text-right'}`}
+                placeholder={isRootAuthor ? '정보에 대한 부연 설명을 남겨 주세요...' : '정보에 대한 당신의 생각을 남겨주세요...'}
+                className={`flex-1 bg-white border rounded-xl px-3 py-2 text-[12px] font-bold outline-none focus:border-slate-400 transition-all resize-none h-14 ${isRootAuthor ? 'border-blue-200 text-slate-900 text-right' : 'border-slate-200 text-slate-900'}`}
               />
               <button
                 onClick={handleSubmit}
                 disabled={isSubmitting || !inputContent.trim()}
                 className="shrink-0 bg-slate-900 text-white px-3 py-2 rounded-xl text-[11px] font-[1000] hover:bg-blue-600 transition-all disabled:opacity-50 active:scale-95"
               >
-                전송
+                댓글 입력
               </button>
             </div>
           </div>

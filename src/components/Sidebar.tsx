@@ -220,7 +220,7 @@ const Sidebar = ({ activeMenu, setActiveMenu, kanbuRoomCount = 0 }: Props) => {
               : 'bg-transparent text-slate-400 border-transparent hover:bg-slate-50 hover:text-slate-600'
           }`}
         >
-          <span className={`transition-colors duration-150 shrink-0 text-[16px] leading-none ${activeMenu === 'glove' ? 'text-blue-600' : 'text-slate-300'}`}>
+          <span className={`transition-colors duration-150 shrink-0 text-[16px] leading-none grayscale ${activeMenu === 'glove' ? 'text-blue-600' : 'text-slate-300'}`}>
             🧤
           </span>
           <div className="flex flex-col items-start min-w-0 flex-1 overflow-hidden">

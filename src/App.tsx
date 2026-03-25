@@ -361,7 +361,34 @@ function App() {
       if (userData) {
         const userPosts = allRootPosts.filter(p => p.author_id === userData.uid || p.author === userData.nickname);
         const userComments = myComments;
-        return <MyPage userData={userData} allUserRootPosts={userPosts} allUserChildPosts={userComments} friends={friends} friendCount={followerCounts[userData.nickname] || 0} onPostClick={handleViewPost} onEditPost={(post) => { setEditingPost(post); setIsCreateOpen(true); }} onToggleFriend={toggleFriend} allUsers={allUsers} followerCounts={followerCounts} toggleBlock={toggleBlock} blocks={blocks} />;
+        return <MyPage
+          userData={userData}
+          allUserRootPosts={userPosts}
+          allUserChildPosts={userComments}
+          friends={friends}
+          friendCount={followerCounts[userData.nickname] || 0}
+          onPostClick={handleViewPost}
+          onEditPost={(post) => { setEditingPost(post); setIsCreateOpen(true); }}
+          onToggleFriend={toggleFriend}
+          allUsers={allUsers}
+          followerCounts={followerCounts}
+          toggleBlock={toggleBlock}
+          blocks={blocks}
+          communities={communities}
+          joinedCommunityIds={joinedCommunityIds}
+          onGloveClick={(communityId) => {
+            setActiveMenu('glove');
+            setGloveSubTab('mine');
+            if (communityId) {
+              const target = communities.find(c => c.id === communityId);
+              if (target) setSelectedCommunity(target);
+            }
+          }}
+          onLeaveGlove={(communityId) => {
+            const target = communities.find(c => c.id === communityId);
+            if (target) handleLeaveCommunity(target);
+          }}
+        />;
       }
       return <div className="w-full py-40 text-center"><button onClick={handleLogin} className="bg-slate-900 text-white px-8 py-3 rounded-xl font-black shadow-lg">로그인하기</button></div>;
     }
