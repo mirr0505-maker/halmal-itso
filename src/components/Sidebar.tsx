@@ -22,9 +22,12 @@ interface Props {
   activeMenu: MenuId;
   setActiveMenu: (menu: MenuId) => void;
   kanbuRoomCount?: number;
+  // 🚀 모바일 드로어 모드
+  mobile?: boolean;
+  onClose?: () => void;
 }
 
-const Sidebar = ({ activeMenu, setActiveMenu, kanbuRoomCount = 0 }: Props) => {
+const Sidebar = ({ activeMenu, setActiveMenu, kanbuRoomCount = 0, mobile = false, onClose }: Props) => {
   const mainServiceMenus = [
     {
       id: 'home',
@@ -203,7 +206,25 @@ const Sidebar = ({ activeMenu, setActiveMenu, kanbuRoomCount = 0 }: Props) => {
   };
 
   return (
-    <aside className="w-36 hidden md:flex flex-col h-full bg-white border-r border-slate-100 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+    <aside className={`flex flex-col bg-white overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] ${
+      mobile
+        ? 'w-72 h-full'
+        : 'w-36 hidden md:flex h-full border-r border-slate-100'
+    }`}>
+      {/* 🚀 모바일 드로어 전용 상단 헤더 */}
+      {mobile && (
+        <div className="flex items-center justify-between px-4 py-4 border-b border-slate-100 shrink-0">
+          <div>
+            <h2 className="text-[17px] font-[1000] italic tracking-tighter"><span className="text-blue-600">GL</span><span className="text-slate-900">ove</span></h2>
+            <p className="text-[9px] font-bold text-slate-300 tracking-tight">집단지성의 힘</p>
+          </div>
+          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-50 transition-colors">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      )}
       <nav className="flex-1 px-2 pt-3 space-y-0.5 pb-4">
         {mainServiceMenus.map(renderMenuButton)}
 
