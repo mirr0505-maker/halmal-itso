@@ -2,7 +2,7 @@
 // 🚀 개설 조건: Lv3 이상 (GLOVE_CREATE_MIN_LEVEL, App.tsx에서 검증)
 import { useState } from 'react';
 
-const CATEGORIES = ['취미', '스포츠', '게임', '독서', '요리', '반려동물', '여행', '음악', '개발', '기타'];
+const CATEGORIES = ['주식', '부동산', '코인', '취미', '스포츠', '게임', '독서', '요리', '반려동물', '여행', '음악', '개발', '기타'];
 
 const COVER_COLORS = [
   { value: '#3b82f6', label: '블루' },
