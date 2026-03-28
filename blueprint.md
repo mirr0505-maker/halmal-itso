@@ -2,7 +2,7 @@
 
 이 문서는 **할말있소(HALMAL-ITSO)** 프로젝트의 설계 원칙, 현재 구현 상태, 그리고 AI 개발자의 **절대적 행동 지침**을 담은 단일 진실 소스(Single Source of Truth)입니다.
 
-> 최종 갱신: 2026-03-25 v19 (코드 실측 기준)  |  현재 브랜치: `main`
+> 최종 갱신: 2026-03-28 v20 (코드 실측 기준)  |  현재 브랜치: `main`
 
 ---
 
@@ -127,12 +127,12 @@
     ├── NotificationBell.tsx # 헤더 알림 벨 (땡스볼 수신 알림, 실시간 뱃지)
     ├── RankingView.tsx      # 랭킹 페이지 (좋아요·땡스볼·조회수 × 유저·글 6개 뷰)
     ├── LinkPreviewCard.tsx  # 링크 OG 미리보기 카드 (EditorToolbar에서 사용, OgData 타입 export)
-    ├── GloveNavBar.tsx      # 우리들의 장갑 서브 탭 [친구들|나의장갑|소곤소곤|장갑나누기]
-    ├── CommunityList.tsx    # 장갑 속 친구들: 전체 커뮤니티 목록 (카테고리 필터, 가입 버튼)
-    ├── MyCommunityList.tsx  # 나의 아늑한 장갑: 가입한 커뮤니티 목록 (탈퇴 버튼)
-    ├── CommunityFeed.tsx    # 장갑 속 소곤소곤: 가입 커뮤니티 통합 최신글 피드
+    ├── GloveNavBar.tsx      # 우리들의 장갑 서브 탭 [소곤소곤|장갑찾기] + 장갑만들기 버튼 (헤더 바에 통합됨, 현재 미사용)
+    ├── CommunityList.tsx    # 장갑 찾기: 전체 커뮤니티 목록 (카테고리 필터 13종, 가입 버튼)
+    ├── MyCommunityList.tsx  # 나의 아늑한 장갑: 가입한 커뮤니티 목록 (탈퇴 버튼) / compact=true 시 사이드바용 소형 리스트
+    ├── CommunityFeed.tsx    # 소곤소곤: 가입 커뮤니티 통합 최신글 피드
     ├── CommunityView.tsx    # 개별 커뮤니티 상세 (글 목록+작성+좋아요) + CommunityPostDetail 인라인 컴포넌트 (댓글)
-    └── CreateCommunityModal.tsx # 장갑 나누기: 커뮤니티 개설 폼 (Lv3 이상, 이름/설명/분야/색상/공개여부)
+    └── CreateCommunityModal.tsx # 장갑 만들기: 커뮤니티 개설 폼 (Lv3 이상, 이름/설명/분야 13종/색상/공개여부)
 ```
 
 ### 3.2 상태 관리 (`App.tsx`)
@@ -277,7 +277,7 @@ interface KanbuChat {
 | `local_news` | 마법 수정 구슬 | 마법 수정 구슬 | 정보 공유 보드 (구: 현지 소식 → migrate 완료) |
 | `friends` | 깐부 맺기 | (UI 전용) | 팔로우 추천 목록 (허용 닉네임 필터 적용) |
 | `kanbu_room` | 깐부방 | (subcollection) | 깐부가 개설한 방 목록, 방별 게시판+실시간 채팅. Lv3 이상 개설. Firestore: `kanbu_rooms/{roomId}/chats` |
-| `glove` | 우리들의 따뜻한 장갑 | (커뮤니티) | 공개/비밀 커뮤니티. Lv3 이상 개설. Firestore: `communities`, `community_memberships`, `community_posts`, `community_post_comments` |
+| `glove` | 우리들의 장갑 | (커뮤니티) | 공개/비밀 커뮤니티. Lv3 이상 개설. Firestore: `communities`, `community_memberships`, `community_posts`, `community_post_comments` |
 | `market` | 마켓 | 마켓 | OneCutList 그리드 레이아웃, 게시글 없을 시 "기록된 글이 없어요" |
 | `exile_place` | 유배·귀양지 | 유배·귀양지 | 제재 유저 전용 소통 공간, 주제 없음 |
 | `ranking` | 랭킹 | (UI 전용) | 좋아요·땡스볼·조회수 × 유저·글 6개 뷰. `RankingView.tsx`. 사이드바 내정보 위 배치. |
@@ -415,7 +415,8 @@ interface KanbuChat {
   - `DebateBoard` pandora 레이아웃: 지그재그 카드에 땡스볼 카운트·전송 버튼 인라인 표시.
 - [x] **Firestore Security Rules 구축 및 보안 정책 수립** (`firestore.rules` + `firebase.json`):
   - 기존: `firestore.rules` 파일 없음 → 모든 `comments` 쓰기 권한 없어 댓글·좋아요 전부 차단.
-  - 현재 규칙: posts·comments·kanbu_rooms는 `allow read: if true` (공개 포럼), `allow write: if request.auth != null`. users·notifications·sentBalls는 `allow read, write: if request.auth != null` (ballBalance·email 등 보호).
+  - 현재 규칙: posts·comments·kanbu_rooms·communities·community_posts는 `allow read: if true` (공개), `allow write: if request.auth != null`. community_memberships는 `allow read, write: if request.auth != null`. users·notifications·sentBalls는 `allow read, write: if request.auth != null` (보호).
+  - **2026-03-28 추가**: communities·community_memberships·community_posts 규칙 누락으로 기본 deny 적용 → 커뮤니티 생성/가입/읽기 전체 차단 버그 수정.
 - [x] **Firebase Auth 타이밍 버그 수정** (`useFirebaseListeners.ts`):
   - 문제: 앱 마운트 시 `onAuthStateChanged` 해결 전에 onSnapshot 구독 시작 → `request.auth = null` → "Missing or insufficient permissions" 에러로 posts·users·kanbu_rooms 구독 전체 침묵 실패.
   - 해결: kanbu_rooms·posts·users 구독을 `setupCollectionSubs()` 함수로 묶어 `onAuthStateChanged(user)` 콜백 내부에서만 1회 호출. `if (unsubRooms) return` 가드로 중복 구독 방지.
@@ -543,19 +544,59 @@ interface KanbuChat {
   - `OneCutDetailView.tsx`: Props에서 `handleSubmit`/`selectedSide`/`setSelectedSide`/`newContent`/`setNewContent`/`isSubmitting` 제거 → `onInlineReply` 추가.
   - `App.tsx`: OneCutDetailView 호출부 props 정리 — `handleInlineReply` 연결.
 
-- [x] **우리들의 따뜻한 장갑 — 커뮤니티 시스템 1단계 (2026-03-25)**:
-  - **사이드바**: 랭킹 위 "🧤 우리들의 장갑 (커뮤니티)" 항목 추가. `MenuId: 'glove'` 신규 타입.
+- [x] **우리들의 장갑 — 커뮤니티 시스템 (2026-03-25 초기 구현, 2026-03-28 UI 개편)**:
+  - **사이드바**: 랭킹 위 "🧤 우리들의 장갑" 항목 추가. `MenuId: 'glove'` 신규 타입.
   - **Firestore 컬렉션 4종**: `communities`(메타데이터), `community_memberships`(멤버십 역조회 플랫), `community_posts`(크로스-커뮤니티 피드 쿼리용), `community_post_comments`(댓글).
   - **ID 규칙**: `community_timestamp_uid` / `cpost_timestamp_uid` / `cpcomment_timestamp_uid` / `{communityId}_{userId}` (멤버십).
   - **타입 3종**: `Community`, `CommunityMember`, `CommunityPost` (`types.ts` 추가).
   - **개설 조건**: Lv3 이상. `GLOVE_CREATE_MIN_LEVEL = 3` 상수 (App.tsx, 향후 변경 용이).
-  - **GloveNavBar**: 서브탭 4개 (장갑 속 친구들 / 나의 아늑한 장갑 / 장갑 속 소곤소곤 / 장갑 나누기).
-  - **CommunityList**: 카테고리 필터 칩 (10종 + 전체), 커뮤니티 카드, 가입 버튼.
-  - **MyCommunityList**: 가입한 커뮤니티 목록, 탈퇴 버튼 (owner 제외).
+  - **Firestore Rules**: `communities`(공개 읽기·로그인 쓰기), `community_memberships`(로그인 읽기·쓰기), `community_posts`(공개 읽기·로그인 쓰기) — 미설정으로 인한 전체 차단 버그 수정 완료.
+  - **UI 개편 (2026-03-28)**: 4탭(장갑 속 친구들/나의 아늑한 장갑/소곤소곤/장갑나누기) → 상단 헤더 바에 **2탭(💬 소곤소곤·🧤 장갑 찾기) + + 장갑 만들기 버튼** 통합. 기본 진입 화면: 소곤소곤(피드). **나의 아늑한 장갑** → 데스크톱 우측 sticky 사이드바로 이동 (`MyCommunityList compact=true`).
+  - **2컬럼 레이아웃**: 메인(flex-1) + 우측 사이드바(`w-64 hidden md:block`) — 내가 가입한 장갑 컬러도트+이름 리스트.
+  - **CommunityList**: 카테고리 필터 칩 (주식·부동산·코인 우선 + 10종 + 전체 = 14개), 커뮤니티 카드, 가입 버튼.
+  - **MyCommunityList**: `compact` prop — `false`(기본, 카드 그리드) / `true`(사이드바용 소형 리스트).
   - **CommunityView**: 커뮤니티 상세 — TiptapEditor 글 작성, 글 목록, 좋아요. `CommunityPostDetail` 인라인 오버레이 — 댓글 목록 + 댓글 작성.
   - **CommunityFeed**: 가입 커뮤니티 통합 최신글 피드 (`where('communityId', 'in', ids)`, 최대 30개 제한).
-  - **CreateCommunityModal**: 이름/설명/분야(10종)/대표색상(8색)/공개·비밀 토글, 실시간 미리보기 카드.
+  - **CreateCommunityModal**: 이름/설명/분야(주식·부동산·코인 우선 13종)/대표색상(8색)/공개·비밀 토글, 실시간 미리보기 카드.
   - **useFirebaseListeners**: `communities` 전체 구독 (비로그인도 가능), 로그인 시 `community_memberships` where userId 1회 로드 → `joinedCommunityIds` 상태.
+
+- [x] **모바일 반응형 UI (2026-03-28)**:
+  - **헤더**: `h-[56px] md:h-[64px]`. Dev 버튼·검색창 `hidden md:flex`. 모바일 우측 햄버거 버튼(☰) 추가.
+  - **모바일 드로어 메뉴**: 햄버거 클릭 시 `fixed inset-0 z-[60] md:hidden` 오버레이 + 좌측 슬라이드 Sidebar(`mobile=true`). Sidebar에 `mobile`, `onClose` prop 추가, 모바일 전용 헤더(GLove 로고 + × 닫기버튼) 포함.
+  - **하단 네비게이션 바**: `fixed bottom-0 md:hidden h-14` — 홈·새글·알림·내정보·메뉴 5탭. 메인 컨텐츠 하단 여백 `pb-28` 추가.
+  - **내정보 로그아웃 버튼**: MyPage 하단에 `onLogout` prop 버튼 추가 → 모바일에서 내정보 탭에서 로그아웃 가능.
+
+- [x] **홈 새 글 2단계 UX (2026-03-28)**:
+  - 홈 화면에서 새 글 클릭 → ①카테고리 선택 카드 화면(8개: 너와나의이야기/판도라의상자/솔로몬의재판/황금알/신포도와여우/마법수정구슬/양치기소년/한컷) → ②해당 카테고리 전용 폼.
+  - `createMenuKey` 상태(string|null) 추가. `null`이면 카드 선택 UI, 설정되면 `CREATE_MENU_COMPONENTS[createMenuKey]` 전용 폼.
+  - 카테고리 메뉴에서 직접 새 글 클릭 시 기존처럼 해당 전용 폼 바로 열림.
+  - `goHome()` 및 `handlePostSubmit()` 완료 시 `setCreateMenuKey(null)` 함께 초기화.
+
+- [x] **카카오톡 인앱 브라우저 구글 로그인 차단 대응 (2026-03-28)**:
+  - `detectInAppBrowser()`: UA로 카카오톡·인스타그램·페이스북·라인 감지.
+  - `openExternalBrowser()`: Android → Chrome intent URL(`intent://...#Intent;scheme=https;package=com.android.chrome;end;`), iOS → 클립보드 복사 + Safari 안내.
+  - `handleLogin()` 진입 시 인앱 브라우저 감지 → Android는 confirm 후 Chrome 이동, iOS는 URL 복사 안내 → `signInWithPopup` 시도 전 차단.
+
+- [x] **SNS 공유 OG 설명 문구 변경 (2026-03-28)**:
+  - `index.html`: `<meta name="description">`, `og:description`, `twitter:description` 3곳 → **"지금 공유드리는 글을 확인해 보세요. 커뮤니티 플랫폼 글러브에서 다양한 주제글들을 확인하실 수 있습니다."**
+
+- [x] **황금알을 낳는 거위 댓글 2컬럼 구조 (2026-03-28)**:
+  - `OneCutCommentBoard.tsx` 기반. 좌=정보취득자(독자, blue), 우=정보제공자(작성자, rose) 2컬럼 지그재그.
+  - 세로 구분선(`absolute left-1/2`). 각 컬럼 별도 입력란("정보에 대한 당신의 생각..." / "정보에 대한 부연 설명..."). 버튼: "댓글 입력".
+  - 댓글 아바타 헤더: `Lv · 평판 · 깐부 N` (DebateBoard 스타일 통일). 액션버튼(핀·땡스볼) 반대편 끝.
+
+- [x] **상세글 하단 액션 버튼 크기 축소 (2026-03-28)**:
+  - `RootPostCard.tsx` 좋아요·땡스볼·깐부맺기 버튼: `px-6 py-2.5 text-[13px]` → `px-3 py-2 text-[12px]` + `whitespace-nowrap`. 모바일에서 "땡스볼" 두 줄 표시 방지.
+
+- [x] **우리들의 장갑 상단 바 헤더 중복 제거 (2026-03-28)**:
+  - App.tsx sticky 헤더 + GloveNavBar 내부 타이틀 이중 표시 → GloveNavBar 내부 타이틀 제거.
+  - 표시명: "우리들의 따뜻한 장갑" → **"우리들의 장갑"** (GloveNavBar, App.tsx 헤더 바, Sidebar 모두).
+
+- [x] **장갑 카테고리 주식·부동산·코인 추가 (2026-03-28)**:
+  - `CommunityList.tsx` `ALL_CATEGORIES`, `CreateCommunityModal.tsx` `CATEGORIES` 모두 앞에 `['주식', '부동산', '코인']` 추가.
+
+- [x] **사이드바 장갑 이모지 opacity 조정 (2026-03-28)**:
+  - `Sidebar.tsx`: 비활성 `opacity: 0.35` → `0.20` (SVG 아이콘 `text-slate-300` 명도에 맞춤).
 
 ### 🛠️ 진행 중 / 개선 필요 사항
 - [ ] **에디터 보완**: `bubble-menu` 활성화 (텍스트 선택 시 서식 도구 노출).
