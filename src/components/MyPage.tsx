@@ -38,11 +38,12 @@ interface Props {
   joinedCommunityIds?: string[];
   onGloveClick?: (communityId?: string) => void;
   onLeaveGlove?: (communityId: string) => void;
+  onLogout?: () => void;
 }
 
 const MyPage = ({
   userData, allUserRootPosts, allUserChildPosts, friends, friendCount, onPostClick, onEditPost, onToggleFriend, allUsers, followerCounts,
-  communities = [], joinedCommunityIds = [], onGloveClick, onLeaveGlove
+  communities = [], joinedCommunityIds = [], onGloveClick, onLeaveGlove, onLogout
 }: Props) => {
   const [activeTab, setActiveTab] = useState<'posts' | 'onecuts' | 'comments' | 'avatars' | 'friends' | 'thanksball' | 'sentball' | 'glove' | 'gloveposts'>('posts');
   const [isEditingProfile, setIsEditingProfile] = useState(false);
@@ -156,6 +157,19 @@ const MyPage = ({
               commentCount={allUserChildPosts.filter(p => p.type === 'comment').length}
               totalThanksball={totalThanksball}
             />
+
+            {/* 🚀 로그아웃 버튼 — 모바일에서도 내정보에서 로그아웃 가능 */}
+            {onLogout && (
+              <button
+                onClick={onLogout}
+                className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl border border-slate-100 bg-white text-slate-400 hover:text-rose-500 hover:border-rose-100 hover:bg-rose-50/40 transition-all text-[13px] font-[1000] shadow-sm"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
+                로그아웃
+              </button>
+            )}
           </div>
 
           {/* 🚀 우측: 게시글/댓글/아바타 탭 콘텐츠 */}

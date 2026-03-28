@@ -391,6 +391,7 @@ function App() {
             const target = communities.find(c => c.id === communityId);
             if (target) handleLeaveCommunity(target);
           }}
+          onLogout={handleLogout}
         />;
       }
       return <div className="w-full py-40 text-center"><button onClick={handleLogin} className="bg-slate-900 text-white px-8 py-3 rounded-xl font-black shadow-lg">로그인하기</button></div>;
