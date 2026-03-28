@@ -1,14 +1,17 @@
 // src/components/MyPage.tsx
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { db, auth } from '../firebase';
 import { collection, query, where, orderBy, limit, onSnapshot, doc, updateDoc, increment } from 'firebase/firestore';
 import type { Post, Community, CommunityPost } from '../types';
 import ActivityStats from './ActivityStats';
 import MyContentTabs from './MyContentTabs';
 import ProfileHeader from './ProfileHeader';
+import ProfileEditForm from './ProfileEditForm';
 import ActivityMilestones from './ActivityMilestones';
 import AvatarCollection from './AvatarCollection';
 import OneCutList from './OneCutList';
+import { s3Client, BUCKET_NAME, PUBLIC_URL } from '../s3Client';
+import { PutObjectCommand } from '@aws-sdk/client-s3';
 
 interface SentBall {
   id: string;
@@ -48,6 +51,9 @@ const MyPage = ({
   const [activeTab, setActiveTab] = useState<'posts' | 'onecuts' | 'comments' | 'avatars' | 'friends' | 'thanksball' | 'sentball' | 'glove' | 'gloveposts'>('posts');
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [sentBalls, setSentBalls] = useState<SentBall[]>([]);
+  // 🚀 프로필 수정: editData + 업로드 상태
+  const [editData, setEditData] = useState({ nickname: userData.nickname, bio: userData.bio || '', avatarUrl: userData.avatarUrl || '' });
+  const [isUploading, setIsUploading] = useState(false);
   // 🚀 커뮤니티 글 구독 (장갑 속 글 탭)
   const [glovePosts, setGlovePosts] = useState<CommunityPost[]>([]);
 
@@ -81,6 +87,47 @@ const MyPage = ({
   const standardPosts = allUserRootPosts.filter(p => !p.isOneCut);
   const onecutPosts = allUserRootPosts.filter(p => p.isOneCut);
 
+  // 🚀 프로필 사진 업로드 — Cloudflare R2
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) { alert('이미지가 너무 큽니다. 2MB 이하만 가능해요.'); return; }
+    setIsUploading(true);
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const fileName = `avatars/${userData.nickname}_${Date.now()}_${file.name.replace(/\s+/g, '_')}`;
+      await s3Client.send(new PutObjectCommand({ Bucket: BUCKET_NAME, Key: fileName, Body: new Uint8Array(arrayBuffer), ContentType: file.type }));
+      setEditData(prev => ({ ...prev, avatarUrl: `${PUBLIC_URL}/${fileName}` }));
+    } catch (err: any) {
+      console.error('[프로필 사진 업로드 실패]', err);
+      alert(`사진 업로드에 실패했습니다: ${err.message || '원인 불명'}`);
+    } finally { setIsUploading(false); }
+  };
+
+  // 🚀 프로필 저장 — auth.currentUser.uid 기준으로 Firestore 업데이트
+  const handleProfileUpdate = async () => {
+    const uid = auth.currentUser?.uid;
+    if (!uid) { alert('로그인 상태를 확인해주세요.'); return; }
+    if (!editData.nickname.trim()) { alert('닉네임을 입력해주세요.'); return; }
+    try {
+      // UID 문서 + nickname_ 문서 양쪽 동기화 (users 컬렉션 이중 키 구조)
+      await updateDoc(doc(db, 'users', uid), {
+        nickname: editData.nickname.trim(),
+        bio: editData.bio.trim(),
+        avatarUrl: editData.avatarUrl,
+      });
+      await updateDoc(doc(db, 'users', `nickname_${userData.nickname}`), {
+        nickname: editData.nickname.trim(),
+        bio: editData.bio.trim(),
+        avatarUrl: editData.avatarUrl,
+      }).catch(() => {}); // nickname_ 문서 없을 경우 무시
+      setIsEditingProfile(false);
+    } catch (err) {
+      console.error('[프로필 저장 실패]', err);
+      alert('저장에 실패했습니다. 다시 시도해주세요.');
+    }
+  };
+
   const [charging, setCharging] = useState(false);
 
   const handleTestCharge = async (amount: number) => {
@@ -106,7 +153,35 @@ const MyPage = ({
     <div className="w-full max-w-6xl mx-auto py-10 px-4 md:px-6 animate-in fade-in duration-700">
       <div className="flex flex-col gap-8">
         {/* 🚀 상단 프로필 영역 */}
-        <ProfileHeader userData={userData} isEditing={isEditingProfile} setIsEditing={setIsEditingProfile} friendCount={friendCount} totalThanksball={totalThanksball} />
+        <ProfileHeader userData={userData} isEditing={isEditingProfile} setIsEditing={(val) => {
+          if (val) setEditData({ nickname: userData.nickname, bio: userData.bio || '', avatarUrl: userData.avatarUrl || '' });
+          setIsEditingProfile(val);
+        }} friendCount={friendCount} totalThanksball={totalThanksball} />
+
+        {/* 🚀 프로필 수정 폼 — isEditingProfile=true 시 노출 */}
+        {isEditingProfile && (
+          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm px-6 py-5 -mt-4">
+            <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-4">프로필 수정</p>
+            {/* 사진 미리보기 */}
+            <div className="flex items-center gap-4 mb-4">
+              <img
+                src={editData.avatarUrl || `https://api.dicebear.com/7.x/adventurer/svg?seed=${userData.nickname}`}
+                alt="preview"
+                className={`w-16 h-16 rounded-full object-cover border-2 border-slate-200 ${isUploading ? 'opacity-40' : ''}`}
+              />
+              {isUploading && <span className="text-[12px] font-bold text-blue-500 animate-pulse">업로드 중...</span>}
+            </div>
+            <ProfileEditForm
+              editData={editData}
+              setEditData={setEditData}
+              originalData={{ nickname: userData.nickname, bio: userData.bio || '', avatarUrl: userData.avatarUrl || '' }}
+              isUploading={isUploading}
+              handleImageUpload={handleImageUpload}
+              handleUpdate={handleProfileUpdate}
+              onCancel={() => setIsEditingProfile(false)}
+            />
+          </div>
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* 🚀 좌측: 활동 통계 및 마일스톤 */}
