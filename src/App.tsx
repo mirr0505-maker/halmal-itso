@@ -84,7 +84,7 @@ function App() {
   const [selectedRoom, setSelectedRoom] = useState<KanbuRoom | null>(null);
   const [isCreateRoomOpen, setIsCreateRoomOpen] = useState(false);
   // 🚀 우리들의 따뜻한 장갑: 커뮤니티 상태
-  const [gloveSubTab, setGloveSubTab] = useState<'list' | 'mine' | 'feed' | 'create'>('list');
+  const [gloveSubTab, setGloveSubTab] = useState<'feed' | 'list'>('feed');
   const [selectedCommunity, setSelectedCommunity] = useState<Community | null>(null);
   const [isCreateCommunityOpen, setIsCreateCommunityOpen] = useState(false);
   const [selectedFriend, setSelectedFriend] = useState<string | null>(null);
@@ -207,7 +207,7 @@ function App() {
       joinedAt: serverTimestamp(),
     });
     setIsCreateCommunityOpen(false);
-    setGloveSubTab('mine');
+    setGloveSubTab('feed');
   };
 
   // 🚀 커뮤니티 가입 핸들러 — membership 문서 생성 + memberCount increment + 로컬 상태 즉시 반영
@@ -473,7 +473,7 @@ function App() {
           joinedCommunityIds={joinedCommunityIds}
           onGloveClick={(communityId) => {
             setActiveMenu('glove');
-            setGloveSubTab('mine');
+            setGloveSubTab('feed');
             if (communityId) {
               const target = communities.find(c => c.id === communityId);
               if (target) setSelectedCommunity(target);
@@ -517,11 +517,11 @@ function App() {
       );
     }
 
-    // 🚀 우리들의 따뜻한 장갑: 커뮤니티 라우팅
+    // 🚀 우리들의 장갑: 커뮤니티 라우팅 — 2탭(소곤소곤·장갑찾기) + 우측 내 장갑 사이드바
     if (activeMenu === 'glove') {
       return (
         <div className="w-full animate-in fade-in">
-          {/* 🚀 우리들의 장갑 카테고리 헤더 — 다른 카테고리와 동일한 상단 바 */}
+          {/* 상단 카테고리 헤더 바 */}
           <div className="sticky top-0 z-30 bg-[#F8FAFC]/80 backdrop-blur-md pt-2">
             <div className="flex items-center border-b border-slate-200 h-[36px] px-4">
               <div className="flex items-center gap-3 overflow-hidden">
@@ -537,43 +537,60 @@ function App() {
           </div>
           <GloveNavBar
             activeTab={gloveSubTab}
-            onTabClick={(tab) => { setGloveSubTab(tab); setSelectedCommunity(null); if (tab === 'create') setIsCreateCommunityOpen(true); }}
+            onTabClick={(tab) => { setGloveSubTab(tab); setSelectedCommunity(null); }}
+            onCreateClick={() => setIsCreateCommunityOpen(true)}
           />
-          {selectedCommunity ? (
-            <CommunityView
-              community={selectedCommunity}
-              currentUserData={userData}
-              allUsers={allUsers}
-              onBack={() => setSelectedCommunity(null)}
-            />
-          ) : gloveSubTab === 'list' ? (
-            <CommunityList
-              communities={communities}
-              currentUserData={userData}
-              joinedCommunityIds={joinedCommunityIds}
-              onCommunityClick={setSelectedCommunity}
-              onJoin={handleJoinCommunity}
-            />
-          ) : gloveSubTab === 'mine' ? (
-            <MyCommunityList
-              communities={communities}
-              joinedCommunityIds={joinedCommunityIds}
-              onCommunityClick={setSelectedCommunity}
-              onLeave={handleLeaveCommunity}
-            />
-          ) : gloveSubTab === 'feed' ? (
-            <CommunityFeed
-              currentUserData={userData}
-              joinedCommunityIds={joinedCommunityIds}
-              allUsers={allUsers}
-              onCommunityClick={setSelectedCommunity}
-            />
-          ) : null}
+          {/* 🚀 2컬럼 레이아웃 — 메인(피드/목록) + 우측(내 장갑 사이드바, 데스크톱만) */}
+          <div className="flex gap-4 items-start">
+            {/* 메인 컨텐츠 영역 */}
+            <div className="flex-1 min-w-0">
+              {selectedCommunity ? (
+                <CommunityView
+                  community={selectedCommunity}
+                  currentUserData={userData}
+                  allUsers={allUsers}
+                  onBack={() => setSelectedCommunity(null)}
+                />
+              ) : gloveSubTab === 'feed' ? (
+                <CommunityFeed
+                  currentUserData={userData}
+                  joinedCommunityIds={joinedCommunityIds}
+                  allUsers={allUsers}
+                  onCommunityClick={setSelectedCommunity}
+                />
+              ) : (
+                <CommunityList
+                  communities={communities}
+                  currentUserData={userData}
+                  joinedCommunityIds={joinedCommunityIds}
+                  onCommunityClick={setSelectedCommunity}
+                  onJoin={handleJoinCommunity}
+                />
+              )}
+            </div>
+            {/* 🚀 우측 사이드바 — 내가 가입한 장갑 목록 (데스크톱만) */}
+            <div className="hidden md:block w-64 shrink-0">
+              <div className="sticky top-[60px]">
+                <div className="bg-white border border-slate-100 rounded-2xl overflow-hidden">
+                  <div className="px-4 py-3 border-b border-slate-100 flex items-center gap-2">
+                    <span className="text-[13px] font-[1000] text-slate-900">❤️ 나의 아늑한 장갑</span>
+                  </div>
+                  <MyCommunityList
+                    communities={communities}
+                    joinedCommunityIds={joinedCommunityIds}
+                    onCommunityClick={(c) => { setSelectedCommunity(c); }}
+                    onLeave={handleLeaveCommunity}
+                    compact={true}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
           {isCreateCommunityOpen && (
             <CreateCommunityModal
               userData={userData}
               onSubmit={handleCreateCommunity}
-              onClose={() => { setIsCreateCommunityOpen(false); setGloveSubTab('list'); }}
+              onClose={() => setIsCreateCommunityOpen(false)}
             />
           )}
         </div>

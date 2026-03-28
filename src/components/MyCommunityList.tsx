@@ -6,16 +6,39 @@ interface Props {
   joinedCommunityIds: string[];
   onCommunityClick: (community: Community) => void;
   onLeave: (community: Community) => Promise<void>;
+  // 🚀 compact=true: 우측 사이드바용 소형 레이아웃
+  compact?: boolean;
 }
 
-const MyCommunityList = ({ communities, joinedCommunityIds, onCommunityClick, onLeave }: Props) => {
+const MyCommunityList = ({ communities, joinedCommunityIds, onCommunityClick, onLeave, compact = false }: Props) => {
   const myCommunities = communities.filter(c => joinedCommunityIds.includes(c.id));
 
   if (myCommunities.length === 0) {
     return (
-      <div className="py-40 text-center">
-        <p className="text-slate-400 font-bold text-sm italic mb-2">내가 온기를 나누고 있는 장갑이 없어요.</p>
-        <p className="text-slate-300 font-bold text-[12px]">장갑 속 친구들 탭에서 마음에 드는 장갑에 가입해보세요!</p>
+      <div className={compact ? 'py-6 px-4 text-center' : 'py-40 text-center'}>
+        <p className="text-slate-400 font-bold text-[12px] italic">아직 가입한 장갑이 없어요.</p>
+        {!compact && <p className="text-slate-300 font-bold text-[12px] mt-1">장갑 찾기 탭에서 마음에 드는 장갑에 가입해보세요!</p>}
+      </div>
+    );
+  }
+
+  // 🚀 사이드바 compact 모드: 컬러 도트 + 이름만 표시하는 리스트
+  if (compact) {
+    return (
+      <div className="py-2">
+        {myCommunities.map(community => (
+          <button
+            key={community.id}
+            onClick={() => onCommunityClick(community)}
+            className="w-full flex items-center gap-2.5 px-4 py-2 hover:bg-slate-50 transition-colors text-left group"
+          >
+            <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: community.coverColor || '#3b82f6' }} />
+            <div className="flex-1 min-w-0">
+              <p className="text-[12px] font-[1000] text-slate-700 group-hover:text-blue-600 truncate">{community.name}</p>
+              <p className="text-[10px] font-bold text-slate-300 leading-none mt-0.5">멤버 {community.memberCount}명</p>
+            </div>
+          </button>
+        ))}
       </div>
     );
   }
