@@ -237,7 +237,52 @@ function App() {
     setJoinedCommunityIds(prev => prev.filter(id => id !== community.id));
   };
 
+  // 🚀 인앱 브라우저 감지 — 카카오톡/인스타그램/라인 등 WebView는 Google OAuth 차단됨
+  const detectInAppBrowser = (): 'kakao' | 'instagram' | 'other' | null => {
+    const ua = navigator.userAgent;
+    if (/KAKAOTALK/i.test(ua)) return 'kakao';
+    if (/Instagram/i.test(ua)) return 'instagram';
+    if (/FBAN|FBAV|FB_IAB/i.test(ua)) return 'other'; // 페이스북
+    if (/Line\//i.test(ua)) return 'other';
+    return null;
+  };
+
+  // 🚀 외부 브라우저 강제 열기 — Android: Chrome intent URL, iOS: 현재 URL 복사 안내
+  const openExternalBrowser = () => {
+    const currentUrl = window.location.href;
+    const isAndroid = /Android/i.test(navigator.userAgent);
+    if (isAndroid) {
+      // Android: Chrome으로 강제 이동
+      window.location.href = `intent://${currentUrl.replace(/^https?:\/\//, '')}#Intent;scheme=https;package=com.android.chrome;end;`;
+    } else {
+      // iOS: 클립보드에 복사 후 안내
+      navigator.clipboard?.writeText(currentUrl).then(() => {
+        alert('URL이 복사되었습니다.\nSafari를 열고 주소창에 붙여넣기(붙여넣기) 해주세요.');
+      }).catch(() => {
+        alert(`아래 주소를 Safari에서 열어주세요:\n${currentUrl}`);
+      });
+    }
+  };
+
   const handleLogin = async () => {
+    // 🚀 인앱 브라우저 차단 — Google은 WebView에서 OAuth를 허용하지 않음
+    const inAppType = detectInAppBrowser();
+    if (inAppType) {
+      const appName = inAppType === 'kakao' ? '카카오톡' : inAppType === 'instagram' ? '인스타그램' : '현재 앱';
+      const isAndroid = /Android/i.test(navigator.userAgent);
+      const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+      if (isAndroid) {
+        if (window.confirm(`${appName} 내부 브라우저에서는 구글 로그인이 지원되지 않습니다.\n\nChrome 브라우저에서 열겠습니까?`)) {
+          openExternalBrowser();
+        }
+      } else if (isIOS) {
+        alert(`${appName} 내부 브라우저에서는 구글 로그인이 지원되지 않습니다.\n\n[확인]을 누르면 주소가 복사됩니다.\nSafari 앱을 열고 주소창에 붙여넣기 해주세요.`);
+        openExternalBrowser();
+      } else {
+        alert(`${appName} 내부 브라우저에서는 구글 로그인이 지원되지 않습니다.\n기기의 기본 브라우저(Chrome, Safari)에서 열어주세요.`);
+      }
+      return;
+    }
     try {
       await setPersistence(auth, browserLocalPersistence);
       await signInWithPopup(auth, googleProvider);
