@@ -61,7 +61,7 @@ export const MENU_MESSAGES: Record<string, { title: string, description: string,
   knowledge_seller: {
     emoji: "📚",
     title: "황금알을 낳는 거위",
-    description: "경제, 주식, 부동산, 코인 그리고 정치, 사회, 문학, 법률, 과학, 스포츠, 어학, 쇼핑 등 지식 공유 전파"
+    description: "경제, 주식, 부동산, 코인 그리고 정치, 사회, 문학, 법률, 과학, 스포츠, 어학, 쇼핑 등 지식·정보 공유 전파"
   },
   bone_hitting: {
     emoji: "⚡",
