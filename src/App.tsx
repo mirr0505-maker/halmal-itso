@@ -94,6 +94,8 @@ function App() {
   // - lazy 초기화로 앱 마운트 시 딱 한 번만 URL 파라미터를 읽음
   // 🚀 모바일 드로어 메뉴 열림 여부
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  // 🚀 홈에서 새 글 쓰기 2단계 UX — 1단계(카테고리 선택) 후 설정되는 메뉴 키
+  const [createMenuKey, setCreateMenuKey] = useState<string | null>(null);
 
   const [pendingSharedPostId, setPendingSharedPostId] = useState<string | null>(() =>
     new URLSearchParams(window.location.search).get('post')
@@ -151,7 +153,7 @@ function App() {
   }, [userData?.uid]);
 
   const goHome = () => {
-    setActiveMenu('home'); setSelectedTopic(null); setIsCreateOpen(false); setReplyTarget(null); setEditingPost(null);
+    setActiveMenu('home'); setSelectedTopic(null); setIsCreateOpen(false); setReplyTarget(null); setEditingPost(null); setCreateMenuKey(null);
     setSelectedRoom(null); setIsCreateRoomOpen(false);
     setActiveTab('any');
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -353,11 +355,56 @@ function App() {
       if (linkedPostSide !== null) {
         return <CreateDebate userData={userData} editingPost={null} onSubmit={handleLinkedPostSubmit} onClose={() => { setIsCreateOpen(false); setLinkedPostSide(null); }} linkedTitle="[연계글]" linkedSide={linkedPostSide} originalPost={selectedTopic ?? undefined} />;
       }
-      if (CREATE_MENU_COMPONENTS[activeMenu]) {
-        const CreateComponent = CREATE_MENU_COMPONENTS[activeMenu];
-        return <CreateComponent userData={userData} editingPost={editingPost} onSubmit={handlePostSubmit} onClose={() => { setIsCreateOpen(false); setEditingPost(null); }} />;
+
+      // 🚀 홈 2단계 UX — activeMenu가 'home'이고 카테고리 미선택 시 카테고리 선택 카드 화면 표시
+      if (activeMenu === 'home' && !editingPost && createMenuKey === null) {
+        const CATEGORY_CARD_KEYS = ['my_story', 'naked_king', 'donkey_ears', 'knowledge_seller', 'bone_hitting', 'local_news', 'crying_boy', 'onecut'] as const;
+        return (
+          <div className="w-full max-w-2xl mx-auto py-8 px-4 animate-in fade-in">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-[1000] text-slate-900">어떤 글을 쓸까요?</h2>
+              <button onClick={() => { setIsCreateOpen(false); setCreateMenuKey(null); }} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition-colors">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg>
+              </button>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              {CATEGORY_CARD_KEYS.map(key => {
+                const info = MENU_MESSAGES[key];
+                if (!info) return null;
+                return (
+                  <button
+                    key={key}
+                    onClick={() => {
+                      if (key === 'onecut') {
+                        // 한컷은 activeMenu를 변경하지 않고 직접 CreateOneCutBox를 열기 위해 별도 처리
+                        setCreateMenuKey('onecut');
+                      } else {
+                        setCreateMenuKey(key);
+                      }
+                    }}
+                    className="flex flex-col items-start gap-2 p-4 rounded-2xl border border-slate-100 bg-white hover:border-blue-200 hover:bg-blue-50/40 transition-all text-left shadow-sm"
+                  >
+                    <span className="text-2xl">{info.emoji}</span>
+                    <span className="text-[13px] font-[1000] text-slate-900">{info.title}</span>
+                    <span className="text-[11px] text-slate-400 font-medium line-clamp-2 leading-relaxed">{info.description}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        );
       }
-      return <CreatePostBox userData={userData} editingPost={editingPost} activeMenu={activeMenu} menuMessages={MENU_MESSAGES} onSubmit={handlePostSubmit} onClose={() => { setIsCreateOpen(false); setEditingPost(null); }} />;
+
+      // 🚀 홈 2단계 UX — 카테고리 선택 후 또는 카테고리 메뉴에서 직접 진입: 전용 폼 렌더링
+      const resolvedKey = createMenuKey ?? activeMenu;
+      if (resolvedKey === 'onecut') {
+        return <CreateOneCutBox userData={userData} editingPost={editingPost} allPosts={allRootPosts} onSubmit={handlePostSubmit} onClose={() => { setIsCreateOpen(false); setEditingPost(null); setCreateMenuKey(null); }} />;
+      }
+      if (resolvedKey && CREATE_MENU_COMPONENTS[resolvedKey]) {
+        const CreateComponent = CREATE_MENU_COMPONENTS[resolvedKey];
+        return <CreateComponent userData={userData} editingPost={editingPost} onSubmit={handlePostSubmit} onClose={() => { setIsCreateOpen(false); setEditingPost(null); setCreateMenuKey(null); }} />;
+      }
+      return <CreatePostBox userData={userData} editingPost={editingPost} activeMenu={activeMenu} menuMessages={MENU_MESSAGES} onSubmit={handlePostSubmit} onClose={() => { setIsCreateOpen(false); setEditingPost(null); setCreateMenuKey(null); }} />;
     }
     
     if (activeMenu === 'mypage') {
@@ -634,7 +681,7 @@ function App() {
         });
         await updateDoc(doc(db, "users", userData.uid), { likes: increment(5) });
       }
-      setIsCreateOpen(false); setEditingPost(null);
+      setIsCreateOpen(false); setEditingPost(null); setCreateMenuKey(null);
       setActiveMenu('home'); setActiveTab('any'); // 🚀 글 작성 완료 후 새글 탭으로 이동
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (e: any) {
