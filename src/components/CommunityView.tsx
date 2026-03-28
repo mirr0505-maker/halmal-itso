@@ -4,6 +4,7 @@ import { db } from '../firebase';
 import { collection, onSnapshot, query, where, orderBy, doc, setDoc, updateDoc, deleteDoc, increment, arrayUnion, arrayRemove, serverTimestamp } from 'firebase/firestore';
 import type { Community, CommunityPost, CommunityMember, FingerRole } from '../types';
 import TiptapEditor from './TiptapEditor';
+import CommunityAdminPanel from './CommunityAdminPanel';
 import { PutObjectCommand } from '@aws-sdk/client-s3';
 import { s3Client, BUCKET_NAME, PUBLIC_URL } from '../s3Client';
 
@@ -21,9 +22,10 @@ interface Props {
   currentUserData: any;
   allUsers: Record<string, any>;
   onBack: () => void;
+  onClosed?: () => void; // 🚀 Phase 3: 장갑 폐쇄 후 목록 복귀
 }
 
-const CommunityView = ({ community, currentUserData, allUsers, onBack }: Props) => {
+const CommunityView = ({ community, currentUserData, allUsers, onBack, onClosed }: Props) => {
   const [posts, setPosts] = useState<CommunityPost[]>([]);
   const [isWriting, setIsWriting] = useState(false);
   const [newTitle, setNewTitle] = useState('');
@@ -35,6 +37,8 @@ const CommunityView = ({ community, currentUserData, allUsers, onBack }: Props) 
   const [activeTab, setActiveTab] = useState<'posts' | 'members' | 'admin'>('posts');
   const [members, setMembers] = useState<CommunityMember[]>([]);
   const [currentMembership, setCurrentMembership] = useState<CommunityMember | null>(null);
+  // 🚀 Phase 4 — 현재 유저의 알림 구독 여부
+  const isNotifying = currentUserData && (community.notifyMembers ?? []).includes(currentUserData.uid);
 
   // 🚀 커뮤니티 글 실시간 구독 — selectedCommunity 변경 시마다 갱신
   useEffect(() => {
@@ -69,6 +73,93 @@ const CommunityView = ({ community, currentUserData, allUsers, onBack }: Props) 
   const isAdmin = myFinger === 'thumb' || myFinger === 'index';
   const pendingMembers = members.filter(m => (m.joinStatus ?? 'active') === 'pending');
   const activeMembers  = members.filter(m => (m.joinStatus ?? 'active') === 'active');
+
+  // 🚀 Phase 3 — 공지 고정 글 (pinnedPostId로 찾기)
+  const pinnedPost = community.pinnedPostId ? posts.find(p => p.id === community.pinnedPostId) : null;
+  // 공지 제외한 일반 글 목록 (블라인드 필터링 포함)
+  const visiblePosts = posts.filter(p => !p.isBlinded && p.id !== community.pinnedPostId);
+
+  // 🚀 Phase 3 — 공지 고정 핸들러 (thumb/index만)
+  const handlePinPost = async (postId: string) => {
+    if (!isAdmin) return;
+    const newPinnedId = community.pinnedPostId === postId ? null : postId;
+    await updateDoc(doc(db, 'communities', community.id), { pinnedPostId: newPinnedId ?? null });
+  };
+
+  // 🚀 Phase 3 — 게시글 블라인드 처리 (thumb/index만)
+  const handleBlindPost = async (post: CommunityPost) => {
+    if (!isAdmin) return;
+    if (!window.confirm(post.isBlinded ? '블라인드를 해제하시겠습니까?' : '이 글을 블라인드 처리하시겠습니까?')) return;
+    await updateDoc(doc(db, 'community_posts', post.id), { isBlinded: !post.isBlinded });
+  };
+
+  // 🚀 Phase 5 — 중지(middle) 자동 산정
+  // 조건: 커뮤니티 내 작성글 5개 이상 OR 수신 좋아요 합계 20개 이상 → finger: 'middle' 자동 승격
+  // 이미 middle/index/thumb이거나 ring/pinky도 아닌 경우 스킵
+  const checkMiddlePromotion = async () => {
+    if (!currentUserData || !currentMembership) return;
+    const currentFinger: FingerRole = currentMembership.finger ?? (currentMembership.role === 'owner' ? 'thumb' : 'ring');
+    // 이미 middle 이상이면 스킵
+    if (['thumb', 'index', 'middle'].includes(currentFinger)) return;
+
+    // 이 커뮤니티에서 내가 작성한 글 목록 조회
+    const myPostsInCommunity = posts.filter(p => p.author_id === currentUserData.uid);
+    const postCount = myPostsInCommunity.length;
+    // 수신 좋아요 합산
+    const totalLikes = myPostsInCommunity.reduce((sum, p) => sum + (p.likes || 0), 0);
+
+    const qualified = postCount >= 5 || totalLikes >= 20;
+    if (!qualified) return;
+
+    // middle로 자동 승격
+    const membershipId = `${community.id}_${currentUserData.uid}`;
+    await updateDoc(doc(db, 'community_memberships', membershipId), { finger: 'middle' });
+    // 본인에게 알림
+    const notifRef = doc(collection(db, 'notifications', currentUserData.nickname, 'items'));
+    await (await import('firebase/firestore')).setDoc(notifRef, {
+      type: 'finger_promoted',
+      communityId: community.id,
+      communityName: community.name,
+      message: `[${community.name}] 축하해요! 🖐 핵심멤버로 승급했습니다.`,
+      isRead: false,
+      createdAt: new Date(),
+    });
+  };
+
+  // 🚀 Phase 4 — 새 글 알림 Opt-in 토글
+  const handleToggleNotify = async () => {
+    if (!currentUserData) return;
+    const uid = currentUserData.uid;
+    await updateDoc(doc(db, 'communities', community.id), {
+      notifyMembers: isNotifying ? arrayRemove(uid) : arrayUnion(uid),
+    });
+  };
+
+  // 🚀 Phase 4 — 새 글 등록 시 구독자에게 알림 push (최대 50명 가드)
+  const pushCommunityNotify = async (postTitle: string | null) => {
+    const targets = (community.notifyMembers ?? []).filter(uid => uid !== currentUserData?.uid);
+    if (targets.length === 0) return;
+    // 50명 초과 시 알림 스킵 (Firestore write 비용 절감)
+    if (targets.length > 50) return;
+    const batch = (await import('firebase/firestore')).writeBatch(db);
+    const title = postTitle || '새 글이 올라왔어요';
+    targets.forEach(uid => {
+      // 알림 수신자의 nickname 찾기: allUsers에서 uid 키로 조회
+      const receiverData = allUsers[uid];
+      if (!receiverData?.nickname) return;
+      const notifRef = doc(collection(db, 'notifications', receiverData.nickname, 'items'));
+      batch.set(notifRef, {
+        type: 'community_post',
+        communityId: community.id,
+        communityName: community.name,
+        message: `[${community.name}] ${title}`,
+        senderNickname: currentUserData?.nickname ?? '',
+        isRead: false,
+        createdAt: new Date(),
+      });
+    });
+    await batch.commit();
+  };
 
   // 🚀 다섯 손가락 Phase 2 — 멤버 승인 (pending → active, finger: pinky→ring)
   const handleApprove = async (member: CommunityMember) => {
@@ -135,6 +226,10 @@ const CommunityView = ({ community, currentUserData, allUsers, onBack }: Props) 
         createdAt: serverTimestamp(),
       });
       await updateDoc(doc(db, 'communities', community.id), { postCount: increment(1) });
+      // 🚀 Phase 4 — 알림 구독자에게 push (비동기, 실패해도 글 작성 성공)
+      pushCommunityNotify(newTitle.trim() || null).catch(console.error);
+      // 🚀 Phase 5 — 중지 자동 산정 (비동기, 실패 무시)
+      checkMiddlePromotion().catch(console.error);
       setNewTitle(''); setNewContent(''); setIsWriting(false);
     } finally { setIsSubmitting(false); }
   };
@@ -173,12 +268,24 @@ const CommunityView = ({ community, currentUserData, allUsers, onBack }: Props) 
               ← 커뮤니티 목록
             </button>
             {currentUserData && (
-              <button
-                onClick={() => setIsWriting(true)}
-                className="px-4 h-7 rounded-lg text-[12px] font-bold bg-slate-900 text-white hover:bg-blue-600 transition-colors"
-              >
-                + 글 쓰기
-              </button>
+              <div className="flex items-center gap-2">
+                {/* 🚀 Phase 4 — 알림 토글 버튼 */}
+                {currentMembership && (
+                  <button
+                    onClick={handleToggleNotify}
+                    className={`px-3 h-7 rounded-lg text-[11px] font-black transition-colors ${isNotifying ? 'bg-amber-100 text-amber-700 hover:bg-amber-200' : 'bg-slate-100 text-slate-400 hover:bg-slate-200'}`}
+                    title={isNotifying ? '새 글 알림 켜짐 — 클릭하면 끄기' : '새 글 알림 받기'}
+                  >
+                    {isNotifying ? '🔔 알림 ON' : '🔕 알림'}
+                  </button>
+                )}
+                <button
+                  onClick={() => setIsWriting(true)}
+                  className="px-4 h-7 rounded-lg text-[12px] font-bold bg-slate-900 text-white hover:bg-blue-600 transition-colors"
+                >
+                  + 글 쓰기
+                </button>
+              </div>
             )}
           </div>
           <div className="mt-3">
@@ -260,34 +367,16 @@ const CommunityView = ({ community, currentUserData, allUsers, onBack }: Props) 
         </div>
       )}
 
-      {/* 🚀 다섯 손가락 Phase 2 — 관리 탭 (thumb/index만) */}
+      {/* 🚀 다섯 손가락 Phase 3 — 관리 탭 (CommunityAdminPanel) */}
       {activeTab === 'admin' && isAdmin && (
-        <div className="bg-white border border-slate-100 rounded-xl overflow-hidden shadow-sm">
-          {pendingMembers.length === 0 ? (
-            <div className="py-16 text-center text-slate-400 font-bold text-sm">승인 대기 중인 멤버가 없어요</div>
-          ) : (
-            <>
-              <div className="px-5 py-3 border-b border-slate-50">
-                <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest">승인 대기 {pendingMembers.length}명</p>
-              </div>
-              {pendingMembers.map(m => (
-                <div key={m.userId} className="flex items-center justify-between px-5 py-4 border-b border-slate-50 last:border-0">
-                  <div className="flex items-center gap-3">
-                    <img src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${m.nickname}`} className="w-9 h-9 rounded-full bg-slate-50" alt="" />
-                    <div>
-                      <p className="text-[13px] font-bold text-slate-800">{m.nickname}</p>
-                      {m.joinMessage && <p className="text-[11px] font-medium text-slate-400 mt-0.5">"{m.joinMessage}"</p>}
-                    </div>
-                  </div>
-                  <div className="flex gap-2">
-                    <button onClick={() => handleApprove(m)} className="px-3 py-1.5 rounded-lg text-[12px] font-black bg-blue-600 text-white hover:bg-blue-700 transition-colors">승인</button>
-                    <button onClick={() => handleReject(m)} className="px-3 py-1.5 rounded-lg text-[12px] font-black bg-slate-100 text-slate-500 hover:bg-red-50 hover:text-red-500 transition-colors">거절</button>
-                  </div>
-                </div>
-              ))}
-            </>
-          )}
-        </div>
+        <CommunityAdminPanel
+          community={community}
+          myFinger={myFinger}
+          pendingMembers={pendingMembers}
+          onApprove={handleApprove}
+          onReject={handleReject}
+          onClosed={onClosed ?? onBack}
+        />
       )}
 
       {/* 글 작성 폼 */}
@@ -319,7 +408,25 @@ const CommunityView = ({ community, currentUserData, allUsers, onBack }: Props) 
           </div>
         ) : (
           <div className="flex flex-col gap-2 mt-4">
-            {posts.map(post => {
+            {/* 🚀 Phase 3 — 공지 고정 글 최상단 표시 */}
+            {pinnedPost && (
+              <div
+                key={`pinned_${pinnedPost.id}`}
+                onClick={() => setSelectedPost(pinnedPost)}
+                className="bg-amber-50 border-2 border-amber-300 rounded-xl px-5 py-4 cursor-pointer hover:shadow-md transition-all group"
+              >
+                <div className="flex items-center gap-2 mb-1.5">
+                  <span className="text-[10px] font-black text-amber-600 bg-amber-100 px-2 py-0.5 rounded-full">📌 공지</span>
+                </div>
+                {pinnedPost.title && <h3 className="text-[15px] font-[1000] text-slate-900 group-hover:text-amber-700 transition-colors mb-1">{pinnedPost.title}</h3>}
+                <div className="text-[13px] font-medium text-slate-500 line-clamp-2 leading-relaxed [&_img]:hidden [&_p]:mb-1" dangerouslySetInnerHTML={{ __html: pinnedPost.content }} />
+                <div className="flex items-center gap-2 mt-2 pt-2 border-t border-amber-200">
+                  <img src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${pinnedPost.author}`} className="w-4 h-4 rounded-full bg-amber-100" alt="" />
+                  <span className="text-[10px] font-bold text-amber-600">{pinnedPost.author}</span>
+                </div>
+              </div>
+            )}
+            {visiblePosts.map(post => {
               const isLiked = currentUserData && post.likedBy?.includes(currentUserData.nickname);
               const authorData = allUsers[`nickname_${post.author}`];
               return (
@@ -342,7 +449,22 @@ const CommunityView = ({ community, currentUserData, allUsers, onBack }: Props) 
                       {authorData && <span className="text-[10px] font-bold text-slate-300">Lv{authorData.level || 1}</span>}
                       <span className="text-[10px] font-bold text-slate-300">{formatTime(post.createdAt)}</span>
                     </div>
-                    <div className="flex items-center gap-3 text-[11px] font-black text-slate-300">
+                    <div className="flex items-center gap-2 text-[11px] font-black text-slate-300">
+                      {/* 🚀 Phase 3 — 관리자 핀/블라인드 버튼 */}
+                      {isAdmin && (
+                        <>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handlePinPost(post.id); }}
+                            className={`text-[10px] font-black px-1.5 py-0.5 rounded transition-colors ${community.pinnedPostId === post.id ? 'text-amber-600 bg-amber-50' : 'text-slate-300 hover:text-amber-400'}`}
+                            title="공지 고정"
+                          >📌</button>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleBlindPost(post); }}
+                            className="text-[10px] font-black px-1.5 py-0.5 rounded text-slate-300 hover:text-red-400 transition-colors"
+                            title="블라인드 처리"
+                          >🚫</button>
+                        </>
+                      )}
                       <span className="flex items-center gap-1">
                         <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
                         {post.commentCount || 0}

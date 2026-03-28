@@ -121,6 +121,7 @@ export interface Community {
   password?: string;             // 초대 코드 (joinType='password'일 때 사용)
   joinQuestion?: string;         // 승인제 가입 시 신청자에게 보여줄 안내 문구
   pinnedPostId?: string;         // 공지 고정 글 ID
+  notifyMembers?: string[];      // 🚀 Phase 4: 새 글 알림 opt-in userId 목록
 }
 
 export interface CommunityMember {

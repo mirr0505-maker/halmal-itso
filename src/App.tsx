@@ -619,6 +619,7 @@ function App() {
                   currentUserData={userData}
                   allUsers={allUsers}
                   onBack={() => setSelectedCommunity(null)}
+                  onClosed={() => setSelectedCommunity(null)}
                 />
               ) : gloveSubTab === 'feed' ? (
                 <CommunityFeed

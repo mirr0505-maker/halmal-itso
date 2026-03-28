@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run:*)",
+      "Bash(git push:*)",
+      "Read(//c/Users/kidoo kim/.claude/projects/e--halmal-itso/**)"
+    ]
+  }
+}
