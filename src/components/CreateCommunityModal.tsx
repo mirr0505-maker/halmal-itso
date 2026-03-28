@@ -15,9 +15,23 @@ const COVER_COLORS = [
   { value: '#64748b', label: '슬레이트' },
 ];
 
+// 🚀 가입 방식 옵션 정의
+const JOIN_TYPE_OPTIONS = [
+  { id: 'open',     emoji: '🟢', label: '자동 승인',    desc: '누구나 즉시 가입' },
+  { id: 'approval', emoji: '🔵', label: '승인제 (노크)', desc: '관리자 승인 후 가입' },
+  { id: 'password', emoji: '🔒', label: '초대 코드',    desc: '코드 입력 후 가입' },
+] as const;
+
+const MIN_LEVEL_OPTIONS = [1, 2, 3, 4, 5];
+
 interface Props {
   userData: any;
-  onSubmit: (data: { name: string; description: string; category: string; isPrivate: boolean; coverColor?: string }) => Promise<void>;
+  onSubmit: (data: {
+    name: string; description: string; category: string;
+    isPrivate: boolean; coverColor?: string;
+    joinType?: string; minLevel?: number;
+    password?: string; joinQuestion?: string;
+  }) => Promise<void>;
   onClose: () => void;
 }
 
@@ -25,16 +39,27 @@ const CreateCommunityModal = ({ userData: _userData, onSubmit, onClose }: Props)
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState('취미');
-  const [isPrivate, setIsPrivate] = useState(false);
   const [coverColor, setCoverColor] = useState('#3b82f6');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // 🚀 다섯 손가락 Phase 1 — 가입 조건 상태
+  const [joinType, setJoinType] = useState<'open' | 'approval' | 'password'>('open');
+  const [minLevel, setMinLevel] = useState(1);
+  const [password, setPassword] = useState('');
+  const [joinQuestion, setJoinQuestion] = useState('');
 
   const handleSubmit = async () => {
     if (!name.trim()) { alert('커뮤니티 이름을 입력해주세요.'); return; }
+    if (joinType === 'password' && !password.trim()) { alert('초대 코드를 입력해주세요.'); return; }
     if (isSubmitting) return;
     setIsSubmitting(true);
     try {
-      await onSubmit({ name: name.trim(), description: description.trim(), category, isPrivate, coverColor });
+      await onSubmit({
+        name: name.trim(), description: description.trim(), category,
+        isPrivate: joinType !== 'open', coverColor,
+        joinType, minLevel,
+        password: joinType === 'password' ? password.trim() : undefined,
+        joinQuestion: joinType === 'approval' ? joinQuestion.trim() : undefined,
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -121,21 +146,81 @@ const CreateCommunityModal = ({ userData: _userData, onSubmit, onClose }: Props)
             </div>
           </div>
 
-          {/* 공개/비밀 */}
-          <div className="flex items-center justify-between bg-slate-50 rounded-xl px-4 py-3">
-            <div>
-              <p className="text-[13px] font-black text-slate-700">{isPrivate ? '🔒 비밀 장갑' : '🌐 공개 장갑'}</p>
-              <p className="text-[11px] font-bold text-slate-400 mt-0.5">
-                {isPrivate ? '초대받은 사람만 가입할 수 있어요' : '누구나 자유롭게 가입할 수 있어요'}
-              </p>
+          {/* 🚀 가입 방식 선택 (3종) */}
+          <div>
+            <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest block mb-1.5">가입 방식</label>
+            <div className="flex flex-col gap-1.5">
+              {JOIN_TYPE_OPTIONS.map((opt) => (
+                <button
+                  key={opt.id}
+                  type="button"
+                  onClick={() => setJoinType(opt.id)}
+                  className={`flex items-center gap-3 px-4 py-2.5 rounded-xl border-2 transition-all text-left ${
+                    joinType === opt.id
+                      ? 'border-blue-500 bg-blue-50'
+                      : 'border-slate-100 bg-white hover:border-slate-200'
+                  }`}
+                >
+                  <span className="text-[16px]">{opt.emoji}</span>
+                  <div>
+                    <p className="text-[13px] font-black text-slate-800">{opt.label}</p>
+                    <p className="text-[11px] font-bold text-slate-400">{opt.desc}</p>
+                  </div>
+                </button>
+              ))}
             </div>
-            <button
-              type="button"
-              onClick={() => setIsPrivate(!isPrivate)}
-              className={`relative w-11 h-6 rounded-full transition-colors ${isPrivate ? 'bg-slate-700' : 'bg-blue-500'}`}
-            >
-              <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all ${isPrivate ? 'left-5' : 'left-0.5'}`} />
-            </button>
+          </div>
+
+          {/* 🚀 초대 코드 입력 (password 방식일 때만) */}
+          {joinType === 'password' && (
+            <div>
+              <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest block mb-1.5">초대 코드 *</label>
+              <input
+                type="text"
+                placeholder="멤버에게 알려줄 코드를 설정하세요"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                maxLength={20}
+                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-[14px] font-bold text-slate-900 outline-none focus:border-blue-400 transition-colors placeholder:text-slate-200 placeholder:font-normal"
+              />
+            </div>
+          )}
+
+          {/* 🚀 가입 안내 문구 (승인제일 때만) */}
+          {joinType === 'approval' && (
+            <div>
+              <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest block mb-1.5">가입 안내 문구</label>
+              <input
+                type="text"
+                placeholder="예: 가입 이유를 간단히 적어주세요"
+                value={joinQuestion}
+                onChange={(e) => setJoinQuestion(e.target.value)}
+                maxLength={50}
+                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-[14px] font-bold text-slate-900 outline-none focus:border-blue-400 transition-colors placeholder:text-slate-200 placeholder:font-normal"
+              />
+            </div>
+          )}
+
+          {/* 🚀 최소 가입 레벨 셀렉터 */}
+          <div>
+            <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest block mb-1.5">최소 가입 레벨</label>
+            <div className="flex gap-1.5">
+              {MIN_LEVEL_OPTIONS.map((lv) => (
+                <button
+                  key={lv}
+                  type="button"
+                  onClick={() => setMinLevel(lv)}
+                  className={`flex-1 py-1.5 rounded-lg text-[12px] font-black border transition-all ${
+                    minLevel === lv
+                      ? 'bg-slate-900 text-white border-slate-900'
+                      : 'bg-white text-slate-400 border-slate-200 hover:border-slate-300'
+                  }`}
+                >
+                  Lv{lv}
+                </button>
+              ))}
+            </div>
+            <p className="text-[10px] font-bold text-slate-300 mt-1">Lv{minLevel} 이상만 가입할 수 있어요</p>
           </div>
         </div>
 
@@ -146,7 +231,14 @@ const CreateCommunityModal = ({ userData: _userData, onSubmit, onClose }: Props)
             <div className="px-4 py-3">
               <div className="flex items-center gap-2">
                 <span className="text-[13px] font-black text-slate-900">{name || '커뮤니티 이름'}</span>
-                {isPrivate && <span className="text-[9px] font-black text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">비밀</span>}
+                {joinType !== 'open' && (
+                  <span className="text-[9px] font-black text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
+                    {joinType === 'password' ? '🔒 초대코드' : '🔵 승인제'}
+                  </span>
+                )}
+                {minLevel > 1 && (
+                  <span className="text-[9px] font-black text-blue-500 bg-blue-50 px-1.5 py-0.5 rounded">Lv{minLevel}+</span>
+                )}
               </div>
               <p className="text-[11px] font-bold text-slate-400 mt-0.5">{category} · 멤버 1명</p>
             </div>

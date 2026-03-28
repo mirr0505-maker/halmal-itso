@@ -90,14 +90,24 @@ export interface KanbuChat {
   createdAt: any;
 }
 
-// 🚀 우리들의 따뜻한 장갑: 커뮤니티 시스템 타입 정의
+// 🚀 우리들의 장갑: 커뮤니티 시스템 타입 정의
+
+// 🚀 다섯 손가락 역할 체계
+// thumb(엄지)=개설자, index(검지)=부관리자, middle(중지)=핵심멤버, ring(약지)=일반, pinky(새끼)=신입/대기
+export type FingerRole = 'thumb' | 'index' | 'middle' | 'ring' | 'pinky';
+
+// 🚀 가입 방식: open=자동승인, approval=승인제(노크), password=초대코드
+export type JoinType = 'open' | 'approval' | 'password';
+
+// 🚀 멤버 가입 상태: active=활성, pending=승인대기, banned=강퇴/차단
+export type JoinStatus = 'active' | 'pending' | 'banned';
 
 export interface Community {
   id: string;                    // community_timestamp_uid 형식
   name: string;                  // 커뮤니티명
   description?: string;          // 한 줄 설명
-  category: string;              // 취미|스포츠|게임|독서|요리|반려동물|여행|음악|개발|기타
-  isPrivate: boolean;            // 비밀 장갑 여부 (true = 초대 전용)
+  category: string;              // 주식|부동산|코인|취미|스포츠|게임|독서|요리|반려동물|여행|음악|개발|기타
+  isPrivate: boolean;            // 비밀 장갑 여부 (레거시, joinType으로 대체 예정)
   creatorId: string;
   creatorNickname: string;
   creatorLevel: number;
@@ -105,13 +115,26 @@ export interface Community {
   postCount: number;             // increment 비정규화
   coverColor?: string;           // 커뮤니티 대표 색상 (미지정 시 기본값)
   createdAt: any;
+  // 🚀 다섯 손가락 Phase 1 — 가입 조건 설정
+  joinType?: JoinType;           // 가입 방식 (미설정 시 'open'으로 취급)
+  minLevel?: number;             // 최소 가입 레벨 (미설정 시 1)
+  password?: string;             // 초대 코드 (joinType='password'일 때 사용)
+  joinQuestion?: string;         // 승인제 가입 시 신청자에게 보여줄 안내 문구
+  pinnedPostId?: string;         // 공지 고정 글 ID
 }
 
 export interface CommunityMember {
   userId: string;
   nickname: string;
+  communityId: string;
+  communityName: string;
   joinedAt: any;
-  role: 'owner' | 'member';
+  role: 'owner' | 'member';     // 레거시 — 하위호환 유지 (thumb=owner, ring=member)
+  // 🚀 다섯 손가락 Phase 1 — 역할 및 상태 확장
+  finger?: FingerRole;           // 손가락 역할 (미설정 시 role='owner'→thumb, 'member'→ring으로 취급)
+  joinStatus?: JoinStatus;       // 가입 상태 (미설정 시 'active'로 취급)
+  joinMessage?: string;          // 승인제: 가입 신청 메시지
+  banReason?: string;            // 강퇴/차단 사유
 }
 
 export interface CommunityPost {
@@ -127,4 +150,7 @@ export interface CommunityPost {
   likedBy?: string[];
   commentCount: number;
   createdAt: any;
+  // 🚀 다섯 손가락 Phase 1
+  isPinned?: boolean;            // 공지 고정 여부 (엄지/검지만 설정 가능)
+  isBlinded?: boolean;           // 관리자 블라인드 처리
 }

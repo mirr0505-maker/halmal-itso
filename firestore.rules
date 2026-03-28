@@ -25,9 +25,15 @@ service cloud.firestore {
       allow write: if request.auth != null;
       match /{sub=**} { allow read: if true; allow write: if request.auth != null; }
     }
-    // 커뮤니티 멤버십 — 로그인 사용자만 읽기/쓰기
+    // 커뮤니티 멤버십 — 로그인 사용자만 읽기
+    // 쓰기: 본인 멤버십 문서(id에 uid 포함)만 생성·수정 가능
+    // 예외: 관리자(thumb/index) 역할 변경은 앱 레이어에서 creatorId 검증 후 처리
     match /community_memberships/{id} {
-      allow read, write: if request.auth != null;
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update, delete: if request.auth != null
+        && (resource.data.userId == request.auth.uid
+         || request.resource.data.keys().hasAny(['finger', 'joinStatus', 'banReason']));
     }
     // 커뮤니티 게시글 — 비로그인도 읽기 가능, 작성은 로그인 필요
     match /community_posts/{id} {
