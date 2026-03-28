@@ -93,6 +93,22 @@ const CommunityView = ({ community, currentUserData, allUsers, onBack, onClosed 
     await updateDoc(doc(db, 'community_posts', post.id), { isBlinded: !post.isBlinded });
   };
 
+  // 🚀 게시글 영구 삭제 — 작성자 본인 또는 관리자(thumb/index)
+  // Why: 블라인드는 숨김만이므로 스팸·부적절 글을 완전히 제거하는 수단 필요
+  const handleDeletePost = async (post: CommunityPost) => {
+    const isAuthor = post.author_id === currentUserData?.uid;
+    if (!isAuthor && !isAdmin) return;
+    if (!window.confirm('이 글을 영구 삭제하시겠습니까? 삭제 후 복구할 수 없습니다.')) return;
+    // 공지 고정 글이면 pinnedPostId도 해제
+    if (community.pinnedPostId === post.id) {
+      await updateDoc(doc(db, 'communities', community.id), { pinnedPostId: null, postCount: increment(-1) });
+    } else {
+      await updateDoc(doc(db, 'communities', community.id), { postCount: increment(-1) });
+    }
+    await deleteDoc(doc(db, 'community_posts', post.id));
+    if (selectedPost?.id === post.id) setSelectedPost(null);
+  };
+
   // 🚀 Phase 5 — 중지(middle) 자동 산정
   // 조건: 커뮤니티 내 작성글 5개 이상 OR 수신 좋아요 합계 20개 이상 → finger: 'middle' 자동 승격
   // 이미 middle/index/thumb이거나 ring/pinky도 아닌 경우 스킵
@@ -114,8 +130,8 @@ const CommunityView = ({ community, currentUserData, allUsers, onBack, onClosed 
     // middle로 자동 승격
     const membershipId = `${community.id}_${currentUserData.uid}`;
     await updateDoc(doc(db, 'community_memberships', membershipId), { finger: 'middle' });
-    // 본인에게 알림
-    const notifRef = doc(collection(db, 'notifications', currentUserData.nickname, 'items'));
+    // 🚀 알림 경로: 닉네임 → UID
+    const notifRef = doc(collection(db, 'notifications', currentUserData.uid, 'items'));
     await (await import('firebase/firestore')).setDoc(notifRef, {
       type: 'finger_promoted',
       communityId: community.id,
@@ -135,31 +151,6 @@ const CommunityView = ({ community, currentUserData, allUsers, onBack, onClosed 
     });
   };
 
-  // 🚀 Phase 4 — 새 글 등록 시 구독자에게 알림 push (최대 50명 가드)
-  const pushCommunityNotify = async (postTitle: string | null) => {
-    const targets = (community.notifyMembers ?? []).filter(uid => uid !== currentUserData?.uid);
-    if (targets.length === 0) return;
-    // 50명 초과 시 알림 스킵 (Firestore write 비용 절감)
-    if (targets.length > 50) return;
-    const batch = (await import('firebase/firestore')).writeBatch(db);
-    const title = postTitle || '새 글이 올라왔어요';
-    targets.forEach(uid => {
-      // 알림 수신자의 nickname 찾기: allUsers에서 uid 키로 조회
-      const receiverData = allUsers[uid];
-      if (!receiverData?.nickname) return;
-      const notifRef = doc(collection(db, 'notifications', receiverData.nickname, 'items'));
-      batch.set(notifRef, {
-        type: 'community_post',
-        communityId: community.id,
-        communityName: community.name,
-        message: `[${community.name}] ${title}`,
-        senderNickname: currentUserData?.nickname ?? '',
-        isRead: false,
-        createdAt: new Date(),
-      });
-    });
-    await batch.commit();
-  };
 
   // 🚀 다섯 손가락 Phase 2 — 멤버 승인 (pending → active, finger: pinky→ring)
   const handleApprove = async (member: CommunityMember) => {
@@ -212,23 +203,51 @@ const CommunityView = ({ community, currentUserData, allUsers, onBack, onClosed 
     if (!currentUserData || !newContent.trim() || isSubmitting) return;
     setIsSubmitting(true);
     try {
+      const { writeBatch } = await import('firebase/firestore');
+      const batch = writeBatch(db);
       const postId = `cpost_${Date.now()}_${currentUserData.uid}`;
-      await setDoc(doc(db, 'community_posts', postId), {
+      const title = newTitle.trim() || null;
+
+      // 🚀 글 작성 + postCount + 활동지수 + 알림 전체를 하나의 writeBatch로 묶음
+      // Why: 개별 write 도중 네트워크 단절 시 글만 저장되고 통계·알림 누락 방지
+      batch.set(doc(db, 'community_posts', postId), {
         communityId: community.id,
         communityName: community.name,
         author: currentUserData.nickname,
         author_id: currentUserData.uid,
-        title: newTitle.trim() || null,
+        title,
         content: newContent,
         likes: 0,
         likedBy: [],
         commentCount: 0,
         createdAt: serverTimestamp(),
       });
-      await updateDoc(doc(db, 'communities', community.id), { postCount: increment(1) });
-      // 🚀 Phase 4 — 알림 구독자에게 push (비동기, 실패해도 글 작성 성공)
-      pushCommunityNotify(newTitle.trim() || null).catch(console.error);
-      // 🚀 Phase 5 — 중지 자동 산정 (비동기, 실패 무시)
+      batch.update(doc(db, 'communities', community.id), { postCount: increment(1) });
+      // 🚀 활동지수 반영 — App.tsx 일반 글 작성과 동일 기준(+5)
+      batch.update(doc(db, 'users', currentUserData.uid), { likes: increment(5) });
+
+      // 🚀 알림 구독자 push — 50명 이하이면 같은 batch에 포함 (원자성 보장)
+      const targets = (community.notifyMembers ?? []).filter(uid => uid !== currentUserData.uid);
+      if (targets.length > 0 && targets.length <= 50) {
+        const notifText = `[${community.name}] ${title || '새 글이 올라왔어요'}`;
+        targets.forEach(uid => {
+          const notifRef = doc(collection(db, 'notifications', uid, 'items'));
+          batch.set(notifRef, {
+            type: 'community_post',
+            communityId: community.id,
+            communityName: community.name,
+            message: notifText,
+            senderNickname: currentUserData.nickname,
+            postId,
+            read: false,
+            createdAt: serverTimestamp(),
+          });
+        });
+      }
+
+      await batch.commit();
+
+      // 🚀 Phase 5 — 중지 자동 산정 (비동기, 실패 무시 — batch 외부 처리)
       checkMiddlePromotion().catch(console.error);
       setNewTitle(''); setNewContent(''); setIsWriting(false);
     } finally { setIsSubmitting(false); }
@@ -238,10 +257,16 @@ const CommunityView = ({ community, currentUserData, allUsers, onBack, onClosed 
     e.stopPropagation();
     if (!currentUserData) { alert('로그인이 필요합니다.'); return; }
     const isLiked = post.likedBy?.includes(currentUserData.nickname);
+    const diff = isLiked ? -1 : 1;
     await updateDoc(doc(db, 'community_posts', post.id), {
-      likes: Math.max(0, (post.likes || 0) + (isLiked ? -1 : 1)),
+      likes: Math.max(0, (post.likes || 0) + diff),
       likedBy: isLiked ? arrayRemove(currentUserData.nickname) : arrayUnion(currentUserData.nickname),
     });
+    // 🚀 좋아요 수신 시 글 작성자 활동지수 반영 — App.tsx handleLike와 동일 기준(±3)
+    // Why: 장갑 글 좋아요도 일반 글과 동등한 활동 보상을 받아야 함
+    if (post.author_id) {
+      await updateDoc(doc(db, 'users', post.author_id), { likes: increment(diff * 3) });
+    }
   };
 
   const formatTime = (ts: any) => {
@@ -450,7 +475,7 @@ const CommunityView = ({ community, currentUserData, allUsers, onBack, onClosed 
                       <span className="text-[10px] font-bold text-slate-300">{formatTime(post.createdAt)}</span>
                     </div>
                     <div className="flex items-center gap-2 text-[11px] font-black text-slate-300">
-                      {/* 🚀 Phase 3 — 관리자 핀/블라인드 버튼 */}
+                      {/* 관리자 핀/블라인드 버튼 */}
                       {isAdmin && (
                         <>
                           <button
@@ -464,6 +489,14 @@ const CommunityView = ({ community, currentUserData, allUsers, onBack, onClosed 
                             title="블라인드 처리"
                           >🚫</button>
                         </>
+                      )}
+                      {/* 🚀 삭제 버튼 — 작성자 본인 또는 관리자 */}
+                      {(post.author_id === currentUserData?.uid || isAdmin) && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleDeletePost(post); }}
+                          className="text-[10px] font-black px-1.5 py-0.5 rounded text-slate-300 hover:text-rose-500 transition-colors"
+                          title="글 삭제"
+                        >🗑️</button>
                       )}
                       <span className="flex items-center gap-1">
                         <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
@@ -537,6 +570,8 @@ const CommunityPostDetail = ({ post, currentUserData, allUsers: _allUsers, onClo
         createdAt: serverTimestamp(),
       });
       await updateDoc(doc(db, 'community_posts', post.id), { commentCount: increment(1) });
+      // 🚀 장갑 댓글 작성 시 활동지수 반영 — App.tsx 인라인 댓글과 동일 기준(+1)
+      await updateDoc(doc(db, 'users', currentUserData.uid), { likes: increment(1) });
       setNewComment('');
     } finally { setIsSubmitting(false); }
   };

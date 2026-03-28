@@ -85,19 +85,24 @@ const ThanksballModal = ({ postId, postAuthor, postTitle, currentNickname, allUs
         amount: finalAmount, message: message.trim() || null,
         createdAt: serverTimestamp(), isPaid: false,
       });
-      await addDoc(collection(db, 'sentBalls', currentNickname, 'items'), {
+      // 🚀 sentBalls 경로: 닉네임 → UID (닉네임 변경에도 이력 유지)
+      await addDoc(collection(db, 'sentBalls', senderUid, 'items'), {
         postId, postTitle: postTitle || null, postAuthor: recipient,
         ...(isCommentMode ? { commentId: docId } : {}),
         amount: finalAmount, message: message.trim() || null,
         createdAt: serverTimestamp(),
       });
-      await addDoc(collection(db, 'notifications', recipient, 'items'), {
-        type: 'thanksball', fromNickname: currentNickname,
-        amount: finalAmount, message: message.trim() || null,
-        postId, postTitle: postTitle || null,
-        ...(isCommentMode ? { commentId: docId } : {}),
-        createdAt: serverTimestamp(), read: false,
-      });
+      // 🚀 notifications 경로: 수신자 닉네임 → 수신자 UID (닉네임 변경에도 알림 수신 유지)
+      const recipientUidForNotif = allUsers[`nickname_${recipient}`]?.uid || recipientUid;
+      if (recipientUidForNotif) {
+        await addDoc(collection(db, 'notifications', recipientUidForNotif, 'items'), {
+          type: 'thanksball', fromNickname: currentNickname,
+          amount: finalAmount, message: message.trim() || null,
+          postId, postTitle: postTitle || null,
+          ...(isCommentMode ? { commentId: docId } : {}),
+          createdAt: serverTimestamp(), read: false,
+        });
+      }
 
       setDone(true);
       setTimeout(onClose, 1800);

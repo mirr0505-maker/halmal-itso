@@ -1,8 +1,8 @@
 // src/components/MyPage.tsx
 import React, { useState, useEffect } from 'react';
 import { db, auth } from '../firebase';
-import { collection, query, where, orderBy, limit, onSnapshot, doc, updateDoc, increment } from 'firebase/firestore';
-import type { Post, Community, CommunityPost } from '../types';
+import { collection, query, where, orderBy, limit, onSnapshot, doc, updateDoc, increment, getDocs, writeBatch, arrayUnion, arrayRemove } from 'firebase/firestore';
+import type { Post, Community, CommunityPost, CommunityMember } from '../types';
 import ActivityStats from './ActivityStats';
 import MyContentTabs from './MyContentTabs';
 import ProfileHeader from './ProfileHeader';
@@ -48,19 +48,24 @@ const MyPage = ({
   userData, allUserRootPosts, allUserChildPosts, friends, friendCount, onPostClick, onEditPost, onToggleFriend, allUsers, followerCounts,
   communities = [], joinedCommunityIds = [], onGloveClick, onLeaveGlove, onLogout
 }: Props) => {
-  const [activeTab, setActiveTab] = useState<'posts' | 'onecuts' | 'comments' | 'avatars' | 'friends' | 'thanksball' | 'sentball' | 'glove' | 'gloveposts'>('posts');
+  const [activeTab, setActiveTab] = useState<'posts' | 'onecuts' | 'comments' | 'avatars' | 'friends' | 'thanksball' | 'sentball' | 'glove'>('posts');
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [sentBalls, setSentBalls] = useState<SentBall[]>([]);
   // 🚀 프로필 수정: editData + 업로드 상태
   const [editData, setEditData] = useState({ nickname: userData.nickname, bio: userData.bio || '', avatarUrl: userData.avatarUrl || '' });
   const [isUploading, setIsUploading] = useState(false);
-  // 🚀 커뮤니티 글 구독 (장갑 속 글 탭)
+  // 🚀 커뮤니티 글 구독 (활동 통계 + 나의 기록 병합용)
   const [glovePosts, setGlovePosts] = useState<CommunityPost[]>([]);
+  // 🚀 커뮤니티 댓글 구독 (참여한 토론 병합용)
+  const [gloveComments, setGloveComments] = useState<any[]>([]);
+  // 🚀 내 멤버십 구독 — 손가락 역할·가입 상태 실시간 반영
+  const [myMemberships, setMyMemberships] = useState<CommunityMember[]>([]);
 
   useEffect(() => {
     if (!userData?.nickname) return;
     const q = query(
-      collection(db, 'sentBalls', userData.nickname, 'items'),
+      // 🚀 sentBalls 경로: 닉네임 → UID
+      collection(db, 'sentBalls', userData.uid, 'items'),
       orderBy('createdAt', 'desc'),
       limit(50)
     );
@@ -83,9 +88,56 @@ const MyPage = ({
     }, err => console.error('[MyPage glovePosts]', err));
   }, [userData?.uid]);
 
+  // 🚀 내 멤버십 구독 — 손가락 역할·가입 상태를 실시간으로 가져옴
+  useEffect(() => {
+    if (!userData?.uid) return;
+    const q = query(
+      collection(db, 'community_memberships'),
+      where('userId', '==', userData.uid)
+    );
+    return onSnapshot(q, snap => {
+      setMyMemberships(snap.docs.map(d => ({ ...d.data() } as CommunityMember)));
+    });
+  }, [userData?.uid]);
+
+  // 🚀 내가 쓴 커뮤니티 댓글 구독 (community_post_comments 컬렉션)
+  useEffect(() => {
+    if (!userData?.uid) return;
+    const q = query(
+      collection(db, 'community_post_comments'),
+      where('author_id', '==', userData.uid),
+      orderBy('createdAt', 'desc'),
+      limit(50)
+    );
+    return onSnapshot(q, snap => {
+      setGloveComments(snap.docs.map(d => ({ id: d.id, ...d.data(), _source: 'glove' })));
+    }, err => console.error('[MyPage gloveComments]', err));
+  }, [userData?.uid]);
+
   // 게시글 분리
   const standardPosts = allUserRootPosts.filter(p => !p.isOneCut);
   const onecutPosts = allUserRootPosts.filter(p => p.isOneCut);
+
+  // 🚀 나의 기록: 일반글(posts) + 장갑글(community_posts) 시간순 병합
+  // Why: 두 컬렉션이 분리되어 있으나 사용자 관점에서는 하나의 활동 내역이어야 함
+  const allMyPosts = [
+    ...standardPosts.map(p => ({ ...p, _source: 'post' as const })),
+    ...glovePosts.map(p => ({ ...p, _source: 'glove' as const })),
+  ].sort((a, b) => {
+    const aMs = a.createdAt?.seconds ? a.createdAt.seconds * 1000 : 0;
+    const bMs = b.createdAt?.seconds ? b.createdAt.seconds * 1000 : 0;
+    return bMs - aMs;
+  });
+
+  // 🚀 참여한 토론: 일반 댓글(posts child) + 장갑 댓글(community_post_comments) 시간순 병합
+  const allMyComments = [
+    ...allUserChildPosts.map(p => ({ ...p, _source: 'post' as const })),
+    ...gloveComments,
+  ].sort((a, b) => {
+    const aMs = a.createdAt?.seconds ? a.createdAt.seconds * 1000 : 0;
+    const bMs = b.createdAt?.seconds ? b.createdAt.seconds * 1000 : 0;
+    return bMs - aMs;
+  });
 
   // 🚀 프로필 사진 업로드 — Cloudflare R2
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -109,23 +161,71 @@ const MyPage = ({
     const uid = auth.currentUser?.uid;
     if (!uid) { alert('로그인 상태를 확인해주세요.'); return; }
     if (!editData.nickname.trim()) { alert('닉네임을 입력해주세요.'); return; }
+    const newNickname = editData.nickname.trim();
+    const nicknameChanged = newNickname !== userData.nickname;
     try {
+      // 🚀 3단계: 닉네임 변경 30일 쿨다운 체크
+      // Why: 닉네임 파편화로 인한 데이터 정합성 문제와 사칭 방지를 위해 변경 빈도 제한
+      if (nicknameChanged) {
+        const lastChangedAt = userData.nicknameChangedAt;
+        if (lastChangedAt) {
+          const lastChangedMs = lastChangedAt.seconds ? lastChangedAt.seconds * 1000 : new Date(lastChangedAt).getTime();
+          const daysSinceChange = (Date.now() - lastChangedMs) / (1000 * 60 * 60 * 24);
+          if (daysSinceChange < 30) {
+            const remainingDays = Math.ceil(30 - daysSinceChange);
+            alert(`닉네임은 30일에 한 번만 변경할 수 있어요.\n${remainingDays}일 후에 다시 시도해주세요.`);
+            return;
+          }
+        }
+      }
+
       // UID 문서 + nickname_ 문서 양쪽 동기화 (users 컬렉션 이중 키 구조)
       await updateDoc(doc(db, 'users', uid), {
-        nickname: editData.nickname.trim(),
+        nickname: newNickname,
         bio: editData.bio.trim(),
         avatarUrl: editData.avatarUrl,
+        // 닉네임 변경 시에만 타임스탬프 기록
+        ...(nicknameChanged ? { nicknameChangedAt: new Date() } : {}),
       });
       await updateDoc(doc(db, 'users', `nickname_${userData.nickname}`), {
-        nickname: editData.nickname.trim(),
+        nickname: newNickname,
         bio: editData.bio.trim(),
         avatarUrl: editData.avatarUrl,
       }).catch(() => {}); // nickname_ 문서 없을 경우 무시
+
+      // 🚀 2단계: 닉네임 변경 시 community_memberships + communities 일괄 업데이트
+      // Why: nickname이 비정규화되어 있으므로 변경 즉시 모든 관련 문서에 반영해야 파편화 방지
+      if (nicknameChanged) {
+        const batch = writeBatch(db);
+
+        // 내가 가입한 장갑의 멤버십 문서
+        const membershipsSnap = await getDocs(
+          query(collection(db, 'community_memberships'), where('userId', '==', uid))
+        );
+        membershipsSnap.docs.forEach(d => batch.update(d.ref, { nickname: newNickname }));
+
+        // 내가 만든 장갑 문서 (creatorNickname 필드)
+        const communitiesSnap = await getDocs(
+          query(collection(db, 'communities'), where('creatorId', '==', uid))
+        );
+        communitiesSnap.docs.forEach(d => batch.update(d.ref, { creatorNickname: newNickname }));
+
+        await batch.commit();
+      }
+
       setIsEditingProfile(false);
     } catch (err) {
       console.error('[프로필 저장 실패]', err);
       alert('저장에 실패했습니다. 다시 시도해주세요.');
     }
+  };
+
+  // 🚀 장갑 알림 ON/OFF 토글 — CommunityView.handleToggleNotify와 동일 로직
+  const handleToggleCommunityNotify = async (communityId: string, currentlyNotifying: boolean) => {
+    if (!userData?.uid) return;
+    await updateDoc(doc(db, 'communities', communityId), {
+      notifyMembers: currentlyNotifying ? arrayRemove(userData.uid) : arrayUnion(userData.uid),
+    });
   };
 
   const [charging, setCharging] = useState(false);
@@ -186,7 +286,8 @@ const MyPage = ({
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* 🚀 좌측: 활동 통계 및 마일스톤 */}
           <div className="lg:col-span-1 flex flex-col gap-6">
-            <ActivityStats userData={userData} rootCount={allUserRootPosts.length} totalThanksball={totalThanksball} joinedGloveCount={joinedCommunityIds.length} glovePostCount={glovePosts.length} />
+            {/* 🚀 rootCount: 일반 글 + 장갑 글 합산 — 전체 작성 활동을 통합 표시 */}
+            <ActivityStats userData={userData} rootCount={standardPosts.length + glovePosts.length} totalThanksball={totalThanksball} joinedGloveCount={joinedCommunityIds.length} />
 
             {/* 땡스볼 지갑 */}
             <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm">
@@ -225,11 +326,12 @@ const MyPage = ({
               )}
             </div>
 
+            {/* 🚀 rootCount: 일반 글 + 장갑 글 합산 / commentCount: 일반 댓글 + 장갑 댓글 합산 */}
             <ActivityMilestones
               userData={userData}
-              rootCount={allUserRootPosts.length}
+              rootCount={standardPosts.length + glovePosts.length}
               formalCount={allUserChildPosts.filter(p => p.type === 'formal').length}
-              commentCount={allUserChildPosts.filter(p => p.type === 'comment').length}
+              commentCount={allUserChildPosts.filter(p => p.type === 'comment').length + gloveComments.length}
               totalThanksball={totalThanksball}
             />
 
@@ -253,11 +355,29 @@ const MyPage = ({
               <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-blue-600 to-indigo-500" />
               
               <div className="flex items-center gap-6 mb-10 border-b border-slate-50 pb-2 overflow-x-auto no-scrollbar">
-                {(['posts', 'onecuts', 'comments', 'avatars', 'friends', 'thanksball', 'sentball', 'glove', 'gloveposts'] as const).map(tab => (
+                {(['posts', 'onecuts', 'comments', 'avatars', 'friends', 'thanksball', 'sentball', 'glove'] as const).map(tab => (
                   <button key={tab} onClick={() => setActiveTab(tab)} className={`pb-4 px-2 text-[15px] font-[1000] tracking-tight transition-all relative whitespace-nowrap ${activeTab === tab ? 'text-blue-600' : 'text-slate-300 hover:text-slate-500'}`}>
-                    {tab === 'posts' && '나의 기록'}
+                    {tab === 'posts' && (
+                      <span className="flex items-center gap-1">
+                        나의 기록
+                        {allMyPosts.length > 0 && (
+                          <span className="text-[10px] font-[1000] text-blue-400 bg-blue-50 px-1.5 py-0.5 rounded-full border border-blue-100">
+                            {allMyPosts.length}
+                          </span>
+                        )}
+                      </span>
+                    )}
                     {tab === 'onecuts' && '나의 한컷'}
-                    {tab === 'comments' && '참여한 토론'}
+                    {tab === 'comments' && (
+                      <span className="flex items-center gap-1">
+                        참여한 토론
+                        {allMyComments.length > 0 && (
+                          <span className="text-[10px] font-[1000] text-emerald-500 bg-emerald-50 px-1.5 py-0.5 rounded-full border border-emerald-100">
+                            {allMyComments.length}
+                          </span>
+                        )}
+                      </span>
+                    )}
                     {tab === 'avatars' && '아바타 수집'}
                     {tab === 'friends' && '깐부 목록'}
                     {tab === 'thanksball' && (
@@ -290,29 +410,19 @@ const MyPage = ({
                         )}
                       </span>
                     )}
-                    {tab === 'gloveposts' && (
-                      <span className="flex items-center gap-1">
-                        📝 장갑 속 글
-                        {glovePosts.length > 0 && (
-                          <span className="text-[10px] font-[1000] text-teal-600 bg-teal-50 px-1.5 py-0.5 rounded-full border border-teal-100">
-                            {glovePosts.length}개
-                          </span>
-                        )}
-                      </span>
-                    )}
                     {activeTab === tab && <div className="absolute bottom-0 left-0 w-full h-1 bg-blue-600 rounded-full" />}
                   </button>
                 ))}
               </div>
 
               <div className="flex-1">
-                {activeTab === 'posts' && <MyContentTabs posts={standardPosts} onPostClick={onEditPost || onPostClick} type="posts" />}
+                {activeTab === 'posts' && <MyContentTabs posts={allMyPosts} onPostClick={onEditPost || onPostClick} onGloveClick={onGloveClick} type="posts" />}
                 {activeTab === 'onecuts' && (
                   <div className="pt-4">
                     <OneCutList posts={onecutPosts} allPosts={allUserRootPosts} onTopicClick={onEditPost || onPostClick} allUsers={allUsers} followerCounts={followerCounts} />
                   </div>
                 )}
-                {activeTab === 'comments' && <MyContentTabs posts={allUserChildPosts} onPostClick={onPostClick} type="comments" />}
+                {activeTab === 'comments' && <MyContentTabs posts={allMyComments} onPostClick={onPostClick} onGloveClick={onGloveClick} type="comments" />}
                 {activeTab === 'avatars' && <AvatarCollection currentLevel={userData.level} />}
                 {activeTab === 'thanksball' && (
                   <div className="flex flex-col gap-4">
@@ -410,47 +520,126 @@ const MyPage = ({
                   </div>
                 )}
 
-                {/* 🚀 내 장갑 탭: 가입한 커뮤니티 카드 목록 */}
+                {/* 🚀 내 장갑 탭: 가입한 커뮤니티 관리 (역할·알림·통계·탈퇴) */}
                 {activeTab === 'glove' && (() => {
+                  // 손가락 역할 표시 메타
+                  const FINGER_LABEL: Record<string, { label: string; color: string }> = {
+                    thumb:  { label: '👍 엄지 (개설자)',  color: 'text-amber-600 bg-amber-50 border-amber-200' },
+                    index:  { label: '☝️ 검지 (부관리자)', color: 'text-violet-600 bg-violet-50 border-violet-200' },
+                    middle: { label: '🖕 중지 (핵심)',    color: 'text-blue-600 bg-blue-50 border-blue-200' },
+                    ring:   { label: '💍 약지 (일반)',    color: 'text-slate-600 bg-slate-50 border-slate-200' },
+                    pinky:  { label: '🤙 새끼 (신입)',    color: 'text-slate-400 bg-slate-50 border-slate-200' },
+                  };
+
                   const joinedCommunities = communities.filter(c => joinedCommunityIds.includes(c.id));
+
+                  // communityId별 내 글 수·받은 좋아요 합산
+                  const gloveStatsByCommunity = glovePosts.reduce<Record<string, { postCount: number; likeCount: number }>>((acc, p) => {
+                    const cid = p.communityId;
+                    if (!acc[cid]) acc[cid] = { postCount: 0, likeCount: 0 };
+                    acc[cid].postCount += 1;
+                    acc[cid].likeCount += p.likes || 0;
+                    return acc;
+                  }, {});
+
                   return (
-                    <div className="flex flex-col gap-4">
-                      <p className="text-[12px] font-bold text-slate-400">내가 가입한 커뮤니티 장갑 목록</p>
+                    <div className="flex flex-col gap-3">
+                      <p className="text-[12px] font-bold text-slate-400">내가 가입한 커뮤니티 장갑 관리</p>
                       {joinedCommunities.length === 0 ? (
                         <div className="py-20 text-center text-slate-300 font-bold italic">아직 가입한 장갑이 없어요.</div>
                       ) : (
                         joinedCommunities.map(c => {
                           const isOwner = c.creatorId === userData?.uid;
+                          // 내 멤버십 정보 (손가락 역할·가입 상태)
+                          const membership = myMemberships.find(m => m.communityId === c.id);
+                          const finger = membership?.finger || (isOwner ? 'thumb' : 'ring');
+                          const fingerMeta = FINGER_LABEL[finger] || FINGER_LABEL.ring;
+                          const isPending = membership?.joinStatus === 'pending';
+                          const isBanned = membership?.joinStatus === 'banned';
+                          // 알림 구독 여부
+                          const isNotifying = (c.notifyMembers ?? []).includes(userData?.uid);
+                          // 내 활동 통계
+                          const myStats = gloveStatsByCommunity[c.id] || { postCount: 0, likeCount: 0 };
+
                           return (
                             <div
                               key={c.id}
-                              onClick={() => onGloveClick?.(c.id)}
-                              className="flex items-center justify-between gap-3 p-4 bg-slate-50 rounded-2xl border border-slate-100 cursor-pointer hover:border-teal-200 hover:bg-teal-50/30 transition-all group"
+                              className={`rounded-2xl border overflow-hidden transition-all ${isBanned ? 'border-rose-200 bg-rose-50/30' : 'border-slate-100 bg-white hover:border-teal-200 hover:shadow-sm'}`}
                             >
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2 mb-0.5">
-                                  <span className="text-[13px] font-[1000] text-slate-800 group-hover:text-teal-700 transition-colors truncate">🧤 {c.name}</span>
-                                  {isOwner && (
-                                    <span className="text-[9px] font-[1000] text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded-full border border-amber-200 shrink-0">👑 개설자</span>
-                                  )}
-                                  {c.isPrivate && (
-                                    <span className="text-[9px] font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded-full border border-slate-200 shrink-0">비밀</span>
+                              {/* 상단 컬러바 */}
+                              <div className="h-1 w-full" style={{ backgroundColor: c.coverColor || '#14b8a6' }} />
+
+                              <div className="p-4">
+                                {/* 헤더 행: 이름 + 역할 배지 */}
+                                <div className="flex items-start justify-between gap-2 mb-2">
+                                  <div
+                                    className="flex-1 min-w-0 cursor-pointer"
+                                    onClick={() => onGloveClick?.(c.id)}
+                                  >
+                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                      <span className="text-[14px] font-[1000] text-slate-900 hover:text-teal-700 transition-colors truncate">🧤 {c.name}</span>
+                                      {isPending && (
+                                        <span className="text-[9px] font-[1000] text-orange-600 bg-orange-50 px-1.5 py-0.5 rounded-full border border-orange-200 shrink-0">⏳ 승인 대기</span>
+                                      )}
+                                      {isBanned && (
+                                        <span className="text-[9px] font-[1000] text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded-full border border-rose-200 shrink-0">🚫 강퇴됨</span>
+                                      )}
+                                    </div>
+                                    {c.description && (
+                                      <p className="text-[11px] font-bold text-slate-400 truncate mt-0.5">{c.description}</p>
+                                    )}
+                                  </div>
+
+                                  {/* 알림 토글 버튼 (강퇴·대기 상태엔 숨김) */}
+                                  {!isPending && !isBanned && (
+                                    <button
+                                      onClick={() => handleToggleCommunityNotify(c.id, isNotifying)}
+                                      className={`shrink-0 flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-[10px] font-[1000] border transition-all ${
+                                        isNotifying
+                                          ? 'bg-teal-500 text-white border-teal-400 hover:bg-teal-600'
+                                          : 'bg-slate-50 text-slate-400 border-slate-200 hover:bg-slate-100'
+                                      }`}
+                                    >
+                                      {isNotifying ? '🔔 알림 ON' : '🔕 알림 OFF'}
+                                    </button>
                                   )}
                                 </div>
-                                {c.description && (
-                                  <p className="text-[11px] font-bold text-slate-400 truncate">{c.description}</p>
+
+                                {/* 중간 행: 카테고리 + 역할 + 멤버 수 */}
+                                <div className="flex items-center gap-1.5 flex-wrap mb-3">
+                                  <span className="text-[9px] font-[1000] text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded-full border border-blue-100">{c.category}</span>
+                                  <span className={`text-[9px] font-[1000] px-1.5 py-0.5 rounded-full border ${fingerMeta.color}`}>{fingerMeta.label}</span>
+                                  <span className="text-[10px] font-bold text-slate-300">멤버 {c.memberCount}명 · 글 {c.postCount}개</span>
+                                </div>
+
+                                {/* 내 활동 통계 */}
+                                {myStats.postCount > 0 && (
+                                  <div className="flex items-center gap-3 mb-3 px-3 py-2 bg-teal-50/50 rounded-xl border border-teal-100">
+                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">내 활동</span>
+                                    <span className="text-[11px] font-[1000] text-teal-700">글 {myStats.postCount}개</span>
+                                    <span className="text-[11px] font-[1000] text-rose-500">❤️ {myStats.likeCount}</span>
+                                  </div>
                                 )}
-                                <p className="text-[10px] font-bold text-slate-300 mt-0.5">{c.category} · 멤버 {c.memberCount}명 · 글 {c.postCount}개</p>
+
+                                {/* 하단 버튼 행 */}
+                                <div className="flex items-center justify-between gap-2">
+                                  <button
+                                    onClick={() => onGloveClick?.(c.id)}
+                                    className="flex-1 py-1.5 rounded-xl text-[11px] font-[1000] text-teal-700 bg-teal-50 border border-teal-100 hover:bg-teal-100 transition-all"
+                                  >
+                                    {isOwner ? '🔧 관리하기' : '👉 입장하기'}
+                                  </button>
+                                  {/* 탈퇴 버튼: 개설자(엄지) 제외 */}
+                                  {!isOwner && (
+                                    <button
+                                      onClick={() => onLeaveGlove?.(c.id)}
+                                      className="px-3 py-1.5 rounded-xl text-[11px] font-[1000] text-rose-500 bg-white border border-rose-100 hover:bg-rose-50 transition-all"
+                                    >
+                                      탈퇴
+                                    </button>
+                                  )}
+                                </div>
                               </div>
-                              {/* 탈퇴 버튼 (개설자는 탈퇴 불가) */}
-                              {!isOwner && (
-                                <button
-                                  onClick={e => { e.stopPropagation(); onLeaveGlove?.(c.id); }}
-                                  className="text-[10px] font-black text-rose-500 bg-white px-3 py-1.5 rounded-lg border border-rose-100 shadow-sm hover:bg-rose-50 transition-all shrink-0"
-                                >
-                                  탈퇴
-                                </button>
-                              )}
                             </div>
                           );
                         })
@@ -459,47 +648,6 @@ const MyPage = ({
                   );
                 })()}
 
-                {/* 🚀 장갑 속 글 탭: 내가 community_posts에 쓴 글 목록 */}
-                {activeTab === 'gloveposts' && (
-                  <div className="flex flex-col gap-4">
-                    <p className="text-[12px] font-bold text-slate-400">내가 커뮤니티 장갑에 쓴 글 목록</p>
-                    {glovePosts.length === 0 ? (
-                      <div className="py-20 text-center text-slate-300 font-bold italic">아직 쓴 장갑 글이 없어요.</div>
-                    ) : (
-                      glovePosts.map(post => {
-                        const formatTime = (ts: any) => {
-                          if (!ts) return '';
-                          const d = ts.seconds ? new Date(ts.seconds * 1000) : new Date(ts);
-                          const diff = Math.floor((Date.now() - d.getTime()) / 1000);
-                          if (diff < 60) return '방금 전';
-                          if (diff < 3600) return `${Math.floor(diff / 60)}분 전`;
-                          if (diff < 86400) return `${Math.floor(diff / 3600)}시간 전`;
-                          return d.toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' });
-                        };
-                        return (
-                          <div
-                            key={post.id}
-                            onClick={() => onGloveClick?.(post.communityId)}
-                            className="flex items-start gap-3 p-4 bg-slate-50 rounded-2xl border border-slate-100 cursor-pointer hover:border-teal-200 hover:bg-teal-50/30 transition-all group"
-                          >
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 mb-1">
-                                <span className="text-[9px] font-[1000] text-teal-600 bg-teal-50 px-2 py-0.5 rounded-full border border-teal-100 shrink-0">🧤 {post.communityName}</span>
-                              </div>
-                              <p className="text-[13px] font-[1000] text-slate-800 group-hover:text-teal-700 transition-colors line-clamp-1">
-                                {post.title || post.content.replace(/<[^>]+>/g, '').slice(0, 50)}
-                              </p>
-                              <div className="flex items-center gap-3 mt-1">
-                                <span className="text-[10px] font-bold text-slate-400">👍 {post.likes || 0}</span>
-                                <span className="text-[10px] font-bold text-slate-300">{formatTime(post.createdAt)}</span>
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })
-                    )}
-                  </div>
-                )}
               </div>
             </div>
           </div>

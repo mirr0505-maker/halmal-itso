@@ -5,18 +5,21 @@ import { collection, query, orderBy, limit, onSnapshot, updateDoc, doc, writeBat
 
 interface Notification {
   id: string;
-  type: 'thanksball';
-  fromNickname: string;
+  type: 'thanksball' | 'community_post' | 'finger_promoted';
+  fromNickname?: string;
   amount?: number;
   message?: string;
-  postId: string;
+  postId?: string;
   postTitle?: string;
+  communityId?: string;
+  communityName?: string;
   createdAt: any;
   read: boolean;
 }
 
 interface Props {
-  currentNickname: string;
+  currentUid: string;       // 🚀 UID 기반 경로로 전환
+  currentNickname: string;  // 표시용 (읽음 처리에는 미사용)
   onNavigate: (postId: string) => void;
 }
 
@@ -30,23 +33,25 @@ const formatTime = (ts: any) => {
   return d.toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' });
 };
 
-const NotificationBell = ({ currentNickname, onNavigate }: Props) => {
+const NotificationBell = ({ currentUid, onNavigate }: Props) => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
   const unreadCount = notifications.filter(n => !n.read).length;
 
+  // 🚀 경로를 UID 기반으로 변경 — 닉네임 변경 시에도 구독이 끊기지 않음
   useEffect(() => {
+    if (!currentUid) return;
     const q = query(
-      collection(db, 'notifications', currentNickname, 'items'),
+      collection(db, 'notifications', currentUid, 'items'),
       orderBy('createdAt', 'desc'),
       limit(20)
     );
     return onSnapshot(q, snap => {
       setNotifications(snap.docs.map(d => ({ id: d.id, ...d.data() } as Notification)));
     });
-  }, [currentNickname]);
+  }, [currentUid]);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -58,9 +63,9 @@ const NotificationBell = ({ currentNickname, onNavigate }: Props) => {
 
   const markAsRead = async (notif: Notification) => {
     if (!notif.read) {
-      await updateDoc(doc(db, 'notifications', currentNickname, 'items', notif.id), { read: true });
+      await updateDoc(doc(db, 'notifications', currentUid, 'items', notif.id), { read: true });
     }
-    onNavigate(notif.postId);
+    if (notif.postId) onNavigate(notif.postId);
     setIsOpen(false);
   };
 
@@ -69,7 +74,7 @@ const NotificationBell = ({ currentNickname, onNavigate }: Props) => {
     if (unread.length === 0) return;
     const batch = writeBatch(db);
     unread.forEach(n => {
-      batch.update(doc(db, 'notifications', currentNickname, 'items', n.id), { read: true });
+      batch.update(doc(db, 'notifications', currentUid, 'items', n.id), { read: true });
     });
     await batch.commit();
   };
@@ -117,29 +122,33 @@ const NotificationBell = ({ currentNickname, onNavigate }: Props) => {
                 <p className="text-[12px] text-slate-300 font-bold">아직 알림이 없어요</p>
               </div>
             ) : (
-              notifications.map(n => (
-                <div
-                  key={n.id}
-                  onClick={() => markAsRead(n)}
-                  className={`flex items-start gap-3 px-4 py-3 cursor-pointer transition-colors hover:bg-slate-50 border-b border-slate-50/80 last:border-0 ${!n.read ? 'bg-amber-50/40' : ''}`}
-                >
-                  <span className="text-lg shrink-0 mt-0.5">⚾</span>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[12px] font-[1000] text-slate-800 leading-snug">
-                      <span className="text-blue-600">{n.fromNickname}</span>님이{' '}
-                      <span className="text-amber-500 font-[1000]">{n.amount}볼</span> 땡스볼을 보냈어요
-                    </p>
-                    {n.message && (
-                      <p className="text-[11px] text-slate-500 font-bold mt-0.5 truncate">"{n.message}"</p>
-                    )}
-                    {n.postTitle && (
-                      <p className="text-[10px] text-slate-400 font-bold mt-0.5 truncate">{n.postTitle}</p>
-                    )}
-                    <p className="text-[10px] text-slate-300 font-bold mt-1">{formatTime(n.createdAt)}</p>
+              notifications.map(n => {
+                // 🚀 타입별 아이콘·메시지 분기
+                const icon = n.type === 'community_post' ? '🧤' : n.type === 'finger_promoted' ? '🖐' : '⚾';
+                const body = n.type === 'community_post' || n.type === 'finger_promoted'
+                  ? (n.message || '')
+                  : (<><span className="text-blue-600">{n.fromNickname}</span>님이{' '}<span className="text-amber-500 font-[1000]">{n.amount}볼</span> 땡스볼을 보냈어요</>);
+                return (
+                  <div
+                    key={n.id}
+                    onClick={() => markAsRead(n)}
+                    className={`flex items-start gap-3 px-4 py-3 cursor-pointer transition-colors hover:bg-slate-50 border-b border-slate-50/80 last:border-0 ${!n.read ? 'bg-amber-50/40' : ''}`}
+                  >
+                    <span className="text-lg shrink-0 mt-0.5">{icon}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[12px] font-[1000] text-slate-800 leading-snug">{body}</p>
+                      {n.message && n.type === 'thanksball' && (
+                        <p className="text-[11px] text-slate-500 font-bold mt-0.5 truncate">"{n.message}"</p>
+                      )}
+                      {n.postTitle && (
+                        <p className="text-[10px] text-slate-400 font-bold mt-0.5 truncate">{n.postTitle}</p>
+                      )}
+                      <p className="text-[10px] text-slate-300 font-bold mt-1">{formatTime(n.createdAt)}</p>
+                    </div>
+                    {!n.read && <div className="w-2 h-2 bg-rose-400 rounded-full shrink-0 mt-2" />}
                   </div>
-                  {!n.read && <div className="w-2 h-2 bg-rose-400 rounded-full shrink-0 mt-2" />}
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         </div>

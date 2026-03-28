@@ -26,19 +26,39 @@ service cloud.firestore {
       match /{sub=**} { allow read: if true; allow write: if request.auth != null; }
     }
     // 커뮤니티 멤버십 — 로그인 사용자만 읽기
-    // 쓰기: 본인 멤버십 문서(id에 uid 포함)만 생성·수정 가능
-    // 예외: 관리자(thumb/index) 역할 변경은 앱 레이어에서 creatorId 검증 후 처리
-    match /community_memberships/{id} {
+    // 쓰기 규칙:
+    //   create: 로그인한 사용자 누구나 (가입 신청)
+    //   update/delete 본인 문서: 본인만 (탈퇴, 닉네임 변경)
+    //   update/delete 타인 문서: 해당 커뮤니티의 thumb/index만 (강퇴·역할변경)
+    // Why: 프론트 레이어 우회 공격에 대한 서버 사이드 권한 검증 추가
+    match /community_memberships/{membershipId} {
       allow read: if request.auth != null;
       allow create: if request.auth != null;
+
+      // 본인 멤버십 수정·삭제 (탈퇴, 닉네임 동기화)
       allow update, delete: if request.auth != null
-        && (resource.data.userId == request.auth.uid
-         || request.resource.data.keys().hasAny(['finger', 'joinStatus', 'banReason']));
+        && resource.data.userId == request.auth.uid;
+
+      // 관리자(thumb/index)에 의한 타인 멤버십 수정 (강퇴·역할변경·승인)
+      // 문서 ID 패턴: {communityId}_{userId} — communityId를 추출해 본인 멤버십 조회
+      allow update: if request.auth != null
+        && resource.data.userId != request.auth.uid
+        && request.resource.data.keys().hasAny(['finger', 'joinStatus', 'banReason', 'role'])
+        && get(/databases/$(database)/documents/community_memberships/$(resource.data.communityId + '_' + request.auth.uid)).data.finger in ['thumb', 'index'];
+
+      allow delete: if request.auth != null
+        && resource.data.userId != request.auth.uid
+        && get(/databases/$(database)/documents/community_memberships/$(resource.data.communityId + '_' + request.auth.uid)).data.finger in ['thumb', 'index'];
     }
-    // 커뮤니티 게시글 — 비로그인도 읽기 가능, 작성은 로그인 필요
+    // 커뮤니티 게시글 — 비로그인도 읽기 가능, 작성/수정/삭제는 권한 검증
+    // 삭제: 작성자 본인 또는 해당 커뮤니티의 thumb/index
+    // Why: 악의적 사용자가 클라이언트 우회 후 타인 글 삭제 방지
     match /community_posts/{id} {
       allow read: if true;
-      allow write: if request.auth != null;
+      allow create, update: if request.auth != null;
+      allow delete: if request.auth != null
+        && (resource.data.author_id == request.auth.uid
+          || get(/databases/$(database)/documents/community_memberships/$(resource.data.communityId + '_' + request.auth.uid)).data.finger in ['thumb', 'index']);
       match /{sub=**} { allow read: if true; allow write: if request.auth != null; }
     }
 

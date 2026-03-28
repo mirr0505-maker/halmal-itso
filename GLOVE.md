@@ -1,6 +1,6 @@
 # 🧤 우리들의 장갑 — 설계 및 구현 문서 (GLOVE.md)
 
-> 최종 갱신: 2026-03-28 v1.0  |  연계 파일: `blueprint.md` §8
+> 최종 갱신: 2026-03-28 v1.1  |  연계 파일: `blueprint.md` §8
 
 ---
 
@@ -166,15 +166,18 @@ finger 없음 + role='member' → ring으로 취급
 ### Opt-in 구독
 - `community.notifyMembers[]`에 userId 저장 (`arrayUnion/arrayRemove`)
 - 토글 버튼: 가입 멤버에게만 노출, 헤더 우측에 배치
+- MyPage '내 장갑' 탭에서도 커뮤니티별 알림 ON/OFF 토글 가능
 
-### 새 글 알림 push
+### 새 글 알림 push (writeBatch 원자성 보장)
 ```
 조건: 구독자(notifyMembers) 수 ≤ 50명
-동작: 글 작성 후 구독자 순회 → notifications/{nickname}/items 자동 push
+동작: 글 작성 + postCount + users.likes + 구독자 알림을 단일 writeBatch로 처리
+경로: notifications/{subscriberUid}/items  (UID 기반 — 닉네임 변경에도 안전)
 type: 'community_post'
 message: '[커뮤니티명] 글 제목'
 ```
 > ⚠️ Cloud Functions 미사용 (Spark 플랜) — 앱 레이어 N writes 방식. 멤버 51명 이상 장갑은 write 비용 절감을 위해 알림 스킵.
+> writeBatch 500문서 한도 내 동작 (구독자 ≤50 제한으로 충분).
 
 ---
 
@@ -197,22 +200,41 @@ match /communities/{id} {
   allow write: if request.auth != null;
   match /{sub=**} { allow read: if true; allow write: if request.auth != null; }
 }
-match /community_memberships/{id} {
+
+// community_memberships — 서버사이드 권한 검증 (2026-03-28 강화)
+match /community_memberships/{membershipId} {
   allow read: if request.auth != null;
   allow create: if request.auth != null;
+
+  // 본인 멤버십 수정·삭제 (탈퇴, 닉네임 동기화)
   allow update, delete: if request.auth != null
-    && (resource.data.userId == request.auth.uid
-     || request.resource.data.keys().hasAny(['finger', 'joinStatus', 'banReason']));
+    && resource.data.userId == request.auth.uid;
+
+  // 관리자(thumb/index)에 의한 타인 멤버십 수정 (강퇴·역할변경·승인)
+  // 서버사이드 get()으로 관리자 여부 검증
+  allow update: if request.auth != null
+    && resource.data.userId != request.auth.uid
+    && request.resource.data.keys().hasAny(['finger', 'joinStatus', 'banReason', 'role'])
+    && get(/databases/$(database)/documents/community_memberships/$(resource.data.communityId + '_' + request.auth.uid)).data.finger in ['thumb', 'index'];
+
+  allow delete: if request.auth != null
+    && resource.data.userId != request.auth.uid
+    && get(/databases/$(database)/documents/community_memberships/$(resource.data.communityId + '_' + request.auth.uid)).data.finger in ['thumb', 'index'];
 }
+
+// community_posts — delete 권한 서버사이드 검증 (2026-03-28 강화)
 match /community_posts/{id} {
   allow read: if true;
-  allow write: if request.auth != null;
+  allow create, update: if request.auth != null;
+  allow delete: if request.auth != null
+    && (resource.data.author_id == request.auth.uid
+      || get(/databases/$(database)/documents/community_memberships/$(resource.data.communityId + '_' + request.auth.uid)).data.finger in ['thumb', 'index']);
   match /{sub=**} { allow read: if true; allow write: if request.auth != null; }
 }
 ```
 
-> 역할 기반 세분화(thumb/index만 강퇴 가능 등)는 **앱 레이어(CommunityView, CommunityAdminPanel)에서 처리**.
-> Cloud Functions 미사용 환경에서 Rules만으로 역할 검증은 불가 → isAdmin 체크로 UI 차단.
+> ⚠️ `get()` 호출은 Firestore 읽기 1회 소비. 강퇴/역할변경/글삭제 요청당 1 read 추가 발생.
+> 앱 레이어(`CommunityView`, `CommunityAdminPanel`) isAdmin 체크는 UI 제어 목적으로 유지.
 
 ---
 
@@ -227,6 +249,7 @@ match /community_posts/{id} {
 | 2026-03-28 | Phase 3 | CommunityAdminPanel 신규, 공지 고정, 블라인드, 설정 수정, 장갑 폐쇄 |
 | 2026-03-28 | Phase 4 | 커뮤니티 알림 Opt-in (notifyMembers + 글 작성 시 push) |
 | 2026-03-28 | Phase 5 | 중지 자동 산정 (기여도 임계값 → finger: 'middle' 자동 승격) |
+| 2026-03-28 | 보안·안정성 강화 | 알림 경로 UID 마이그레이션, 닉네임 변경 30일 쿨다운+배치 동기화, 강퇴 재가입 차단, 알림 writeBatch 원자성, Firestore Rules 서버사이드 권한 검증, 글 삭제 기능, 유저 전체 통계 합산, MyPage 활동 기록 통합, 내 장갑 탭 신규 |
 
 ---
 
@@ -236,5 +259,3 @@ match /community_posts/{id} {
 - [ ] **알림 51명+ 장갑 대응**: Cloud Functions(Blaze 플랜 업그레이드 후) 또는 알림 배치 처리
 - [ ] **성향 제한**: 특정 칭호(블루 기여자 이상 등) 보유자만 가입 가능 설정
 - [ ] **투표(Poll) 기능**: 중지 이상 멤버 전용 투표 생성 권한
-- [ ] **커뮤니티 게시글 삭제**: 현재 글 삭제 기능 미구현 (작성자/관리자 삭제 버튼 필요)
-- [ ] **강퇴 후 재가입 차단**: `joinStatus: 'banned'` 확인 로직 미구현

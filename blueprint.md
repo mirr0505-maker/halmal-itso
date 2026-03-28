@@ -2,7 +2,7 @@
 
 이 문서는 **할말있소(HALMAL-ITSO)** 프로젝트의 설계 원칙, 현재 구현 상태, 그리고 AI 개발자의 **절대적 행동 지침**을 담은 단일 진실 소스(Single Source of Truth)입니다.
 
-> 최종 갱신: 2026-03-28 v21 (코드 실측 기준)  |  현재 브랜치: `main`
+> 최종 갱신: 2026-03-28 v22 (코드 실측 기준)  |  현재 브랜치: `main`
 
 ---
 
@@ -13,7 +13,7 @@
 3. **Strategy Approval (선 보고 후 실행)**: 코드 수정 전 반드시 **AS-IS / TO-BE**를 한국어로 보고하고 승인을 받은 후 실행한다.
 4. **Component Decomposition**: 단일 파일이 200라인을 초과하면 UI / 로직 / 타입별로 파일을 분리한다. (과거 거대 파일 리팩토링 완료, 지속적인 모니터링 필요)
 5. **No Auto-Generated IDs**: Firestore 자동 ID 사용 금지. `topic_timestamp_uid` 또는 `comment_timestamp_uid` 형태의 맥락 ID를 직접 생성한다.
-   - **예외**: `notifications/{nick}/items`, `sentBalls/{nick}/items` — 알림·내역 보조 데이터는 `addDoc` 자동 ID 허용.
+   - **예외**: `notifications/{uid}/items`, `sentBalls/{uid}/items` — 알림·내역 보조 데이터는 `addDoc` 자동 ID 허용. (UID 기반 경로 — 닉네임 변경에도 안전)
 
 ---
 
@@ -154,8 +154,8 @@
 | `community_memberships` | 커뮤니티 멤버십 플랫 컬렉션 (userId 역조회용) | `{communityId}_{userId}` |
 | `community_posts` | 커뮤니티 게시글 (크로스-커뮤니티 피드 쿼리 가능) | `cpost_timestamp_uid` |
 | `community_post_comments` | 커뮤니티 글 댓글 | `cpcomment_timestamp_uid` |
-| `notifications/{nick}/items` | 땡스볼·알림 수신 내역 | `addDoc` 자동 ID |
-| `sentBalls/{nick}/items` | 땡스볼 발신 내역 | `addDoc` 자동 ID |
+| `notifications/{uid}/items` | 땡스볼·알림 수신 내역 (UID 기반) | `addDoc` 자동 ID |
+| `sentBalls/{uid}/items` | 땡스볼 발신 내역 (UID 기반) | `addDoc` 자동 ID |
 
 - **commentCount 비정규화**: 댓글 작성 시 `posts/{postId}` 문서에 `increment(1)` 누적 → 홈 피드 쿼리에서 Firestore 읽기 비용 절감.
 - **per-topic 구독**: `selectedTopic` 변경 시에만 `comments` where `rootId == selectedTopic.id` 구독 (전체 구독 비용 절감).
@@ -371,8 +371,8 @@ interface KanbuChat {
   - **데이터 구조**:
     - `posts/{postId}/thanksBalls/{id}`: 개별 땡스볼 기록 (`sender`, `senderId`, `amount`, `message`, `createdAt`, `isPaid: false`)
     - `posts/{postId}.thanksballTotal`: Firestore `increment`로 누적 합산
-    - `notifications/{recipientNickname}/items/{id}`: 수신자 알림 (`type: 'thanksball'`, `fromNickname`, `amount`, `message`, `postId`, `postTitle`, `read: false`)
-    - `sentBalls/{senderNickname}/items/{id}`: 발신자 전송 내역 (`postId`, `postTitle`, `postAuthor`, `amount`, `message`, `createdAt`)
+    - `notifications/{recipientUid}/items/{id}`: 수신자 알림 (UID 기반 경로, `type: 'thanksball'`, `fromNickname`, `amount`, `message`, `postId`, `postTitle`, `read: false`)
+    - `sentBalls/{senderUid}/items/{id}`: 발신자 전송 내역 (UID 기반 경로, `postId`, `postTitle`, `postAuthor`, `amount`, `message`, `createdAt`)
   - **UI — ThanksballModal**: 볼 프리셋(1/2/3/5/10) + 직접 입력 + 티어 표시(베이직~프리미엄) + 응원 메시지(50자). 전송 완료 시 바운스 애니메이션.
   - **UI — RootPostCard 하단 통계 바**: 3-컬럼(`댓글수` | `⚾ 땡스볼 버튼` | `동의/비동의`). 본인 글엔 비활성화. 0볼이면 "땡스볼" 텍스트, 수신 시 "N볼" 숫자 표시.
   - **UI — AnyTalkList 카드**: 하단 우측에 `⚾ N` 표시 (thanksballTotal > 0 인 경우만).
@@ -615,6 +615,55 @@ interface KanbuChat {
 - [x] **다섯 손가락 Phase 5 — 중지(middle) 자동 산정 (2026-03-28)**:
   - 글 작성 시 `checkMiddlePromotion()` 호출 — 커뮤니티 내 내 글 수 ≥5 OR 수신 좋아요 합계 ≥20 달성 시 `finger: 'middle'` 자동 승격.
   - 이미 middle/index/thumb이면 스킵. 승격 시 `notifications`에 "🖐 핵심멤버 승급" 알림 push.
+
+- [x] **알림·발신 경로 UID 마이그레이션 (2026-03-28)**:
+  - `notifications/{nickname}/items` → `notifications/{uid}/items` 로 경로 변경. 닉네임 변경 시 알림 유실 문제 근본 해결.
+  - `sentBalls/{nickname}/items` → `sentBalls/{uid}/items` 동일 적용.
+  - 적용 대상: `ThanksballModal.tsx`, `NotificationBell.tsx`, `CommunityView.tsx`, `MyPage.tsx` 전체 일괄 변경.
+
+- [x] **닉네임 변경 30일 쿨다운 + 배치 동기화 (2026-03-28)**:
+  - `MyPage.tsx handleProfileUpdate`: 닉네임 변경 시 `users.nicknameChangedAt` 확인 → 30일 미경과 시 차단 (잔여일 안내).
+  - 닉네임 변경 성공 시 `nicknameChangedAt: new Date()` 저장.
+  - `writeBatch`로 해당 유저의 `community_memberships.nickname` 전체 + 자신이 만든 `communities.creatorNickname` 일괄 동기화 (최대 25개 커뮤니티 동시 처리).
+
+- [x] **마이페이지 활동 기록 통합 (2026-03-28)**:
+  - '나의 기록' 탭: `posts` + `community_posts` 병합 후 시간 역순 정렬. 장갑 글에 🧤 배지 표시.
+  - '참여한 토론' 탭: `comments` + `community_post_comments` 병합. 장갑 댓글에 🧤 배지 표시.
+  - '장갑 속 글' 탭 제거 (통합됨).
+  - `MyContentTabs.tsx`: `_source: 'post' | 'glove'` 런타임 태그로 라우팅 분기.
+
+- [x] **마이페이지 '내 장갑' 탭 추가 (2026-03-28)**:
+  - 가입한 커뮤니티 목록을 MyPage 내 탭으로 관리 (모바일 대응).
+  - 역할 배지(다섯 손가락 FINGER_META), 🔔 알림 ON/OFF 토글 버튼, 커뮤니티별 내 글/댓글 통계, 입장·탈퇴 버튼 포함.
+  - `handleToggleCommunityNotify`: `communities.notifyMembers` `arrayUnion/arrayRemove`.
+
+- [x] **유저 전체 통계 장갑 활동 합산 (2026-03-28)**:
+  - `CommunityView` 글 작성: `users.likes += 5` (기존 루트 글 작성과 동일).
+  - `CommunityView` 좋아요: 글 작성자 `users.likes += diff * 3`.
+  - `CommunityView` 댓글 작성: `users.likes += 1`.
+  - 장갑 활동이 레벨·평판에 반영됨.
+
+- [x] **커뮤니티 글 영구 삭제 UI (2026-03-28)**:
+  - `CommunityView.tsx handleDeletePost`: 작성자 또는 thumb/index(관리자)만 삭제 가능. 2단계 confirm → `deleteDoc(community_posts)` + `communities.postCount` -1.
+  - 공지 고정 글 삭제 시 `pinnedPostId: null` 동시 초기화.
+
+- [x] **강퇴 유저 재가입 차단 (2026-03-28)**:
+  - `App.tsx handleJoinCommunity` 진입 시 기존 멤버십 문서 조회 → `joinStatus: 'banned'` 이면 즉시 차단 + 안내 메시지.
+
+- [x] **커뮤니티 알림 발송 원자성 — writeBatch 통합 (2026-03-28)**:
+  - `CommunityView handleSubmit`: 글 작성 + `communities.postCount` + `users.likes` + 구독자 알림 push를 단일 `writeBatch`로 처리. 부분 실패 방지.
+
+- [x] **Firestore Security Rules 서버사이드 권한 강화 (2026-03-28)**:
+  - `community_memberships`: 본인 문서 write(탈퇴·닉네임 동기화) + 관리자(thumb/index) write(강퇴·역할변경) 분리. 관리자 여부를 서버사이드 `get()` 으로 검증.
+  - `community_posts`: `delete` 규칙을 작성자 본인 OR 관리자(thumb/index)로 서버사이드 검증 강화.
+
+- [x] **한컷 상세글 마법 수정 구슬 스타일 적용 (2026-03-28)**:
+  - `OneCutDetailView.tsx` 전면 재작성.
+  - **헤더**: `← 한컷` 뒤로가기 버튼(`onBack` prop), 경과시간 표시, 공유 URL 복사 버튼(복사 완료 피드백).
+  - **본문 배치**: 이미지(2/3 너비) → 본문 텍스트 순서. 태그 표시.
+  - **원본글 바로가기**: `linkedPostId` → 내부 게시글 이동 버튼 / `linkUrl` → 외부 링크 버튼. 제목 아래 배치.
+  - **댓글 입력**: 전송 버튼 제거, Enter 즉시 제출(Shift+Enter=줄바꿈, IME isComposing 보호). `👍 공감해요` / `👎 공감하기 힘들어요` 탭 선택 후 입력.
+  - **댓글 목록**: 빈 상태 메시지 제거. 댓글 있을 때만 렌더링. 공감 통계 헤더(👍 N / 👎 N) + 댓글 카드.
 
 ### 🛠️ 진행 중 / 개선 필요 사항
 - [ ] **에디터 보완**: `bubble-menu` 활성화 (텍스트 선택 시 서식 도구 노출).
