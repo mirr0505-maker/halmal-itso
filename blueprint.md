@@ -2,7 +2,7 @@
 
 이 문서는 **할말있소(HALMAL-ITSO)** 프로젝트의 설계 원칙, 현재 구현 상태, 그리고 AI 개발자의 **절대적 행동 지침**을 담은 단일 진실 소스(Single Source of Truth)입니다.
 
-> 최종 갱신: 2026-03-28 v20 (코드 실측 기준)  |  현재 브랜치: `main`
+> 최종 갱신: 2026-03-28 v21 (코드 실측 기준)  |  현재 브랜치: `main`
 
 ---
 
@@ -131,8 +131,9 @@
     ├── CommunityList.tsx    # 장갑 찾기: 전체 커뮤니티 목록 (카테고리 필터 13종, 가입 버튼)
     ├── MyCommunityList.tsx  # 나의 아늑한 장갑: 가입한 커뮤니티 목록 (탈퇴 버튼) / compact=true 시 사이드바용 소형 리스트
     ├── CommunityFeed.tsx    # 소곤소곤: 가입 커뮤니티 통합 최신글 피드
-    ├── CommunityView.tsx    # 개별 커뮤니티 상세 (글 목록+작성+좋아요) + CommunityPostDetail 인라인 컴포넌트 (댓글)
-    └── CreateCommunityModal.tsx # 장갑 만들기: 커뮤니티 개설 폼 (Lv3 이상, 이름/설명/분야 13종/색상/공개여부)
+    ├── CommunityView.tsx    # 개별 커뮤니티 상세 (소곤소곤·멤버·관리 3탭, 공지 고정, 블라인드, 알림 토글) + CommunityPostDetail 인라인 컴포넌트
+    ├── CommunityAdminPanel.tsx # 관리 탭 패널 (설정 수정·공지 고정 해제·장갑 폐쇄, thumb/index 전용)
+    └── CreateCommunityModal.tsx # 장갑 만들기: 커뮤니티 개설 폼 (Lv3 이상, 가입방식 3종, minLevel, 분야 13종, 색상)
 ```
 
 ### 3.2 상태 관리 (`App.tsx`)
@@ -277,7 +278,7 @@ interface KanbuChat {
 | `local_news` | 마법 수정 구슬 | 마법 수정 구슬 | 정보 공유 보드 (구: 현지 소식 → migrate 완료) |
 | `friends` | 깐부 맺기 | (UI 전용) | 팔로우 추천 목록 (허용 닉네임 필터 적용) |
 | `kanbu_room` | 깐부방 | (subcollection) | 깐부가 개설한 방 목록, 방별 게시판+실시간 채팅. Lv3 이상 개설. Firestore: `kanbu_rooms/{roomId}/chats` |
-| `glove` | 우리들의 장갑 | (커뮤니티) | 공개/비밀 커뮤니티. Lv3 이상 개설. Firestore: `communities`, `community_memberships`, `community_posts`, `community_post_comments` |
+| `glove` | 우리들의 장갑 | (커뮤니티) | 다섯 손가락 운영 체제 (thumb·index·middle·ring·pinky). 가입방식 3종(open·approval·password), minLevel 제한, 공지 고정, 알림 opt-in, 중지 자동 산정. 자세한 내용 → `GLOVE.md` |
 | `market` | 마켓 | 마켓 | OneCutList 그리드 레이아웃, 게시글 없을 시 "기록된 글이 없어요" |
 | `exile_place` | 유배·귀양지 | 유배·귀양지 | 제재 유저 전용 소통 공간, 주제 없음 |
 | `ranking` | 랭킹 | (UI 전용) | 좋아요·땡스볼·조회수 × 유저·글 6개 뷰. `RankingView.tsx`. 사이드바 내정보 위 배치. |
@@ -544,21 +545,11 @@ interface KanbuChat {
   - `OneCutDetailView.tsx`: Props에서 `handleSubmit`/`selectedSide`/`setSelectedSide`/`newContent`/`setNewContent`/`isSubmitting` 제거 → `onInlineReply` 추가.
   - `App.tsx`: OneCutDetailView 호출부 props 정리 — `handleInlineReply` 연결.
 
-- [x] **우리들의 장갑 — 커뮤니티 시스템 (2026-03-25 초기 구현, 2026-03-28 UI 개편)**:
-  - **사이드바**: 랭킹 위 "🧤 우리들의 장갑" 항목 추가. `MenuId: 'glove'` 신규 타입.
-  - **Firestore 컬렉션 4종**: `communities`(메타데이터), `community_memberships`(멤버십 역조회 플랫), `community_posts`(크로스-커뮤니티 피드 쿼리용), `community_post_comments`(댓글).
-  - **ID 규칙**: `community_timestamp_uid` / `cpost_timestamp_uid` / `cpcomment_timestamp_uid` / `{communityId}_{userId}` (멤버십).
-  - **타입 3종**: `Community`, `CommunityMember`, `CommunityPost` (`types.ts` 추가).
-  - **개설 조건**: Lv3 이상. `GLOVE_CREATE_MIN_LEVEL = 3` 상수 (App.tsx, 향후 변경 용이).
-  - **Firestore Rules**: `communities`(공개 읽기·로그인 쓰기), `community_memberships`(로그인 읽기·쓰기), `community_posts`(공개 읽기·로그인 쓰기) — 미설정으로 인한 전체 차단 버그 수정 완료.
-  - **UI 개편 (2026-03-28)**: 4탭(장갑 속 친구들/나의 아늑한 장갑/소곤소곤/장갑나누기) → 상단 헤더 바에 **2탭(💬 소곤소곤·🧤 장갑 찾기) + + 장갑 만들기 버튼** 통합. 기본 진입 화면: 소곤소곤(피드). **나의 아늑한 장갑** → 데스크톱 우측 sticky 사이드바로 이동 (`MyCommunityList compact=true`).
-  - **2컬럼 레이아웃**: 메인(flex-1) + 우측 사이드바(`w-64 hidden md:block`) — 내가 가입한 장갑 컬러도트+이름 리스트.
-  - **CommunityList**: 카테고리 필터 칩 (주식·부동산·코인 우선 + 10종 + 전체 = 14개), 커뮤니티 카드, 가입 버튼.
-  - **MyCommunityList**: `compact` prop — `false`(기본, 카드 그리드) / `true`(사이드바용 소형 리스트).
-  - **CommunityView**: 커뮤니티 상세 — TiptapEditor 글 작성, 글 목록, 좋아요. `CommunityPostDetail` 인라인 오버레이 — 댓글 목록 + 댓글 작성.
-  - **CommunityFeed**: 가입 커뮤니티 통합 최신글 피드 (`where('communityId', 'in', ids)`, 최대 30개 제한).
-  - **CreateCommunityModal**: 이름/설명/분야(주식·부동산·코인 우선 13종)/대표색상(8색)/공개·비밀 토글, 실시간 미리보기 카드.
-  - **useFirebaseListeners**: `communities` 전체 구독 (비로그인도 가능), 로그인 시 `community_memberships` where userId 1회 로드 → `joinedCommunityIds` 상태.
+- [x] **우리들의 장갑 — 커뮤니티 시스템 (2026-03-25 초기, 2026-03-28 UI개편, 다섯 손가락 Phase 1~5 완료)**:
+  > 📌 상세 설계 문서 → `GLOVE.md` (별도 추출)
+  - **핵심 변경 요약**: Firestore 컬렉션 4종, 다섯 손가락 역할 체계(thumb·index·middle·ring·pinky), 가입방식 3종(open·approval·password), minLevel 제한, 공지 고정, 블라인드, 알림 opt-in, 중지 자동 산정 구현 완료.
+  - **CommunityView 3탭**: 💬 소곤소곤 (글 목록+작성) · 🤝 멤버 (활성 멤버+역할 변경+강퇴) · ⚙️ 관리 (thumb/index 전용, CommunityAdminPanel)
+  - **Firestore Rules**: `community_memberships` 쓰기 — 본인 문서 + `finger·joinStatus·banReason` 필드 허용 (역할 기반 세분화)
 
 - [x] **모바일 반응형 UI (2026-03-28)**:
   - **헤더**: `h-[56px] md:h-[64px]`. Dev 버튼·검색창 `hidden md:flex`. 모바일 우측 햄버거 버튼(☰) 추가.
@@ -597,6 +588,33 @@ interface KanbuChat {
 
 - [x] **사이드바 장갑 이모지 opacity 조정 (2026-03-28)**:
   - `Sidebar.tsx`: 비활성 `opacity: 0.35` → `0.20` (SVG 아이콘 `text-slate-300` 명도에 맞춤).
+
+- [x] **다섯 손가락 Phase 1 — 데이터 구조 + 가입 조건 (2026-03-28)**:
+  - `types.ts`: `FingerRole`, `JoinType`, `JoinStatus` 타입 추가. `Community`에 `joinType·minLevel·password·joinQuestion·pinnedPostId·notifyMembers` 필드. `CommunityMember`에 `finger·joinStatus·joinMessage·banReason` 필드. `CommunityPost`에 `isPinned·isBlinded` 필드.
+  - `CreateCommunityModal`: 공개/비밀 토글 → **가입방식 3종 라디오**(🟢자동승인·🔵승인제·🔒초대코드) + 조건부 입력(초대코드/안내문구) + **Lv1~5 minLevel 셀렉터** + 미리보기 배지.
+  - `App.tsx handleCreateCommunity`: `joinType·minLevel·password·joinQuestion` 저장, 멤버십 `finger: 'thumb', joinStatus: 'active'`.
+  - `App.tsx handleJoinCommunity`: minLevel 체크, joinType별 분기 (open→즉시가입, approval→pending/pinky, password→코드 확인).
+  - `firestore.rules`: `community_memberships` 쓰기 — 본인 문서 OR `finger·joinStatus·banReason` 필드 포함 업데이트 허용.
+
+- [x] **다섯 손가락 Phase 2 — 멤버·관리 탭 + 손가락 배지 (2026-03-28)**:
+  - `CommunityView` 탭 3개 구조: 소곤소곤(글 목록) · 멤버 · 관리(thumb/index만).
+  - **멤버 탭**: 활성 멤버 목록 + 손가락 배지(FINGER_META 상수) + thumb/index는 역할 변경 드롭다운 + 강퇴 버튼.
+  - **관리 탭**: 승인 대기 목록 + 승인/거절 버튼. 탭 레이블에 대기 수 실시간 표시.
+  - `handleApprove`: pending→active, finger pinky→ring, memberCount+1. `handleReject`: 멤버십 문서 삭제. `handleBan`: joinStatus: 'banned', memberCount-1.
+
+- [x] **다섯 손가락 Phase 3 — 공지 고정·설정 수정·블라인드·장갑 폐쇄 (2026-03-28)**:
+  - `CommunityAdminPanel.tsx` 신규: 승인 대기 처리 + 장갑 설정 수정(이름/설명/색상/분야) + 공지 고정 해제 + 장갑 폐쇄(thumb 전용, 2단계 confirm + writeBatch 멤버십 일괄 삭제).
+  - `CommunityView`: 공지 고정 글(pinnedPostId) → 피드 최상단 amber 하이라이트 카드. 글 카드에 📌 핀 버튼 + 🚫 블라인드 버튼(admin만 표시). `isBlinded: true` 글 피드에서 자동 필터.
+  - `App.tsx`: `CommunityView`에 `onClosed` prop 전달.
+
+- [x] **다섯 손가락 Phase 4 — 커뮤니티 알림 Opt-in (2026-03-28)**:
+  - `Community.notifyMembers?: string[]` 타입 추가 — 알림 구독 동의 userId 배열.
+  - `CommunityView` 헤더: 🔔 알림 ON/OFF 토글 버튼 (가입 멤버만, `arrayUnion/arrayRemove`).
+  - 새 글 작성 시 `pushCommunityNotify()` — 구독자(≤50명) 순회하며 `notifications/{nick}/items` 자동 push. 51명 이상 장갑은 write 비용 절감 목적으로 알림 스킵.
+
+- [x] **다섯 손가락 Phase 5 — 중지(middle) 자동 산정 (2026-03-28)**:
+  - 글 작성 시 `checkMiddlePromotion()` 호출 — 커뮤니티 내 내 글 수 ≥5 OR 수신 좋아요 합계 ≥20 달성 시 `finger: 'middle'` 자동 승격.
+  - 이미 middle/index/thumb이면 스킵. 승격 시 `notifications`에 "🖐 핵심멤버 승급" 알림 push.
 
 ### 🛠️ 진행 중 / 개선 필요 사항
 - [ ] **에디터 보완**: `bubble-menu` 활성화 (텍스트 선택 시 서식 도구 노출).
