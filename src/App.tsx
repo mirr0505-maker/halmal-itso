@@ -521,6 +521,20 @@ function App() {
     if (activeMenu === 'glove') {
       return (
         <div className="w-full animate-in fade-in">
+          {/* 🚀 우리들의 장갑 카테고리 헤더 — 다른 카테고리와 동일한 상단 바 */}
+          <div className="sticky top-0 z-30 bg-[#F8FAFC]/80 backdrop-blur-md pt-2">
+            <div className="flex items-center border-b border-slate-200 h-[36px] px-4">
+              <div className="flex items-center gap-3 overflow-hidden">
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <span className="text-blue-600 font-black text-[15px]">#</span>
+                  <h2 className="text-[14px] font-[1000] text-slate-900 tracking-tighter whitespace-nowrap">우리들의 장갑</h2>
+                </div>
+                <div className="w-px h-3 bg-slate-200 shrink-0 mx-1" />
+                <p className="text-[12px] font-bold text-slate-500 truncate tracking-tight break-keep">관심사가 같은 사람들이 모이는 따뜻한 커뮤니티</p>
+              </div>
+            </div>
+            <div className="h-3" />
+          </div>
           <GloveNavBar
             activeTab={gloveSubTab}
             onTabClick={(tab) => { setGloveSubTab(tab); setSelectedCommunity(null); if (tab === 'create') setIsCreateCommunityOpen(true); }}

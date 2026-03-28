@@ -18,11 +18,6 @@ const TABS: { id: GloveTab; label: string; desc: string }[] = [
 const GloveNavBar = ({ activeTab, onTabClick }: Props) => {
   return (
     <div className="w-full mb-4">
-      {/* 페이지 타이틀 */}
-      <div className="mb-3">
-        <h1 className="text-[18px] font-[1000] text-slate-900 tracking-tight">우리들의 장갑</h1>
-        <p className="text-[11px] font-bold text-slate-400 mt-0.5">관심사가 같은 사람들이 모이는 따뜻한 커뮤니티</p>
-      </div>
       {/* 탭 버튼 */}
       <div className="flex gap-1.5 overflow-x-auto pb-1">
         {TABS.map(tab => (
