@@ -692,7 +692,7 @@ function App() {
       const livePost = allRootPosts.find(p => p.id === selectedTopic.id) || selectedTopic;
       // 🚀 한컷 판정 로직 강화: isOneCut 플래그 또는 카테고리명이 "한컷"인 경우
       if (livePost.isOneCut || livePost.category === "한컷") {
-        return <OneCutDetailView rootPost={livePost} allPosts={allChildPosts.filter(p => p.rootId === livePost.id)} otherTopics={allRootPosts} onTopicChange={handleViewPost} userData={userData} onInlineReply={handleInlineReply} onLikeClick={handleLike} currentNickname={userData?.nickname} allUsers={allUsers} followerCounts={followerCounts} commentCounts={commentCounts} onEditPost={(post) => { setEditingPost(post); setIsCreateOpen(true); }} onBack={() => { setSelectedTopic(null); setReplyTarget(null); setEditingPost(null); }} />;
+        return <OneCutDetailView rootPost={livePost} allPosts={allChildPosts.filter(p => p.rootId === livePost.id)} otherTopics={allRootPosts} onTopicChange={handleViewPost} userData={userData} onInlineReply={handleInlineReply} onLikeClick={handleLike} currentNickname={userData?.nickname} allUsers={allUsers} followerCounts={followerCounts} commentCounts={commentCounts} onEditPost={(post) => { setEditingPost(post); setIsCreateOpen(true); }} onBack={() => { setSelectedTopic(null); setReplyTarget(null); setEditingPost(null); }} isFriend={friends.includes(livePost.author)} onToggleFriend={() => toggleFriend(livePost.author)} />;
       }
       return <DiscussionView rootPost={livePost} allPosts={allChildPosts.filter(p => p.rootId === livePost.id)} otherTopics={allRootPosts.filter(p => {
           if (p.id === livePost.id) return false;

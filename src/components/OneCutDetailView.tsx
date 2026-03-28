@@ -3,6 +3,9 @@ import { useState, useEffect, useRef } from 'react';
 import type { Post } from '../types';
 import { formatKoreanNumber, getReputationLabel } from '../utils';
 import OneCutListSidebar from './OneCutListSidebar';
+import ThanksballModal from './ThanksballModal';
+import { db } from '../firebase';
+import { doc, deleteDoc, updateDoc, increment } from 'firebase/firestore';
 
 interface Props {
   rootPost: Post;
@@ -18,12 +21,14 @@ interface Props {
   commentCounts?: Record<string, number>;
   onEditPost?: (post: Post) => void;
   onBack?: () => void;
+  isFriend?: boolean;
+  onToggleFriend?: () => void;
 }
 
 const OneCutDetailView = ({
   rootPost, allPosts, otherTopics, onTopicChange,
   onInlineReply, onLikeClick, currentNickname, allUsers = {}, followerCounts = {},
-  commentCounts = {}, onEditPost, onBack
+  commentCounts = {}, onEditPost, onBack, isFriend, onToggleFriend
 }: Props) => {
   const [imageError, setImageError] = useState(false);
   // 🚀 댓글 입력 내부 상태 — "공감해요(left) / 공감하기 힘들어요(right)"
@@ -33,8 +38,18 @@ const OneCutDetailView = ({
   // 공유 URL 복사 피드백
   const [copied, setCopied] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  // 아바타 라인 상태
+  const [showThanksball, setShowThanksball] = useState(false);
+  const [showSelfMsg, setShowSelfMsg] = useState(false);
+  // 댓글 입력창 표시 여부 — 버튼 클릭 시 열림
+  const [inputVisible, setInputVisible] = useState(false);
+  // 댓글 수정 상태
+  const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
+  const [editContent, setEditContent] = useState('');
+  // 댓글 땡스볼 대상
+  const [thanksballCommentTarget, setThanksballCommentTarget] = useState<{ docId: string; recipient: string } | null>(null);
 
-  useEffect(() => { setImageError(false); setInputValue(''); setSelectedSide('left'); }, [rootPost.id]);
+  useEffect(() => { setImageError(false); setInputValue(''); setSelectedSide('left'); setInputVisible(false); }, [rootPost.id]);
 
   const authorData = (rootPost.author_id && allUsers[rootPost.author_id]) || allUsers[`nickname_${rootPost.author}`];
   const realFollowers = followerCounts[rootPost.author] || 0;
@@ -42,6 +57,7 @@ const OneCutDetailView = ({
   const displayLikes = authorData ? authorData.likes : (rootPost.authorInfo?.totalLikes || 0);
   const isLikedByMe = currentNickname && rootPost.likedBy?.includes(currentNickname);
   const isMyPost = !!currentNickname && rootPost.author === currentNickname;
+  const pinnedCommentId = rootPost.pinnedCommentId;
 
   // 공유 URL 복사 — RootPostCard와 동일 방식
   const handleCopyUrl = () => {
@@ -63,24 +79,39 @@ const OneCutDetailView = ({
     return d.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' });
   };
 
-  // 🚀 Enter 즉시 제출 — 전송 버튼 없음 (Shift+Enter = 줄바꿈, isComposing 보호)
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
-      e.preventDefault();
-      submitComment();
-    }
-  };
-
   const submitComment = async () => {
     if (!inputValue.trim() || isSubmitting || !currentNickname) return;
     setIsSubmitting(true);
     try {
       await onInlineReply(inputValue.trim(), null, selectedSide);
       setInputValue('');
-      inputRef.current?.focus();
+      setInputVisible(false);
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  // 댓글 삭제 — comments 컬렉션 + 루트 글 commentCount 차감
+  const handleDeleteComment = async (comment: Post) => {
+    if (!window.confirm('댓글을 삭제하시겠습니까?')) return;
+    await deleteDoc(doc(db, 'comments', comment.id));
+    await updateDoc(doc(db, 'posts', rootPost.id), { commentCount: increment(-1) });
+  };
+
+  // 댓글 수정 저장
+  const handleEditSave = async (comment: Post) => {
+    if (!editContent.trim()) return;
+    await updateDoc(doc(db, 'comments', comment.id), { content: editContent.trim() });
+    setEditingCommentId(null);
+    setEditContent('');
+  };
+
+  // 댓글 고정 토글 — 글 작성자만 가능
+  const handlePin = async (commentId: string) => {
+    const current = rootPost.pinnedCommentId;
+    await updateDoc(doc(db, 'posts', rootPost.id), {
+      pinnedCommentId: current === commentId ? null : commentId,
+    });
   };
 
   // 댓글 목록: 최상위 댓글, 시간 오름차순
@@ -197,139 +228,243 @@ const OneCutDetailView = ({
             )}
           </div>
 
-          {/* 작성자 정보 + 통계 바 */}
-          <div className="border-t border-slate-100 px-4 md:px-8 py-4 flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-full bg-white border border-slate-100 shadow-sm overflow-hidden shrink-0">
-                <img src={authorData?.avatarUrl || `https://api.dicebear.com/7.x/adventurer/svg?seed=${rootPost.author}`} alt="" className="w-full h-full object-cover" />
-              </div>
-              <div className="flex flex-col gap-0.5">
-                <span className="font-[1000] text-slate-900 text-sm leading-none tracking-tighter">{rootPost.author}</span>
-                <div className="flex items-center gap-2 text-[10px] text-slate-400 font-bold">
-                  <span className="bg-blue-600 text-white text-[8px] font-black px-1.5 py-0.5 rounded-[2px] uppercase">Lv {displayLevel}</span>
-                  <span className="w-px h-3 bg-slate-200" />
-                  <span>{getReputationLabel(displayLikes)}</span>
-                  <span className="w-px h-3 bg-slate-200" />
-                  <span>깐부 {formatKoreanNumber(realFollowers)}</span>
+          {/* 🚀 작성자 정보 + 인터랙션 바 — RootPostCard 박스 스타일 */}
+          <div className="border-t border-slate-100 px-4 md:px-8 py-4">
+            <div className="flex flex-col md:flex-row items-center justify-between gap-4 p-4 border border-slate-100 rounded-2xl bg-slate-50/30">
+              {/* 좌: 아바타 + 이름 + 레벨 */}
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-xl bg-slate-100 overflow-hidden border border-slate-200 shrink-0">
+                  <img src={authorData?.avatarUrl || `https://api.dicebear.com/7.x/adventurer/svg?seed=${rootPost.author}`} alt="" className="w-full h-full object-cover" />
                 </div>
-              </div>
-            </div>
-            {/* 댓글 수 + 좋아요 */}
-            <div className="flex items-center gap-5">
-              <div className="text-center">
-                <p className="text-[9px] font-[1000] text-slate-300 uppercase tracking-widest">댓글</p>
-                <p className="text-sm font-[1000] text-slate-900">{formatKoreanNumber(allPosts.length)}</p>
-              </div>
-              <button onClick={() => onLikeClick?.(null, rootPost.id)} className="flex flex-col items-center group transition-all active:scale-90">
-                <p className="text-[9px] font-[1000] text-slate-300 uppercase tracking-widest group-hover:text-rose-400 transition-colors">좋아요</p>
-                <div className="flex items-center gap-1">
-                  <svg className={`w-3.5 h-3.5 transition-all ${isLikedByMe ? 'text-rose-500 fill-current' : 'text-slate-200 fill-none group-hover:text-rose-300'}`} stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path d="M11.645 20.91l-.007-.003-.022-.012a15.247 15.247 0 01-.383-.218 25.18 25.18 0 01-4.244-3.17C4.688 15.36 2.25 12.174 2.25 8.25 2.25 5.322 4.714 3 7.688 3A5.5 5.5 0 0112 5.052 5.5 5.5 0 0116.313 3c2.973 0 5.437 2.322 5.437 5.25 0 3.925-2.438 7.111-4.739 9.256a25.175 25.175 0 01-4.244 3.17 15.247 15.247 0 01-.383.219l-.022.012-.007.004-.003.001a.752.752 0 01-.704 0l-.003-.001z" /></svg>
-                  <span className={`text-sm font-[1000] ${isLikedByMe ? 'text-rose-500' : 'text-slate-900'}`}>{formatKoreanNumber(rootPost.likes || 0)}</span>
-                </div>
-              </button>
-            </div>
-          </div>
-
-          {/* 🚀 댓글 입력 — 마법 수정 구슬 스타일: 탭(공감해요/공감하기 힘들어요) + Enter 즉시 제출 */}
-          <div className="bg-[#F8FAFC] px-4 md:px-8 py-3 border-t border-slate-200">
-            <div className="flex flex-col md:flex-row md:items-center gap-2 mb-2">
-              <h4 className="font-[1000] text-slate-400 text-xs tracking-widest shrink-0">글 남기기</h4>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => { setSelectedSide('left'); inputRef.current?.focus(); }}
-                  className={`px-3 py-1.5 rounded-md text-[10px] font-[1000] transition-all border ${selectedSide === 'left' ? 'bg-white text-blue-600 border-blue-200 shadow-sm' : 'text-slate-400 border-transparent hover:bg-white hover:border-slate-200'}`}
-                >
-                  👍 공감해요
-                </button>
-                <button
-                  type="button"
-                  onClick={() => { setSelectedSide('right'); inputRef.current?.focus(); }}
-                  className={`px-3 py-1.5 rounded-md text-[10px] font-[1000] transition-all border ${selectedSide === 'right' ? 'bg-white text-rose-500 border-rose-200 shadow-sm' : 'text-slate-400 border-transparent hover:bg-white hover:border-slate-200'}`}
-                >
-                  👎 공감하기 힘들어요
-                </button>
-              </div>
-            </div>
-            {currentNickname ? (
-              <div className="relative mt-1">
-                <textarea
-                  ref={inputRef}
-                  value={inputValue}
-                  onChange={e => setInputValue(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  disabled={isSubmitting}
-                  placeholder={selectedSide === 'left' ? '공감하는 이유를 남겨주세요... (Enter로 바로 입력)' : '공감하기 힘든 이유를 남겨주세요... (Enter로 바로 입력)'}
-                  className="w-full bg-white border border-slate-200 rounded-lg px-5 py-4 text-[13px] font-bold text-slate-700 outline-none focus:border-slate-400 transition-all resize-none h-20 shadow-sm"
-                />
-                {/* 입력 중 side 인디케이터 */}
-                {inputValue.trim() && (
-                  <span className={`absolute bottom-3 right-3 text-[9px] font-black px-1.5 py-0.5 rounded ${selectedSide === 'left' ? 'text-blue-600 bg-blue-50' : 'text-rose-500 bg-rose-50'}`}>
-                    {selectedSide === 'left' ? '👍 공감해요' : '👎 힘들어요'} · Enter↵
+                <div className="flex flex-col">
+                  <span className="font-[1000] text-[15px] text-slate-900 mb-0.5">{rootPost.author}</span>
+                  <span className="text-[11px] text-slate-500 font-bold">
+                    Lv {displayLevel} · {getReputationLabel(displayLikes)} · 깐부 {formatKoreanNumber(realFollowers)}
                   </span>
+                </div>
+              </div>
+              {/* 우: 좋아요 + 땡스볼 + 깐부 */}
+              <div className="flex items-center gap-2 w-full md:w-auto">
+                <button
+                  onClick={() => onLikeClick?.(null, rootPost.id)}
+                  className={`flex-1 md:flex-none flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl transition-all duration-300 font-[1000] text-[12px] whitespace-nowrap ${isLikedByMe ? 'bg-[#FF2E56] text-white ring-2 ring-rose-300 scale-105' : 'bg-white text-rose-400 border border-rose-200 hover:bg-rose-50'}`}
+                >
+                  <svg className="w-3.5 h-3.5 fill-current shrink-0" viewBox="0 0 24 24" stroke="none"><path d="M11.645 20.91l-.007-.003-.022-.012a15.247 15.247 0 01-.383-.218 25.18 25.18 0 01-4.244-3.17C4.688 15.36 2.25 12.174 2.25 8.25 2.25 5.322 4.714 3 7.688 3A5.5 5.5 0 0112 5.052 5.5 5.5 0 0116.313 3c2.973 0 5.437 2.322 5.437 5.25 0 3.925-2.438 7.111-4.739 9.256a25.175 25.175 0 01-4.244 3.17 15.247 15.247 0 01-.383.219l-.022.012-.007.004-.003.001a.752.752 0 01-.704 0l-.003-.001z" /></svg>
+                  {formatKoreanNumber(rootPost.likes || 0)}
+                </button>
+                <button
+                  onClick={() => { if (!isMyPost && currentNickname) setShowThanksball(true); }}
+                  title={isMyPost ? '본인 글에는 땡스볼을 보낼 수 없습니다' : (currentNickname ? '땡스볼 보내기' : '로그인 후 이용하세요')}
+                  className={`flex-1 md:flex-none flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border text-[12px] font-[1000] whitespace-nowrap transition-all ${isMyPost || !currentNickname ? 'bg-white text-slate-300 border-slate-200 cursor-default' : 'bg-white text-amber-500 border-amber-200 hover:bg-amber-50 cursor-pointer'}`}
+                >
+                  <span className="text-[14px] leading-none">⚾</span>
+                  <span>{(rootPost.thanksballTotal || 0) > 0 ? `${rootPost.thanksballTotal}볼` : '땡스볼'}</span>
+                </button>
+                {isMyPost ? (
+                  <div className="flex-1 md:flex-none flex flex-col items-center gap-1">
+                    <button
+                      onClick={() => { setShowSelfMsg(true); setTimeout(() => setShowSelfMsg(false), 1000); }}
+                      className="w-full md:w-auto px-3 py-2 text-[12px] font-[1000] rounded-xl border bg-white text-slate-300 border-slate-200 cursor-default whitespace-nowrap"
+                    >
+                      + 깐부맺기
+                    </button>
+                    {showSelfMsg && (
+                      <span className="text-[11px] font-bold text-rose-400 bg-rose-50 border border-rose-200 rounded-lg px-3 py-1.5 whitespace-nowrap">
+                        본인은 이 세상 절대 깐부입니다 🚫
+                      </span>
+                    )}
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => onToggleFriend?.()}
+                    className={`flex-1 md:flex-none px-3 py-2 text-[12px] font-[1000] rounded-xl border transition-all whitespace-nowrap ${isFriend ? 'bg-white text-slate-400 border-slate-200' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
+                  >
+                    {isFriend ? '깐부해제' : '+ 깐부맺기'}
+                  </button>
                 )}
               </div>
-            ) : (
-              <p className="text-center text-[12px] font-bold text-slate-400 py-4">로그인 후 댓글을 남길 수 있습니다</p>
-            )}
+            </div>
           </div>
 
-          {/* 🚀 댓글 목록 — 심플 리스트, 빈 상태 메시지 없음 */}
-          <div className="bg-white">
-            {topComments.length > 0 && (
-              <div className="border-t border-slate-100">
-                {/* 공감 통계 헤더 */}
-                <div className="flex border-b border-slate-100">
-                  <div className="flex-1 py-2.5 flex items-center justify-center gap-1.5 border-r border-slate-100">
-                    <span className="text-[11px] font-[1000] text-blue-600">👍 공감해요</span>
-                    <span className="text-[10px] font-bold text-slate-300">{agreeCount}</span>
-                  </div>
-                  <div className="flex-1 py-2.5 flex items-center justify-center gap-1.5">
-                    <span className="text-[11px] font-[1000] text-rose-500">👎 공감하기 힘들어요</span>
-                    <span className="text-[10px] font-bold text-slate-300">{disagreeCount}</span>
-                  </div>
-                </div>
+          {/* 땡스볼 모달 */}
+          {showThanksball && currentNickname && (
+            <ThanksballModal
+              postId={rootPost.id}
+              postAuthor={rootPost.author}
+              postTitle={rootPost.title}
+              currentNickname={currentNickname}
+              allUsers={allUsers}
+              onClose={() => setShowThanksball(false)}
+            />
+          )}
 
-                {/* 댓글 카드 */}
-                <div className="flex flex-col divide-y divide-slate-50 px-4 md:px-8">
-                  {topComments.map(comment => {
-                    const isLiked = !!(currentNickname && (comment.likedBy || []).includes(currentNickname));
-                    const commentAuthorData = (comment.author_id && allUsers[comment.author_id]) || allUsers[`nickname_${comment.author}`];
-                    const commentLevel = commentAuthorData ? commentAuthorData.level : (comment.authorInfo?.level || 1);
-                    const isAgree = comment.side === 'left';
-                    return (
-                      <div key={comment.id} className="flex items-start gap-2.5 py-3 group">
-                        {/* 아바타 */}
-                        <div className="w-7 h-7 rounded-full overflow-hidden shrink-0 border border-slate-100 mt-0.5">
-                          <img src={commentAuthorData?.avatarUrl || `https://api.dicebear.com/7.x/adventurer/svg?seed=${comment.author}`} alt="" className="w-full h-full object-cover" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
-                            <span className="font-black text-[12px] text-slate-700">{comment.author}</span>
-                            <span className="text-[9px] font-bold text-slate-300">Lv{commentLevel}</span>
-                            {/* 공감 여부 배지 */}
-                            <span className={`text-[9px] font-black px-1.5 py-0.5 rounded ${isAgree ? 'text-blue-500 bg-blue-50' : 'text-rose-400 bg-rose-50'}`}>
-                              {isAgree ? '👍 공감해요' : '👎 공감하기 힘들어요'}
-                            </span>
-                            <span className="text-[9px] font-bold text-slate-300">{formatTime(comment.createdAt)}</span>
-                          </div>
-                          <p className="text-[13px] font-medium text-slate-700 leading-relaxed whitespace-pre-line break-words">{comment.content}</p>
-                        </div>
-                        {/* 좋아요 */}
-                        <button
-                          onClick={e => { e.stopPropagation(); onLikeClick?.(e, comment.id); }}
-                          className={`flex items-center gap-1 text-[11px] font-bold shrink-0 transition-colors mt-0.5 ${isLiked ? 'text-rose-500' : 'text-slate-200 hover:text-rose-400'}`}
-                        >
-                          <svg className={`w-3 h-3 ${isLiked ? 'fill-current' : 'fill-none'}`} stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                            <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
-                          </svg>
-                          {comment.likes || 0}
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
+          {/* 🚀 댓글 목록 — pandora 좌우 지그재그 스타일 */}
+          {topComments.length > 0 && (
+            <div className="border-t border-slate-100">
+              {/* 공감 통계 헤더 */}
+              <div className="flex items-center gap-3 px-4 py-2.5 border-b border-slate-100">
+                <span className="flex items-center gap-1.5 text-[11px] font-bold">
+                  <span className="w-2 h-2 bg-blue-400 rounded-full" />
+                  <span className="text-blue-600">👍 공감해요 {agreeCount}</span>
+                </span>
+                <span className="text-slate-200">·</span>
+                <span className="flex items-center gap-1.5 text-[11px] font-bold">
+                  <span className="w-2 h-2 bg-rose-400 rounded-full" />
+                  <span className="text-rose-500">👎 공감하기 힘들어요 {disagreeCount}</span>
+                </span>
               </div>
+
+              {/* 지그재그 댓글 카드 */}
+              <div className="flex flex-col gap-2.5 px-4 py-4">
+                {topComments.map(comment => {
+                  const isLeft = comment.side === 'left';
+                  const isPinned = comment.id === pinnedCommentId;
+                  const isLiked = !!(currentNickname && (comment.likedBy || []).includes(currentNickname));
+                  const commentAuthorData = (comment.author_id && allUsers[comment.author_id]) || allUsers[`nickname_${comment.author}`];
+                  const commentLevel = commentAuthorData ? commentAuthorData.level : (comment.authorInfo?.level || 1);
+                  const commentLikes = commentAuthorData ? commentAuthorData.likes : (comment.authorInfo?.totalLikes || 0);
+                  const commentFollowers = followerCounts[comment.author] || 0;
+                  const isMyComment = comment.author === currentNickname;
+                  const isEditing = editingCommentId === comment.id;
+                  return (
+                    <div key={comment.id} className={`flex ${isLeft ? 'justify-start' : 'justify-end'}`}>
+                      <div className={`w-[84%] rounded-xl border px-4 py-3 transition-all ${
+                        isPinned
+                          ? 'bg-amber-50 border-amber-200 ring-1 ring-amber-300'
+                          : isLeft ? 'bg-blue-50 border-blue-100' : 'bg-rose-50 border-rose-100'
+                      }`}>
+                        {isPinned && (
+                          <div className="text-[10px] font-black text-amber-600 mb-1.5 flex items-center gap-1">
+                            <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>
+                            작성자가 고정한 댓글
+                          </div>
+                        )}
+                        {/* 헤더: 아바타 + 이름/레벨/평판/깐부 + 액션 버튼들 */}
+                        <div className={`flex items-center justify-between mb-2 ${!isLeft ? 'flex-row-reverse' : ''}`}>
+                          <div className={`flex items-center gap-2 ${!isLeft ? 'flex-row-reverse' : ''}`}>
+                            <div className="w-7 h-7 rounded-full overflow-hidden shrink-0 border border-slate-200">
+                              <img src={commentAuthorData?.avatarUrl || `https://api.dicebear.com/7.x/adventurer/svg?seed=${comment.author}`} alt="" className="w-full h-full object-cover" />
+                            </div>
+                            <div className={`flex flex-col ${!isLeft ? 'items-end' : ''}`}>
+                              <div className="flex items-center gap-2">
+                                <span className={`font-black text-[12px] leading-none ${isLeft ? 'text-blue-800' : 'text-rose-800'}`}>{comment.author}</span>
+                                <span className="text-[9px] font-bold text-slate-300">{formatTime(comment.createdAt)}</span>
+                              </div>
+                              <span className="text-[9px] text-slate-400 font-bold leading-tight mt-0.5">
+                                Lv {commentLevel} · {getReputationLabel(commentLikes)} · 깐부 {formatKoreanNumber(commentFollowers)}
+                              </span>
+                            </div>
+                          </div>
+                          {/* 액션: 고정(작성자) + 좋아요 + 땡스볼(작성자) + 수정/삭제(본인) */}
+                          <div className="flex items-center gap-2">
+                            {isMyPost && (
+                              <button onClick={() => handlePin(comment.id)}
+                                title={isPinned ? '고정 해제' : '댓글 고정'}
+                                className={`text-[10px] transition-colors ${isPinned ? 'text-amber-500' : 'text-slate-300 hover:text-amber-400'}`}>
+                                <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>
+                              </button>
+                            )}
+                            <button onClick={e => { e.stopPropagation(); onLikeClick?.(e, comment.id); }}
+                              className={`flex items-center gap-1 text-[11px] font-bold transition-colors ${isLiked ? 'text-rose-500' : 'text-slate-300 hover:text-rose-400'}`}>
+                              <svg className={`w-3 h-3 ${isLiked ? 'fill-current' : 'fill-none'}`} stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+                              {comment.likes || 0}
+                            </button>
+                            {(comment.thanksballTotal || 0) > 0 && (
+                              <span className="flex items-center gap-0.5 text-[11px] font-bold text-amber-400">
+                                <span className="text-[13px] leading-none">⚾</span>{comment.thanksballTotal}
+                              </span>
+                            )}
+                            {currentNickname && comment.author !== currentNickname && (
+                              <button onClick={e => { e.stopPropagation(); setThanksballCommentTarget({ docId: comment.id, recipient: comment.author }); }}
+                                className="flex items-center gap-1 text-[11px] font-bold text-slate-300 hover:text-amber-500 transition-colors" title="땡스볼 보내기">
+                                <span className="text-[13px] leading-none">⚾</span>
+                              </button>
+                            )}
+                            {isMyComment && !isEditing && (
+                              <>
+                                <button onClick={() => { setEditingCommentId(comment.id); setEditContent(comment.content); }}
+                                  className="text-[9px] font-bold text-slate-300 hover:text-blue-400 transition-colors">수정</button>
+                                <button onClick={() => handleDeleteComment(comment)}
+                                  className="text-[9px] font-bold text-slate-300 hover:text-rose-400 transition-colors">삭제</button>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                        {/* 본문 or 수정 textarea */}
+                        {isEditing ? (
+                          <div className="flex flex-col gap-1.5">
+                            <textarea value={editContent} onChange={e => setEditContent(e.target.value)}
+                              className="w-full bg-white border border-blue-200 rounded-lg px-3 py-2 text-[13px] font-bold text-slate-700 outline-none focus:border-blue-400 resize-none h-20" />
+                            <div className="flex justify-end gap-2">
+                              <button onClick={() => { setEditingCommentId(null); setEditContent(''); }}
+                                className="px-3 py-1 text-[10px] font-bold text-slate-400 hover:text-slate-600 transition-colors">취소</button>
+                              <button onClick={() => handleEditSave(comment)} disabled={!editContent.trim()}
+                                className="px-3 py-1 text-[10px] font-bold bg-blue-500 hover:bg-blue-600 text-white rounded-md disabled:opacity-50 transition-colors">저장</button>
+                            </div>
+                          </div>
+                        ) : (
+                          <p className={`text-[13px] font-medium leading-relaxed whitespace-pre-line ${isLeft ? 'text-blue-900' : 'text-rose-900 text-right'}`}>
+                            {comment.content}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* 댓글 땡스볼 모달 */}
+          {thanksballCommentTarget && currentNickname && (
+            <ThanksballModal
+              postId={rootPost.id}
+              postAuthor={rootPost.author}
+              postTitle={rootPost.title}
+              recipientNickname={thanksballCommentTarget.recipient}
+              targetDocId={thanksballCommentTarget.docId}
+              targetCollection="comments"
+              currentNickname={currentNickname}
+              allUsers={allUsers}
+              onClose={() => setThanksballCommentTarget(null)}
+            />
+          )}
+
+          {/* 🚀 댓글 입력 — 댓글 목록 아래 배치, pandora 패턴 */}
+          <div className="border-t border-slate-100">
+            {currentNickname ? (
+              inputVisible ? (
+                <div className={`flex flex-col gap-2.5 px-4 py-3 ${selectedSide === 'left' ? 'bg-blue-50 border-blue-100' : 'bg-rose-50 border-rose-100'}`}>
+                  <span className={`text-[11px] font-bold ${selectedSide === 'left' ? 'text-blue-400' : 'text-rose-400'}`}>
+                    {selectedSide === 'left' ? '공감하는 댓글을 적어 주세요' : '공감하기 힘든 댓글을 적어 주세요'}
+                  </span>
+                  <textarea
+                    ref={inputRef}
+                    value={inputValue}
+                    onChange={e => setInputValue(e.target.value)}
+                    disabled={isSubmitting}
+                    placeholder={selectedSide === 'left' ? '공감하는 이유를 남겨주세요...' : '공감하기 힘든 이유를 남겨주세요...'}
+                    className={`w-full bg-white rounded-lg px-3 py-2 text-[13px] font-bold text-slate-700 outline-none resize-none transition-all h-24 ${selectedSide === 'left' ? 'border border-blue-200 focus:border-blue-400' : 'border border-rose-200 focus:border-rose-400'}`}
+                  />
+                  <div className="flex items-center justify-end gap-2">
+                    <button type="button" onClick={() => { setInputVisible(false); setInputValue(''); }}
+                      className="px-3 py-1.5 text-[11px] font-bold text-slate-400 hover:text-slate-600 rounded-md transition-colors">취소</button>
+                    <button type="button" onClick={submitComment} disabled={isSubmitting || !inputValue.trim()}
+                      className={`px-3 py-1.5 text-[11px] font-bold text-white rounded-md disabled:opacity-50 transition-colors ${selectedSide === 'left' ? 'bg-blue-500 hover:bg-blue-600' : 'bg-rose-500 hover:bg-rose-600'}`}>댓글 달기</button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex gap-2 px-4 py-3">
+                  <button type="button"
+                    onClick={() => { setSelectedSide('left'); setInputVisible(true); setTimeout(() => inputRef.current?.focus(), 50); }}
+                    className="flex-1 py-2.5 rounded-xl text-[12px] font-[1000] bg-blue-50 text-blue-500 hover:bg-blue-100 border border-blue-100 transition-all">👍 공감해요 댓글...</button>
+                  <button type="button"
+                    onClick={() => { setSelectedSide('right'); setInputVisible(true); setTimeout(() => inputRef.current?.focus(), 50); }}
+                    className="flex-1 py-2.5 rounded-xl text-[12px] font-[1000] bg-rose-50 text-rose-500 hover:bg-rose-100 border border-rose-100 transition-all">👎 공감하기 힘들어요 댓글...</button>
+                </div>
+              )
+            ) : (
+              <p className="text-center text-[12px] font-bold text-slate-400 py-4">로그인 후 댓글을 남길 수 있습니다</p>
             )}
           </div>
 
