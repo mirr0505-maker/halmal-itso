@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { db, auth } from '../firebase';
 import { collection, query, where, orderBy, limit, onSnapshot, doc, updateDoc, increment, getDocs, writeBatch, arrayUnion, arrayRemove } from 'firebase/firestore';
-import type { Post, Community, CommunityPost, CommunityMember } from '../types';
+import type { Post, Community, CommunityPost, CommunityMember, UserData, FirestoreTimestamp } from '../types';
 import ActivityStats from './ActivityStats';
 import MyContentTabs from './MyContentTabs';
 import ProfileHeader from './ProfileHeader';
@@ -20,11 +20,11 @@ interface SentBall {
   postAuthor: string;
   amount: number;
   message?: string;
-  createdAt: any;
+  createdAt?: { seconds: number };
 }
 
 interface Props {
-  userData: any;
+  userData: UserData;
   allUserRootPosts: Post[];
   allUserChildPosts: Post[];
   friends: string[];
@@ -32,7 +32,7 @@ interface Props {
   onPostClick: (post: Post) => void;
   onEditPost?: (post: Post) => void;
   onToggleFriend: (author: string) => void;
-  allUsers: Record<string, any>;
+  allUsers: Record<string, UserData>;
   followerCounts: Record<string, number>;
   toggleBlock: (author: string) => void;
   blocks: string[];
@@ -57,7 +57,7 @@ const MyPage = ({
   // 🚀 커뮤니티 글 구독 (활동 통계 + 나의 기록 병합용)
   const [glovePosts, setGlovePosts] = useState<CommunityPost[]>([]);
   // 🚀 커뮤니티 댓글 구독 (참여한 토론 병합용)
-  const [gloveComments, setGloveComments] = useState<any[]>([]);
+  const [gloveComments, setGloveComments] = useState<{id: string; author: string; content: string; communityId: string; communityName: string; createdAt?: FirestoreTimestamp}[]>([]);
   // 🚀 내 멤버십 구독 — 손가락 역할·가입 상태 실시간 반영
   const [myMemberships, setMyMemberships] = useState<CommunityMember[]>([]);
 
@@ -110,7 +110,7 @@ const MyPage = ({
       limit(50)
     );
     return onSnapshot(q, snap => {
-      setGloveComments(snap.docs.map(d => ({ id: d.id, ...d.data(), _source: 'glove' })));
+      setGloveComments(snap.docs.map(d => ({ id: d.id, ...d.data() } as { id: string; author: string; content: string; communityId: string; communityName: string; createdAt?: FirestoreTimestamp })));
     }, err => console.error('[MyPage gloveComments]', err));
   }, [userData?.uid]);
 
@@ -150,9 +150,9 @@ const MyPage = ({
       const fileName = `avatars/${userData.nickname}_${Date.now()}_${file.name.replace(/\s+/g, '_')}`;
       await s3Client.send(new PutObjectCommand({ Bucket: BUCKET_NAME, Key: fileName, Body: new Uint8Array(arrayBuffer), ContentType: file.type }));
       setEditData(prev => ({ ...prev, avatarUrl: `${PUBLIC_URL}/${fileName}` }));
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('[프로필 사진 업로드 실패]', err);
-      alert(`사진 업로드에 실패했습니다: ${err.message || '원인 불명'}`);
+      alert(`사진 업로드에 실패했습니다: ${(err as Error).message || '원인 불명'}`);
     } finally { setIsUploading(false); }
   };
 
@@ -169,7 +169,7 @@ const MyPage = ({
       if (nicknameChanged) {
         const lastChangedAt = userData.nicknameChangedAt;
         if (lastChangedAt) {
-          const lastChangedMs = lastChangedAt.seconds ? lastChangedAt.seconds * 1000 : new Date(lastChangedAt).getTime();
+          const lastChangedMs = lastChangedAt.seconds * 1000;
           const daysSinceChange = (Date.now() - lastChangedMs) / (1000 * 60 * 60 * 24);
           if (daysSinceChange < 30) {
             const remainingDays = Math.ceil(30 - daysSinceChange);
@@ -464,9 +464,9 @@ const MyPage = ({
                       <div className="py-20 text-center text-slate-300 font-bold italic">아직 보낸 땡스볼이 없어요.</div>
                     ) : (
                       sentBalls.map(ball => {
-                        const formatTime = (ts: any) => {
+                        const formatTime = (ts: { seconds: number } | null | undefined) => {
                           if (!ts) return '';
-                          const d = ts.seconds ? new Date(ts.seconds * 1000) : new Date(ts);
+                          const d = new Date(ts.seconds * 1000);
                           const diff = Math.floor((Date.now() - d.getTime()) / 1000);
                           if (diff < 60) return '방금 전';
                           if (diff < 3600) return `${Math.floor(diff / 60)}분 전`;

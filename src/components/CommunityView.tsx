@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { db } from '../firebase';
 import { collection, onSnapshot, query, where, orderBy, doc, setDoc, updateDoc, deleteDoc, increment, arrayUnion, arrayRemove, serverTimestamp } from 'firebase/firestore';
-import type { Community, CommunityPost, CommunityMember, FingerRole } from '../types';
+import type { Community, CommunityPost, CommunityMember, FingerRole, UserData, FirestoreTimestamp } from '../types';
 import TiptapEditor from './TiptapEditor';
 import CommunityAdminPanel from './CommunityAdminPanel';
 import { PutObjectCommand } from '@aws-sdk/client-s3';
@@ -19,8 +19,8 @@ const FINGER_META: Record<FingerRole, { emoji: string; label: string; colorCls: 
 
 interface Props {
   community: Community;
-  currentUserData: any;
-  allUsers: Record<string, any>;
+  currentUserData: UserData | null;
+  allUsers: Record<string, UserData>;
   onBack: () => void;
   onClosed?: () => void; // 🚀 Phase 3: 장갑 폐쇄 후 목록 복귀
 }
@@ -269,7 +269,7 @@ const CommunityView = ({ community, currentUserData, allUsers, onBack, onClosed 
     }
   };
 
-  const formatTime = (ts: any) => {
+  const formatTime = (ts: { seconds: number } | null | undefined) => {
     if (!ts) return '';
     const d = new Date(ts.seconds * 1000);
     const diff = Math.floor((Date.now() - d.getTime()) / 1000);
@@ -535,14 +535,14 @@ const CommunityView = ({ community, currentUserData, allUsers, onBack, onClosed 
 // 🚀 커뮤니티 글 상세 오버레이 — 댓글 목록 + 댓글 작성 (인라인 컴포넌트, 200줄 이내 유지용)
 interface DetailProps {
   post: CommunityPost;
-  currentUserData: any;
-  allUsers: Record<string, any>;
+  currentUserData: UserData | null;
+  allUsers: Record<string, UserData>;
   onClose: () => void;
   onLike: (e: React.MouseEvent, post: CommunityPost) => void;
 }
 
 const CommunityPostDetail = ({ post, currentUserData, allUsers: _allUsers, onClose, onLike }: DetailProps) => {
-  const [comments, setComments] = useState<any[]>([]);
+  const [comments, setComments] = useState<{id: string; author: string; content: string; createdAt?: FirestoreTimestamp}[]>([]);
   const [newComment, setNewComment] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -552,7 +552,7 @@ const CommunityPostDetail = ({ post, currentUserData, allUsers: _allUsers, onClo
       where('postId', '==', post.id),
       orderBy('createdAt', 'asc')
     );
-    const unsub = onSnapshot(q, snap => setComments(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
+    const unsub = onSnapshot(q, snap => setComments(snap.docs.map(d => ({ id: d.id, ...d.data() } as { id: string; author: string; content: string; createdAt?: FirestoreTimestamp }))));
     return () => unsub();
   }, [post.id]);
 
@@ -576,7 +576,7 @@ const CommunityPostDetail = ({ post, currentUserData, allUsers: _allUsers, onClo
     } finally { setIsSubmitting(false); }
   };
 
-  const formatTime = (ts: any) => {
+  const formatTime = (ts: { seconds: number } | null | undefined) => {
     if (!ts) return '';
     const d = new Date(ts.seconds * 1000);
     const diff = Math.floor((Date.now() - d.getTime()) / 1000);

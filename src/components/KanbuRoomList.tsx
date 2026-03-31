@@ -1,13 +1,13 @@
 // src/components/KanbuRoomList.tsx — 입장 가능한 깐부방 목록
 import { useState } from 'react';
-import type { KanbuRoom } from '../types';
+import type { KanbuRoom, UserData } from '../types';
 
 interface Props {
   rooms: KanbuRoom[];
   onRoomClick: (room: KanbuRoom) => void;
   onCreateRoom: () => void;
   currentUserLevel: number;
-  allUsers: Record<string, any>;
+  allUsers: Record<string, UserData>;
 }
 
 const KanbuRoomList = ({ rooms, onRoomClick, onCreateRoom, currentUserLevel }: Props) => {
@@ -21,7 +21,7 @@ const KanbuRoomList = ({ rooms, onRoomClick, onCreateRoom, currentUserLevel }: P
     onCreateRoom();
   };
 
-  const getTimeAgo = (timestamp: any) => {
+  const getTimeAgo = (timestamp: { seconds: number } | null | undefined) => {
     if (!timestamp) return '';
     const diff = Math.floor((Date.now() - timestamp.seconds * 1000) / 1000);
     if (diff < 60) return '방금 전';

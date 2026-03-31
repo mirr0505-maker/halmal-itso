@@ -13,7 +13,7 @@ interface Notification {
   postTitle?: string;
   communityId?: string;
   communityName?: string;
-  createdAt: any;
+  createdAt?: { seconds: number } | number;
   read: boolean;
 }
 
@@ -23,9 +23,9 @@ interface Props {
   onNavigate: (postId: string) => void;
 }
 
-const formatTime = (ts: any) => {
+const formatTime = (ts: { seconds: number } | number | null | undefined) => {
   if (!ts) return '';
-  const d = ts.seconds ? new Date(ts.seconds * 1000) : new Date(ts);
+  const d = (ts as { seconds: number }).seconds ? new Date((ts as { seconds: number }).seconds * 1000) : new Date(ts as number);
   const diff = Math.floor((Date.now() - d.getTime()) / 1000);
   if (diff < 60) return '방금 전';
   if (diff < 3600) return `${Math.floor(diff / 60)}분 전`;

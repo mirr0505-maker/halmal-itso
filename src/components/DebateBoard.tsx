@@ -2,7 +2,7 @@
 import React, { useRef, useState } from 'react';
 import PostCard from './PostCard';
 import ThanksballModal from './ThanksballModal';
-import type { Post } from '../types';
+import type { Post, UserData } from '../types';
 import { CATEGORY_RULES } from './DiscussionView';
 import { db } from '../firebase';
 import { doc, updateDoc } from 'firebase/firestore';
@@ -14,15 +14,15 @@ interface Props {
   allChildPosts: Post[];
   setReplyTarget: (post: Post) => void;
   onPostClick: (post: Post) => void;
-  currentUserData?: any;
+  currentUserData?: UserData | null;
   currentUserFriends: string[];
-  onLikeClick?: (e: any, id: string) => void;
+  onLikeClick?: (e: React.MouseEvent | null, id: string) => void;
   currentNickname?: string;
   category: string;
   onInlineReply?: (content: string, parentPost: Post | null, side?: 'left' | 'right', imageUrl?: string, linkUrl?: string) => Promise<void>;
   onOpenLinkedPost?: (side: 'left' | 'right') => void;  // 솔로몬의 재판 연계글 팝업 트리거
   rootPost?: Post;
-  allUsers?: Record<string, any>;
+  allUsers?: Record<string, UserData>;
   followerCounts?: Record<string, number>;
 }
 
@@ -180,7 +180,7 @@ const DebateBoard = ({
       resetPandoraAttach();
     };
 
-    const formatTime = (ts: any) => {
+    const formatTime = (ts: { seconds: number } | null | undefined) => {
       if (!ts) return '';
       const d = new Date(ts.seconds * 1000);
       const diff = Math.floor((Date.now() - d.getTime()) / 60000);

@@ -1,6 +1,6 @@
 // src/components/DiscussionView.tsx — 일반 게시글 상세 뷰 (2컬럼 레이아웃)
 import React, { useEffect } from 'react';
-import type { Post } from '../types';
+import type { Post, UserData } from '../types';
 import RootPostCard from './RootPostCard';
 import DebateBoard from './DebateBoard';
 import OneCutCommentBoard from './OneCutCommentBoard'; // 🚀 황금알을 낳는 거위 작성자(좌)↔독자(우) 지그재그 보드
@@ -12,7 +12,9 @@ import CommentBoneHitting from './CommentBoneHitting';
 import CommentLocalNews from './CommentLocalNews';
 import CommentExile from './CommentExile';
 
-const CATEGORY_COMMENT_MAP: Record<string, React.FC<any>> = {
+// 카테고리별 댓글 폼 컴포넌트 맵 — 각 컴포넌트가 서로 다른 props 타입을 가지므로
+// as unknown as 캐스팅으로 heterogeneous 컴포넌트 맵 허용
+const CATEGORY_COMMENT_MAP = {
   '너와 나의 이야기':    CommentMyStory,
   '판도라의 상자':       CommentNakedKing,
   '솔로몬의 재판':       CommentDebate,
@@ -21,7 +23,7 @@ const CATEGORY_COMMENT_MAP: Record<string, React.FC<any>> = {
   '양치기 소년의 외침':  CommentBoneHitting,
   '마법 수정 구슬':      CommentLocalNews,
   '유배·귀양지':         CommentExile,
-};
+} as unknown as Record<string, React.ComponentType<Record<string, unknown>>>;
 import RelatedPostsSidebar from './RelatedPostsSidebar';
 
 interface Props {
@@ -29,7 +31,7 @@ interface Props {
   allPosts: Post[];
   otherTopics: Post[];
   onTopicChange: (post: Post) => void;
-  userData: any;
+  userData: UserData;
   friends: string[];
   onToggleFriend: (author: string) => void;
   onPostClick: (post: Post) => void;
@@ -48,7 +50,7 @@ interface Props {
   commentCounts?: Record<string, number>;
   onLikeClick?: (e: React.MouseEvent | null, postId: string) => void;
   currentNickname?: string;
-  allUsers?: Record<string, any>;
+  allUsers?: Record<string, UserData>;
   followerCounts?: Record<string, number>;
   toggleBlock?: (author: string) => void;
   onEditPost?: (post: Post) => void;

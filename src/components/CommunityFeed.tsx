@@ -3,12 +3,12 @@
 import { useState, useEffect } from 'react';
 import { db } from '../firebase';
 import { collection, query, where, orderBy, onSnapshot } from 'firebase/firestore';
-import type { CommunityPost, Community } from '../types';
+import type { CommunityPost, Community, UserData } from '../types';
 
 interface Props {
-  currentUserData: any;
+  currentUserData: UserData | null;
   joinedCommunityIds: string[];
-  allUsers: Record<string, any>;
+  allUsers: Record<string, UserData>;
   onCommunityClick: (community: Community) => void;
 }
 
@@ -30,7 +30,7 @@ const CommunityFeed = ({ currentUserData, joinedCommunityIds, allUsers }: Props)
     return () => unsub();
   }, [joinedCommunityIds]);
 
-  const formatTime = (ts: any) => {
+  const formatTime = (ts: { seconds: number } | null | undefined) => {
     if (!ts) return '';
     const d = new Date(ts.seconds * 1000);
     const diff = Math.floor((Date.now() - d.getTime()) / 1000);

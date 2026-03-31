@@ -1,12 +1,12 @@
 // src/components/CommunityList.tsx — 장갑 속 친구들: 전체 커뮤니티 목록 (카테고리 필터)
 import { useState } from 'react';
-import type { Community } from '../types';
+import type { Community, UserData } from '../types';
 
 const ALL_CATEGORIES = ['전체', '주식', '부동산', '코인', '취미', '스포츠', '게임', '독서', '요리', '반려동물', '여행', '음악', '개발', '기타'];
 
 interface Props {
   communities: Community[];
-  currentUserData: any;
+  currentUserData: UserData | null;
   joinedCommunityIds: string[];
   onCommunityClick: (community: Community) => void;
   onJoin: (community: Community) => Promise<void>;

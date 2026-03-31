@@ -1,8 +1,9 @@
 // src/components/PostDetailModal.tsx
 import { useState, useEffect } from 'react';
 import { db } from '../firebase';
-import { collection, query, onSnapshot, addDoc, serverTimestamp } from 'firebase/firestore';
-import type { Post } from '../types';
+import { collection, query, onSnapshot, doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { auth } from '../firebase';
+import type { Post, UserData } from '../types';
 import { getReputationLabel, formatKoreanNumber } from '../utils';
 
 interface Props {
@@ -12,7 +13,7 @@ interface Props {
   onLikeClick?: (e: React.MouseEvent | null, postId: string) => void;
   isFriend?: boolean;
   onToggleFriend?: (author: string) => void;
-  allUsers?: Record<string, any>;
+  allUsers?: Record<string, UserData>;
   followerCounts?: Record<string, number>;
   toggleBlock?: (author: string) => void;
   isBlocked?: boolean;
@@ -30,7 +31,8 @@ const PostDetailModal = ({ post, onClose, currentNickname, onLikeClick, isFriend
   const displayLikes = authorData ? authorData.likes : (post.authorInfo?.totalLikes || 0);
 
   useEffect(() => {
-    const q = query(collection(db, "posts"));
+    // 🚀 comments 컬렉션에서 읽기 (posts 컬렉션 아님)
+    const q = query(collection(db, "comments"));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const descendantDocs = snapshot.docs
         .map(d => ({ id: d.id, ...d.data() } as Post))
@@ -46,8 +48,12 @@ const PostDetailModal = ({ post, onClose, currentNickname, onLikeClick, isFriend
     if (!newComment.trim() || isSubmitting) return;
     setIsSubmitting(true);
     try {
-      await addDoc(collection(db, "posts"), {
+      // 🚀 수동 ID: CLAUDE.md 규칙 — comment_timestamp_uid 형식 (자동 ID 금지)
+      const uid = auth.currentUser?.uid || 'anon';
+      const commentId = `comment_${Date.now()}_${uid}`;
+      await setDoc(doc(db, "comments", commentId), {
         author: currentNickname || "익명",
+        author_id: uid,
         content: newComment,
         parentId: post.id,
         rootId: post.id,

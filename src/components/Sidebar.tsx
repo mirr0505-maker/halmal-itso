@@ -1,4 +1,5 @@
 // src/components/Sidebar.tsx
+import type { ReactNode } from 'react';
 
 export type MenuId =
   | 'home'
@@ -18,6 +19,15 @@ export type MenuId =
   | 'ranking'
   | 'mypage';
 
+// 사이드바 메뉴 항목 타입
+interface MenuItem {
+  id: MenuId;
+  label: string;
+  icon: ReactNode;
+  description?: string;
+  badge?: ReactNode;
+}
+
 interface Props {
   activeMenu: MenuId;
   setActiveMenu: (menu: MenuId) => void;
@@ -28,7 +38,7 @@ interface Props {
 }
 
 const Sidebar = ({ activeMenu, setActiveMenu, kanbuRoomCount = 0, mobile = false, onClose }: Props) => {
-  const mainServiceMenus = [
+  const mainServiceMenus: MenuItem[] = [
     {
       id: 'home',
       label: '홈',
@@ -112,7 +122,7 @@ const Sidebar = ({ activeMenu, setActiveMenu, kanbuRoomCount = 0, mobile = false
     },
   ];
 
-  const oneCutMenu = {
+  const oneCutMenu: MenuItem = {
     id: 'onecut',
     label: '한컷',
     icon: (
@@ -122,7 +132,7 @@ const Sidebar = ({ activeMenu, setActiveMenu, kanbuRoomCount = 0, mobile = false
     )
   };
 
-  const marketMenu = {
+  const marketMenu: MenuItem = {
     id: 'market',
     label: '마켓',
     icon: (
@@ -132,7 +142,7 @@ const Sidebar = ({ activeMenu, setActiveMenu, kanbuRoomCount = 0, mobile = false
     )
   };
 
-  const friendsMenu = {
+  const friendsMenu: MenuItem = {
     id: 'friends',
     label: '깐부 맺기',
     icon: (
@@ -142,7 +152,7 @@ const Sidebar = ({ activeMenu, setActiveMenu, kanbuRoomCount = 0, mobile = false
     )
   };
 
-  const rankingMenu = {
+  const rankingMenu: MenuItem = {
     id: 'ranking',
     label: '랭킹',
     description: '좋아요 · 땡스볼',
@@ -153,7 +163,7 @@ const Sidebar = ({ activeMenu, setActiveMenu, kanbuRoomCount = 0, mobile = false
     )
   };
 
-  const exileMenu = {
+  const exileMenu: MenuItem = {
     id: 'exile_place',
     label: '유배·귀양지',
     description: '격리공간',
@@ -164,7 +174,7 @@ const Sidebar = ({ activeMenu, setActiveMenu, kanbuRoomCount = 0, mobile = false
     )
   };
 
-  const userMenus = [
+  const userMenus: MenuItem[] = [
     {
       id: 'mypage',
       label: '내정보',
@@ -176,12 +186,12 @@ const Sidebar = ({ activeMenu, setActiveMenu, kanbuRoomCount = 0, mobile = false
     },
   ];
 
-  const renderMenuButton = (menu: any) => {
+  const renderMenuButton = (menu: MenuItem) => {
     const isActive = activeMenu === menu.id;
     return (
       <button
         key={menu.id}
-        onClick={() => setActiveMenu(menu.id as any)}
+        onClick={() => setActiveMenu(menu.id)}
         className={`w-full flex flex-row items-start gap-2 px-2.5 py-1.5 rounded-xl transition-all duration-150 border-2 ${
           isActive
             ? 'bg-blue-50/40 text-blue-600 border-blue-100 shadow-sm shadow-blue-50 scale-[1.02]'

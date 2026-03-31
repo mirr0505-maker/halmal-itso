@@ -4,7 +4,7 @@
 
 import { useState } from 'react';
 import ThanksballModal from './ThanksballModal';
-import type { Post } from '../types';
+import type { Post, UserData } from '../types';
 import { db } from '../firebase';
 import { doc, updateDoc } from 'firebase/firestore';
 import { formatKoreanNumber, getReputationLabel } from '../utils';
@@ -13,10 +13,10 @@ interface Props {
   allChildPosts: Post[];
   rootPost: Post;
   currentNickname?: string;
-  currentUserData?: any;
-  onLikeClick?: (e: any, postId: string) => void;
+  currentUserData?: UserData | null;
+  onLikeClick?: (e: React.MouseEvent | null, postId: string) => void;
   onInlineReply?: (content: string, parentPost: Post | null, side?: 'left' | 'right') => Promise<void>;
-  allUsers?: Record<string, any>;
+  allUsers?: Record<string, UserData>;
   followerCounts?: Record<string, number>;
 }
 
@@ -40,7 +40,7 @@ const OneCutCommentBoard = ({
 
   const pinnedCommentId = rootPost.pinnedCommentId;
 
-  const formatTime = (ts: any) => {
+  const formatTime = (ts: { seconds: number } | null | undefined) => {
     if (!ts) return '';
     const d = new Date(ts.seconds * 1000);
     const diff = Math.floor((Date.now() - d.getTime()) / 60000);
@@ -129,7 +129,7 @@ const OneCutCommentBoard = ({
           const replies = getReplies(post.id);
           const postAuthorData = (post.author_id && allUsers[post.author_id]) || allUsers[`nickname_${post.author}`];
           const displayLevel = postAuthorData ? postAuthorData.level : (post.authorInfo?.level || 1);
-          const displayLikes = postAuthorData ? (postAuthorData.likes || postAuthorData.totalLikes || 0) : (post.authorInfo?.totalLikes || 0);
+          const displayLikes = postAuthorData ? (postAuthorData.likes || 0) : (post.authorInfo?.totalLikes || 0);
           const realFollowers = followerCounts?.[post.author] || 0;
 
           return (

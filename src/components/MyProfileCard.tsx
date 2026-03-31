@@ -86,9 +86,9 @@ const MyProfileCard = ({ userData, friendCount }: Props) => {
         clearTimeout(timerRef.current);
         timerRef.current = null;
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("R2 업로드 실패:", error);
-      alert(`사진 전송에 실패했소: ${error.message || "원인 불명"}`);
+      alert(`사진 전송에 실패했소: ${(error as Error).message || "원인 불명"}`);
     } finally {
       setIsUploading(false);
       isUploadingRef.current = false;

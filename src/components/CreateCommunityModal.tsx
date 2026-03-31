@@ -1,3 +1,4 @@
+import type { UserData } from '../types';
 // src/components/CreateCommunityModal.tsx — 장갑 나누기: 커뮤니티 개설 폼
 // 🚀 개설 조건: Lv3 이상 (GLOVE_CREATE_MIN_LEVEL, App.tsx에서 검증)
 import { useState } from 'react';
@@ -25,7 +26,7 @@ const JOIN_TYPE_OPTIONS = [
 const MIN_LEVEL_OPTIONS = [1, 2, 3, 4, 5];
 
 interface Props {
-  userData: any;
+  userData: UserData;
   onSubmit: (data: {
     name: string; description: string; category: string;
     isPrivate: boolean; coverColor?: string;

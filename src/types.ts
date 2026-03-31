@@ -1,5 +1,35 @@
 // src/types.ts
 
+// 🚀 FirestoreTimestamp: Firestore Timestamp 최소 구조 (서버·클라이언트 양쪽 호환)
+export interface FirestoreTimestamp {
+  seconds: number;
+  nanoseconds?: number;
+  toDate?: () => Date;
+}
+
+// 🚀 UserData: users 컬렉션 문서 구조 — allUsers Record의 값 타입
+export interface UserData {
+  uid: string;
+  nickname: string;
+  email?: string;
+  level: number;
+  exp?: number;           // 경험치 (레벨업 기준)
+  likes: number;          // 누적 좋아요 수 (평판 지표)
+  points?: number;        // 포인트 (레거시)
+  bio?: string;           // 자기소개
+  avatarUrl?: string;     // 커스텀 프로필 이미지 URL
+  friendList?: string[];  // 깐부 닉네임 목록
+  blockList?: string[];   // 차단 유저 닉네임 목록
+  subscriberCount?: number;
+  isPhoneVerified?: boolean;
+  // 🚀 땡스볼 관련 잔액·누적
+  ballBalance?: number;   // 보유 볼 잔액
+  ballSpent?: number;     // 누적 사용 볼
+  ballReceived?: number;  // 누적 받은 볼
+  createdAt?: FirestoreTimestamp;        // 가입일 (Firestore Timestamp)
+  nicknameChangedAt?: FirestoreTimestamp; // 닉네임 변경일 (30일 쿨다운)
+}
+
 export interface AuthorInfo {
   level: number;
   friendCount: number;
@@ -21,7 +51,7 @@ export interface Post {
   rootId: string | null; // 🚀 최상위 게시글 ID (토론 주제 ID)
   side: 'left' | 'right';
   type: 'comment' | 'formal';
-  createdAt: any; // Firestore Timestamp
+  createdAt: FirestoreTimestamp; // Firestore Timestamp
   likes: number;
   dislikes: number;
   likedBy?: string[]; // 🚀 좋아요를 누른 닉네임 목록
@@ -68,7 +98,7 @@ export interface Thanksball {
   senderId: string;    // 보낸 사람 UID
   amount: number;      // 볼 수 (1볼 = $1, 향후 실결제 연동)
   message?: string;    // 응원 메시지 (최대 50자, 선택)
-  createdAt: any;      // Firestore Timestamp
+  createdAt: FirestoreTimestamp;      // Firestore Timestamp
   isPaid: boolean;     // false = 가상볼(현재), true = 실결제(향후)
 }
 
@@ -79,7 +109,7 @@ export interface KanbuRoom {
   creatorId: string;
   creatorNickname: string;
   creatorLevel: number;
-  createdAt: any;
+  createdAt: FirestoreTimestamp;
 }
 
 export interface KanbuChat {
@@ -87,7 +117,7 @@ export interface KanbuChat {
   author: string;
   authorId: string;
   content: string;
-  createdAt: any;
+  createdAt: FirestoreTimestamp;
 }
 
 // 🚀 우리들의 장갑: 커뮤니티 시스템 타입 정의
@@ -114,7 +144,7 @@ export interface Community {
   memberCount: number;           // increment 비정규화 (Firestore 읽기 비용 절감)
   postCount: number;             // increment 비정규화
   coverColor?: string;           // 커뮤니티 대표 색상 (미지정 시 기본값)
-  createdAt: any;
+  createdAt: FirestoreTimestamp;
   // 🚀 다섯 손가락 Phase 1 — 가입 조건 설정
   joinType?: JoinType;           // 가입 방식 (미설정 시 'open'으로 취급)
   minLevel?: number;             // 최소 가입 레벨 (미설정 시 1)
@@ -129,7 +159,7 @@ export interface CommunityMember {
   nickname: string;
   communityId: string;
   communityName: string;
-  joinedAt: any;
+  joinedAt: FirestoreTimestamp;
   role: 'owner' | 'member';     // 레거시 — 하위호환 유지 (thumb=owner, ring=member)
   // 🚀 다섯 손가락 Phase 1 — 역할 및 상태 확장
   finger?: FingerRole;           // 손가락 역할 (미설정 시 role='owner'→thumb, 'member'→ring으로 취급)
@@ -150,7 +180,7 @@ export interface CommunityPost {
   likes: number;
   likedBy?: string[];
   commentCount: number;
-  createdAt: any;
+  createdAt: FirestoreTimestamp;
   // 🚀 다섯 손가락 Phase 1
   isPinned?: boolean;            // 공지 고정 여부 (엄지/검지만 설정 가능)
   isBlinded?: boolean;           // 관리자 블라인드 처리

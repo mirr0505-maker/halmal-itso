@@ -1,5 +1,5 @@
 // src/components/RelatedPostsSidebar.tsx — 게시글 상세 우측 사이드바: 같은 카테고리 관련 글 목록
-import type { Post } from '../types';
+import type { Post, UserData } from '../types';
 import { formatKoreanNumber, getReputationLabel, getCategoryDisplayName } from '../utils';
 
 interface Props {
@@ -7,14 +7,14 @@ interface Props {
   onPostClick: (post: Post) => void;
   commentCounts: Record<string, number>;
   currentNickname?: string;
-  allUsers: Record<string, any>;
+  allUsers: Record<string, UserData>;
   followerCounts: Record<string, number>;
 }
 
 const RelatedPostsSidebar = ({
   relatedPosts, onPostClick, commentCounts, currentNickname, allUsers, followerCounts
 }: Props) => {
-  const getTimeAgo = (timestamp: any) => {
+  const getTimeAgo = (timestamp: { seconds: number } | null | undefined) => {
     if (!timestamp) return "";
     const now = new Date();
     const createdAt = new Date(timestamp.seconds * 1000);

@@ -1,17 +1,17 @@
 // src/components/PostCard.tsx
 import { db } from '../firebase';
 import { doc, deleteDoc } from 'firebase/firestore';
-import type { Post } from '../types';
+import type { Post, UserData } from '../types';
 import { formatKoreanNumber, getReputationLabel } from '../utils';
 
 interface Props {
   post: Post;
   onReply: (post: Post) => void;
   onPostClick: (post: Post) => void;
-  currentUserData?: any;
-  onLikeClick?: (e: any, id: string) => void;
+  currentUserData?: UserData | null;
+  onLikeClick?: (e: React.MouseEvent | null, id: string) => void;
   currentNickname?: string;
-  allUsers?: Record<string, any>;
+  allUsers?: Record<string, UserData>;
   followerCounts?: Record<string, number>;
   isPinned?: boolean;
   isRootAuthor?: boolean;
@@ -43,7 +43,7 @@ const PostCard = ({
     }
   };
 
-  const formatRelativeTime = (timestamp: any) => {
+  const formatRelativeTime = (timestamp: { seconds: number } | null | undefined) => {
     if (!timestamp) return "";
     const now = new Date();
     const createdAt = new Date(timestamp.seconds * 1000);

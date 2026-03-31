@@ -2,14 +2,14 @@
 import { useState, useEffect, useRef } from 'react';
 import { db } from '../firebase';
 import { collection, onSnapshot, query, orderBy, limit, doc, setDoc, serverTimestamp } from 'firebase/firestore';
-import type { KanbuRoom, KanbuChat, Post } from '../types';
+import type { KanbuRoom, KanbuChat, Post, UserData } from '../types';
 
 interface Props {
   room: KanbuRoom;
   roomPosts: Post[];
   onBack: () => void;
-  currentUserData: any;
-  allUsers: Record<string, any>;
+  currentUserData: UserData;
+  allUsers: Record<string, UserData>;
 }
 
 const KanbuRoomView = ({ room, roomPosts, onBack, currentUserData }: Props) => {
@@ -76,13 +76,13 @@ const KanbuRoomView = ({ room, roomPosts, onBack, currentUserData }: Props) => {
     setIsPostSubmitting(false);
   };
 
-  const formatTime = (timestamp: any) => {
+  const formatTime = (timestamp: { seconds: number } | null | undefined) => {
     if (!timestamp?.seconds) return '';
     const d = new Date(timestamp.seconds * 1000);
     return d.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
   };
 
-  const formatDate = (timestamp: any) => {
+  const formatDate = (timestamp: { seconds: number } | null | undefined) => {
     if (!timestamp?.seconds) return '';
     const d = new Date(timestamp.seconds * 1000);
     const diff = Math.floor((Date.now() - d.getTime()) / 1000);

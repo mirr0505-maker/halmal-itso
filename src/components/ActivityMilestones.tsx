@@ -1,8 +1,9 @@
+import type { UserData } from '../types';
 // src/components/ActivityMilestones.tsx
 import { getReputationProgress, getReputationStyle, getLevelStyle, getReputationLabel } from '../utils';
 
 interface ActivityMilestonesProps {
-  userData: any;
+  userData: UserData;
   rootCount: number;
   formalCount: number;
   commentCount: number;

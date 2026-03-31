@@ -1,17 +1,17 @@
 // src/components/OneCutListSidebar.tsx — 한컷 상세 화면 우측 사이드바: 다른 한컷 목록
-import type { Post } from '../types';
+import type { Post, UserData } from '../types';
 import { formatKoreanNumber, getReputationLabel } from '../utils';
 
 interface Props {
   oneCuts: Post[];
   onOneCutClick: (post: Post) => void;
   commentCounts: Record<string, number>;
-  allUsers: Record<string, any>;
+  allUsers: Record<string, UserData>;
   followerCounts: Record<string, number>;
 }
 
 const OneCutListSidebar = ({ oneCuts, onOneCutClick, commentCounts, allUsers, followerCounts }: Props) => {
-  const getTimeAgo = (timestamp: any) => {
+  const getTimeAgo = (timestamp: { seconds: number } | null | undefined) => {
     if (!timestamp) return "";
     const now = new Date();
     const createdAt = new Date(timestamp.seconds * 1000);

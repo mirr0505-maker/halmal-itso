@@ -1,10 +1,12 @@
 // src/App.tsx — 루트 컴포넌트 (전역 상태, 실시간 리스너, 라우팅)
 import { useState, useEffect, lazy, Suspense } from 'react';
-import { db, auth, googleProvider } from './firebase';
-import { signInWithPopup, signOut, setPersistence, browserLocalPersistence, signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
-import { serverTimestamp, doc, setDoc, updateDoc, increment, arrayUnion, arrayRemove, collection, onSnapshot, query, where, getDoc } from 'firebase/firestore';
+import { db } from './firebase';
+import { collection, onSnapshot, query, where } from 'firebase/firestore';
 import type { Post, KanbuRoom, Community } from './types';
 import { useFirebaseListeners } from './hooks/useFirebaseListeners';
+import { useAuthActions } from './hooks/useAuthActions';
+import { useGloveActions } from './hooks/useGloveActions';
+import { useFirestoreActions } from './hooks/useFirestoreActions';
 // 항상 초기 화면에 필요한 컴포넌트 — 정적 import 유지
 import AnyTalkList from './components/AnyTalkList';
 import NotificationBell from './components/NotificationBell';
@@ -104,6 +106,27 @@ function App() {
     r.creatorNickname === userData?.nickname || friends.includes(r.creatorNickname)
   );
 
+  // 🚀 인증 훅 — 로그인·로그아웃·테스트 계정 핸들러
+  const { handleLogin, handleTestLogin, handleLogout } = useAuthActions({ userData, setUserData, setActiveMenu });
+
+  // 🚀 장갑 훅 — 커뮤니티 개설·가입·탈퇴·깐부방 생성 핸들러
+  const { handleCreateRoom, handleCreateCommunity, handleJoinCommunity, handleLeaveCommunity } = useGloveActions({
+    userData, setJoinedCommunityIds, setIsCreateCommunityOpen, setGloveSubTab, setIsCreateRoomOpen,
+  });
+
+  // 🚀 Firestore 훅 — 게시글·댓글·좋아요·깐부·차단 핸들러
+  const {
+    handlePostSubmit, handleLinkedPostSubmit,
+    handleInlineReply, handleCommentSubmit,
+    toggleFriend, toggleBlock, handleLike, handleViewPost,
+  } = useFirestoreActions({
+    userData, friends, blocks, allRootPosts, allChildPosts, selectedTopic,
+    replyTarget, setReplyTarget, newTitle, newContent, setNewTitle, setNewContent,
+    selectedSide, selectedType, setIsSubmitting,
+    setAllRootPosts, setSelectedTopic, setIsCreateOpen, setEditingPost, setCreateMenuKey,
+    setActiveMenu, setActiveTab, setLinkedPostSide,
+  });
+
   useEffect(() => { if (replyTarget) { setSelectedType('comment'); setNewTitle(""); } }, [replyTarget]);
   useEffect(() => { setSelectedFriend(null); setViewingAuthor(null); }, [activeMenu, activeTab]);
   // 🚀 장갑 메뉴 이탈 시 커뮤니티 선택 초기화
@@ -158,239 +181,6 @@ function App() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const handleCreateRoom = async (data: Pick<KanbuRoom, 'title' | 'description'>) => {
-    if (!userData) return;
-    const roomId = `room_${Date.now()}_${userData.uid}`;
-    await setDoc(doc(db, 'kanbu_rooms', roomId), {
-      title: data.title,
-      description: data.description || '',
-      creatorId: userData.uid,
-      creatorNickname: userData.nickname,
-      creatorLevel: userData.level,
-      createdAt: serverTimestamp(),
-    });
-    setIsCreateRoomOpen(false);
-  };
-
-  // 🚀 커뮤니티 개설 핸들러 — Lv3 이상 확인 후 communities 컬렉션에 문서 생성
-  // GLOVE_CREATE_MIN_LEVEL 상수를 바꾸면 개설 레벨 조건 일괄 변경
-  const GLOVE_CREATE_MIN_LEVEL = 3;
-  const handleCreateCommunity = async (data: {
-    name: string; description: string; category: string;
-    isPrivate: boolean; coverColor?: string;
-    joinType?: string; minLevel?: number; password?: string; joinQuestion?: string;
-  }) => {
-    if (!userData) return;
-    if ((userData.level || 1) < GLOVE_CREATE_MIN_LEVEL) {
-      alert(`커뮤니티 개설은 Lv${GLOVE_CREATE_MIN_LEVEL} 이상만 가능합니다. (현재 Lv${userData.level || 1})`);
-      return;
-    }
-    const communityId = `community_${Date.now()}_${userData.uid}`;
-    await setDoc(doc(db, 'communities', communityId), {
-      name: data.name,
-      description: data.description || '',
-      category: data.category,
-      isPrivate: data.isPrivate,
-      coverColor: data.coverColor || '',
-      creatorId: userData.uid,
-      creatorNickname: userData.nickname,
-      creatorLevel: userData.level || 1,
-      memberCount: 1,
-      postCount: 0,
-      createdAt: serverTimestamp(),
-      // 🚀 다섯 손가락 Phase 1 — 가입 조건
-      joinType: data.joinType || 'open',
-      minLevel: data.minLevel || 1,
-      ...(data.password ? { password: data.password } : {}),
-      ...(data.joinQuestion ? { joinQuestion: data.joinQuestion } : {}),
-    });
-    // 개설자를 community_memberships에 엄지(thumb)로 등록
-    const membershipId = `${communityId}_${userData.uid}`;
-    await setDoc(doc(db, 'community_memberships', membershipId), {
-      communityId,
-      communityName: data.name,
-      userId: userData.uid,
-      nickname: userData.nickname,
-      role: 'owner',
-      finger: 'thumb',       // 🚀 다섯 손가락: 개설자 = 엄지
-      joinStatus: 'active',  // 🚀 가입 상태: 활성
-      joinedAt: serverTimestamp(),
-    });
-    setIsCreateCommunityOpen(false);
-    setGloveSubTab('feed');
-  };
-
-  // 🚀 커뮤니티 가입 핸들러 — joinType에 따라 즉시가입/대기 분기
-  const handleJoinCommunity = async (community: Community) => {
-    if (!userData) { alert('로그인이 필요합니다.'); return; }
-
-    // 🚀 강퇴(banned) 유저 재가입 차단
-    // Why: 관리자가 강퇴한 유저가 재가입하면 강퇴 제재가 무력화됨
-    const banCheckId = `${community.id}_${userData.uid}`;
-    const existingSnap = await getDoc(doc(db, 'community_memberships', banCheckId));
-    if (existingSnap.exists() && existingSnap.data()?.joinStatus === 'banned') {
-      alert('이 커뮤니티에서 강퇴된 계정으로는 재가입할 수 없습니다.');
-      return;
-    }
-
-    // 최소 레벨 체크
-    const minLevel = community.minLevel || 1;
-    if ((userData.level || 1) < minLevel) {
-      alert(`이 장갑은 Lv${minLevel} 이상만 가입할 수 있습니다. (현재 Lv${userData.level || 1})`);
-      return;
-    }
-
-    const joinType = community.joinType || 'open';
-
-    // 초대 코드 방식: 비밀번호 입력 확인
-    if (joinType === 'password') {
-      const input = window.prompt('초대 코드를 입력해주세요:');
-      if (!input) return;
-      if (input.trim() !== (community.password || '').trim()) {
-        alert('초대 코드가 올바르지 않습니다.');
-        return;
-      }
-    }
-
-    // 승인제 방식: 가입 신청 메시지 입력
-    let joinMessage = '';
-    if (joinType === 'approval') {
-      const question = community.joinQuestion || '가입 인사말을 남겨주세요.';
-      const input = window.prompt(question);
-      if (!input) return;
-      joinMessage = input.trim();
-    }
-
-    const isApprovalPending = joinType === 'approval';
-    const membershipId = `${community.id}_${userData.uid}`;
-    await setDoc(doc(db, 'community_memberships', membershipId), {
-      communityId: community.id,
-      communityName: community.name,
-      userId: userData.uid,
-      nickname: userData.nickname,
-      role: 'member',
-      finger: isApprovalPending ? 'pinky' : 'ring',   // 🚀 대기=새끼, 승인=약지
-      joinStatus: isApprovalPending ? 'pending' : 'active',
-      ...(joinMessage ? { joinMessage } : {}),
-      joinedAt: serverTimestamp(),
-    });
-
-    if (!isApprovalPending) {
-      // 즉시 가입(open/password): memberCount 증가 + 로컬 상태 반영
-      await updateDoc(doc(db, 'communities', community.id), { memberCount: increment(1) });
-      setJoinedCommunityIds(prev => [...prev, community.id]);
-      alert(`'${community.name}' 장갑에 가입되었습니다!`);
-    } else {
-      // 승인제: memberCount 증가 없음, 대기 안내
-      alert(`가입 신청이 완료되었습니다.\n관리자 승인 후 활동할 수 있습니다.`);
-    }
-  };
-
-  // 🚀 커뮤니티 탈퇴 핸들러 — membership 문서 삭제 + memberCount decrement + 로컬 상태 즉시 반영
-  const handleLeaveCommunity = async (community: Community) => {
-    if (!userData) return;
-    if (!window.confirm(`'${community.name}'에서 탈퇴하시겠소?`)) return;
-    const membershipId = `${community.id}_${userData.uid}`;
-    const { deleteDoc } = await import('firebase/firestore');
-    await deleteDoc(doc(db, 'community_memberships', membershipId));
-    await updateDoc(doc(db, 'communities', community.id), { memberCount: increment(-1) });
-    setJoinedCommunityIds(prev => prev.filter(id => id !== community.id));
-  };
-
-  // 🚀 인앱 브라우저 감지 — 카카오톡/인스타그램/라인 등 WebView는 Google OAuth 차단됨
-  const detectInAppBrowser = (): 'kakao' | 'instagram' | 'other' | null => {
-    const ua = navigator.userAgent;
-    if (/KAKAOTALK/i.test(ua)) return 'kakao';
-    if (/Instagram/i.test(ua)) return 'instagram';
-    if (/FBAN|FBAV|FB_IAB/i.test(ua)) return 'other'; // 페이스북
-    if (/Line\//i.test(ua)) return 'other';
-    return null;
-  };
-
-  // 🚀 외부 브라우저 강제 열기 — Android: Chrome intent URL, iOS: 현재 URL 복사 안내
-  const openExternalBrowser = () => {
-    const currentUrl = window.location.href;
-    const isAndroid = /Android/i.test(navigator.userAgent);
-    if (isAndroid) {
-      // Android: Chrome으로 강제 이동
-      window.location.href = `intent://${currentUrl.replace(/^https?:\/\//, '')}#Intent;scheme=https;package=com.android.chrome;end;`;
-    } else {
-      // iOS: 클립보드에 복사 후 안내
-      navigator.clipboard?.writeText(currentUrl).then(() => {
-        alert('URL이 복사되었습니다.\nSafari를 열고 주소창에 붙여넣기(붙여넣기) 해주세요.');
-      }).catch(() => {
-        alert(`아래 주소를 Safari에서 열어주세요:\n${currentUrl}`);
-      });
-    }
-  };
-
-  const handleLogin = async () => {
-    // 🚀 인앱 브라우저 차단 — Google은 WebView에서 OAuth를 허용하지 않음
-    const inAppType = detectInAppBrowser();
-    if (inAppType) {
-      const appName = inAppType === 'kakao' ? '카카오톡' : inAppType === 'instagram' ? '인스타그램' : '현재 앱';
-      const isAndroid = /Android/i.test(navigator.userAgent);
-      const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
-      if (isAndroid) {
-        if (window.confirm(`${appName} 내부 브라우저에서는 구글 로그인이 지원되지 않습니다.\n\nChrome 브라우저에서 열겠습니까?`)) {
-          openExternalBrowser();
-        }
-      } else if (isIOS) {
-        alert(`${appName} 내부 브라우저에서는 구글 로그인이 지원되지 않습니다.\n\n[확인]을 누르면 주소가 복사됩니다.\nSafari 앱을 열고 주소창에 붙여넣기 해주세요.`);
-        openExternalBrowser();
-      } else {
-        alert(`${appName} 내부 브라우저에서는 구글 로그인이 지원되지 않습니다.\n기기의 기본 브라우저(Chrome, Safari)에서 열어주세요.`);
-      }
-      return;
-    }
-    try {
-      await setPersistence(auth, browserLocalPersistence);
-      await signInWithPopup(auth, googleProvider);
-    } catch (error: any) {
-      console.error("로그인 에러:", error);
-      alert("로그인 중 오류가 발생했소: " + (error.message || "원인 불명"));
-    }
-  };
-
-  const handleTestLogin = async (testUser: typeof TEST_ACCOUNTS[0]) => {
-    if (isLoading) return;
-
-    try {
-      if (userData) {
-        await signOut(auth);
-      }
-      await setPersistence(auth, browserLocalPersistence);
-      try {
-        await signInWithEmailAndPassword(auth, testUser.email, "123456");
-      } catch (loginError: any) {
-        if (loginError.code === 'auth/user-not-found' || loginError.code === 'auth/invalid-credential') {
-          const res = await createUserWithEmailAndPassword(auth, testUser.email, "123456");
-          const initialData = {
-            nickname: testUser.nickname,
-            email: testUser.email,
-            bio: testUser.bio,
-            level: testUser.level || 1, exp: 0, likes: 0, points: 0,
-            subscriberCount: 0, isPhoneVerified: true,
-            friendList: [], blockList: [], avatarUrl: "", createdAt: serverTimestamp()
-          };
-          await setDoc(doc(db, "users", res.user.uid), initialData);
-          setUserData({ ...initialData, uid: res.user.uid });
-        } else { throw loginError; }
-      }
-    } catch (error: any) {
-      console.error("로그인 에러:", error);
-      alert("깐부 로그인 중 오류가 발생했소: " + (error.message || "원인 불명"));
-    }
-  };
-
-  const handleLogout = async () => {
-    if (window.confirm("정말 로그아웃 하시겠소?")) {
-      await signOut(auth);
-      setUserData(null);
-      setActiveMenu('home');
-    }
-  };
-
   const filterBySearch = (posts: Post[]) => {
     let filtered = posts;
     if (blocks.length > 0) filtered = filtered.filter(p => !blocks.includes(p.author));
@@ -404,44 +194,6 @@ function App() {
     return acc;
   }, {} as Record<string, number>);
 
-  const toggleFriend = async (author: string) => {
-    if (!userData) return;
-    const isFriend = friends.includes(author);
-    try { await updateDoc(doc(db, "users", userData.uid), { friendList: isFriend ? arrayRemove(author) : arrayUnion(author) }); } catch (e) { console.error(e); }
-  };
-
-  const toggleBlock = async (author: string) => {
-    if (!userData) return;
-    if (author === userData.nickname) { alert("본인은 차단할 수 없습니다!"); return; }
-    const isBlocked = blocks.includes(author);
-    if (!isBlocked && !window.confirm(`${author}님을 차단하시겠소? 모든 게시글이 숨겨집니다.`)) return;
-    try { await updateDoc(doc(db, "users", userData.uid), { blockList: isBlocked ? arrayRemove(author) : arrayUnion(author) }); } catch (e) { console.error(e); }
-  };
-
-  const handleLike = async (e: any, postId: string) => {
-    if (e) { e.preventDefault(); e.stopPropagation(); }
-    if (!userData) { alert("로그인이 필요합니다!"); return; }
-    try {
-      const targetPost = [...allRootPosts, ...allChildPosts].find(p => p.id === postId);
-      if (!targetPost) return;
-      const isLiked = targetPost.likedBy?.includes(userData.nickname);
-      const diff = isLiked ? -1 : 1;
-      const col = targetPost.rootId ? 'comments' : 'posts';
-      await updateDoc(doc(db, col, postId), { likes: Math.max(0, (targetPost.likes || 0) + diff), likedBy: isLiked ? arrayRemove(userData.nickname) : arrayUnion(userData.nickname) });
-      if (targetPost.author_id) await updateDoc(doc(db, "users", targetPost.author_id), { likes: increment(diff * 3) });
-    } catch (e) { console.error(e); }
-  };
-
-  const handleViewPost = (post: Post) => {
-    setSelectedTopic(post);
-    // 자기 글 제외 + 세션 내 중복 방지 (새로고침마다 카운트 방지)
-    if (!userData || userData.nickname === post.author) return;
-    const sessionKey = `viewed_${post.id}`;
-    if (sessionStorage.getItem(sessionKey)) return;
-    sessionStorage.setItem(sessionKey, '1');
-    updateDoc(doc(db, 'posts', post.id), { viewCount: increment(1) }).catch(() => {});
-  };
-
   const renderContent = () => {
     if (isLoading) return (
       <div className="w-full flex flex-col items-center justify-center py-40 gap-3">
@@ -454,11 +206,11 @@ function App() {
     
     if (isCreateOpen) {
       if (activeMenu === 'onecut' || editingPost?.isOneCut || selectedTopic?.isOneCut) {
-        return <CreateOneCutBox userData={userData} editingPost={editingPost} allPosts={allRootPosts} onSubmit={handlePostSubmit} onClose={() => { setIsCreateOpen(false); setEditingPost(null); }} />;
+        return <CreateOneCutBox userData={userData!} editingPost={editingPost} allPosts={allRootPosts} onSubmit={handlePostSubmit} onClose={() => { setIsCreateOpen(false); setEditingPost(null); }} />;
       }
       // 솔로몬의 재판 연계글 팝업 — linkedPostSide가 있으면 CreateDebate를 연계글 모드로 렌더링
       if (linkedPostSide !== null) {
-        return <CreateDebate userData={userData} editingPost={null} onSubmit={handleLinkedPostSubmit} onClose={() => { setIsCreateOpen(false); setLinkedPostSide(null); }} linkedTitle="[연계글]" linkedSide={linkedPostSide} originalPost={selectedTopic ?? undefined} />;
+        return <CreateDebate userData={userData!} editingPost={null} onSubmit={handleLinkedPostSubmit} onClose={() => { setIsCreateOpen(false); setLinkedPostSide(null); }} linkedTitle="[연계글]" linkedSide={linkedPostSide} originalPost={selectedTopic ?? undefined} />;
       }
 
       // 🚀 홈 2단계 UX — activeMenu가 'home'이고 카테고리 미선택 시 카테고리 선택 카드 화면 표시
@@ -503,13 +255,13 @@ function App() {
       // 🚀 홈 2단계 UX — 카테고리 선택 후 또는 카테고리 메뉴에서 직접 진입: 전용 폼 렌더링
       const resolvedKey = createMenuKey ?? activeMenu;
       if (resolvedKey === 'onecut') {
-        return <CreateOneCutBox userData={userData} editingPost={editingPost} allPosts={allRootPosts} onSubmit={handlePostSubmit} onClose={() => { setIsCreateOpen(false); setEditingPost(null); setCreateMenuKey(null); }} />;
+        return <CreateOneCutBox userData={userData!} editingPost={editingPost} allPosts={allRootPosts} onSubmit={handlePostSubmit} onClose={() => { setIsCreateOpen(false); setEditingPost(null); setCreateMenuKey(null); }} />;
       }
       if (resolvedKey && CREATE_MENU_COMPONENTS[resolvedKey]) {
         const CreateComponent = CREATE_MENU_COMPONENTS[resolvedKey];
-        return <CreateComponent userData={userData} editingPost={editingPost} onSubmit={handlePostSubmit} onClose={() => { setIsCreateOpen(false); setEditingPost(null); setCreateMenuKey(null); }} />;
+        return <CreateComponent userData={userData!} editingPost={editingPost} onSubmit={handlePostSubmit} onClose={() => { setIsCreateOpen(false); setEditingPost(null); setCreateMenuKey(null); }} />;
       }
-      return <CreatePostBox userData={userData} editingPost={editingPost} activeMenu={activeMenu} menuMessages={MENU_MESSAGES} onSubmit={handlePostSubmit} onClose={() => { setIsCreateOpen(false); setEditingPost(null); setCreateMenuKey(null); }} />;
+      return <CreatePostBox userData={userData!} editingPost={editingPost} activeMenu={activeMenu} menuMessages={MENU_MESSAGES} onSubmit={handlePostSubmit} onClose={() => { setIsCreateOpen(false); setEditingPost(null); setCreateMenuKey(null); }} />;
     }
     
     if (activeMenu === 'mypage') {
@@ -667,7 +419,7 @@ function App() {
           </div>
           {isCreateCommunityOpen && (
             <CreateCommunityModal
-              userData={userData}
+              userData={userData!}
               onSubmit={handleCreateCommunity}
               onClose={() => setIsCreateCommunityOpen(false)}
             />
@@ -679,7 +431,7 @@ function App() {
     if (activeMenu === 'kanbu_room') {
       if (selectedRoom) {
         const roomPosts = allRootPosts.filter(p => p.kanbuRoomId === selectedRoom.id);
-        return <KanbuRoomView room={selectedRoom} roomPosts={roomPosts} onBack={() => setSelectedRoom(null)} currentUserData={userData} allUsers={allUsers} />;
+        return <KanbuRoomView room={selectedRoom} roomPosts={roomPosts} onBack={() => setSelectedRoom(null)} currentUserData={userData!} allUsers={allUsers} />;
       }
       return <KanbuRoomList rooms={accessibleRooms} onRoomClick={setSelectedRoom} onCreateRoom={() => setIsCreateRoomOpen(true)} currentUserLevel={userData?.level || 1} allUsers={allUsers} />;
     }
@@ -692,7 +444,7 @@ function App() {
       const livePost = allRootPosts.find(p => p.id === selectedTopic.id) || selectedTopic;
       // 🚀 한컷 판정 로직 강화: isOneCut 플래그 또는 카테고리명이 "한컷"인 경우
       if (livePost.isOneCut || livePost.category === "한컷") {
-        return <OneCutDetailView rootPost={livePost} allPosts={allChildPosts.filter(p => p.rootId === livePost.id)} otherTopics={allRootPosts} onTopicChange={handleViewPost} userData={userData} onInlineReply={handleInlineReply} onLikeClick={handleLike} currentNickname={userData?.nickname} allUsers={allUsers} followerCounts={followerCounts} commentCounts={commentCounts} onEditPost={(post) => { setEditingPost(post); setIsCreateOpen(true); }} onBack={() => { setSelectedTopic(null); setReplyTarget(null); setEditingPost(null); }} isFriend={friends.includes(livePost.author)} onToggleFriend={() => toggleFriend(livePost.author)} />;
+        return <OneCutDetailView rootPost={livePost} allPosts={allChildPosts.filter(p => p.rootId === livePost.id)} otherTopics={allRootPosts} onTopicChange={handleViewPost} userData={userData!} onInlineReply={handleInlineReply} onLikeClick={handleLike} currentNickname={userData?.nickname} allUsers={allUsers} followerCounts={followerCounts} commentCounts={commentCounts} onEditPost={(post) => { setEditingPost(post); setIsCreateOpen(true); }} onBack={() => { setSelectedTopic(null); setReplyTarget(null); setEditingPost(null); }} isFriend={friends.includes(livePost.author)} onToggleFriend={() => toggleFriend(livePost.author)} />;
       }
       return <DiscussionView rootPost={livePost} allPosts={allChildPosts.filter(p => p.rootId === livePost.id)} otherTopics={allRootPosts.filter(p => {
           if (p.id === livePost.id) return false;
@@ -700,7 +452,7 @@ function App() {
           const liveIsMyStory = !livePost.category || myStory.includes(livePost.category);
           if (liveIsMyStory) return !p.category || myStory.includes(p.category || '');
           return p.category === livePost.category;
-        })} onTopicChange={handleViewPost} userData={userData} friends={friends} onToggleFriend={toggleFriend} onPostClick={() => {}} replyTarget={replyTarget} setReplyTarget={setReplyTarget} handleSubmit={handleCommentSubmit} selectedSide={selectedSide} setSelectedSide={setSelectedSide} selectedType={selectedType} setSelectedType={setSelectedType} newTitle={newTitle} setNewTitle={setNewTitle} newContent={newContent} setNewContent={setNewContent} isSubmitting={isSubmitting} commentCounts={commentCounts} onLikeClick={handleLike} currentNickname={userData?.nickname} allUsers={allUsers} followerCounts={followerCounts} toggleBlock={toggleBlock} onEditPost={(post) => { setEditingPost(post); setIsCreateOpen(true); }} onInlineReply={handleInlineReply} onOpenLinkedPost={(side) => { setLinkedPostSide(side); setIsCreateOpen(true); }} onNavigateToPost={(postId) => { const target = allRootPosts.find(p => p.id === postId); if (target) handleViewPost(target); }} onBack={() => { setSelectedTopic(null); setReplyTarget(null); setEditingPost(null); }} />;
+        })} onTopicChange={handleViewPost} userData={userData!} friends={friends} onToggleFriend={toggleFriend} onPostClick={() => {}} replyTarget={replyTarget} setReplyTarget={setReplyTarget} handleSubmit={handleCommentSubmit} selectedSide={selectedSide} setSelectedSide={setSelectedSide} selectedType={selectedType} setSelectedType={setSelectedType} newTitle={newTitle} setNewTitle={setNewTitle} newContent={newContent} setNewContent={setNewContent} isSubmitting={isSubmitting} commentCounts={commentCounts} onLikeClick={handleLike} currentNickname={userData?.nickname} allUsers={allUsers} followerCounts={followerCounts} toggleBlock={toggleBlock} onEditPost={(post) => { setEditingPost(post); setIsCreateOpen(true); }} onInlineReply={handleInlineReply} onOpenLinkedPost={(side) => { setLinkedPostSide(side); setIsCreateOpen(true); }} onNavigateToPost={(postId) => { const target = allRootPosts.find(p => p.id === postId); if (target) handleViewPost(target); }} onBack={() => { setSelectedTopic(null); setReplyTarget(null); setEditingPost(null); }} />;
     }
 
     if (activeMenu === 'onecut') {
@@ -803,81 +555,6 @@ function App() {
         <AnyTalkList posts={searchedPosts} onTopicClick={handleViewPost} onLikeClick={handleLike} commentCounts={commentCounts} currentNickname={userData?.nickname} currentUserData={userData} allUsers={allUsers} followerCounts={followerCounts} tab={activeTab} onAuthorClick={setViewingAuthor} />
       </div>
     );
-  };
-
-  const handlePostSubmit = async (postData: Partial<Post>, postId?: string) => {
-    if (!userData) return;
-    try {
-      if (postId) {
-        await updateDoc(doc(db, "posts", postId), postData);
-        // onSnapshot 지연 대비: allRootPosts와 selectedTopic 즉시 갱신
-        setAllRootPosts(prev => prev.map(p => p.id === postId ? { ...p, ...postData } : p));
-        setSelectedTopic(prev => prev && prev.id === postId ? { ...prev, ...postData } : prev);
-      } else {
-        const customId = `topic_${Date.now()}_${userData.uid}`;
-        await setDoc(doc(db, "posts", customId), {
-          ...postData, author: userData.nickname, author_id: userData.uid,
-          authorInfo: { level: userData.level, friendCount: friends.length, totalLikes: userData.likes },
-          parentId: null, rootId: null, side: 'left', type: 'formal', createdAt: serverTimestamp(), likes: 0, dislikes: 0
-        });
-        await updateDoc(doc(db, "users", userData.uid), { likes: increment(5) });
-      }
-      setIsCreateOpen(false); setEditingPost(null); setCreateMenuKey(null);
-      setActiveMenu('home'); setActiveTab('any'); // 🚀 글 작성 완료 후 새글 탭으로 이동
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    } catch (e: any) {
-      alert(`저장 실패: ${e?.message || '알 수 없는 오류'}`);
-    }
-  };
-
-  // 🚀 솔로몬의 재판 연계글 제출: 새 글 생성 후 현재 솔로몬 글로 돌아옴 (홈으로 이동 안 함)
-  const handleLinkedPostSubmit = async (postData: Partial<Post>) => {
-    if (!userData) return;
-    try {
-      const customId = `topic_${Date.now()}_${userData.uid}`;
-      await setDoc(doc(db, "posts", customId), {
-        ...postData, author: userData.nickname, author_id: userData.uid,
-        authorInfo: { level: userData.level, friendCount: friends.length, totalLikes: userData.likes },
-        parentId: null, rootId: null, side: 'left', type: 'formal', createdAt: serverTimestamp(), likes: 0, dislikes: 0
-      });
-      await updateDoc(doc(db, "users", userData.uid), { likes: increment(5) });
-      setIsCreateOpen(false);
-      setLinkedPostSide(null);
-      // selectedTopic 유지 → 솔로몬의 재판 원글로 돌아감
-    } catch (e: any) {
-      alert(`연계글 저장 실패: ${e?.message || '알 수 없는 오류'}`);
-    }
-  };
-
-  const handleInlineReply = async (content: string, parentPost: Post | null, side?: 'left' | 'right', imageUrl?: string, linkUrl?: string) => {
-    if (!userData || !content.trim() || !selectedTopic) return;
-    const customId = `comment_${Date.now()}_${userData.uid}`;
-    try {
-      await setDoc(doc(db, "comments", customId), { author: userData.nickname, author_id: userData.uid, title: null, content, parentId: parentPost ? parentPost.id : selectedTopic.id, rootId: selectedTopic.id, side: side || 'left', type: 'comment', authorInfo: { level: userData.level, friendCount: friends.length, totalLikes: userData.likes }, createdAt: serverTimestamp(), likes: 0, dislikes: 0, ...(imageUrl ? { imageUrl } : {}), ...(linkUrl ? { linkUrl } : {}) });
-      await updateDoc(doc(db, "posts", selectedTopic.id), { commentCount: increment(1) });
-      await updateDoc(doc(db, "users", userData.uid), { likes: increment(1) });
-    } catch (e: any) {
-      console.error('[handleInlineReply]', e);
-      alert('댓글 등록에 실패했습니다: ' + e.message);
-      throw e;
-    }
-  };
-
-  const handleCommentSubmit = async (e: React.FormEvent) => {
-    e.preventDefault(); if (!userData || !newContent.trim() || !selectedTopic) return;
-    setIsSubmitting(true);
-    const customId = `comment_${Date.now()}_${userData.uid}`;
-    try {
-      await setDoc(doc(db, "comments", customId), { author: userData.nickname, author_id: userData.uid, title: selectedType === 'formal' ? newTitle : null, content: newContent, parentId: replyTarget ? replyTarget.id : selectedTopic.id, rootId: selectedTopic.id, side: selectedSide, type: selectedType, authorInfo: { level: userData.level, friendCount: friends.length, totalLikes: userData.likes }, createdAt: serverTimestamp(), likes: 0, dislikes: 0 });
-      await updateDoc(doc(db, "posts", selectedTopic.id), { commentCount: increment(1) });
-      await updateDoc(doc(db, "users", userData.uid), { likes: increment(selectedType === 'formal' ? 2 : 1) });
-      setNewTitle(""); setNewContent(""); setReplyTarget(null);
-    } catch (e: any) {
-      console.error('[handleCommentSubmit]', e);
-      alert('댓글 등록에 실패했습니다: ' + e.message);
-    } finally {
-      setIsSubmitting(false);
-    }
   };
 
   return (

@@ -1,6 +1,6 @@
 // src/components/OneCutDetailView.tsx — 한컷 상세 뷰 (마법 수정 구슬 레이아웃 기반)
 import { useState, useEffect, useRef } from 'react';
-import type { Post } from '../types';
+import type { Post, UserData } from '../types';
 import { formatKoreanNumber, getReputationLabel } from '../utils';
 import OneCutListSidebar from './OneCutListSidebar';
 import ThanksballModal from './ThanksballModal';
@@ -12,11 +12,11 @@ interface Props {
   allPosts: Post[];
   otherTopics: Post[];
   onTopicChange: (post: Post) => void;
-  userData?: any;
+  userData?: UserData | null;
   onInlineReply: (content: string, parentPost: Post | null, side?: 'left' | 'right') => Promise<void>;
   onLikeClick?: (e: React.MouseEvent | null, postId: string) => void;
   currentNickname?: string;
-  allUsers?: Record<string, any>;
+  allUsers?: Record<string, UserData>;
   followerCounts?: Record<string, number>;
   commentCounts?: Record<string, number>;
   onEditPost?: (post: Post) => void;
@@ -69,7 +69,7 @@ const OneCutDetailView = ({
     });
   };
 
-  const formatTime = (timestamp: any) => {
+  const formatTime = (timestamp: { seconds: number } | null | undefined) => {
     if (!timestamp) return "";
     const d = new Date(timestamp.seconds * 1000);
     const diff = Math.floor((Date.now() - d.getTime()) / 1000);

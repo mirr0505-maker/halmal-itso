@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { db } from '../firebase';
 import { doc, deleteDoc } from 'firebase/firestore';
-import type { Post } from '../types';
+import type { Post, UserData } from '../types';
 import { getReputationLabel, formatKoreanNumber, getCategoryDisplayName } from '../utils';
 import { CATEGORY_RULES } from './DiscussionView';
 import LinkPreviewCard from './LinkPreviewCard';
@@ -31,7 +31,7 @@ interface Props {
   onEdit?: (post: Post) => void;
   onBack?: () => void;
   thanksballTotal?: number;
-  allUsers?: Record<string, any>;
+  allUsers?: Record<string, UserData>;
   onNavigateToPost?: (postId: string) => void; // 연계글에서 원본글로 이동
 }
 
@@ -83,7 +83,7 @@ const RootPostCard = ({
   };
   const hasImageInContent = post.content.includes('<img');
 
-  const formatTime = (timestamp: any) => {
+  const formatTime = (timestamp: { seconds: number } | null | undefined) => {
     if (!timestamp) return "";
     const now = new Date();
     const createdAt = new Date(timestamp.seconds * 1000);

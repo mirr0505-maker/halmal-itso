@@ -1,9 +1,20 @@
 // src/components/MyContentTabs.tsx
 import type { Post } from '../types';
 
+// 🚀 MixedPost: Post + CommunityPost + 커뮤니티 댓글 혼합 표시용 최소 공통 타입
+interface MixedPost {
+  id: string;
+  content: string;
+  title?: string;
+  category?: string;
+  createdAt?: { seconds: number };
+  communityId?: string;
+  communityName?: string;
+  _source?: 'post' | 'glove';
+}
+
 interface Props {
-  // 🚀 any[]로 확장: Post (일반글/댓글) + CommunityPost (장갑글) + 커뮤니티 댓글 혼합 허용
-  posts: any[];
+  posts: MixedPost[];
   onPostClick: (post: Post) => void;
   // 🚀 장갑 출처 항목 클릭 시 해당 커뮤니티로 이동
   onGloveClick?: (communityId?: string) => void;
@@ -14,7 +25,7 @@ const MyContentTabs = ({ posts = [], onPostClick, onGloveClick, type }: Props) =
   const itemsPerPage = 50;
   const displayList = posts.slice(0, itemsPerPage);
 
-  const formatDateTime = (timestamp: any) => {
+  const formatDateTime = (timestamp: { seconds: number } | null | undefined) => {
     if (!timestamp) return "";
     const date = new Date(timestamp.seconds * 1000);
     return date.toLocaleString('ko-KR', { year: '2-digit', month: '2-digit', day: '2-digit', hour: '2-digit', minute:'2-digit' });
@@ -23,14 +34,15 @@ const MyContentTabs = ({ posts = [], onPostClick, onGloveClick, type }: Props) =
   return (
     <div className="w-full flex flex-col">
       {displayList.length > 0 ? (
-        displayList.map((post: any) => {
+        displayList.map((post) => {
           const isGlove = post._source === 'glove';
           // 장갑 출처: 커뮤니티로 이동 / 일반 출처: 원래 동작
           const handleClick = () => {
             if (isGlove && post.communityId) {
               onGloveClick?.(post.communityId);
             } else {
-              onPostClick(post);
+              // MixedPost 중 'post' 출처는 실제로 완전한 Post 객체이므로 캐스팅 안전
+              onPostClick(post as unknown as Post);
             }
           };
 

@@ -1,6 +1,6 @@
 // src/components/AnyTalkList.tsx
 import React, { useState } from 'react';
-import type { Post } from '../types';
+import type { Post, UserData } from '../types';
 import { formatKoreanNumber, getReputationLabel, getCategoryDisplayName } from '../utils';
 
 interface Props {
@@ -9,8 +9,8 @@ interface Props {
   onLikeClick?: (e: React.MouseEvent, postId: string) => void;
   commentCounts?: Record<string, number>;
   currentNickname?: string;
-  currentUserData?: any;
-  allUsers?: Record<string, any>;
+  currentUserData?: UserData | null;
+  allUsers?: Record<string, UserData>;
   followerCounts?: Record<string, number>;
   tab?: string;
   onAuthorClick?: (author: string) => void;
@@ -49,7 +49,7 @@ const AnyTalkList = ({
     return img ? img.src : null;
   };
 
-  const formatRelativeTime = (timestamp: any) => {
+  const formatRelativeTime = (timestamp: { seconds: number } | null | undefined) => {
     if (!timestamp) return "방금 전";
     const now = new Date();
     const createdAt = new Date(timestamp.seconds * 1000);

@@ -1,5 +1,6 @@
 // src/components/ThanksballModal.tsx
 import { useState } from 'react';
+import type { UserData } from '../types';
 import { THANKSBALL } from '../constants';
 import { db, auth } from '../firebase';
 import { collection, addDoc, doc, runTransaction, updateDoc, increment, serverTimestamp } from 'firebase/firestore';
@@ -9,7 +10,7 @@ interface Props {
   postAuthor: string;
   postTitle?: string;
   currentNickname: string;
-  allUsers?: Record<string, any>;
+  allUsers?: Record<string, UserData>;
   onClose: () => void;
   // 댓글 작성자에게 보낼 때 사용
   recipientNickname?: string;    // 미지정 시 postAuthor
@@ -106,8 +107,8 @@ const ThanksballModal = ({ postId, postAuthor, postTitle, currentNickname, allUs
 
       setDone(true);
       setTimeout(onClose, 1800);
-    } catch (e: any) {
-      setError(e.message === '잔액 부족' ? '보유 볼이 부족합니다. 내정보에서 충전해주세요.' : '전송에 실패했습니다. 다시 시도해주세요.');
+    } catch (e: unknown) {
+      setError((e as Error).message === '잔액 부족' ? '보유 볼이 부족합니다. 내정보에서 충전해주세요.' : '전송에 실패했습니다. 다시 시도해주세요.');
       setSending(false);
     }
   };

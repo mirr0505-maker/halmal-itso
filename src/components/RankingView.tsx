@@ -1,11 +1,11 @@
 // src/components/RankingView.tsx
 import { useState } from 'react';
-import type { Post } from '../types';
+import type { Post, UserData } from '../types';
 import { getCategoryDisplayName, formatKoreanNumber } from '../utils';
 
 interface Props {
   allRootPosts: Post[];
-  allUsers: Record<string, any>;
+  allUsers: Record<string, UserData>;
   onPostClick: (post: Post) => void;
 }
 
@@ -21,12 +21,12 @@ const RankingView = ({ allRootPosts, allUsers, onPostClick }: Props) => {
   // 좋아요 유저 랭킹: allUsers 기준 likes 내림차순 (닉네임 중복 제거)
   const seenNicknamesLike = new Set<string>();
   const likeUserRanking = Object.values(allUsers)
-    .filter((u: any) => {
+    .filter((u) => {
       if (!u.nickname || seenNicknamesLike.has(u.nickname)) return false;
       seenNicknamesLike.add(u.nickname);
       return true;
     })
-    .sort((a: any, b: any) => (b.likes || 0) - (a.likes || 0))
+    .sort((a, b) => (b.likes || 0) - (a.likes || 0))
     .slice(0, 20);
 
   // 좋아요 글 랭킹: rootPosts 기준 likes 내림차순
@@ -78,7 +78,7 @@ const RankingView = ({ allRootPosts, allUsers, onPostClick }: Props) => {
     );
   };
 
-  const renderUserRow = (user: any, idx: number, value: number, unit: string) => {
+  const renderUserRow = (user: UserData, idx: number, value: number, unit: string) => {
     const avatarUrl = user.avatarUrl || `https://api.dicebear.com/7.x/adventurer/svg?seed=${user.nickname}`;
     return (
       <div key={user.nickname || idx} className={`flex items-center gap-3 px-4 py-3 rounded-2xl border transition-all ${idx < 3 ? 'bg-amber-50/40 border-amber-100' : 'bg-white border-slate-100 hover:border-blue-100'}`}>
@@ -216,7 +216,7 @@ const RankingView = ({ allRootPosts, allUsers, onPostClick }: Props) => {
         ) : (
           <>
             {mainTab === 'likes' && subTab === 'users' &&
-              likeUserRanking.map((u: any, idx) => renderUserRow(u, idx, u.likes || 0, 'likes'))}
+              likeUserRanking.map((u, idx) => renderUserRow(u, idx, u.likes || 0, 'likes'))}
             {mainTab === 'likes' && subTab === 'posts' &&
               likePostRanking.map((p, idx) => renderPostRow(p, idx))}
             {mainTab === 'thanksball' && subTab === 'users' &&

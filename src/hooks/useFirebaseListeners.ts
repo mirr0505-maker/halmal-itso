@@ -3,12 +3,12 @@ import { useState, useEffect } from 'react';
 import { db, auth } from '../firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import { collection, onSnapshot, doc, setDoc, serverTimestamp, query, where, getDocs } from 'firebase/firestore';
-import type { Post, KanbuRoom, Community } from '../types';
+import type { Post, KanbuRoom, Community, UserData } from '../types';
 
 export function useFirebaseListeners() {
   const [allRootPosts, setAllRootPosts] = useState<Post[]>([]);
-  const [userData, setUserData] = useState<any | null>(null);
-  const [allUsers, setAllUsers] = useState<Record<string, any>>({});
+  const [userData, setUserData] = useState<UserData | null>(null);
+  const [allUsers, setAllUsers] = useState<Record<string, UserData>>({});
   const [followerCounts, setFollowerCounts] = useState<Record<string, number>>({});
   const [friends, setFriends] = useState<string[]>([]);
   const [blocks, setBlocks] = useState<string[]>([]);
@@ -50,11 +50,11 @@ export function useFirebaseListeners() {
         // users 컬렉션 — 닉네임·레벨·평판 표시에 필요, 인증 후에만 구독
         if (!unsubUsers) {
           unsubUsers = onSnapshot(collection(db, "users"), (snapshot) => {
-            const users: Record<string, any> = {};
+            const users: Record<string, UserData> = {};
             const fCounts: Record<string, number> = {};
             snapshot.docs.forEach(docSnap => {
               const data = docSnap.data();
-              const userObj = { ...data, uid: docSnap.id };
+              const userObj = { ...data, uid: docSnap.id } as UserData;
               users[docSnap.id] = userObj;
               if (data.nickname) users[`nickname_${data.nickname}`] = userObj;
               if (data.friendList) {
@@ -78,7 +78,7 @@ export function useFirebaseListeners() {
         unsubUserDoc = onSnapshot(doc(db, "users", user.uid), (docSnap) => {
           if (docSnap.exists()) {
             const data = docSnap.data();
-            setUserData({ ...data, uid: user.uid });
+            setUserData({ ...data, uid: user.uid } as UserData);
             setFriends(data.friendList || []);
             setBlocks(data.blockList || []);
           } else {
@@ -91,7 +91,7 @@ export function useFirebaseListeners() {
               createdAt: serverTimestamp()
             };
             setDoc(doc(db, "users", user.uid), initialData);
-            setUserData({ ...initialData, uid: user.uid });
+            setUserData({ ...initialData, uid: user.uid } as unknown as UserData);
           }
           setIsLoading(false);
         });

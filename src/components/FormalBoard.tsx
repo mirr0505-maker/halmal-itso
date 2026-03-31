@@ -2,13 +2,13 @@
 import React, { useState } from 'react';
 import { db } from '../firebase';
 import { doc, updateDoc, deleteDoc } from 'firebase/firestore';
-import type { Post } from '../types';
+import type { Post, UserData } from '../types';
 
 interface Props {
   agreePosts: Post[];
   disagreePosts: Post[];
   onPostClick: (post: Post) => void; 
-  currentUserData?: any; 
+  currentUserData?: UserData | null;
   currentUserFriends?: string[];
   currentNickname?: string;
   onLikeClick?: (e: React.MouseEvent | null, postId: string) => void;

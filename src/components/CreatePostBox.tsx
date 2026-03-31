@@ -2,14 +2,14 @@
 import { useState } from 'react';
 import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { s3Client, BUCKET_NAME, PUBLIC_URL } from '../s3Client';
-import type { Post } from '../types';
+import type { Post, UserData } from '../types';
 import TiptapEditor from './TiptapEditor';
 
 interface Props {
-  userData: any;
+  userData: UserData;
   editingPost: Post | null;
   activeMenu: string;
-  menuMessages: Record<string, any>;
+  menuMessages: Record<string, { categoryKey?: string; title?: string; [key: string]: unknown }>;
   onSubmit: (postData: Partial<Post>, postId?: string) => Promise<void>;
   onClose: () => void;
 }

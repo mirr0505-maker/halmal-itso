@@ -1,6 +1,6 @@
 // src/components/OneCutList.tsx
 import React from 'react';
-import type { Post } from '../types';
+import type { Post, UserData } from '../types';
 import { formatKoreanNumber, getReputationLabel } from '../utils';
 
 interface Props {
@@ -9,7 +9,7 @@ interface Props {
   onTopicClick: (post: Post) => void;
   onLikeClick?: (e: React.MouseEvent, postId: string) => void;
   currentNickname?: string;
-  allUsers?: Record<string, any>;
+  allUsers?: Record<string, UserData>;
   followerCounts?: Record<string, number>;
   onEditClick?: (post: Post) => void;
 }

@@ -1,8 +1,22 @@
 // src/components/ActivityStats.tsx
+import type { UserData } from '../types';
 import { getReputationLabel } from '../utils';
 
+// 통계 항목 내부 타입 — 선택적 플래그로 스타일 분기
+interface StatItem {
+  label: string;
+  value: string | number;
+  emoji?: string;
+  isHighlight?: boolean;
+  isUnderline?: boolean;
+  isReceived?: boolean;
+  isThanksball?: boolean;
+  isGlove?: boolean;
+  isGlovePost?: boolean;
+}
+
 interface ActivityStatsProps {
-  userData: any;
+  userData: UserData;
   rootCount: number;
   totalThanksball?: number;
   joinedGloveCount?: number;  // 🚀 가입한 커뮤니티(장갑) 수
@@ -13,7 +27,7 @@ const ActivityStats = ({ userData, rootCount, totalThanksball = 0, joinedGloveCo
   const reputationLabel = getReputationLabel(userData.likes || 0);
   const ballBalance = userData.ballBalance || 0;
 
-  const statItems = [
+  const statItems: StatItem[] = [
     { label: '레벨', value: userData.level, emoji: '🐥' },
     { label: '평판', value: reputationLabel, isHighlight: true },
     { label: '게시글', value: rootCount, isUnderline: true },
@@ -29,7 +43,7 @@ const ActivityStats = ({ userData, rootCount, totalThanksball = 0, joinedGloveCo
       {statItems.map((item, idx) => (
         <div key={idx} className="flex items-center gap-1.5 bg-white px-3 py-1.5 rounded-lg border border-slate-100 shadow-sm transition-transform hover:scale-105">
           <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{item.label}</span>
-          <span className={`text-[12px] font-[1000] tracking-tight ${(item as any).isReceived ? 'text-emerald-500' : (item as any).isThanksball ? 'text-amber-500' : (item as any).isGlove || (item as any).isGlovePost ? 'text-teal-600' : item.isHighlight ? 'text-blue-600' : 'text-slate-900'} ${item.isUnderline ? 'underline decoration-blue-100 underline-offset-2' : ''}`}>
+          <span className={`text-[12px] font-[1000] tracking-tight ${item.isReceived ? 'text-emerald-500' : item.isThanksball ? 'text-amber-500' : item.isGlove || item.isGlovePost ? 'text-teal-600' : item.isHighlight ? 'text-blue-600' : 'text-slate-900'} ${item.isUnderline ? 'underline decoration-blue-100 underline-offset-2' : ''}`}>
             {item.value}
           </span>
           {item.emoji && <span className="text-xs">{item.emoji}</span>}

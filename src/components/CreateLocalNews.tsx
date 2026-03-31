@@ -2,11 +2,11 @@
 import { useState } from 'react';
 import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { s3Client, BUCKET_NAME, PUBLIC_URL } from '../s3Client';
-import type { Post } from '../types';
+import type { Post, UserData } from '../types';
 import TiptapEditor from './TiptapEditor';
 
 interface Props {
-  userData: any;
+  userData: UserData;
   editingPost: Post | null;
   onSubmit: (postData: Partial<Post>, postId?: string) => Promise<void>;
   onClose: () => void;
@@ -81,8 +81,8 @@ const CreateLocalNews = ({ userData, editingPost, onSubmit, onClose }: Props) =>
         Object.entries({ ...postData, tags: filteredTags }).filter(([, v]) => v !== undefined)
       ) as Partial<Post>;
       await onSubmit(cleanData, editingPost?.id);
-    } catch (e: any) {
-      alert(`저장 실패: ${e?.message || '알 수 없는 오류'}`);
+    } catch (e: unknown) {
+      alert(`저장 실패: ${(e as Error)?.message || '알 수 없는 오류'}`);
     } finally { setIsSubmitting(false); }
   };
 

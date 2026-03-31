@@ -12,6 +12,25 @@ interface Props {
   onLinkInserted?: (url: string) => void;
 }
 
+// 🚀 툴바 버튼 컴포넌트 — 컴포넌트 외부 선언으로 매 렌더마다 재생성 방지
+const Btn = ({ onClick, active, title, children }: {
+  onClick: () => void; active?: boolean; title?: string; children: ReactNode;
+}) => (
+  <button
+    type="button"
+    title={title}
+    onClick={onClick}
+    className={`w-7 h-7 flex items-center justify-center rounded transition-colors text-[12px] ${
+      active ? 'bg-slate-900 text-white' : 'text-slate-400 hover:text-slate-800 hover:bg-slate-100'
+    }`}
+  >
+    {children}
+  </button>
+);
+
+// 툴바 구분선 컴포넌트 — 컴포넌트 외부 선언으로 매 렌더마다 재생성 방지
+const Sep = () => <div className="w-px h-4 bg-slate-200 mx-0.5" />;
+
 const EditorToolbar = ({ editor, onImageUpload, onLinkInserted }: Props) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [showColors, setShowColors] = useState(false);
@@ -27,23 +46,6 @@ const EditorToolbar = ({ editor, onImageUpload, onLinkInserted }: Props) => {
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, []);
-
-  const Btn = ({ onClick, active, title, children }: {
-    onClick: () => void; active?: boolean; title?: string; children: ReactNode;
-  }) => (
-    <button
-      type="button"
-      title={title}
-      onClick={onClick}
-      className={`w-7 h-7 flex items-center justify-center rounded transition-colors text-[12px] ${
-        active ? 'bg-slate-900 text-white' : 'text-slate-400 hover:text-slate-800 hover:bg-slate-100'
-      }`}
-    >
-      {children}
-    </button>
-  );
-
-  const Sep = () => <div className="w-px h-4 bg-slate-200 mx-0.5" />;
 
   const handleImageFile = async (file: File) => {
     const url = await onImageUpload(file);

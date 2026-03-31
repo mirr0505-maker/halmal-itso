@@ -1,7 +1,8 @@
+import type { UserData } from '../types';
 // src/components/ProfileHeader.tsx
 
 interface ProfileHeaderProps {
-  userData: any;
+  userData: UserData;
   isEditing: boolean;
   setIsEditing: (val: boolean) => void;
   friendCount: number;
