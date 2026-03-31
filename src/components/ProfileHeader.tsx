@@ -5,7 +5,8 @@ interface ProfileHeaderProps {
   userData: UserData;
   isEditing: boolean;
   setIsEditing: (val: boolean) => void;
-  friendCount: number;
+  friendCount: number;    // 내가 맺은 깐부 수 (팔로잉)
+  followerCount?: number; // 나를 맺은 깐부 수 (팔로워)
   totalThanksball?: number;
 }
 
@@ -18,7 +19,7 @@ const getThanksballBadge = (total: number) => {
 };
 
 const ProfileHeader = ({
-  userData, isEditing, setIsEditing, friendCount, totalThanksball = 0
+  userData, isEditing, setIsEditing, friendCount, followerCount = 0, totalThanksball = 0
 }: ProfileHeaderProps) => {
   const thanksballBadge = getThanksballBadge(totalThanksball);
 
@@ -76,7 +77,9 @@ const ProfileHeader = ({
               </div>
             )}
             <div className="h-2 w-[1px] bg-slate-200 hidden sm:block" />
+            {/* 🚀 깐부 수 표시: 팔로잉(내가 맺은) vs 팔로워(나를 맺은) 명확히 분리 */}
             <span className="text-[11px] text-slate-400 font-black tracking-tight">깐부 {friendCount}명</span>
+            <span className="text-[10px] text-slate-300 font-bold tracking-tight">팔로워 {followerCount}명</span>
           </div>
         </div>
       </div>

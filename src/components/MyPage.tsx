@@ -28,7 +28,8 @@ interface Props {
   allUserRootPosts: Post[];
   allUserChildPosts: Post[];
   friends: string[];
-  friendCount: number;
+  friendCount: number;    // 내가 맺은 깐부 수 (팔로잉)
+  followerCount?: number; // 나를 맺은 깐부 수 (팔로워)
   onPostClick: (post: Post) => void;
   onEditPost?: (post: Post) => void;
   onToggleFriend: (author: string) => void;
@@ -45,7 +46,7 @@ interface Props {
 }
 
 const MyPage = ({
-  userData, allUserRootPosts, allUserChildPosts, friends, friendCount, onPostClick, onEditPost, onToggleFriend, allUsers, followerCounts,
+  userData, allUserRootPosts, allUserChildPosts, friends, friendCount, followerCount = 0, onPostClick, onEditPost, onToggleFriend, allUsers, followerCounts,
   communities = [], joinedCommunityIds = [], onGloveClick, onLeaveGlove, onLogout
 }: Props) => {
   const [activeTab, setActiveTab] = useState<'posts' | 'onecuts' | 'comments' | 'avatars' | 'friends' | 'thanksball' | 'sentball' | 'glove'>('posts');
@@ -256,7 +257,7 @@ const MyPage = ({
         <ProfileHeader userData={userData} isEditing={isEditingProfile} setIsEditing={(val) => {
           if (val) setEditData({ nickname: userData.nickname, bio: userData.bio || '', avatarUrl: userData.avatarUrl || '' });
           setIsEditingProfile(val);
-        }} friendCount={friendCount} totalThanksball={totalThanksball} />
+        }} friendCount={friendCount} followerCount={followerCount} totalThanksball={totalThanksball} />
 
         {/* 🚀 프로필 수정 폼 — isEditingProfile=true 시 노출 */}
         {isEditingProfile && (
@@ -509,7 +510,7 @@ const MyPage = ({
                               <div className="w-10 h-10 rounded-full bg-white overflow-hidden border border-slate-200 shadow-sm"><img src={fData?.avatarUrl || `https://api.dicebear.com/7.x/adventurer/svg?seed=${fname}`} alt="" /></div>
                               <div className="flex flex-col">
                                 <span className="font-black text-[13px] text-slate-900">{fname}</span>
-                                <span className="text-[10px] font-bold text-slate-400">Lv {fData?.level || 1} · 깐부 {followerCounts[fname] || 0}</span>
+                                <span className="text-[10px] font-bold text-slate-400">Lv {fData?.level || 1} · 팔로워 {followerCounts[fname] || 0}</span>
                               </div>
                             </div>
                             <button onClick={() => onToggleFriend(fname)} className="text-[10px] font-black text-rose-500 bg-white px-3 py-1.5 rounded-lg border border-rose-100 shadow-sm hover:bg-rose-50 transition-all">깐부해제</button>

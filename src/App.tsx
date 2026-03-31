@@ -273,7 +273,8 @@ function App() {
           allUserRootPosts={userPosts}
           allUserChildPosts={userComments}
           friends={friends}
-          friendCount={followerCounts[userData.nickname] || 0}
+          friendCount={friends.length}
+          followerCount={followerCounts[userData.nickname] || 0}
           onPostClick={handleViewPost}
           onEditPost={(post) => { setEditingPost(post); setIsCreateOpen(true); }}
           onToggleFriend={toggleFriend}
