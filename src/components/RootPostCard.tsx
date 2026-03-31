@@ -233,7 +233,7 @@ const RootPostCard = ({
             <div className="flex flex-col">
               <span className="font-[1000] text-[15px] text-slate-900 mb-0.5">{post.author}</span>
               <span className="text-[11px] text-slate-500 font-bold">
-                Lv {userData.level} · {getReputationLabel(userData.likes)} · 깐부 {formatKoreanNumber(friendCount)}
+                Lv {userData.level} · {getReputationLabel(userData.likes)} · 깐부수 {formatKoreanNumber(friendCount)}
               </span>
             </div>
           </div>

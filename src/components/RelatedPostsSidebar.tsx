@@ -91,7 +91,7 @@ const RelatedPostsSidebar = ({
                     <div className="flex flex-col min-w-0">
                       <span className="text-[11px] font-[1000] text-slate-900 truncate leading-none mb-0.5">{topic.author}</span>
                       <span className="text-[9px] font-bold text-slate-400 truncate">
-                        Lv {topicLevel} · {getReputationLabel(topicLikes)} · 깐부 {formatKoreanNumber(topicFollowers)}
+                        Lv {topicLevel} · {getReputationLabel(topicLikes)} · 깐부수 {formatKoreanNumber(topicFollowers)}
                       </span>
                     </div>
                   </div>

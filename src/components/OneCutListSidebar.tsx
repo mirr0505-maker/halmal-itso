@@ -60,7 +60,7 @@ const OneCutListSidebar = ({ oneCuts, onOneCutClick, commentCounts, allUsers, fo
                   </div>
                   <div className="flex flex-col min-w-0">
                     <span className="text-[9px] font-black text-slate-700 truncate">{topic.author}</span>
-                    <span className="text-[8px] font-bold text-slate-400 truncate">Lv{tLevel} · {getReputationLabel(tLikes)} · 깐부 {formatKoreanNumber(tFollowers)}</span>
+                    <span className="text-[8px] font-bold text-slate-400 truncate">Lv{tLevel} · {getReputationLabel(tLikes)} · 깐부수 {formatKoreanNumber(tFollowers)}</span>
                   </div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0 text-[8px] font-black text-slate-400">

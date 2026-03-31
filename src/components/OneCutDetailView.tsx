@@ -239,7 +239,7 @@ const OneCutDetailView = ({
                 <div className="flex flex-col">
                   <span className="font-[1000] text-[15px] text-slate-900 mb-0.5">{rootPost.author}</span>
                   <span className="text-[11px] text-slate-500 font-bold">
-                    Lv {displayLevel} · {getReputationLabel(displayLikes)} · 깐부 {formatKoreanNumber(realFollowers)}
+                    Lv {displayLevel} · {getReputationLabel(displayLikes)} · 깐부수 {formatKoreanNumber(realFollowers)}
                   </span>
                 </div>
               </div>
@@ -351,7 +351,7 @@ const OneCutDetailView = ({
                                 <span className="text-[9px] font-bold text-slate-300">{formatTime(comment.createdAt)}</span>
                               </div>
                               <span className="text-[9px] text-slate-400 font-bold leading-tight mt-0.5">
-                                Lv {commentLevel} · {getReputationLabel(commentLikes)} · 깐부 {formatKoreanNumber(commentFollowers)}
+                                Lv {commentLevel} · {getReputationLabel(commentLikes)} · 깐부수 {formatKoreanNumber(commentFollowers)}
                               </span>
                             </div>
                           </div>

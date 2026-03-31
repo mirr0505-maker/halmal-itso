@@ -79,7 +79,7 @@ const ProfileHeader = ({
             <div className="h-2 w-[1px] bg-slate-200 hidden sm:block" />
             {/* 🚀 깐부 수 표시: 팔로잉(내가 맺은) vs 팔로워(나를 맺은) 명확히 분리 */}
             <span className="text-[11px] text-slate-400 font-black tracking-tight">깐부 {friendCount}명</span>
-            <span className="text-[10px] text-slate-300 font-bold tracking-tight">팔로워 {followerCount}명</span>
+            <span className="text-[10px] text-slate-300 font-bold tracking-tight">깐부수 {followerCount}</span>
           </div>
         </div>
       </div>

@@ -168,7 +168,7 @@ const AnyTalkList = ({
                     <div className="flex flex-col min-w-0">
                       <span className={`text-[11px] font-[1000] truncate leading-none mb-0.5 ${isDark ? 'text-white' : 'text-slate-900'}`}>{post.author}</span>
                       <span className={`text-[9px] font-bold truncate tracking-tight ${isDark ? 'text-slate-400' : 'text-slate-400'}`}>
-                        Lv {displayLevel} · {getReputationLabel(displayLikes)} · 깐부 {formatKoreanNumber(realFollowers)}
+                        Lv {displayLevel} · {getReputationLabel(displayLikes)} · 깐부수 {formatKoreanNumber(realFollowers)}
                       </span>
                     </div>
                   </div>

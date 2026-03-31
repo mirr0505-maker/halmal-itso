@@ -72,7 +72,7 @@ const PostCard = ({
               </div>
               {/* 🚀 평판 정보 복구 (Lv 1 · 중립 · 깐부 0) */}
               <span className="text-[9px] font-bold text-slate-400 mt-0.5 leading-none">
-                Lv {displayLevel} · {getReputationLabel(displayLikes)} · 깐부 {formatKoreanNumber(realFollowers)}
+                Lv {displayLevel} · {getReputationLabel(displayLikes)} · 깐부수 {formatKoreanNumber(realFollowers)}
               </span>
             </div>
             <div className="flex items-center gap-1">
