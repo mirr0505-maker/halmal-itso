@@ -1,0 +1,22 @@
+{
+  "name": "functions",
+  "description": "GLove - 마라톤의 전령 뉴스 자동화 봇",
+  "scripts": {
+    "serve": "firebase emulators:start --only functions",
+    "shell": "firebase functions:shell",
+    "start": "npm run shell",
+    "deploy": "firebase deploy --only functions",
+    "logs": "firebase functions:log"
+  },
+  "engines": {
+    "node": "20"
+  },
+  "main": "index.js",
+  "dependencies": {
+    "firebase-admin": "^12.1.0",
+    "firebase-functions": "^4.9.0",
+    "fast-xml-parser": "^4.3.6"
+  },
+  "devDependencies": {},
+  "private": true
+}
