@@ -2,7 +2,7 @@
 
 이 문서는 **할말있소(HALMAL-ITSO)** 프로젝트의 설계 원칙, 현재 구현 상태, 그리고 AI 개발자의 **절대적 행동 지침**을 담은 단일 진실 소스(Single Source of Truth)입니다.
 
-> 최종 갱신: 2026-04-01 v25 (코드 실측 기준)  |  현재 브랜치: `main`
+> 최종 갱신: 2026-04-01 v26 (코드 실측 기준)  |  현재 브랜치: `main`
 
 ---
 
@@ -65,6 +65,10 @@
 /workers                     # Cloudflare Workers 프로젝트 (별도 배포)
 ├── src/index.ts             # OG 태그 파싱 엔드포인트 (내부 IP 차단, CORS, 100KB 제한)
 └── wrangler.toml            # Workers 설정 (name: halmal-link-preview)
+
+/functions                   # Firebase Cloud Functions (Blaze 플랜, Node.js 20, 서울 리전)
+├── index.js                 # 마라톤의 전령 뉴스 봇 — 매 30분 스케줄 실행
+└── package.json             # 의존성: firebase-admin, firebase-functions, fast-xml-parser
 
 /src
 ├── App.tsx                  # 루트 컴포넌트 (전역 상태 관리, 라우팅 레이아웃) ~711줄
@@ -282,7 +286,7 @@ interface KanbuChat {
 | `friends` | 깐부 맺기 | (UI 전용) | 팔로우 추천 목록 (허용 닉네임 필터 적용) |
 | `kanbu_room` | 깐부방 | (subcollection) | 깐부가 개설한 방 목록, 방별 게시판+실시간 채팅. Lv3 이상 개설. Firestore: `kanbu_rooms/{roomId}/chats` |
 | `glove` | 우리들의 장갑 | (커뮤니티) | 다섯 손가락 운영 체제 (thumb·index·middle·ring·pinky). 가입방식 3종(open·approval·password), minLevel 제한, 공지 고정, 알림 opt-in, 중지 자동 산정. 자세한 내용 → `GLOVE.md` |
-| `marathon_herald` | 마라톤의 전령 | 마라톤의 전령 | 뉴스 속보 봇 전용 채널. `newsType: 'breaking'`→🚨 속보(빨간 pulse 배지) / `'news'`→📰 뉴스(하늘색 배지). 좋아요 임계값 없이 즉시 노출. 홈 피드에서 제외. 댓글: pandora 공감/의심 2컬럼. 원본 기사는 `linkUrl` → RootPostCard [🔗 바로가기] 버튼. |
+| `marathon_herald` | 마라톤의 전령 | 마라톤의 전령 | 뉴스 속보 봇 전용 채널. 속보 키워드(속보·긴급·단독·사망·화재·폭발·지진 등 29개) 포함 기사만 Firestore 저장. `newsType: 'breaking'`→🚨 속보(빨간 pulse 배지). 좋아요 임계값 없이 즉시 노출. 홈 새글 피드에도 포함. 댓글: pandora 공감/의심 2컬럼. 원본 기사 `linkUrl` → RootPostCard [🔗 바로가기] 버튼. Cloud Functions 매 30분 자동 등록. |
 | `market` | 마켓 | 마켓 | OneCutList 그리드 레이아웃, 게시글 없을 시 "기록된 글이 없어요" |
 | `exile_place` | 유배·귀양지 | 유배·귀양지 | 제재 유저 전용 소통 공간, 주제 없음 |
 | `ranking` | 랭킹 | (UI 전용) | 좋아요·땡스볼·조회수 × 유저·글 6개 뷰. `RankingView.tsx`. 사이드바 내정보 위 배치. |
@@ -692,6 +696,17 @@ interface KanbuChat {
   - 해결: `friendCount={friends.length}` (내가 맺은 수) 로 수정. 팔로워 수는 `followerCount={followerCounts[userData.nickname]}` 별도 prop으로 분리 전달.
   - `types.ts` `UserData` 인터페이스에 누락 필드(ballBalance, ballSpent, ballReceived, exp 등) 추가.
 
+- [x] **마라톤의 전령 — Firebase Cloud Functions 뉴스 봇 (2026-04-01)**:
+  - **구조**: `functions/index.js` — `onSchedule("every 30 minutes", region: "asia-northeast3")`
+  - **RSS 피드**: 연합뉴스TV · KBS뉴스 · 경향신문 · 동아일보 · SBS뉴스 (작동 확인된 5개)
+  - **속보 필터**: 29개 키워드(`속보·긴급·단독·사망·폭발·화재·지진·붕괴·테러·사고·충돌·대피·경보·재난·사상·부상·실종·침몰·침수·홍수·태풍·폭우·폭설·쓰나미·산사태·총격·납치·폭탄·비상`) — 하나라도 포함된 기사만 저장, 나머지 전부 스킵
+  - **중복 방지**: `marathon_dedup` 컬렉션에 URL 해시(base64url) 저장 → 24시간 이내 동일 URL 재등록 차단. 복합 인덱스 불필요.
+  - **Firestore 저장 필드**: `newsType: 'breaking'`, `linkUrl`(원본 기사), `author: "마라톤의 전령"`, `author_id: "marathon-herald-bot"`, `authorInfo.level: 99`
+  - **UI**: AnyTalkList 카드 하단 🚨 속보 배지(빨간 pulse). 홈 새글 피드 포함. 상세글 `linkUrl` → RootPostCard [🔗 원본 기사 바로가기] 버튼. 댓글: pandora boardType (공감해요 ↔ 의심스러워요).
+  - **보안**: `.gitignore`에 `serviceAccountKey.json` · `*serviceAccount*.json` 패턴 추가.
+  - **배포**: `firebase deploy --only functions` (hosting과 별개)
+  - **로그 확인**: `등록 N건 / 키워드 미해당 스킵 M건` 형식으로 필터 동작 가시화.
+
 ### 🛠️ 진행 중 / 개선 필요 사항
 - [ ] **에디터 보완**: `bubble-menu` 활성화 (텍스트 선택 시 서식 도구 노출).
 - [ ] **검색 엔진**: Firestore 텍스트 검색 한계 보완 (현재는 클라이언트 사이드 필터링).
@@ -725,8 +740,11 @@ interface KanbuChat {
 
 ### Firebase
 - `post_timestamp_nickname` ID 규칙 준수.
-- 현재 Spark(무료) 플랜 — Cloud Functions 사용 불가.
-- **Blaze 플랜 업그레이드 예정** → 업그레이드 시 아래 기능 구현 가능:
+- **현재 Blaze 플랜** — Cloud Functions 사용 중.
+  - `fetchMarathonNews`: 매 30분 스케줄, 서울 리전(`asia-northeast3`), Node.js 20
+  - 배포: `firebase deploy --only functions`
+  - 로그: `firebase functions:log --only fetchMarathonNews`
+- **향후 구현 가능 (Blaze)**:
   - 글별 동적 OG 태그 (카카오톡 공유 시 글 제목·내용 미리보기)
   - 구현 방식: Cloud Function이 `?post=topic_타임스탬프` 요청을 가로채 Firestore에서 글 조회 후 OG 태그가 담긴 HTML 반환
   - 현재 임시 조치: `index.html`에 앱 공통 OG 태그 적용 중 (모든 공유가 동일한 앱 브랜딩으로 표시)
