@@ -19,11 +19,9 @@ const BOT_AVATAR_URL = "https://api.dicebear.com/7.x/adventurer/svg?seed=maratho
 // 📰 RSS 피드 목록 — 한국 주요 언론사 (2026-04-01 URL 검증 완료)
 // 피드 URL이 변경된 경우 이곳만 수정
 const RSS_FEEDS = [
-  { url: "https://www.yna.co.kr/RSS/politics.xml",         source: "연합뉴스" },
-  { url: "https://www.yna.co.kr/RSS/society.xml",          source: "연합뉴스" },
-  { url: "https://imnews.imbc.com/rss/news/news_00.xml",   source: "MBC뉴스" },
+  { url: "https://www.yonhapnewstv.co.kr/browse/feed/",    source: "연합뉴스TV" },
   { url: "https://news.kbs.co.kr/rss/rss.do?source=news",  source: "KBS뉴스" },
-  { url: "https://www.chosun.com/arc/outboundfeeds/rss/",  source: "조선일보" },
+  { url: "https://www.khan.co.kr/rss/rssdata/total_news.xml", source: "경향신문" },
 ];
 
 // 🚨 속보 판정 키워드 — 제목에 포함되면 newsType: 'breaking'
