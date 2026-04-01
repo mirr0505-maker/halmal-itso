@@ -97,7 +97,7 @@ function stripHtml(html = "") {
 // ============================================================
 exports.fetchMarathonNews = onSchedule(
   {
-    schedule: "every 60 minutes",
+    schedule: "every 30 minutes",
     region: "asia-northeast3", // 서울 리전 — 레이턴시 최소화
     timeoutSeconds: 120,       // 최대 실행 시간 2분
     memory: "256MiB",
