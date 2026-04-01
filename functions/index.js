@@ -16,14 +16,14 @@ const BOT_NICKNAME = "마라톤의 전령";
 const BOT_UID = "marathon-herald-bot";
 const BOT_AVATAR_URL = "https://api.dicebear.com/7.x/adventurer/svg?seed=marathon-herald";
 
-// 📰 RSS 피드 목록 — 한국 주요 언론사
+// 📰 RSS 피드 목록 — 한국 주요 언론사 (2026-04-01 URL 검증 완료)
 // 피드 URL이 변경된 경우 이곳만 수정
 const RSS_FEEDS = [
-  { url: "https://www.yna.co.kr/RSS/news.xml",             source: "연합뉴스" },
-  { url: "https://www.ytn.co.kr/rss/all.xml",              source: "YTN" },
+  { url: "https://www.yna.co.kr/RSS/politics.xml",         source: "연합뉴스" },
+  { url: "https://www.yna.co.kr/RSS/society.xml",          source: "연합뉴스" },
   { url: "https://imnews.imbc.com/rss/news/news_00.xml",   source: "MBC뉴스" },
   { url: "https://news.kbs.co.kr/rss/rss.do?source=news",  source: "KBS뉴스" },
-  { url: "https://news.sbs.co.kr/news/SectionRssFeed.do?sectionId=01&plink=RSSREADER", source: "SBS뉴스" },
+  { url: "https://www.chosun.com/arc/outboundfeeds/rss/",  source: "조선일보" },
 ];
 
 // 🚨 속보 판정 키워드 — 제목에 포함되면 newsType: 'breaking'
@@ -105,15 +105,13 @@ exports.fetchMarathonNews = onSchedule(
   async () => {
     console.log("[마라톤의 전령] 뉴스 수집 시작");
 
-    // 1️⃣ 최근 DEDUP_WINDOW_MS 이내에 봇이 올린 기사 URL 집합 → 중복 방지
+    // 1️⃣ 중복 방지: marathon_dedup 컬렉션에서 24시간 이내 등록된 URL 해시 목록 조회
+    // (복합 인덱스 없이 단일 필드 쿼리만 사용)
     const dedupcutoff = Timestamp.fromMillis(Date.now() - DEDUP_WINDOW_MS);
-    const recentSnap = await db.collection("posts")
-      .where("author_id", "==", BOT_UID)
+    const dedupSnap = await db.collection("marathon_dedup")
       .where("createdAt", ">=", dedupcutoff)
       .get();
-    const postedUrls = new Set(
-      recentSnap.docs.map((d) => d.data().linkUrl).filter(Boolean)
-    );
+    const postedUrls = new Set(dedupSnap.docs.map((d) => d.id)); // doc ID = URL 해시
     console.log(`[마라톤의 전령] 기존 캐시 ${postedUrls.size}건`);
 
     let totalAdded = 0;
@@ -130,10 +128,22 @@ exports.fetchMarathonNews = onSchedule(
         const description = stripHtml(String(item.description ?? ""));
         const imageUrl = extractImageUrl(item);
 
+        // URL을 Firestore doc ID로 안전한 키로 변환
+        // base64url (+ → -, / → _ 치환) 사용하여 경로 구분자 / 제거
+        const urlKey = Buffer.from(linkUrl)
+          .toString("base64")
+          .replace(/\+/g, "-")
+          .replace(/\//g, "_")
+          .replace(/=/g, "")
+          .slice(0, 100);
+
         // 제목/URL 없거나 이미 등록된 URL이면 건너뜀
-        if (!title || !linkUrl || postedUrls.has(linkUrl)) continue;
+        if (!title || !linkUrl || postedUrls.has(urlKey)) continue;
 
         const newsType = detectNewsType(title);
+        // 속보/긴급 키워드 없으면 등록하지 않음 — 일반 뉴스는 스킵
+        if (newsType !== "breaking") continue;
+
         // ID 충돌 방지: 밀리초 + 무작위 4자리
         const postId = `topic_${Date.now()}_${Math.random().toString(36).slice(2, 6)}_${BOT_UID}`;
 
@@ -169,7 +179,13 @@ exports.fetchMarathonNews = onSchedule(
           createdAt: FieldValue.serverTimestamp(),
         });
 
-        postedUrls.add(linkUrl); // 같은 실행 내 중복 방지
+        // marathon_dedup에 URL 해시 저장 — 다음 실행 시 중복 방지용
+        await db.collection("marathon_dedup").doc(urlKey).set({
+          linkUrl,
+          createdAt: FieldValue.serverTimestamp(),
+        });
+
+        postedUrls.add(urlKey); // 같은 실행 내 중복 방지
         totalAdded++;
 
         // Firestore 쓰기 속도 제한 방지 — 건당 100ms 대기

@@ -462,8 +462,8 @@ function App() {
     }
 
     // 🚀 포스트 필터링 및 탭 처리
-    // 마라톤의 전령(뉴스 봇)은 홈 피드에서 제외 — 전용 메뉴에서만 노출
-    let basePosts = allRootPosts.filter(p => !p.isOneCut && p.category !== '마라톤의 전령');
+    // 🚀 홈 피드: 마라톤의 전령 속보도 포함 (속보 키워드 있는 글만 Firestore에 저장되므로 전체 허용)
+    let basePosts = allRootPosts.filter(p => !p.isOneCut);
 
     if (activeMenu !== 'home' && MENU_MESSAGES[activeMenu]) {
       const menuInfo = MENU_MESSAGES[activeMenu];
