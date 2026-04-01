@@ -462,18 +462,22 @@ function App() {
     }
 
     // 🚀 포스트 필터링 및 탭 처리
-    let basePosts = allRootPosts.filter(p => !p.isOneCut);
-    
+    // 마라톤의 전령(뉴스 봇)은 홈 피드에서 제외 — 전용 메뉴에서만 노출
+    let basePosts = allRootPosts.filter(p => !p.isOneCut && p.category !== '마라톤의 전령');
+
     if (activeMenu !== 'home' && MENU_MESSAGES[activeMenu]) {
       const menuInfo = MENU_MESSAGES[activeMenu];
       const categoryKey = menuInfo.title;
-      basePosts = basePosts.filter(p =>
+      basePosts = allRootPosts.filter(p => !p.isOneCut && ( // 카테고리 뷰: 마라톤 포함 전체에서 필터
         menuInfo.title === "너와 나의 이야기"
           ? (p.category === "너와 나의 이야기" || p.category === undefined)
           : (p.category === categoryKey)
-      );
+      ));
       // 🚀 카테고리별 보기: 살아남은 글(좋아요 3개 이상)만 노출
-      const categoryPosts = basePosts.filter(p => (p.likes || 0) >= 3);
+      // 단, 마라톤의 전령(뉴스 봇 게시글)은 좋아요 임계값 없이 즉시 전체 노출
+      const categoryPosts = activeMenu === 'marathon_herald'
+        ? basePosts
+        : basePosts.filter(p => (p.likes || 0) >= 3);
       const searchedPosts = filterBySearch(categoryPosts);
       return (
         <div className="w-full animate-in fade-in">

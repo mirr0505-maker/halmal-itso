@@ -151,6 +151,9 @@ const AnyTalkList = ({
                   {post.verdict === 'fact'      && <span className="text-[8px] font-[1000] text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md">✅ 사실 확인</span>}
                   {post.verdict === 'false'     && <span className="text-[8px] font-[1000] text-rose-600    bg-rose-50    border border-rose-200    px-2 py-0.5 rounded-md">❌ 허위 판명</span>}
                   {post.verdict === 'uncertain' && <span className="text-[8px] font-[1000] text-slate-500   bg-slate-50   border border-slate-200   px-2 py-0.5 rounded-md">🔍 미정.보류</span>}
+                  {/* 🚀 마라톤의 전령: newsType 기반 속보/뉴스 배지 */}
+                  {post.newsType === 'breaking' && <span className="text-[8px] font-[1000] text-red-700 bg-red-50 border border-red-200 px-2 py-0.5 rounded-md animate-pulse">🚨 속보</span>}
+                  {post.newsType === 'news'     && <span className="text-[8px] font-[1000] text-sky-700  bg-sky-50  border border-sky-200  px-2 py-0.5 rounded-md">📰 뉴스</span>}
                   {post.location && <span className="text-[8px] font-[1000] text-indigo-600 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-md">📍 {post.location.includes(':') ? post.location.split(':')[1] : post.location}</span>}
                   {(post.infoFields || []).map(field => (
                     <span key={field} className="text-[8px] font-[1000] text-yellow-700 bg-yellow-50 border border-yellow-200 px-2 py-0.5 rounded-md">🪙 {field}</span>

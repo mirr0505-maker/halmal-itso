@@ -78,6 +78,11 @@ export const MENU_MESSAGES: Record<string, { title: string, description: string,
     title: "양치기 소년의 외침",
     description: "지금 당장 알아야 할 속보, 긴급뉴스, 경보 — 늑대가 진짜 왔다!"
   },
+  marathon_herald: {
+    emoji: "🏃",
+    title: "마라톤의 전령",
+    description: "뉴스 속보"
+  },
   exile_place: {
     emoji: "🏚️",
     title: "유배·귀양지",

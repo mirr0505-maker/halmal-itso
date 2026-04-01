@@ -2,7 +2,7 @@
 
 이 문서는 **할말있소(HALMAL-ITSO)** 프로젝트의 설계 원칙, 현재 구현 상태, 그리고 AI 개발자의 **절대적 행동 지침**을 담은 단일 진실 소스(Single Source of Truth)입니다.
 
-> 최종 갱신: 2026-03-28 v23 (코드 실측 기준)  |  현재 브랜치: `main`
+> 최종 갱신: 2026-04-01 v25 (코드 실측 기준)  |  현재 브랜치: `main`
 
 ---
 
@@ -67,7 +67,7 @@
 └── wrangler.toml            # Workers 설정 (name: halmal-link-preview)
 
 /src
-├── App.tsx                  # 루트 컴포넌트 (전역 상태 관리, 라우팅 레이아웃) ~330줄
+├── App.tsx                  # 루트 컴포넌트 (전역 상태 관리, 라우팅 레이아웃) ~711줄
 ├── main.tsx                 # 진입점
 ├── types.ts                 # 공용 인터페이스
 ├── constants.ts             # 앱 전역 설정 (MENU_MESSAGES, TEST_ACCOUNTS)
@@ -76,7 +76,10 @@
 ├── utils.ts                 # 유틸리티 (포맷팅, 라벨링 등)
 ├── index.css                # 전역 스타일 & 애니메이션
 ├── hooks/
-│   └── useFirebaseListeners.ts  # Firestore onSnapshot 리스너 전담 custom hook
+│   ├── useFirebaseListeners.ts  # Firestore onSnapshot 리스너 전담 custom hook
+│   ├── useAuthActions.ts    # 로그인·로그아웃·테스트 계정 전환 핸들러
+│   ├── useGloveActions.ts   # 깐부방·커뮤니티 생성/가입/탈퇴 핸들러
+│   └── useFirestoreActions.ts   # 게시글·댓글·좋아요·깐부맺기·조회수 핸들러
 └── components/              # 핵심 컴포넌트
     ├── Sidebar.tsx          # 좌측 네비게이션
     ├── SubNavbar.tsx        # 홈 전용 탭 필터
@@ -279,6 +282,7 @@ interface KanbuChat {
 | `friends` | 깐부 맺기 | (UI 전용) | 팔로우 추천 목록 (허용 닉네임 필터 적용) |
 | `kanbu_room` | 깐부방 | (subcollection) | 깐부가 개설한 방 목록, 방별 게시판+실시간 채팅. Lv3 이상 개설. Firestore: `kanbu_rooms/{roomId}/chats` |
 | `glove` | 우리들의 장갑 | (커뮤니티) | 다섯 손가락 운영 체제 (thumb·index·middle·ring·pinky). 가입방식 3종(open·approval·password), minLevel 제한, 공지 고정, 알림 opt-in, 중지 자동 산정. 자세한 내용 → `GLOVE.md` |
+| `marathon_herald` | 마라톤의 전령 | 마라톤의 전령 | 뉴스 속보 봇 전용 채널. `newsType: 'breaking'`→🚨 속보(빨간 pulse 배지) / `'news'`→📰 뉴스(하늘색 배지). 좋아요 임계값 없이 즉시 노출. 홈 피드에서 제외. 댓글: pandora 공감/의심 2컬럼. 원본 기사는 `linkUrl` → RootPostCard [🔗 바로가기] 버튼. |
 | `market` | 마켓 | 마켓 | OneCutList 그리드 레이아웃, 게시글 없을 시 "기록된 글이 없어요" |
 | `exile_place` | 유배·귀양지 | 유배·귀양지 | 제재 유저 전용 소통 공간, 주제 없음 |
 | `ranking` | 랭킹 | (UI 전용) | 좋아요·땡스볼·조회수 × 유저·글 6개 뷰. `RankingView.tsx`. 사이드바 내정보 위 배치. |
@@ -670,6 +674,24 @@ interface KanbuChat {
   - **댓글 땡스볼**: 로그인한 모든 사용자가 타인 댓글에 ⚾ 버튼 → ThanksballModal(`targetCollection="comments"`).
   - **댓글 수정/삭제**: 본인 댓글에만 수정(인라인 textarea + 저장/취소) · 삭제(confirm + commentCount -1) 버튼.
 
+- [x] **App.tsx 핸들러 훅 분리 + TypeScript any 완전 제거 (2026-04-01)**:
+  - `useAuthActions.ts`: `handleLogin`, `handleTestLogin`, `handleLogout` 분리.
+  - `useGloveActions.ts`: `handleCreateRoom`, `handleCreateCommunity`, `handleJoinCommunity`, `handleLeaveCommunity` 분리.
+  - `useFirestoreActions.ts`: `handlePostSubmit`, `handleLinkedPostSubmit`, `handleInlineReply`, `handleCommentSubmit`, `toggleFriend`, `toggleBlock`, `handleLike`, `handleViewPost` 분리.
+  - App.tsx 라인 수: 1034줄 → 711줄. `any` 타입 전면 제거 (타입 캐스팅 명시적 처리).
+
+- [x] **깐부/깐부수 용어 정의 적용 + 전수 수정 (2026-04-01)**:
+  - **깐부**: 내가 맺은 팔로잉(following). `friendList` 배열 기반. 깐부목록·깐부글 필터·깐부맺기 버튼에 사용.
+  - **깐부수**: 나를 맺은 팔로워 수(follower count). `followerCounts` 역산 집계 기반. 숫자로만 표시. 아바타 정보(Lv·평판·깐부수), ProfileHeader, 레벨 로직에 사용.
+  - 아바타 정보 줄(댓글 카드·사이드바·상세글 등) 전체 "깐부 N" → "깐부수 N" 변경 (AnyTalkList, PostCard, OneCutList, RootPostCard, OneCutListSidebar, RelatedPostsSidebar, PostDetailModal, OneCutDetailView, DebateBoard, OneCutCommentBoard, FormalBoard).
+  - `ProfileHeader.tsx`: `followerCount?: number` prop 추가. "깐부 N명"(팔로잉) + "깐부수 N"(팔로워) 이중 표시.
+  - `MyPage.tsx`: `followerCount` prop 추가 → ProfileHeader 전달. 깐부목록 카드에 "깐부수 N" 표시.
+
+- [x] **깐부/팔로워 수치 불일치 버그 수정 (2026-04-01)**:
+  - 원인: App.tsx에서 `friendCount={followerCounts[userData.nickname]}` (팔로워 수) 를 ProfileHeader에 전달 → 내정보 깐부 목록(friendList 기반, 팔로잉 수)과 불일치.
+  - 해결: `friendCount={friends.length}` (내가 맺은 수) 로 수정. 팔로워 수는 `followerCount={followerCounts[userData.nickname]}` 별도 prop으로 분리 전달.
+  - `types.ts` `UserData` 인터페이스에 누락 필드(ballBalance, ballSpent, ballReceived, exp 등) 추가.
+
 ### 🛠️ 진행 중 / 개선 필요 사항
 - [ ] **에디터 보완**: `bubble-menu` 활성화 (텍스트 선택 시 서식 도구 노출).
 - [ ] **검색 엔진**: Firestore 텍스트 검색 한계 보완 (현재는 클라이언트 사이드 필터링).
@@ -682,6 +704,10 @@ interface KanbuChat {
 - **Submit 로직 중복 없음**: Comment 컴포넌트(7개)는 UI 전담, Firestore 쓰기는 App.tsx `handleCommentSubmit` 단일 함수로 집중. Custom hook 추가 불필요.
 - **CATEGORY_RULES 확장 방식**: 카테고리별 동작 변경 시 카테고리명 하드코딩 금지 → `CATEGORY_RULES`에 속성 추가 후 컴포넌트에서 `rule.속성명` 참조. 현재 속성: `allowDisagree`, `allowFormal`, `boardType`, `placeholder`, `tab1/2`, `allowInlineReply`, `hideEmptyMessage`.
 - **boardType 종류**: `single`(단일 리스트), `qa`(Q&A), `info`(정보 공유 2컬럼), `pandora`(지그재그 동의/반박, 판도라의 상자·솔로몬의 재판·마법 수정 구슬), `onecut`(한컷 반응). (`debate` 타입 제거 — 솔로몬의 재판이 pandora로 전환됨)
+- **깐부 / 깐부수 구분**:
+  - **깐부**: 내가 맺은 팔로잉. `users/{uid}.friendList[]` 기반. 깐부목록·깐부글·깐부맺기 버튼에 사용. `friends.length`로 카운트.
+  - **깐부수**: 나를 맺은 팔로워 수. 전체 `users.friendList` 역산 집계(`followerCounts: Record<string, number>`). 숫자만 표시. 아바타 정보·ProfileHeader·레벨 로직에 사용.
+  - **authorInfo.friendCount**: 글/댓글 작성 시 스냅샷된 작성자의 팔로잉 수(따라서 "깐부수"로 레이블링하되 값은 팔로잉 수). 아바타 정보 카드에 표시.
 - **CATEGORY_RULES 확장 속성**: `allowDisagree`, `allowFormal`, `boardType`, `placeholder`, `tab1/2`, `allowInlineReply`, `hideEmptyMessage`, `hintAgree`, `hintRefute`, `placeholderAgree`, `placeholderRefute`, `hideAttachment`.
 
 ---

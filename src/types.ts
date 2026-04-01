@@ -72,6 +72,9 @@ export interface Post {
   infoFields?: string[];   // 황금알을 낳는 거위: 정보 분야 (최대 2개)
   bgColor?: string;        // 뼈때리는 글: 배경색
 
+  // 🚀 마라톤의 전령 전용
+  newsType?: 'breaking' | 'news'; // 속보(breaking) vs 일반뉴스(news) 구분 배지용
+
   // 🚀 한컷 관련 필드
   isOneCut?: boolean;      // 한컷 게시물 여부
   linkedPostId?: string;   // 연계된 원본 게시글 ID
