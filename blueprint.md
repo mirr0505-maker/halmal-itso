@@ -2,7 +2,7 @@
 
 이 문서는 **할말있소(HALMAL-ITSO)** 프로젝트의 설계 원칙, 현재 구현 상태, 그리고 AI 개발자의 **절대적 행동 지침**을 담은 단일 진실 소스(Single Source of Truth)입니다.
 
-> 최종 갱신: 2026-04-03 v28 (코드 실측 기준)  |  현재 브랜치: `main`
+> 최종 갱신: 2026-04-03 v29 (코드 실측 기준)  |  현재 브랜치: `main`
 
 ---
 
@@ -738,6 +738,18 @@ interface KanbuChat {
   - **배포**: `firebase deploy --only functions` (hosting과 별개)
   - **로그 확인**: `등록 N건 / 키워드 미해당 스킵 M건` 형식으로 필터 동작 가시화.
 
+- [x] **거대 나무 (자이언트 트리) Phase 1~4 완료 (2026-04-03)**:
+  - **신규 메뉴**: 사이드바 우리들의 장갑↔랭킹 사이 🌳 거대 나무 추가 (MenuId `giant_tree`).
+  - **Firestore**: `giant_trees/{treeId}` 루트 컬렉션 + `nodes/{nodeId}` / `participants/{uid}` 서브컬렉션.
+  - **전파 규모**: 평판별 maxSpread (약간우호=10, 우호=30, 확고=100, 중립=전파불가). 트리 생성 시점 스냅샷으로 고정.
+  - **다단계 depth**: URL `?tree={treeId}&node={parentNodeId}` — App.tsx에서 파라미터 파싱 후 GiantTreeDetail에 전달. 부모 노드 depth 조회 후 +1 산정.
+  - **서킷 브레이커**: totalNodes ≥ 10 && 반대 비율 ≥ 70% → `circuitBroken: true` 자동 전파 중단.
+  - **트리 시각화**: `GiantTreeMap.tsx` — flat 배열 → 재귀 계층 변환, CSS Flexbox + `transform: scale()` 줌(40~150%), 깊이 배지 + 공감/반대 색상 구분.
+  - **카카오톡 공유**: `index.html` Kakao JS SDK v2.7.2 (앱키 `fb5adbff3e7fecc7bcdcfcaa2df36057`), 참여 완료 후 💬 카카오 버튼 → `sendDefault` 피드 공유.
+  - **평판 상승**: 공감 참여 시 작성자 `users.likes += 2` (자기 나무 · 반대 제외).
+  - **알림**: 참여 시 `notifications/{author_id}/items`에 `giant_tree_spread` 타입 push (자기 나무 제외).
+  - **D3.js 고도화**: Phase 5로 별도 분리 (미구현) — 노드 50개 이상 대응, collapse/expand, d3.zoom() 기반.
+
 ### 🛠️ 진행 중 / 개선 필요 사항
 - [ ] **에디터 보완**: `bubble-menu` 활성화 (텍스트 선택 시 서식 도구 노출).
 - [ ] **검색 엔진**: Firestore 텍스트 검색 한계 보완 (현재는 클라이언트 사이드 필터링).
@@ -784,7 +796,7 @@ interface KanbuChat {
 
 ## 10. 거대 나무 (자이언트 트리) — 개발 계획서
 
-> 상태: **설계 단계 (미구현)**  |  기획 확정일: 2026-04-03
+> 상태: **Phase 1~4 완료 (2026-04-03)**  |  기획 확정일: 2026-04-03  |  D3.js 고도화: Phase 5 (미구현)
 
 ### 10.1 개요
 
@@ -899,32 +911,40 @@ joinedAt        : Timestamp
 
 ### 10.8 구현 단계 (Phase)
 
-#### Phase 1 — 기반 구조 (우선 구현)
-- [ ] `types.ts`: `GiantTree`, `GiantTreeNode` 인터페이스 추가
-- [ ] `constants.ts`: `giant_tree` 메뉴 항목 추가
-- [ ] `Sidebar.tsx`: 새 섹션 + `giant_tree` 메뉴 항목 추가 (MenuId 타입 확장)
-- [ ] `App.tsx`: `giant_tree` activeMenu 처리, `GiantTreeView` lazy import
-- [ ] `CreateGiantTree.tsx`: 글 작성 폼 (제목 + TiptapEditor + 전파 규모 미리보기)
-- [ ] Firestore `giant_trees` 컬렉션 쓰기/읽기 기본 구현
+#### Phase 1 — 기반 구조 (완료 2026-04-03)
+- [x] `types.ts`: `GiantTree`, `GiantTreeNode` 인터페이스 추가
+- [x] `constants.ts`: `giant_tree` 메뉴 항목 추가
+- [x] `Sidebar.tsx`: 새 섹션 + `giant_tree` 메뉴 항목 추가 (MenuId 타입 확장)
+- [x] `App.tsx`: `giant_tree` activeMenu 처리, `GiantTreeView` lazy import, URL 파라미터 `?tree=` / `?node=` 자동 진입 처리
+- [x] `CreateGiantTree.tsx`: 글 작성 폼 (제목 + textarea + 전파 규모 미리보기)
+- [x] Firestore `giant_trees` 컬렉션 쓰기/읽기 기본 구현
 
-#### Phase 2 — 전파 참여 UI
-- [ ] `GiantTreeDetail.tsx`: 트리 기본 정보 + 참여 폼
-- [ ] `GiantTreeSpreadForm.tsx`: 공감/반대 + 코멘트 + 참여 처리
-- [ ] 중복 참여 차단 (`participants` 서브컬렉션 조회)
-- [ ] `totalNodes` / `agreeCount` / `opposeCount` 실시간 업데이트
-- [ ] 서킷 브레이커 판정 로직
+#### Phase 2 — 전파 참여 UI (완료 2026-04-03)
+- [x] `GiantTreeDetail.tsx`: 트리 기본 정보 + 참여 폼 (공감/반대 + 코멘트)
+- [x] 중복 참여 차단 (`participants/{uid}` 서브컬렉션 조회)
+- [x] `totalNodes` / `agreeCount` / `opposeCount` 실시간 업데이트
+- [x] 서킷 브레이커 판정 로직 (10노드 이상 + 반대 70% 이상 시 전파 중단)
+- [x] 다단계 depth 산정 — URL `?node=` 파라미터로 부모 노드 depth 조회 후 +1
+- [x] 전파 완료 후 공유 URL (`?tree={treeId}&node={myNodeId}`) 복사 블록 표시
 
-#### Phase 3 — 트리 시각화
-- [ ] `GiantTreeMap.tsx`: CSS Flexbox 기반 세로 트리 렌더링
-- [ ] `GiantTreeNode.tsx`: 노드 카드 (아바타·공감반대 배지·코멘트)
-- [ ] 줌인/아웃: CSS `transform: scale()` + 핀치 제스처 (모바일)
-- [ ] 깊이별 색상 구분 (공감=파랑, 반대=빨강)
+#### Phase 3 — 트리 시각화 (완료 2026-04-03)
+- [x] `GiantTreeMap.tsx`: CSS Flexbox 기반 세로 트리 렌더링 (flat 배열 → 재귀 계층 변환)
+- [x] 노드 카드 인라인 구현 (`NodeCard` / `RootCard` 컴포넌트)
+- [x] 줌인/아웃: CSS `transform: scale()` 0.4×~1.5× + 초기화 버튼
+- [x] 깊이별 색상 구분 (공감=파랑, 반대=빨강, 작성자=에메랄드)
+- [x] 하단 탭 '참여자 목록 / 나무 지도' 전환 (`bottomTab` state)
 
-#### Phase 4 — 고도화
-- [ ] 카카오톡 공유 API 연동 (`?tree={treeId}&node={parentNodeId}` URL)
-- [ ] 전파 시 작성자 평판 실시간 상승 (`users.likes += 공감 수`)
-- [ ] 알림: 내 트리에 새 노드 생성 시 작성자에게 알림 push
-- [ ] D3.js 트리 맵 고도화 (대량 노드 대응)
+#### Phase 4 — 고도화 (완료 2026-04-03)
+- [x] 카카오톡 공유 API 연동 — `index.html` Kakao JS SDK v2.7.2 초기화, `shareKakao()` 함수 + 💬 카카오 버튼
+- [x] 전파 참여 시 작성자 평판 실시간 상승 (`users.likes += 2`, 공감 참여·자기 나무 제외)
+- [x] 알림: 내 트리에 새 노드 생성 시 작성자에게 `giant_tree_spread` 타입 알림 push (자기 나무 제외)
+
+#### Phase 5 — D3.js 트리 시각화 고도화 (미구현 — 별도 세션)
+- [ ] `GiantTreeMap.tsx` → D3.js 기반으로 교체 (노드 50개 이상 대응)
+- [ ] `d3` / `@types/d3` 패키지 설치
+- [ ] 노드 클릭 시 하위 접기/펼치기 (collapse/expand)
+- [ ] 줌·패닝: `d3.zoom()` + `SVGElement` 기반 (CSS scale 대체)
+- [ ] 모바일 핀치 제스처 지원
 
 ### 10.9 핵심 기술 고려사항
 
