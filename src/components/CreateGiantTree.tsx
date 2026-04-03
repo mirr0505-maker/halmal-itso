@@ -10,7 +10,7 @@ interface Props {
   currentNickname?: string;
   currentUserData?: UserData | null;
   onBack: () => void;
-  onCreated: () => void;
+  onCreated: (treeId: string) => void;  // 🚀 생성된 treeId 반환 — 상세 뷰 자동 이동용
 }
 
 const CreateGiantTree = ({ currentNickname, currentUserData, onBack, onCreated }: Props) => {
@@ -44,7 +44,7 @@ const CreateGiantTree = ({ currentNickname, currentUserData, onBack, onCreated }
         circuitBroken: false,
         createdAt: serverTimestamp(),
       });
-      onCreated();
+      onCreated(treeId);
     } catch (e) {
       console.error(e);
     } finally {

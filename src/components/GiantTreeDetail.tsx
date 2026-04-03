@@ -12,26 +12,21 @@ import GiantTreeMap from './GiantTreeMap';
 declare global { interface Window { Kakao: any; } }
 
 // 🚀 카카오톡 공유 실행 함수
-const shareKakao = (treeId: string, nodeId: string, title: string) => {
+// nodeId가 있으면 해당 노드 하위로 진입하는 URL, 없으면 작성자 루트 URL
+const shareKakao = (treeId: string, nodeId: string | null, title: string) => {
   if (!window.Kakao?.isInitialized()) return;
+  const url = nodeId
+    ? `https://halmal-itso.web.app/?tree=${treeId}&node=${nodeId}`
+    : `https://halmal-itso.web.app/?tree=${treeId}`;
   window.Kakao.Share.sendDefault({
     objectType: 'feed',
     content: {
       title: '🌳 거대 나무 — 주장 전파',
       description: title,
       imageUrl: 'https://halmal-itso.web.app/og-image.jpg',
-      link: {
-        mobileWebUrl: `https://halmal-itso.web.app/?tree=${treeId}&node=${nodeId}`,
-        webUrl: `https://halmal-itso.web.app/?tree=${treeId}&node=${nodeId}`,
-      },
+      link: { mobileWebUrl: url, webUrl: url },
     },
-    buttons: [{
-      title: '전파 참여하기',
-      link: {
-        mobileWebUrl: `https://halmal-itso.web.app/?tree=${treeId}&node=${nodeId}`,
-        webUrl: `https://halmal-itso.web.app/?tree=${treeId}&node=${nodeId}`,
-      },
-    }],
+    buttons: [{ title: '전파 참여하기', link: { mobileWebUrl: url, webUrl: url } }],
   });
 };
 
@@ -55,6 +50,8 @@ const GiantTreeDetail = ({ tree, currentNickname, currentUserData, allUsers = {}
   const [hasParticipated, setHasParticipated] = useState(false);
   const [isAuthor, setIsAuthor] = useState(false);
   const [parentNodeDepth, setParentNodeDepth] = useState<number | null>(null);
+  // 🚀 작성자 URL 복사 상태
+  const [copiedAuthorUrl, setCopiedAuthorUrl] = useState(false);
 
   // 전파 참여 폼 상태
   const [selectedSide, setSelectedSide] = useState<'agree' | 'oppose' | null>(null);
@@ -199,6 +196,28 @@ const GiantTreeDetail = ({ tree, currentNickname, currentUserData, allUsers = {}
     ? `${(parentNodeDepth ?? 0) + 1}차 전파`
     : '1차 전파';
 
+  // 🚀 작성자 루트 전파 카운터 — depth=1 (parentNodeId===null) 노드 수
+  const rootSpreadCount = nodes.filter(n => !n.parentNodeId).length;
+  const authorSpreadFull = rootSpreadCount >= 3;
+
+  // 🚀 내 노드의 전파 카운터 (참여 완료 후)
+  const myNode = nodes.find(n => n.id === myNodeId);
+  const myChildCount = myNode?.childCount ?? 0;
+  const mySpreadFull = myChildCount >= 3;
+
+  // 🚀 부모 노드가 이미 3명에게 전파한 경우 참여 차단
+  const parentNode = parentNodeId ? nodes.find(n => n.id === parentNodeId) : null;
+  const parentFull = parentNode !== undefined && parentNode !== null && parentNode.childCount >= 3;
+
+  // 🚀 작성자 URL 복사 핸들러
+  const handleCopyAuthorUrl = () => {
+    const url = `${window.location.origin}/?tree=${tree.id}`;
+    navigator.clipboard.writeText(url).then(() => {
+      setCopiedAuthorUrl(true);
+      setTimeout(() => setCopiedAuthorUrl(false), 2000);
+    });
+  };
+
   return (
     <div className="w-full max-w-2xl mx-auto px-4 py-6 animate-in fade-in duration-500">
       {/* 뒤로가기 */}
@@ -270,39 +289,98 @@ const GiantTreeDetail = ({ tree, currentNickname, currentUserData, allUsers = {}
           전파에 참여하려면 로그인이 필요합니다.
         </div>
       ) : isAuthor ? (
-        <div className="px-4 py-3 bg-slate-50 border border-slate-100 rounded-2xl text-[12px] font-bold text-slate-400 mb-4 text-center">
-          내가 심은 나무입니다. 다른 사람이 전파에 참여합니다.
-        </div>
-      ) : (hasParticipated || myNodeId) ? (
-        /* 참여 완료 — 전파 URL 공유 블록 */
+        /* 🚀 작성자 전파 시작 블록 — 3명에게 공유 유도 */
         <div className="bg-emerald-50 border border-emerald-200 rounded-2xl px-4 py-4 mb-4">
-          <div className="flex items-center gap-2 mb-3">
-            <svg className="w-4 h-4 text-emerald-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7"/></svg>
-            <p className="text-[13px] font-black text-emerald-700">전파에 참여했습니다!</p>
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-[15px]">🌱</span>
+            <p className="text-[13px] font-black text-emerald-700">나무를 심었습니다! 3명에게 전파를 시작하세요.</p>
           </div>
-          <p className="text-[11px] font-bold text-emerald-600 mb-2">아래 링크를 공유하면, 친구들이 이 주장을 이어서 전파할 수 있습니다.</p>
+          {/* 전파 카운터 */}
+          <div className="flex items-center gap-2 mb-3 mt-2">
+            <div className="flex gap-1.5">
+              {[0, 1, 2].map(i => (
+                <div key={i} className={`w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-black border-2 transition-all ${i < rootSpreadCount ? 'bg-emerald-500 border-emerald-500 text-white' : 'bg-white border-emerald-200 text-emerald-300'}`}>
+                  {i < rootSpreadCount ? '✓' : i + 1}
+                </div>
+              ))}
+            </div>
+            <span className="text-[11px] font-black text-emerald-600">
+              {authorSpreadFull ? '전파 시작 완료 (3/3)' : `${rootSpreadCount}/3명에게 전파함`}
+            </span>
+          </div>
+          {/* 공유 URL */}
+          <p className="text-[11px] font-bold text-emerald-600 mb-2">아래 링크를 3명에게 공유하면 주장이 전파됩니다.</p>
           <div className="flex items-center gap-2">
             <div className="flex-1 bg-white border border-emerald-200 rounded-xl px-3 py-2 text-[11px] font-bold text-slate-500 truncate">
-              {`${window.location.origin}/?tree=${tree.id}&node=${myNodeId}`}
+              {`${window.location.origin}/?tree=${tree.id}`}
             </div>
             <button
-              onClick={handleCopySpreadUrl}
-              className={`shrink-0 px-3 py-2 text-[11px] font-[1000] rounded-xl transition-all ${copiedUrl ? 'bg-emerald-500 text-white' : 'bg-emerald-600 text-white hover:bg-emerald-700'}`}
+              onClick={handleCopyAuthorUrl}
+              className={`shrink-0 px-3 py-2 text-[11px] font-[1000] rounded-xl transition-all ${copiedAuthorUrl ? 'bg-emerald-500 text-white' : 'bg-emerald-600 text-white hover:bg-emerald-700'}`}
             >
-              {copiedUrl ? '복사됨!' : '링크 복사'}
+              {copiedAuthorUrl ? '복사됨!' : '링크 복사'}
             </button>
-            {/* 🚀 카카오톡 공유 버튼 */}
             <button
-              onClick={() => shareKakao(tree.id, myNodeId!, tree.title)}
+              onClick={() => shareKakao(tree.id, null, tree.title)}
               className="shrink-0 px-3 py-2 text-[11px] font-[1000] rounded-xl bg-yellow-400 text-yellow-900 hover:bg-yellow-500 transition-all"
             >
               💬 카카오
             </button>
           </div>
         </div>
+      ) : (hasParticipated || myNodeId) ? (
+        /* 🚀 참여 완료 — 전파 URL 공유 블록 + 카운터 */
+        <div className="bg-emerald-50 border border-emerald-200 rounded-2xl px-4 py-4 mb-4">
+          <div className="flex items-center gap-2 mb-1">
+            <svg className="w-4 h-4 text-emerald-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7"/></svg>
+            <p className="text-[13px] font-black text-emerald-700">전파에 참여했습니다!</p>
+          </div>
+          {/* 🚀 전파 카운터 */}
+          <div className="flex items-center gap-2 mb-3 mt-2">
+            <div className="flex gap-1.5">
+              {[0, 1, 2].map(i => (
+                <div key={i} className={`w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-black border-2 transition-all ${i < myChildCount ? 'bg-emerald-500 border-emerald-500 text-white' : 'bg-white border-emerald-200 text-emerald-300'}`}>
+                  {i < myChildCount ? '✓' : i + 1}
+                </div>
+              ))}
+            </div>
+            <span className="text-[11px] font-black text-emerald-600">
+              {mySpreadFull ? '전파 완료 (3/3)' : `${myChildCount}/3명에게 전파함`}
+            </span>
+          </div>
+          {mySpreadFull ? (
+            <p className="text-[11px] font-bold text-slate-400 text-center py-1">3명에게 모두 전파했습니다.</p>
+          ) : (
+            <>
+              <p className="text-[11px] font-bold text-emerald-600 mb-2">아래 링크를 공유하면, 친구들이 이 주장을 이어서 전파할 수 있습니다.</p>
+              <div className="flex items-center gap-2">
+                <div className="flex-1 bg-white border border-emerald-200 rounded-xl px-3 py-2 text-[11px] font-bold text-slate-500 truncate">
+                  {`${window.location.origin}/?tree=${tree.id}&node=${myNodeId}`}
+                </div>
+                <button
+                  onClick={handleCopySpreadUrl}
+                  className={`shrink-0 px-3 py-2 text-[11px] font-[1000] rounded-xl transition-all ${copiedUrl ? 'bg-emerald-500 text-white' : 'bg-emerald-600 text-white hover:bg-emerald-700'}`}
+                >
+                  {copiedUrl ? '복사됨!' : '링크 복사'}
+                </button>
+                <button
+                  onClick={() => shareKakao(tree.id, myNodeId!, tree.title)}
+                  className="shrink-0 px-3 py-2 text-[11px] font-[1000] rounded-xl bg-yellow-400 text-yellow-900 hover:bg-yellow-500 transition-all"
+                >
+                  💬 카카오
+                </button>
+              </div>
+            </>
+          )}
+        </div>
       ) : tree.circuitBroken ? null : isFull ? (
         <div className="px-4 py-3 bg-slate-50 border border-slate-100 rounded-2xl text-[12px] font-bold text-slate-400 mb-4 text-center">
           최대 전파 인원에 도달했습니다.
+        </div>
+      ) : parentFull ? (
+        /* 🚀 부모 노드가 이미 3명에게 전파 완료 — 참여 차단 */
+        <div className="px-4 py-3 bg-amber-50 border border-amber-200 rounded-2xl text-[12px] font-bold text-amber-600 mb-4 text-center">
+          이 전파 경로는 이미 3명에게 전달되어 더 이상 참여할 수 없습니다.
         </div>
       ) : (
         <div className="bg-white border border-slate-200 rounded-2xl p-4 mb-4">

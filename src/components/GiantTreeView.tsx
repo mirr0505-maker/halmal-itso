@@ -29,6 +29,8 @@ const GiantTreeView = ({ currentNickname, currentUserData, allUsers = {}, initia
   const [selectedTree, setSelectedTree] = useState<GiantTree | null>(null);
   // 🚀 전파 URL로 진입한 경우 부모 노드 ID 보존 — GiantTreeDetail에 전달
   const [activeParentNodeId, setActiveParentNodeId] = useState<string | null>(initialParentNodeId || null);
+  // 🚀 나무 심기 직후 상세 뷰 자동 이동 — 생성된 treeId 임시 보관
+  const [justCreatedId, setJustCreatedId] = useState<string | null>(null);
 
   // 🚀 giant_trees 컬렉션 실시간 구독 (최신순 20개)
   useEffect(() => {
@@ -41,6 +43,12 @@ const GiantTreeView = ({ currentNickname, currentUserData, allUsers = {}, initia
       if (initialTreeId && view === 'list') {
         const target = loaded.find(t => t.id === initialTreeId);
         if (target) { setSelectedTree(target); setView('detail'); }
+      }
+
+      // 🚀 나무 심기 직후: Firestore에 트리가 나타나면 즉시 상세 뷰로 이동
+      if (justCreatedId) {
+        const target = loaded.find(t => t.id === justCreatedId);
+        if (target) { setSelectedTree(target); setJustCreatedId(null); setView('detail'); }
       }
     });
     return () => unsub();
@@ -63,7 +71,7 @@ const GiantTreeView = ({ currentNickname, currentUserData, allUsers = {}, initia
         currentNickname={currentNickname}
         currentUserData={currentUserData}
         onBack={() => setView('list')}
-        onCreated={() => setView('list')}
+        onCreated={(treeId) => { setJustCreatedId(treeId); setView('list'); }}
       />
     );
   }
