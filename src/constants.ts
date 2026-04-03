@@ -78,6 +78,11 @@ export const MENU_MESSAGES: Record<string, { title: string, description: string,
     title: "마라톤의 전령",
     description: "뉴스 속보"
   },
+  giant_tree: {
+    emoji: "🌳",
+    title: "거대 나무",
+    description: "자신의 주장을 다단계 전파 형태로 보낼 수 있는 곳"
+  },
   exile_place: {
     emoji: "🏚️",
     title: "유배·귀양지",

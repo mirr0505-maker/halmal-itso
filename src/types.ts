@@ -188,3 +188,33 @@ export interface CommunityPost {
   isPinned?: boolean;            // 공지 고정 여부 (엄지/검지만 설정 가능)
   isBlinded?: boolean;           // 관리자 블라인드 처리
 }
+
+// 🚀 거대 나무(자이언트 트리): 주장 전파 루트 문서
+export interface GiantTree {
+  id: string;                        // "tree_{timestamp}_{uid}"
+  title: string;
+  content: string;                   // HTML (TiptapEditor)
+  author: string;                    // 닉네임
+  author_id: string;                 // UID
+  authorLevel: number;               // 생성 시점 레벨 스냅샷
+  authorReputation: string;          // 생성 시점 평판 등급 스냅샷 ("약간 우호" | "우호" | "확고")
+  maxSpread: number;                 // 전파 가능 최대 인원 (생성 시 고정, 초기: 10/30/100)
+  totalNodes: number;                // 현재까지 생성된 노드 수 (실시간 집계)
+  agreeCount: number;                // 전체 공감 수
+  opposeCount: number;               // 전체 반대 수
+  circuitBroken: boolean;            // 서킷 브레이커 발동 여부 (반대 비율 ≥ 70%, 최소 10노드)
+  createdAt: FirestoreTimestamp;
+}
+
+// 🚀 거대 나무: 전파 노드 (giant_trees/{treeId}/nodes/{nodeId} 서브컬렉션)
+export interface GiantTreeNode {
+  id: string;                        // "node_{timestamp}_{uid}"
+  depth: number;                     // 전파 단계 (0=작성자 루트, 1=1차 전파, ...)
+  parentNodeId: string | null;       // 부모 노드 ID (루트는 null)
+  participantNick: string;           // 이 노드 참여자 닉네임
+  participantId: string;             // 이 노드 참여자 UID
+  side: 'agree' | 'oppose';          // 공감 or 반대
+  comment: string;                   // 짧은 코멘트 (최대 100자)
+  childCount: number;                // 자식 노드 수 (0~3)
+  createdAt: FirestoreTimestamp;
+}

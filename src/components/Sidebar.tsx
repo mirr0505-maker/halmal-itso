@@ -16,6 +16,7 @@ export type MenuId =
   | 'kanbu_room'
   | 'friends'
   | 'glove'
+  | 'giant_tree'
   | 'ranking'
   | 'mypage';
 
@@ -257,6 +258,28 @@ const Sidebar = ({ activeMenu, setActiveMenu, kanbuRoomCount = 0, mobile = false
           <div className="flex flex-col items-start min-w-0 flex-1 overflow-hidden">
             <span className={`text-[12px] tracking-tight whitespace-nowrap ${activeMenu === 'glove' ? 'font-black' : 'font-bold'}`}>우리들의 장갑</span>
             <span className="text-[9px] font-bold text-slate-300 whitespace-nowrap leading-none mt-0.5">커뮤니티</span>
+          </div>
+        </button>
+
+        <div className="my-2.5 px-4">
+          <div className="h-px bg-slate-100 w-full" />
+        </div>
+
+        {/* 🚀 거대 나무 섹션 — 주장 전파 (향후 동일 영역에 메뉴 추가 예정) */}
+        <button
+          onClick={() => setActiveMenu('giant_tree')}
+          className={`w-full flex flex-row items-center gap-2 px-2.5 py-1.5 rounded-xl transition-all duration-150 border-2 ${
+            activeMenu === 'giant_tree'
+              ? 'bg-emerald-50/40 text-emerald-700 border-emerald-100 shadow-sm shadow-emerald-50 scale-[1.02]'
+              : 'bg-transparent text-slate-400 border-transparent hover:bg-slate-50 hover:text-slate-600'
+          }`}
+        >
+          <span className="transition-all duration-150 shrink-0 text-[16px] leading-none" style={{ filter: 'grayscale(1)', opacity: activeMenu === 'giant_tree' ? 0.75 : 0.25 }}>
+            🌳
+          </span>
+          <div className="flex flex-col items-start min-w-0 flex-1 overflow-hidden">
+            <span className={`text-[12px] tracking-tight whitespace-nowrap ${activeMenu === 'giant_tree' ? 'font-black' : 'font-bold'}`}>거대 나무</span>
+            <span className="text-[9px] font-bold text-slate-300 whitespace-nowrap leading-none mt-0.5">주장 전파</span>
           </div>
         </button>
 

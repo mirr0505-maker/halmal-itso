@@ -27,6 +27,7 @@ const KanbuRoomList = lazy(() => import('./components/KanbuRoomList'));
 const KanbuRoomView = lazy(() => import('./components/KanbuRoomView'));
 const CreateKanbuRoomModal = lazy(() => import('./components/CreateKanbuRoomModal'));
 const RankingView = lazy(() => import('./components/RankingView'));
+const GiantTreeView = lazy(() => import('./components/GiantTreeView'));
 const CreateDebate = lazy(() => import('./components/CreateDebate')); // 연계글 팝업 전용
 // 🚀 우리들의 따뜻한 장갑: 커뮤니티 컴포넌트
 const CommunityList = lazy(() => import('./components/CommunityList'));
@@ -438,6 +439,10 @@ function App() {
         return <KanbuRoomView room={selectedRoom} roomPosts={roomPosts} onBack={() => setSelectedRoom(null)} currentUserData={userData!} allUsers={allUsers} />;
       }
       return <KanbuRoomList rooms={accessibleRooms} onRoomClick={setSelectedRoom} onCreateRoom={() => setIsCreateRoomOpen(true)} currentUserLevel={userData?.level || 1} allUsers={allUsers} />;
+    }
+
+    if (activeMenu === 'giant_tree') {
+      return <GiantTreeView currentNickname={userData?.nickname} currentUserData={userData} allUsers={allUsers} />;
     }
 
     if (activeMenu === 'ranking') {
