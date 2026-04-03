@@ -477,10 +477,7 @@ function App() {
       return <GiantTreeView currentNickname={userData?.nickname} currentUserData={userData} allUsers={allUsers} initialTreeId={pendingTreeId || undefined} initialParentNodeId={pendingParentNodeId || undefined} />;
     }
 
-    if (activeMenu === 'ranking') {
-      return <RankingView allRootPosts={allRootPosts.filter(p => !p.isOneCut)} allUsers={allUsers} onPostClick={handleViewPost} />;
-    }
-
+    // 🚀 selectedTopic 체크: ranking 등 다른 메뉴에서 글 클릭 시 상세보기 진입 가능하도록 먼저 판단
     if (selectedTopic) {
       const livePost = allRootPosts.find(p => p.id === selectedTopic.id) || selectedTopic;
       // 🚀 한컷 판정 로직 강화: isOneCut 플래그 또는 카테고리명이 "한컷"인 경우
@@ -494,6 +491,10 @@ function App() {
           if (liveIsMyStory) return !p.category || myStory.includes(p.category || '');
           return p.category === livePost.category;
         })} onTopicChange={handleViewPost} userData={userData!} friends={friends} onToggleFriend={toggleFriend} onPostClick={() => {}} replyTarget={replyTarget} setReplyTarget={setReplyTarget} handleSubmit={handleCommentSubmit} selectedSide={selectedSide} setSelectedSide={setSelectedSide} selectedType={selectedType} setSelectedType={setSelectedType} newTitle={newTitle} setNewTitle={setNewTitle} newContent={newContent} setNewContent={setNewContent} isSubmitting={isSubmitting} commentCounts={commentCounts} onLikeClick={handleLike} currentNickname={userData?.nickname} allUsers={allUsers} followerCounts={followerCounts} toggleBlock={toggleBlock} onEditPost={(post) => { setEditingPost(post); setIsCreateOpen(true); }} onInlineReply={handleInlineReply} onOpenLinkedPost={(side) => { setLinkedPostSide(side); setIsCreateOpen(true); }} onNavigateToPost={(postId) => { const target = allRootPosts.find(p => p.id === postId); if (target) handleViewPost(target); }} onBack={() => { setSelectedTopic(null); setReplyTarget(null); setEditingPost(null); }} />;
+    }
+
+    if (activeMenu === 'ranking') {
+      return <RankingView allRootPosts={allRootPosts.filter(p => !p.isOneCut)} allUsers={allUsers} onPostClick={handleViewPost} />;
     }
 
     if (activeMenu === 'onecut') {

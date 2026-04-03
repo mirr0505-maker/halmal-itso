@@ -155,7 +155,7 @@ const Sidebar = ({ activeMenu, setActiveMenu, kanbuRoomCount = 0, mobile = false
 
   const rankingMenu: MenuItem = {
     id: 'ranking',
-    label: '랭킹',
+    label: '실시간 랭킹',
     description: '좋아요 · 땡스볼',
     icon: (
       <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
