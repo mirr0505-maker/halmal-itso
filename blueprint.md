@@ -779,3 +779,156 @@ interface KanbuChat {
   - 글별 동적 OG 태그 (카카오톡 공유 시 글 제목·내용 미리보기)
   - 구현 방식: Cloud Function이 `?post=topic_타임스탬프` 요청을 가로채 Firestore에서 글 조회 후 OG 태그가 담긴 HTML 반환
   - 현재 임시 조치: `index.html`에 앱 공통 OG 태그 적용 중 (모든 공유가 동일한 앱 브랜딩으로 표시)
+
+---
+
+## 10. 거대 나무 (자이언트 트리) — 개발 계획서
+
+> 상태: **설계 단계 (미구현)**  |  기획 확정일: 2026-04-03
+
+### 10.1 개요
+
+| 항목 | 내용 |
+|------|------|
+| **메뉴명** | 거대나무 (자이언트 트리) |
+| **설명** | 자신의 주장을 버킷리스트 전파 형태(다단계)로 보낼 수 있는 곳 |
+| **사이드바 위치** | 우리들의 장갑(glove)과 랭킹(ranking) 사이 별도 영역 (향후 동일 영역에 메뉴 추가 예정) |
+| **핵심 가치** | 작성자 중심 — 내 주장의 영향력을 물리적·시각적으로 확장 |
+
+### 10.2 전파 규모 (평판도 기반)
+
+| 평판 등급 | 초기 개발 규모 | 향후 목표 |
+|-----------|--------------|----------|
+| 약간 우호  | 최대 **10명** | 1천명 |
+| 우호       | 최대 **30명** | 1만명 |
+| 매우 우호  | 최대 **50명** | 10만명 |
+| 확고       | 최대 **100명** | 100만명 |
+
+- `maxSpread` 값은 트리 생성 시점의 작성자 평판 등급으로 고정 (이후 평판 변동 무관)
+- 평판 등급 산출 기준: 기존 `getReputationLabel()` 유틸 함수 활용
+
+### 10.3 전파 흐름
+
+```
+작성자 글 작성
+    ↓
+전파 참여자 수신 (카카오톡 / 링크 공유)
+    ↓
+링크 클릭 → 앱 접속 → 로그인 (신규 유입 경로)
+    ↓
+공감 or 반대 선택 + 짧은 코멘트 입력
+    ↓
+3명 선택 → 다음 전파 노드 생성
+    ↓
+(반복 — maxSpread 도달 또는 서킷 브레이커 발동 시 종료)
+```
+
+- 한 노드당 자식 최대 **3개** (각 참여자가 3명에게 전파)
+- 참여자 1인당 전파 1회만 허용 (중복 참여 차단)
+
+### 10.4 Firestore 데이터 모델
+
+#### 컬렉션: `giant_trees/{treeId}`
+```
+treeId          : "tree_{timestamp}_{uid}"
+title           : string           // 글 제목
+content         : string           // 글 본문 (HTML)
+author          : string           // 닉네임
+author_id       : string           // UID
+authorLevel     : number           // 생성 시점 레벨 스냅샷
+authorReputation: string           // 생성 시점 평판 등급 스냅샷
+maxSpread       : number           // 전파 가능 최대 인원 (생성 시 고정)
+totalNodes      : number           // 현재까지 생성된 노드 수 (실시간 집계)
+agreeCount      : number           // 전체 공감 수
+opposeCount     : number           // 전체 반대 수
+circuitBroken   : boolean          // 서킷 브레이커 발동 여부
+createdAt       : Timestamp
+```
+
+#### 서브컬렉션: `giant_trees/{treeId}/nodes/{nodeId}`
+```
+nodeId          : "node_{timestamp}_{uid}"
+depth           : number           // 전파 단계 (0 = 작성자, 1 = 1차 전파, ...)
+parentNodeId    : string | null    // 부모 노드 ID (루트는 null)
+participantNick : string           // 이 노드 참여자 닉네임
+participantId   : string           // 이 노드 참여자 UID
+side            : 'agree' | 'oppose'
+comment         : string           // 짧은 코멘트 (최대 100자)
+childCount      : number           // 자식 노드 수 (0~3)
+createdAt       : Timestamp
+```
+
+#### 중복 참여 차단: `giant_trees/{treeId}/participants/{uid}`
+```
+uid             : string
+joinedAt        : Timestamp
+```
+
+### 10.5 서킷 브레이커 (Circuit Breaker)
+
+- 발동 조건: 전체 노드 중 **반대 비율 ≥ 70%** (최소 10노드 이상일 때 판정)
+- 발동 시: `circuitBroken: true` 설정 → 신규 노드 생성 차단
+- UI: 트리 상세 뷰에 "⚠️ 이 주장은 다수의 반대로 전파가 중단되었습니다" 표시
+
+### 10.6 컴포넌트 설계
+
+| 컴포넌트 | 역할 |
+|----------|------|
+| `GiantTreeView.tsx` | 목록 뷰 — 진행 중인 트리 카드 목록 (totalNodes·agreeCount 표시) |
+| `CreateGiantTree.tsx` | 글 작성 폼 (TiptapEditor 재사용) |
+| `GiantTreeDetail.tsx` | 상세 뷰 — 트리 정보 + 전파 참여 폼 + 맵 |
+| `GiantTreeMap.tsx` | 트리 시각화 — CSS 기반 줌인/아웃 (초기), D3.js 고도화(후기) |
+| `GiantTreeNode.tsx` | 노드 카드 — 참여자 아바타·평판·공감/반대·코멘트 |
+| `GiantTreeSpreadForm.tsx` | 전파 참여 폼 — 공감/반대 선택 + 코멘트 + 3인 선택 |
+
+### 10.7 사이드바 배치
+
+```tsx
+// Sidebar.tsx — 새 섹션 추가 (glove와 ranking 사이)
+{/* 🚀 거대 나무 섹션 */}
+<div className="px-3 pt-4 pb-1">
+  <span className="text-[9px] font-black text-slate-300 uppercase tracking-widest">
+    주장 전파
+  </span>
+</div>
+<MenuItem id="giant_tree" label="거대나무" emoji="🌳" description="주장 전파" />
+
+{/* 랭킹 */}
+<MenuItem id="ranking" ... />
+```
+
+### 10.8 구현 단계 (Phase)
+
+#### Phase 1 — 기반 구조 (우선 구현)
+- [ ] `types.ts`: `GiantTree`, `GiantTreeNode` 인터페이스 추가
+- [ ] `constants.ts`: `giant_tree` 메뉴 항목 추가
+- [ ] `Sidebar.tsx`: 새 섹션 + `giant_tree` 메뉴 항목 추가 (MenuId 타입 확장)
+- [ ] `App.tsx`: `giant_tree` activeMenu 처리, `GiantTreeView` lazy import
+- [ ] `CreateGiantTree.tsx`: 글 작성 폼 (제목 + TiptapEditor + 전파 규모 미리보기)
+- [ ] Firestore `giant_trees` 컬렉션 쓰기/읽기 기본 구현
+
+#### Phase 2 — 전파 참여 UI
+- [ ] `GiantTreeDetail.tsx`: 트리 기본 정보 + 참여 폼
+- [ ] `GiantTreeSpreadForm.tsx`: 공감/반대 + 코멘트 + 참여 처리
+- [ ] 중복 참여 차단 (`participants` 서브컬렉션 조회)
+- [ ] `totalNodes` / `agreeCount` / `opposeCount` 실시간 업데이트
+- [ ] 서킷 브레이커 판정 로직
+
+#### Phase 3 — 트리 시각화
+- [ ] `GiantTreeMap.tsx`: CSS Flexbox 기반 세로 트리 렌더링
+- [ ] `GiantTreeNode.tsx`: 노드 카드 (아바타·공감반대 배지·코멘트)
+- [ ] 줌인/아웃: CSS `transform: scale()` + 핀치 제스처 (모바일)
+- [ ] 깊이별 색상 구분 (공감=파랑, 반대=빨강)
+
+#### Phase 4 — 고도화
+- [ ] 카카오톡 공유 API 연동 (`?tree={treeId}&node={parentNodeId}` URL)
+- [ ] 전파 시 작성자 평판 실시간 상승 (`users.likes += 공감 수`)
+- [ ] 알림: 내 트리에 새 노드 생성 시 작성자에게 알림 push
+- [ ] D3.js 트리 맵 고도화 (대량 노드 대응)
+
+### 10.9 핵심 기술 고려사항
+
+- **트리 조회 비용**: 노드가 많아지면 전체 서브컬렉션 구독 비용이 큼 → 초기에는 `limit(50)` + 페이지네이션, 시각화는 클라이언트 재구성
+- **전파 URL**: `https://halmal-itso.web.app/?tree={treeId}&node={parentNodeId}` — 링크 수신자가 해당 노드의 자식으로 자동 연결
+- **카카오 공유 카드**: 작성자 아바타 + 제목 + "전파 {N}번째 주장 — 지금 공감/반대를 선택하세요" 메시지
+- **자동 ID 예외**: `nodes/{nodeId}`, `participants/{uid}` 서브컬렉션은 구조 특성상 `addDoc` 자동 ID 허용 (단, `participants`는 `{uid}`를 문서 ID로 직접 사용)
