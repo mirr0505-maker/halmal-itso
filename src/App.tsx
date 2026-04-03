@@ -1,4 +1,34 @@
 // src/App.tsx — 루트 컴포넌트 (전역 상태, 실시간 리스너, 라우팅)
+
+// 🚀 딥링크 파라미터 복원 헬퍼 — 앱 마운트 시 한 번만 실행
+// 모바일 signInWithRedirect 후 복귀 시 URL 파라미터가 사라지므로
+// 리디렉션 전 sessionStorage('authRedirectUrl')에 저장한 URL에서 파라미터 복원
+// 검색어: getDeepLinkParams
+const getDeepLinkParams = (() => {
+  let cached: { params: URLSearchParams; path: string } | null = null;
+  return () => {
+    if (cached) return cached;
+    const currentParams = new URLSearchParams(window.location.search);
+    const currentPath = window.location.pathname;
+    // 현재 URL에 파라미터가 있으면 그대로 사용
+    if (currentParams.has('post') || currentParams.has('tree') || currentParams.has('node') || /^\/p\//.test(currentPath)) {
+      cached = { params: currentParams, path: currentPath };
+      return cached;
+    }
+    // 모바일 리디렉션 로그인 후 복귀: 저장된 원래 URL에서 파라미터 복원
+    const savedUrl = sessionStorage.getItem('authRedirectUrl');
+    if (savedUrl) {
+      sessionStorage.removeItem('authRedirectUrl');
+      try {
+        const url = new URL(savedUrl);
+        cached = { params: new URLSearchParams(url.search), path: url.pathname };
+        return cached;
+      } catch { /* 파싱 실패 시 현재 URL 사용 */ }
+    }
+    cached = { params: currentParams, path: currentPath };
+    return cached;
+  };
+})();
 import { useState, useEffect, lazy, Suspense } from 'react';
 import { db } from './firebase';
 import { collection, onSnapshot, query, where } from 'firebase/firestore';
@@ -102,19 +132,17 @@ function App() {
 
   const [pendingSharedPostId, setPendingSharedPostId] = useState<string | null>(() => {
     // ?post=topic_xxx (기존 방식) 또는 /p/topic_xxx (신규 방식) 모두 지원
-    const qParam = new URLSearchParams(window.location.search).get('post');
+    // 모바일 리디렉션 로그인 후 복귀 시: getDeepLinkParams()가 sessionStorage에서 원래 URL 복원
+    const { params, path } = getDeepLinkParams();
+    const qParam = params.get('post');
     if (qParam) return qParam;
-    const pathMatch = window.location.pathname.match(/^\/p\/(.+)$/);
+    const pathMatch = path.match(/^\/p\/(.+)$/);
     return pathMatch ? pathMatch[1] : null;
   });
 
   // 🚀 거대 나무 공유 URL 처리: ?tree=treeId&node=parentNodeId
-  const [pendingTreeId] = useState<string | null>(() =>
-    new URLSearchParams(window.location.search).get('tree')
-  );
-  const [pendingParentNodeId] = useState<string | null>(() =>
-    new URLSearchParams(window.location.search).get('node')
-  );
+  const [pendingTreeId] = useState<string | null>(() => getDeepLinkParams().params.get('tree'));
+  const [pendingParentNodeId] = useState<string | null>(() => getDeepLinkParams().params.get('node'));
 
   const accessibleRooms = kanbuRooms.filter(r =>
     r.creatorNickname === userData?.nickname || friends.includes(r.creatorNickname)

@@ -70,7 +70,9 @@ export function useAuthActions({ userData, setUserData, setActiveMenu }: AuthAct
       await setPersistence(auth, browserLocalPersistence);
       if (isMobileBrowser()) {
         // 🚀 모바일(iOS Safari 등): 팝업 차단 문제로 페이지 리디렉션 방식 사용
-        // 로그인 완료 후 원래 페이지로 돌아오면 onAuthStateChanged가 자동 처리
+        // 리디렉션 전에 현재 URL 저장 — 복귀 후 딥링크(공유 글, 거대나무) 복원에 사용
+        // 검색어: authRedirectUrl
+        sessionStorage.setItem('authRedirectUrl', window.location.href);
         await signInWithRedirect(auth, googleProvider);
       } else {
         await signInWithPopup(auth, googleProvider);
