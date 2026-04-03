@@ -8,6 +8,7 @@ import { useAuthActions } from './hooks/useAuthActions';
 import { useGloveActions } from './hooks/useGloveActions';
 import { useFirestoreActions } from './hooks/useFirestoreActions';
 // 항상 초기 화면에 필요한 컴포넌트 — 정적 import 유지
+import InAppBrowserModal from './components/InAppBrowserModal';
 import AnyTalkList from './components/AnyTalkList';
 import NotificationBell from './components/NotificationBell';
 import Sidebar from './components/Sidebar';
@@ -119,7 +120,7 @@ function App() {
   );
 
   // 🚀 인증 훅 — 로그인·로그아웃·테스트 계정 핸들러
-  const { handleLogin, handleTestLogin, handleLogout } = useAuthActions({ userData, setUserData, setActiveMenu });
+  const { handleLogin, handleTestLogin, handleLogout, inAppModal, closeInAppModal, openExternalBrowser } = useAuthActions({ userData, setUserData, setActiveMenu });
 
   // 🚀 장갑 훅 — 커뮤니티 개설·가입·탈퇴·깐부방 생성 핸들러
   const { handleCreateRoom, handleCreateCommunity, handleJoinCommunity, handleLeaveCommunity } = useGloveActions({
@@ -743,6 +744,18 @@ function App() {
           <span className="text-[9px] font-[1000]">메뉴</span>
         </button>
       </nav>
+
+      {/* 🚀 인앱 브라우저 로그인 차단 모달 */}
+      {inAppModal && (
+        <InAppBrowserModal
+          appName={inAppModal.appName}
+          isIOS={inAppModal.isIOS}
+          isAndroid={inAppModal.isAndroid}
+          currentUrl={inAppModal.currentUrl}
+          onOpenExternal={() => { openExternalBrowser(); closeInAppModal(); }}
+          onClose={closeInAppModal}
+        />
+      )}
     </div>
   );
 }

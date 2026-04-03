@@ -1,4 +1,5 @@
 // src/hooks/useAuthActions.ts — 인증 관련 핸들러 (로그인·로그아웃·테스트 계정)
+import { useState } from 'react';
 import { auth, googleProvider, db } from '../firebase';
 import {
   signInWithPopup, signOut, setPersistence,
@@ -9,6 +10,14 @@ import type { Dispatch, SetStateAction } from 'react';
 import type { UserData } from '../types';
 import type { MenuId } from '../components/Sidebar';
 import { TEST_ACCOUNTS } from '../constants';
+
+// 🚀 인앱 브라우저 모달 데이터 타입
+export interface InAppModalData {
+  appName: string;
+  isIOS: boolean;
+  isAndroid: boolean;
+  currentUrl: string;
+}
 
 interface AuthActionDeps {
   userData: UserData | null;
@@ -40,20 +49,17 @@ const openExternalBrowser = () => {
 };
 
 export function useAuthActions({ userData, setUserData, setActiveMenu }: AuthActionDeps) {
+  // 🚀 인앱 브라우저 감지 시 모달 데이터 — null이면 모달 닫힘
+  const [inAppModal, setInAppModal] = useState<InAppModalData | null>(null);
+
   const handleLogin = async () => {
     const inAppType = detectInAppBrowser();
     if (inAppType) {
       const appName = inAppType === 'kakao' ? '카카오톡' : inAppType === 'instagram' ? '인스타그램' : '현재 앱';
       const isAndroid = /Android/i.test(navigator.userAgent);
       const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
-      if (isAndroid) {
-        if (window.confirm(`${appName} 내부 브라우저에서는 구글 로그인이 지원되지 않습니다.\n\nChrome 브라우저에서 열겠습니까?`)) openExternalBrowser();
-      } else if (isIOS) {
-        alert(`${appName} 내부 브라우저에서는 구글 로그인이 지원되지 않습니다.\n\n[확인]을 누르면 주소가 복사됩니다.\nSafari 앱을 열고 주소창에 붙여넣기 해주세요.`);
-        openExternalBrowser();
-      } else {
-        alert(`${appName} 내부 브라우저에서는 구글 로그인이 지원되지 않습니다.\n기기의 기본 브라우저(Chrome, Safari)에서 열어주세요.`);
-      }
+      // alert/confirm 대신 커스텀 모달로 교체
+      setInAppModal({ appName, isIOS, isAndroid, currentUrl: window.location.href });
       return;
     }
     try {
@@ -99,5 +105,10 @@ export function useAuthActions({ userData, setUserData, setActiveMenu }: AuthAct
     }
   };
 
-  return { handleLogin, handleTestLogin, handleLogout };
+  return {
+    handleLogin, handleTestLogin, handleLogout,
+    inAppModal,
+    closeInAppModal: () => setInAppModal(null),
+    openExternalBrowser,
+  };
 }
