@@ -32,7 +32,7 @@ export const TEST_ACCOUNTS = [
   { nickname: "깐부4호", email: "test4@halmal.com", bio: "4번 테스트 계정이오. (Lv5)", level: 5 }
 ];
 
-export const MENU_MESSAGES: Record<string, { title: string, description: string, emoji: string, categoryKey?: string }> = {
+export const MENU_MESSAGES: Record<string, { title: string, description: string, emoji: string, categoryKey?: string, tags?: string[] }> = {
   onecut: {
     emoji: "🎞️",
     title: "한컷",
@@ -76,7 +76,8 @@ export const MENU_MESSAGES: Record<string, { title: string, description: string,
   marathon_herald: {
     emoji: "🏃",
     title: "마라톤의 전령",
-    description: "뉴스 속보"
+    description: "뉴스 속보",
+    tags: ["단독", "긴급", "지진", "화재", "재난", "테러"]
   },
   ranking: {
     emoji: "🏆",

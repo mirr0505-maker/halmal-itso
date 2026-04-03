@@ -5,6 +5,7 @@ interface Props {
     title: string;
     description: string;
     emoji: string;
+    tags?: string[];
   };
 }
 
@@ -22,9 +23,14 @@ const CategoryHeader = ({ menuInfo }: Props) => {
             </h2>
           </div>
           <div className="w-px h-3 bg-slate-200 shrink-0 mx-1" />
-          <p className="text-[12px] font-bold text-slate-500 truncate tracking-tight break-keep">
+          <p className="text-[12px] font-bold text-slate-500 tracking-tight break-keep shrink-0">
             {menuInfo.description}
           </p>
+          {menuInfo.tags && menuInfo.tags.map(tag => (
+            <span key={tag} className="shrink-0 px-1.5 py-0.5 rounded-full text-[10px] font-black bg-rose-50 text-rose-500 border border-rose-100">
+              {tag}
+            </span>
+          ))}
         </div>
       </div>
       <div className="h-3" />
