@@ -5,16 +5,21 @@ import { collection, query, orderBy, limit, onSnapshot, updateDoc, doc, writeBat
 
 interface Notification {
   id: string;
-  type: 'thanksball' | 'community_post' | 'finger_promoted';
-  fromNickname?: string;
+  type: 'thanksball' | 'community_post' | 'finger_promoted' | 'giant_tree_spread';
+  fromNickname?: string;  // 땡스볼·커뮤니티 알림
+  fromNick?: string;      // 거대나무 알림 (필드명 다름)
   amount?: number;
   message?: string;
   postId?: string;
   postTitle?: string;
   communityId?: string;
   communityName?: string;
+  treeId?: string;
+  treeTitle?: string;
+  side?: 'agree' | 'oppose';
   createdAt?: { seconds: number } | number;
-  read: boolean;
+  read?: boolean;   // 땡스볼·커뮤니티
+  isRead?: boolean; // 거대나무 (필드명 다름)
 }
 
 interface Props {
@@ -38,7 +43,9 @@ const NotificationBell = ({ currentUid, onNavigate }: Props) => {
   const [isOpen, setIsOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
-  const unreadCount = notifications.filter(n => !n.read).length;
+  // 🚀 미읽음 판단: 'read'(땡스볼·커뮤니티) + 'isRead'(거대나무) 두 필드 모두 체크
+  const isUnread = (n: Notification) => !n.read && !n.isRead;
+  const unreadCount = notifications.filter(isUnread).length;
 
   // 🚀 경로를 UID 기반으로 변경 — 닉네임 변경 시에도 구독이 끊기지 않음
   useEffect(() => {
@@ -62,8 +69,9 @@ const NotificationBell = ({ currentUid, onNavigate }: Props) => {
   }, []);
 
   const markAsRead = async (notif: Notification) => {
-    if (!notif.read) {
-      await updateDoc(doc(db, 'notifications', currentUid, 'items', notif.id), { read: true });
+    if (isUnread(notif)) {
+      // 🚀 읽음 처리: 타입별 필드명이 달라 두 필드 모두 true로 기록
+      await updateDoc(doc(db, 'notifications', currentUid, 'items', notif.id), { read: true, isRead: true });
     }
     if (notif.postId) onNavigate(notif.postId);
     setIsOpen(false);
@@ -74,7 +82,7 @@ const NotificationBell = ({ currentUid, onNavigate }: Props) => {
     if (unread.length === 0) return;
     const batch = writeBatch(db);
     unread.forEach(n => {
-      batch.update(doc(db, 'notifications', currentUid, 'items', n.id), { read: true });
+      batch.update(doc(db, 'notifications', currentUid, 'items', n.id), { read: true, isRead: true });
     });
     await batch.commit();
   };
@@ -124,15 +132,22 @@ const NotificationBell = ({ currentUid, onNavigate }: Props) => {
             ) : (
               notifications.map(n => {
                 // 🚀 타입별 아이콘·메시지 분기
-                const icon = n.type === 'community_post' ? '🧤' : n.type === 'finger_promoted' ? '🖐' : '⚾';
-                const body = n.type === 'community_post' || n.type === 'finger_promoted'
-                  ? (n.message || '')
+                // 🚀 타입별 아이콘·메시지 분기 (giant_tree_spread 추가)
+                const icon =
+                  n.type === 'community_post' ? '🧤' :
+                  n.type === 'finger_promoted' ? '🖐' :
+                  n.type === 'giant_tree_spread' ? '🌳' : '⚾';
+                const body =
+                  n.type === 'community_post' || n.type === 'finger_promoted'
+                    ? (n.message || '')
+                  : n.type === 'giant_tree_spread'
+                    ? (<><span className="text-blue-600">{n.fromNick}</span>님이 내 거대나무에{' '}<span className={n.side === 'agree' ? 'text-blue-500 font-[1000]' : 'text-rose-500 font-[1000]'}>{n.side === 'agree' ? '공감' : '반대'}</span>했어요</>)
                   : (<><span className="text-blue-600">{n.fromNickname}</span>님이{' '}<span className="text-amber-500 font-[1000]">{n.amount}볼</span> 땡스볼을 보냈어요</>);
                 return (
                   <div
                     key={n.id}
                     onClick={() => markAsRead(n)}
-                    className={`flex items-start gap-3 px-4 py-3 cursor-pointer transition-colors hover:bg-slate-50 border-b border-slate-50/80 last:border-0 ${!n.read ? 'bg-amber-50/40' : ''}`}
+                    className={`flex items-start gap-3 px-4 py-3 cursor-pointer transition-colors hover:bg-slate-50 border-b border-slate-50/80 last:border-0 ${isUnread(n) ? 'bg-amber-50/40' : ''}`}
                   >
                     <span className="text-lg shrink-0 mt-0.5">{icon}</span>
                     <div className="flex-1 min-w-0">
@@ -145,7 +160,7 @@ const NotificationBell = ({ currentUid, onNavigate }: Props) => {
                       )}
                       <p className="text-[10px] text-slate-300 font-bold mt-1">{formatTime(n.createdAt)}</p>
                     </div>
-                    {!n.read && <div className="w-2 h-2 bg-rose-400 rounded-full shrink-0 mt-2" />}
+                    {isUnread(n) && <div className="w-2 h-2 bg-rose-400 rounded-full shrink-0 mt-2" />}
                   </div>
                 );
               })
