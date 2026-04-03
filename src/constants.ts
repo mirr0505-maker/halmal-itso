@@ -77,7 +77,7 @@ export const MENU_MESSAGES: Record<string, { title: string, description: string,
     emoji: "🏃",
     title: "마라톤의 전령",
     description: "뉴스 속보",
-    tags: ["단독", "긴급", "지진", "화재", "재난", "테러"]
+    tags: ["단독", "지진", "폭발", "테러", "비상계엄"]
   },
   ranking: {
     emoji: "🏆",
