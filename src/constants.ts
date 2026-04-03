@@ -78,6 +78,11 @@ export const MENU_MESSAGES: Record<string, { title: string, description: string,
     title: "마라톤의 전령",
     description: "뉴스 속보"
   },
+  ranking: {
+    emoji: "🏆",
+    title: "실시간 랭킹",
+    description: "좋아요 · 땡스볼 · 조회수 · 공유수 기준 실시간 TOP 20"
+  },
   giant_tree: {
     emoji: "🌳",
     title: "거대 나무",

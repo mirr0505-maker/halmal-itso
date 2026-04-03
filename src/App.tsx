@@ -132,7 +132,7 @@ function App() {
   const {
     handlePostSubmit, handleLinkedPostSubmit,
     handleInlineReply, handleCommentSubmit,
-    toggleFriend, toggleBlock, handleLike, handleViewPost,
+    toggleFriend, toggleBlock, handleLike, handleViewPost, handleShareCount,
   } = useFirestoreActions({
     userData, friends, blocks, allRootPosts, allChildPosts, selectedTopic,
     replyTarget, setReplyTarget, newTitle, newContent, setNewTitle, setNewContent,
@@ -521,7 +521,7 @@ function App() {
       const searchedPosts = filterBySearch(categoryPosts);
       return (
         <div className="w-full animate-in fade-in">
-          <AnyTalkList posts={searchedPosts} onTopicClick={handleViewPost} onLikeClick={handleLike} commentCounts={commentCounts} currentNickname={userData?.nickname} currentUserData={userData} allUsers={allUsers} followerCounts={followerCounts} />
+          <AnyTalkList posts={searchedPosts} onTopicClick={handleViewPost} onLikeClick={handleLike} commentCounts={commentCounts} currentNickname={userData?.nickname} currentUserData={userData} allUsers={allUsers} followerCounts={followerCounts} onShareCount={handleShareCount} />
         </div>
       );
     }
@@ -569,7 +569,7 @@ function App() {
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
             </button>
           </div>
-          <AnyTalkList posts={authorPosts} onTopicClick={handleViewPost} onLikeClick={handleLike} commentCounts={commentCounts} currentNickname={userData?.nickname} currentUserData={userData} allUsers={allUsers} followerCounts={followerCounts} tab={activeTab} onAuthorClick={setViewingAuthor} />
+          <AnyTalkList posts={authorPosts} onTopicClick={handleViewPost} onLikeClick={handleLike} commentCounts={commentCounts} currentNickname={userData?.nickname} currentUserData={userData} allUsers={allUsers} followerCounts={followerCounts} tab={activeTab} onAuthorClick={setViewingAuthor} onShareCount={handleShareCount} />
         </div>
       );
     }
@@ -597,7 +597,7 @@ function App() {
             ))}
           </div>
         )}
-        <AnyTalkList posts={searchedPosts} onTopicClick={handleViewPost} onLikeClick={handleLike} commentCounts={commentCounts} currentNickname={userData?.nickname} currentUserData={userData} allUsers={allUsers} followerCounts={followerCounts} tab={activeTab} onAuthorClick={setViewingAuthor} />
+        <AnyTalkList posts={searchedPosts} onTopicClick={handleViewPost} onLikeClick={handleLike} commentCounts={commentCounts} currentNickname={userData?.nickname} currentUserData={userData} allUsers={allUsers} followerCounts={followerCounts} tab={activeTab} onAuthorClick={setViewingAuthor} onShareCount={handleShareCount} />
       </div>
     );
   };

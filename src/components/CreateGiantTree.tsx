@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { db } from '../firebase';
 import { collection, doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import type { UserData } from '../types';
-import { getReputationLabel } from '../utils';
+import { getReputationLabel, getReputationScore } from '../utils';
 import { MAX_SPREAD_BY_REPUTATION } from './GiantTreeView';
 
 interface Props {
@@ -18,7 +18,7 @@ const CreateGiantTree = ({ currentNickname, currentUserData, onBack, onCreated }
   const [content, setContent] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const reputation = getReputationLabel(currentUserData?.likes || 0);
+  const reputation = getReputationLabel(currentUserData ? getReputationScore(currentUserData) : 0);
   const maxSpread = MAX_SPREAD_BY_REPUTATION[reputation] || 0;
 
   const handleSubmit = async () => {

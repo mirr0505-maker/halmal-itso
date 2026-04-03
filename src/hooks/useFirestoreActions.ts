@@ -214,6 +214,17 @@ export function useFirestoreActions({
     updateDoc(doc(db, 'posts', post.id), { viewCount: increment(1) }).catch(() => {});
   };
 
+  // 🚀 공유수 카운트: URL 복사 버튼 클릭 시 두 곳 동시 +1
+  // ① posts/{postId}.shareCount   — 글별 공유 횟수 (랭킹용)
+  // ② users/{authorId}.totalShares — 글쓴이 누적 공유수 (평판 점수 반영)
+  // 검색어: handleShareCount
+  const handleShareCount = (postId: string, authorId?: string) => {
+    updateDoc(doc(db, 'posts', postId), { shareCount: increment(1) }).catch(() => {});
+    if (authorId) {
+      updateDoc(doc(db, 'users', authorId), { totalShares: increment(1) }).catch(() => {});
+    }
+  };
+
   return {
     handlePostSubmit,
     handleLinkedPostSubmit,
@@ -223,5 +234,6 @@ export function useFirestoreActions({
     toggleBlock,
     handleLike,
     handleViewPost,
+    handleShareCount,
   };
 }

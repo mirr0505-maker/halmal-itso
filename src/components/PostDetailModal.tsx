@@ -4,7 +4,7 @@ import { db } from '../firebase';
 import { collection, query, onSnapshot, doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { auth } from '../firebase';
 import type { Post, UserData } from '../types';
-import { getReputationLabel, formatKoreanNumber } from '../utils';
+import { getReputationLabel, getReputationScore, formatKoreanNumber } from '../utils';
 
 interface Props {
   post: Post;
@@ -102,7 +102,7 @@ const PostDetailModal = ({ post, onClose, currentNickname, onLikeClick, isFriend
                 <div className="flex flex-col">
                   <span className="font-[1000] text-[15px] text-slate-900">{post.author}</span>
                   <span className="text-[11px] text-slate-400 font-bold">
-                    Lv {displayLevel} · {getReputationLabel(displayLikes)} · 깐부수 {formatKoreanNumber(realFollowers)}
+                    Lv {displayLevel} · {getReputationLabel(authorData ? getReputationScore(authorData) : displayLikes)} · 깐부수 {formatKoreanNumber(realFollowers)}
                   </span>
                 </div>
               </div>

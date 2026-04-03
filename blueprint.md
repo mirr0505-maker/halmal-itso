@@ -2,7 +2,7 @@
 
 이 문서는 **할말있소(HALMAL-ITSO)** 프로젝트의 설계 원칙, 현재 구현 상태, 그리고 AI 개발자의 **절대적 행동 지침**을 담은 단일 진실 소스(Single Source of Truth)입니다.
 
-> 최종 갱신: 2026-04-03 v29 (코드 실측 기준)  |  현재 브랜치: `main`
+> 최종 갱신: 2026-04-03 v30 (코드 실측 기준)  |  현재 브랜치: `main`
 
 ---
 
@@ -726,6 +726,13 @@ interface KanbuChat {
   - **DB 삭제**: Firestore `posts` 7건 + `comments` 9건 Admin SDK 스크립트로 영구 삭제.
   - **코드 삭제**: `CreateCryingBoy.tsx` 파일 삭제. `Sidebar.tsx` MenuId 타입·메뉴 항목, `constants.ts` `crying_boy` 객체, `App.tsx` lazy import·카테고리 카드, `DiscussionView.tsx` CATEGORY_RULES·CATEGORY_COMMENT_MAP, `DebateBoard.tsx` 조건문 2곳 전부 제거.
   - **backward compat 불필요**: DB 데이터 자체가 없으므로 기존 글 렌더링 경로 유지 불필요.
+
+- [x] **실시간 랭킹 전면 개선 + 공유수 시스템 + 평판 로직 전체정리 (2026-04-03 v30)**:
+  - **RankingView 4탭**: 좋아요·땡스볼·조회수·공유수 기준 탭 분리. 상위 3위 Hero 카드(숫자 크게, 메달 제거) + progress bar 목록. TOP 20 / 전체 토글(`ViewMode`).
+  - **공유수 시스템 완성**: `types.ts Post.shareCount`, `UserData.totalShares` 필드 추가. `handleShareCount(postId, authorId?)` — `posts.shareCount` + `users.totalShares` 동시 increment(1). AnyTalkList·RootPostCard·OneCutDetailView 3곳 `handleCopyUrl`에서 호출. 검색어: `handleShareCount`.
+  - **평판 로직 전체정리**: `getReputationScore(userData)` 함수 신설 (`src/utils.ts`) — 공식: `likes + totalShares × 2`. 기존 `calculateReputation` 함수에 `totalSharesReceived` 파라미터 추가(하위호환). 17개 파일 일괄 적용: AnyTalkList, PostCard, OneCutList, OneCutListSidebar, RelatedPostsSidebar, PostDetailModal, OneCutDetailView, DebateBoard, OneCutCommentBoard, RootPostCard, ActivityMilestones, ActivityStats, CreateGiantTree, GiantTreeView + utils.ts, types.ts, useFirestoreActions.ts.
+  - **MENU_MESSAGES ranking 추가**: `constants.ts` — `ranking: { emoji: "🏆", title: "실시간 랭킹", ... }`. CategoryHeader 자동 렌더 적용.
+  - **설계 원칙**: 공유수 가중치 2× (좋아요 임계값 300/1000/2000 재사용 가능). 검색어: `getReputationScore`.
 
 - [x] **마라톤의 전령 — Firebase Cloud Functions 뉴스 봇 (2026-04-01)**:
   - **구조**: `functions/index.js` — `onSchedule("every 30 minutes", region: "asia-northeast3")`

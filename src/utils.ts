@@ -46,6 +46,15 @@ export const getCategoryDisplayName = (category?: string): string => {
 };
 
 /**
+ * 🚀 평판 점수 계산: 좋아요 + (공유수 × 2)
+ * userData.likes 대신 항상 이 함수를 사용하세요.
+ * 검색어: getReputationScore
+ */
+export const getReputationScore = (userData: { likes?: number; totalShares?: number }): number => {
+  return (userData.likes || 0) + (userData.totalShares || 0) * 2;
+};
+
+/**
  * 평판 점수에 따른 등급 이름을 반환합니다.
  */
 export const getReputationLabel = (score: number): string => {
@@ -80,13 +89,16 @@ export const getLevelStyle = (level: number): string => {
 /**
  * 평판 점수 계산 공식
  */
+// 🚀 전체 활동 기반 평판 계산 (ActivityMilestones 전용 — 향후 전체 반영 예정)
+// 검색어: calculateReputation
 export const calculateReputation = (
-  rootCount: number, 
-  formalCount: number, 
-  commentCount: number, 
-  totalLikesReceived: number
+  rootCount: number,
+  formalCount: number,
+  commentCount: number,
+  totalLikesReceived: number,
+  totalSharesReceived: number = 0  // 공유수 (기본값 0 — 하위 호환)
 ): number => {
-  return (rootCount * 5) + (formalCount * 2) + (commentCount * 1) + (totalLikesReceived * 3);
+  return (rootCount * 5) + (formalCount * 2) + (commentCount * 1) + (totalLikesReceived * 3) + (totalSharesReceived * 2);
 };
 
 /**

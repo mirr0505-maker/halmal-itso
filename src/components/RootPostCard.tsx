@@ -1,9 +1,9 @@
 // src/components/RootPostCard.tsx
 import { useState, useEffect } from 'react';
 import { db } from '../firebase';
-import { doc, deleteDoc } from 'firebase/firestore';
+import { doc, deleteDoc, updateDoc, increment } from 'firebase/firestore';
 import type { Post, UserData } from '../types';
-import { getReputationLabel, formatKoreanNumber, getCategoryDisplayName } from '../utils';
+import { getReputationLabel, getReputationScore, formatKoreanNumber, getCategoryDisplayName } from '../utils';
 import { CATEGORY_RULES } from './DiscussionView';
 import LinkPreviewCard from './LinkPreviewCard';
 import type { OgData } from './LinkPreviewCard';
@@ -81,6 +81,11 @@ const RootPostCard = ({
     navigator.clipboard.writeText(shareUrl).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000); // 2초 후 버튼 원상복귀
+      // 🚀 공유수 카운트: URL 복사 성공 시 posts.shareCount + users.totalShares +1
+      updateDoc(doc(db, 'posts', post.id), { shareCount: increment(1) }).catch(() => {});
+      if (post.author_id) {
+        updateDoc(doc(db, 'users', post.author_id), { totalShares: increment(1) }).catch(() => {});
+      }
     });
   };
   const hasImageInContent = post.content.includes('<img');
@@ -232,7 +237,7 @@ const RootPostCard = ({
             <div className="flex flex-col">
               <span className="font-[1000] text-[15px] text-slate-900 mb-0.5">{post.author}</span>
               <span className="text-[11px] text-slate-500 font-bold">
-                Lv {userData.level} · {getReputationLabel(userData.likes)} · 깐부수 {formatKoreanNumber(friendCount)}
+                Lv {userData.level} · {getReputationLabel(getReputationScore(userData))} · 깐부수 {formatKoreanNumber(friendCount)}
               </span>
             </div>
           </div>

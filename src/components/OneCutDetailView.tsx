@@ -1,7 +1,7 @@
 // src/components/OneCutDetailView.tsx — 한컷 상세 뷰 (마법 수정 구슬 레이아웃 기반)
 import { useState, useEffect, useRef } from 'react';
 import type { Post, UserData } from '../types';
-import { formatKoreanNumber, getReputationLabel } from '../utils';
+import { formatKoreanNumber, getReputationLabel, getReputationScore } from '../utils';
 import OneCutListSidebar from './OneCutListSidebar';
 import ThanksballModal from './ThanksballModal';
 import { db } from '../firebase';
@@ -66,6 +66,11 @@ const OneCutDetailView = ({
     navigator.clipboard.writeText(shareUrl).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
+      // 🚀 공유수 카운트: URL 복사 성공 시 posts.shareCount + users.totalShares +1
+      updateDoc(doc(db, 'posts', rootPost.id), { shareCount: increment(1) }).catch(() => {});
+      if (rootPost.author_id) {
+        updateDoc(doc(db, 'users', rootPost.author_id), { totalShares: increment(1) }).catch(() => {});
+      }
     });
   };
 
@@ -239,7 +244,7 @@ const OneCutDetailView = ({
                 <div className="flex flex-col">
                   <span className="font-[1000] text-[15px] text-slate-900 mb-0.5">{rootPost.author}</span>
                   <span className="text-[11px] text-slate-500 font-bold">
-                    Lv {displayLevel} · {getReputationLabel(displayLikes)} · 깐부수 {formatKoreanNumber(realFollowers)}
+                    Lv {displayLevel} · {getReputationLabel(authorData ? getReputationScore(authorData) : displayLikes)} · 깐부수 {formatKoreanNumber(realFollowers)}
                   </span>
                 </div>
               </div>
@@ -351,7 +356,7 @@ const OneCutDetailView = ({
                                 <span className="text-[9px] font-bold text-slate-300">{formatTime(comment.createdAt)}</span>
                               </div>
                               <span className="text-[9px] text-slate-400 font-bold leading-tight mt-0.5">
-                                Lv {commentLevel} · {getReputationLabel(commentLikes)} · 깐부수 {formatKoreanNumber(commentFollowers)}
+                                Lv {commentLevel} · {getReputationLabel(commentAuthorData ? getReputationScore(commentAuthorData) : commentLikes)} · 깐부수 {formatKoreanNumber(commentFollowers)}
                               </span>
                             </div>
                           </div>

@@ -6,7 +6,7 @@ import type { Post, UserData } from '../types';
 import { CATEGORY_RULES } from './DiscussionView';
 import { db } from '../firebase';
 import { doc, updateDoc, deleteDoc, collection, query, where, onSnapshot } from 'firebase/firestore';
-import { formatKoreanNumber, getReputationLabel } from '../utils';
+import { formatKoreanNumber, getReputationLabel, getReputationScore } from '../utils';
 import { PutObjectCommand } from '@aws-sdk/client-s3';
 import { s3Client, BUCKET_NAME, PUBLIC_URL } from '../s3Client';
 
@@ -294,7 +294,7 @@ const DebateBoard = ({
                           <span className="text-[9px] font-bold text-slate-300">{formatTime(post.createdAt)}</span>
                         </div>
                         <span className="text-[9px] text-slate-400 font-bold leading-tight mt-0.5">
-                          Lv {displayLevel} · {getReputationLabel(displayLikes)} · 깐부수 {formatKoreanNumber(realFollowers)}
+                          Lv {displayLevel} · {getReputationLabel(authorData ? getReputationScore(authorData) : displayLikes)} · 깐부수 {formatKoreanNumber(realFollowers)}
                         </span>
                       </div>
                     </div>

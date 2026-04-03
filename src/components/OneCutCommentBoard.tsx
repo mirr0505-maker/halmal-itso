@@ -8,7 +8,7 @@ import ThanksballModal from './ThanksballModal';
 import type { Post, UserData } from '../types';
 import { db } from '../firebase';
 import { doc, updateDoc, deleteDoc } from 'firebase/firestore';
-import { formatKoreanNumber, getReputationLabel } from '../utils';
+import { formatKoreanNumber, getReputationLabel, getReputationScore } from '../utils';
 
 interface Props {
   allChildPosts: Post[];
@@ -179,7 +179,7 @@ const OneCutCommentBoard = ({
                           <span className="text-[9px] font-bold text-slate-300">{formatTime(post.createdAt)}</span>
                         </div>
                         <span className="text-[9px] text-slate-400 font-bold leading-tight mt-0.5">
-                          Lv {displayLevel} · {getReputationLabel(displayLikes)} · 깐부수 {formatKoreanNumber(realFollowers)}
+                          Lv {displayLevel} · {getReputationLabel(postAuthorData ? getReputationScore(postAuthorData) : displayLikes)} · 깐부수 {formatKoreanNumber(realFollowers)}
                         </span>
                       </div>
                     </div>

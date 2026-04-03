@@ -1,7 +1,7 @@
 // src/components/AnyTalkList.tsx
 import React, { useState } from 'react';
 import type { Post, UserData } from '../types';
-import { formatKoreanNumber, getReputationLabel, getCategoryDisplayName } from '../utils';
+import { formatKoreanNumber, getReputationLabel, getReputationScore, getCategoryDisplayName } from '../utils';
 
 interface Props {
   posts: Post[];
@@ -14,10 +14,12 @@ interface Props {
   followerCounts?: Record<string, number>;
   tab?: string;
   onAuthorClick?: (author: string) => void;
+  // 🚀 공유수 카운트: URL 복사 버튼 클릭 시 호출 → posts.shareCount + users.totalShares +1
+  onShareCount?: (postId: string, authorId?: string) => void;
 }
 
 const AnyTalkList = ({
-  posts, onTopicClick, onLikeClick, commentCounts = {}, currentNickname, allUsers = {}, followerCounts = {}, tab, onAuthorClick
+  posts, onTopicClick, onLikeClick, commentCounts = {}, currentNickname, allUsers = {}, followerCounts = {}, tab, onAuthorClick, onShareCount
 }: Props) => {
   const isNewTab = tab === 'any';
 
@@ -31,6 +33,9 @@ const AnyTalkList = ({
     navigator.clipboard.writeText(shareUrl).then(() => {
       setCopiedPostId(postId);
       setTimeout(() => setCopiedPostId(null), 2000);
+      // 🚀 공유수 카운트: URL 복사 성공 시 shareCount + totalShares +1
+      const postObj = posts.find(p => p.id === postId);
+      onShareCount?.(postId, postObj?.author_id);
     });
   };
 
@@ -171,7 +176,7 @@ const AnyTalkList = ({
                     <div className="flex flex-col min-w-0">
                       <span className={`text-[11px] font-[1000] truncate leading-none mb-0.5 ${isDark ? 'text-white' : 'text-slate-900'}`}>{post.author}</span>
                       <span className={`text-[9px] font-bold truncate tracking-tight ${isDark ? 'text-slate-400' : 'text-slate-400'}`}>
-                        Lv {displayLevel} · {getReputationLabel(displayLikes)} · 깐부수 {formatKoreanNumber(realFollowers)}
+                        Lv {displayLevel} · {getReputationLabel(authorData ? getReputationScore(authorData) : displayLikes)} · 깐부수 {formatKoreanNumber(realFollowers)}
                       </span>
                     </div>
                   </div>

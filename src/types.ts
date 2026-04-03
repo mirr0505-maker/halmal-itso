@@ -15,6 +15,7 @@ export interface UserData {
   level: number;
   exp?: number;           // 경험치 (레벨업 기준)
   likes: number;          // 누적 좋아요 수 (평판 지표)
+  totalShares?: number;   // 내 글이 공유된 총 횟수 (평판 점수에 반영 — likes + totalShares×2)
   points?: number;        // 포인트 (레거시)
   bio?: string;           // 자기소개
   avatarUrl?: string;     // 커스텀 프로필 이미지 URL
@@ -92,6 +93,9 @@ export interface Post {
 
   // 🚀 조회수
   viewCount?: number; // 타인이 열람한 횟수 (자기 글 제외, 세션 내 중복 방지)
+
+  // 🚀 공유수
+  shareCount?: number; // 카카오/링크 공유 횟수 (누적)
 
 }
 

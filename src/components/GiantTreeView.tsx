@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { db } from '../firebase';
 import { collection, query, orderBy, limit, onSnapshot } from 'firebase/firestore';
 import type { GiantTree, UserData } from '../types';
-import { getReputationLabel } from '../utils';
+import { getReputationLabel, getReputationScore } from '../utils';
 import CreateGiantTree from './CreateGiantTree';
 import GiantTreeDetail from './GiantTreeDetail';
 
@@ -102,7 +102,7 @@ const GiantTreeView = ({ currentNickname, currentUserData, allUsers = {}, initia
         {currentNickname && (
           <button
             onClick={() => {
-              const rep = getReputationLabel(currentUserData?.likes || 0);
+              const rep = getReputationLabel(currentUserData ? getReputationScore(currentUserData) : 0);
               if (MAX_SPREAD_BY_REPUTATION[rep] === 0) {
                 alert('평판 등급이 "약간 우호" 이상이어야 거대 나무를 심을 수 있습니다.');
                 return;
@@ -122,7 +122,7 @@ const GiantTreeView = ({ currentNickname, currentUserData, allUsers = {}, initia
         <div className="mb-4 flex items-center gap-2 flex-wrap">
           <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">내 전파 규모:</span>
           {(() => {
-            const rep = getReputationLabel(currentUserData?.likes || 0);
+            const rep = getReputationLabel(currentUserData ? getReputationScore(currentUserData) : 0);
             const max = MAX_SPREAD_BY_REPUTATION[rep] || 0;
             return max > 0
               ? <span className="text-[11px] font-black text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-lg">{rep} · 최대 {max}명</span>
