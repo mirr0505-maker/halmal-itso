@@ -6,7 +6,7 @@ import { s3Client, BUCKET_NAME, PUBLIC_URL } from '../s3Client';
 import type { Post, UserData } from '../types';
 import TiptapEditor from './TiptapEditor';
 
-const MOODS = ['행복', '슬픔', '화남', '피곤', '설렘', '불안', '고민', '평온'];
+const HERALD_TAGS = ['속보', '단독', '현장', '긴급', '확인', '분석'];
 
 interface Props {
   userData: UserData;
@@ -90,10 +90,10 @@ const CreateMarathonHerald = ({ userData, editingPost, onSubmit, onClose }: Prop
           <input type="text" placeholder="제목을 입력하세요" value={postData.title || ''} onChange={(e) => setPostData({ ...postData, title: e.target.value })} className="w-full bg-transparent text-[18px] font-bold text-slate-900 outline-none placeholder:text-slate-200 placeholder:font-normal" />
         </div>
 
-        {/* 오늘의 기분 */}
+        {/* 전령 전달 내용 */}
         <div className="flex items-center gap-2 px-5 py-2 border-b border-slate-100 shrink-0 flex-wrap">
-          <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest shrink-0">오늘의 기분</span>
-          {MOODS.map(m => (
+          <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest shrink-0">전령 전달 내용</span>
+          {HERALD_TAGS.map(m => (
             <button key={m} type="button" onClick={() => handleMoodSelect(m)}
               className={`px-2.5 py-1 rounded-full text-[11px] font-bold transition-all ${postData.mood === m ? 'bg-emerald-100 text-emerald-700 border border-emerald-300' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}>{m}</button>
           ))}
