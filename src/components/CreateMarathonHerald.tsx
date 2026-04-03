@@ -6,7 +6,7 @@ import { s3Client, BUCKET_NAME, PUBLIC_URL } from '../s3Client';
 import type { Post, UserData } from '../types';
 import TiptapEditor from './TiptapEditor';
 
-const HERALD_TAGS = ['속보', '단독', '현장', '긴급', '확인', '분석'];
+const HERALD_TAGS = ['속보', '단독', '지진', '폭발', '테러', '비상계엄'];
 
 interface Props {
   userData: UserData;
