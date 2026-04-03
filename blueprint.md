@@ -2,7 +2,7 @@
 
 이 문서는 **할말있소(HALMAL-ITSO)** 프로젝트의 설계 원칙, 현재 구현 상태, 그리고 AI 개발자의 **절대적 행동 지침**을 담은 단일 진실 소스(Single Source of Truth)입니다.
 
-> 최종 갱신: 2026-04-03 v27 (코드 실측 기준)  |  현재 브랜치: `main`
+> 최종 갱신: 2026-04-03 v28 (코드 실측 기준)  |  현재 브랜치: `main`
 
 ---
 
@@ -721,6 +721,12 @@ interface KanbuChat {
   - `DebateBoard` 내 `useEffect` — `where('linkedPostId', '==', rootPost.id)` 실시간 쿼리로 연계글 목록 구독.
   - 댓글 목록 하단(입력창 위)에 연계글 제목·배지 목록 표시. `onNavigateToPost` 클릭 시 해당 글로 이동. 과거 연계글도 포함.
 
+- [x] **양치기 소년의 외침 완전 제거 — 마라톤의 전령으로 통합 (2026-04-03)**:
+  - **배경**: 두 카테고리 모두 긴급 속보 성격으로 개념 중복. 마라톤의 전령이 수동 작성도 지원하고 pandora(공감↔의심) 댓글 구조가 더 우수.
+  - **DB 삭제**: Firestore `posts` 7건 + `comments` 9건 Admin SDK 스크립트로 영구 삭제.
+  - **코드 삭제**: `CreateCryingBoy.tsx` 파일 삭제. `Sidebar.tsx` MenuId 타입·메뉴 항목, `constants.ts` `crying_boy` 객체, `App.tsx` lazy import·카테고리 카드, `DiscussionView.tsx` CATEGORY_RULES·CATEGORY_COMMENT_MAP, `DebateBoard.tsx` 조건문 2곳 전부 제거.
+  - **backward compat 불필요**: DB 데이터 자체가 없으므로 기존 글 렌더링 경로 유지 불필요.
+
 - [x] **마라톤의 전령 — Firebase Cloud Functions 뉴스 봇 (2026-04-01)**:
   - **구조**: `functions/index.js` — `onSchedule("every 30 minutes", region: "asia-northeast3")`
   - **RSS 피드**: 연합뉴스TV · KBS뉴스 · 경향신문 · 동아일보 · SBS뉴스 (작동 확인된 5개)
@@ -743,7 +749,7 @@ interface KanbuChat {
 ### 📐 아키텍처 결정 기록
 - **Submit 로직 중복 없음**: Comment 컴포넌트(7개)는 UI 전담, Firestore 쓰기는 App.tsx `handleCommentSubmit` 단일 함수로 집중. Custom hook 추가 불필요.
 - **CATEGORY_RULES 확장 방식**: 카테고리별 동작 변경 시 카테고리명 하드코딩 금지 → `CATEGORY_RULES`에 속성 추가 후 컴포넌트에서 `rule.속성명` 참조. 현재 속성: `allowDisagree`, `allowFormal`, `boardType`, `placeholder`, `tab1/2`, `allowInlineReply`, `hideEmptyMessage`.
-- **boardType 종류**: `single`(단일 리스트), `qa`(Q&A), `info`(정보 공유 2컬럼), `pandora`(지그재그 동의/반박, 판도라의 상자·솔로몬의 재판·마법 수정 구슬), `onecut`(한컷 반응). (`debate` 타입 제거 — 솔로몬의 재판이 pandora로 전환됨)
+- **boardType 종류**: `single`(단일 리스트 — 너와나의이야기·신포도와여우·유배귀양지), `qa`(Q&A — 황금알을 낳는 거위), `pandora`(지그재그 2컬럼 — 판도라의 상자·솔로몬의 재판·마법 수정 구슬·마라톤의 전령), `onecut`(한컷 반응). (`debate`·`info` 타입 제거 완료. `양치기 소년의 외침` 카테고리 자체 제거됨)
 - **깐부 / 깐부수 구분**:
   - **깐부**: 내가 맺은 팔로잉. `users/{uid}.friendList[]` 기반. 깐부목록·깐부글·깐부맺기 버튼에 사용. `friends.length`로 카운트.
   - **깐부수**: 나를 맺은 팔로워 수. 전체 `users.friendList` 역산 집계(`followerCounts: Record<string, number>`). 숫자만 표시. 아바타 정보·ProfileHeader·레벨 로직에 사용.
