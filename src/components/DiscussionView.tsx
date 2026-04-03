@@ -86,7 +86,7 @@ export const CATEGORY_RULES: Record<string, {
   "마법 수정 구슬":       { allowDisagree: true,  allowFormal: false, boardType: 'pandora',  placeholder: "현지의 생생한 정보를 공유해 주세요...", tab1: "유용해요", tab2: "별로예요", allowInlineReply: true, hintAgree: "유용한 정보 고마워요", hintRefute: "별로라고 생각해요 그래도 정보 고마워요", placeholderAgree: "유용한 정보 감사 댓글 적어 주세요", placeholderRefute: "정보가 별로인 이유가 뭔가요 적어 주세요", hideAttachment: true },
   "현지 소식":            { allowDisagree: true,  allowFormal: false, boardType: 'pandora',  placeholder: "현지의 생생한 정보를 공유해 주세요...", tab1: "유용해요", tab2: "별로예요", allowInlineReply: true, hintAgree: "유용한 정보 고마워요", hintRefute: "별로라고 생각해요 그래도 정보 고마워요", placeholderAgree: "유용한 정보 감사 댓글 적어 주세요", placeholderRefute: "정보가 별로인 이유가 뭔가요 적어 주세요", hideAttachment: true }, // backward compat
   "양치기 소년의 외침":   { allowDisagree: false, allowFormal: false, boardType: 'single',   placeholder: "긴급 속보에 대한 의견을 남겨주세요", tab1: "💬 댓글 전용", tab2: "👍 공감", allowInlineReply: true, hideEmptyMessage: true },
-  "마라톤의 전령":        { allowDisagree: true,  allowFormal: false, boardType: 'pandora',  placeholder: "뉴스에 대한 의견을 남겨주세요...", tab1: "공감해요", tab2: "의심스러워요", allowInlineReply: true, hintAgree: "이 뉴스에 공감해요", hintRefute: "이 뉴스가 의심스러워요", placeholderAgree: "공감하는 이유를 적어주세요...", placeholderRefute: "의심스러운 이유를 적어주세요...", hideAttachment: true },
+  "마라톤의 전령":        { allowDisagree: false, allowFormal: false, boardType: 'pandora',  placeholder: "뉴스에 대한 의견을 남겨주세요...", tab1: "공감해요", tab2: "의심스러워요", allowInlineReply: true, hintAgree: "이 뉴스에 공감해요", hintRefute: "이 뉴스가 의심스러워요", placeholderAgree: "공감하는 이유를 적어주세요...", placeholderRefute: "의심스러운 이유를 적어주세요...", hideAttachment: true },
   "한컷":                 { allowDisagree: true,  allowFormal: false, boardType: 'onecut',   placeholder: "한컷에 대한 생각을 남겨보세요...", tab1: "👍 동의", tab2: "👎 반대" }
 };
 
@@ -194,6 +194,7 @@ const DiscussionView = ({
               category={rootPost.category || "나의 이야기"}
               onInlineReply={onInlineReply}
               onOpenLinkedPost={onOpenLinkedPost}
+              onNavigateToPost={onNavigateToPost}
               rootPost={rootPost}
               allUsers={allUsers}
               followerCounts={followerCounts}

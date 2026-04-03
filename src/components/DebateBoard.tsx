@@ -1,11 +1,11 @@
 // src/components/DebateBoard.tsx
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import PostCard from './PostCard';
 import ThanksballModal from './ThanksballModal';
 import type { Post, UserData } from '../types';
 import { CATEGORY_RULES } from './DiscussionView';
 import { db } from '../firebase';
-import { doc, updateDoc } from 'firebase/firestore';
+import { doc, updateDoc, deleteDoc, collection, query, where, onSnapshot } from 'firebase/firestore';
 import { formatKoreanNumber, getReputationLabel } from '../utils';
 import { PutObjectCommand } from '@aws-sdk/client-s3';
 import { s3Client, BUCKET_NAME, PUBLIC_URL } from '../s3Client';
@@ -21,13 +21,14 @@ interface Props {
   category: string;
   onInlineReply?: (content: string, parentPost: Post | null, side?: 'left' | 'right', imageUrl?: string, linkUrl?: string) => Promise<void>;
   onOpenLinkedPost?: (side: 'left' | 'right') => void;  // 솔로몬의 재판 연계글 팝업 트리거
+  onNavigateToPost?: (postId: string) => void;          // 연계글 클릭 시 해당 글로 이동
   rootPost?: Post;
   allUsers?: Record<string, UserData>;
   followerCounts?: Record<string, number>;
 }
 
 const DebateBoard = ({
-  allChildPosts, setReplyTarget, onPostClick, onLikeClick, currentNickname, category, onInlineReply, onOpenLinkedPost, rootPost, allUsers = {}, followerCounts = {}
+  allChildPosts, setReplyTarget, onPostClick, onLikeClick, currentNickname, category, onInlineReply, onOpenLinkedPost, onNavigateToPost, rootPost, allUsers = {}, followerCounts = {}
 }: Props) => {
   const rule = CATEGORY_RULES[category] || CATEGORY_RULES["너와 나의 이야기"];
 
@@ -84,6 +85,40 @@ const DebateBoard = ({
 
   // 땡스볼 모달 상태 (글 작성자 → 댓글 작성자)
   const [thanksballTarget, setThanksballTarget] = useState<{ docId: string; recipient: string; col: string } | null>(null);
+
+  // 🚀 솔로몬의 재판 전용: 이 글을 원본으로 하는 연계글 실시간 구독
+  const [linkedPosts, setLinkedPosts] = useState<Post[]>([]);
+  useEffect(() => {
+    if (category !== '솔로몬의 재판' || !rootPost?.id) return;
+    const q = query(collection(db, 'posts'), where('linkedPostId', '==', rootPost.id));
+    const unsub = onSnapshot(q, snap => {
+      const posts = snap.docs.map(d => ({ id: d.id, ...d.data() } as Post));
+      posts.sort((a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0));
+      setLinkedPosts(posts);
+    });
+    return () => unsub();
+  }, [category, rootPost?.id]);
+
+  // 판도라 댓글 인라인 수정 상태
+  const [editingPandoraId, setEditingPandoraId] = useState<string | null>(null);
+  const [editingPandoraContent, setEditingPandoraContent] = useState('');
+
+  const handlePandoraEditSave = async (post: Post) => {
+    if (!editingPandoraContent.trim()) return;
+    try {
+      const col = post.rootId ? 'comments' : 'posts';
+      await updateDoc(doc(db, col, post.id), { content: editingPandoraContent });
+      setEditingPandoraId(null);
+    } catch (e) { console.error(e); }
+  };
+
+  const handlePandoraDelete = async (post: Post) => {
+    if (!window.confirm('정말 삭제하시겠소?')) return;
+    try {
+      const col = post.rootId ? 'comments' : 'posts';
+      await deleteDoc(doc(db, col, post.id));
+    } catch (e) { console.error(e); }
+  };
 
   // 너와 나의 이야기 전용 인라인 폼 상태
   // '__new__' = 새 최상위 댓글, post.id = 해당 댓글 답글
@@ -143,7 +178,9 @@ const DebateBoard = ({
             isPinned={post.id === pinnedCommentId}
             isRootAuthor={isRootAuthor}
             onPin={() => handlePin(post.id)}
-            onThanksball={isRootAuthor ? (p) => setThanksballTarget({ docId: p.id, recipient: p.author, col: p.rootId ? 'comments' : 'posts' }) : undefined}
+            onThanksball={currentNickname ? (p) => setThanksballTarget({ docId: p.id, recipient: p.author, col: p.rootId ? 'comments' : 'posts' }) : undefined}
+            allUsers={allUsers}
+            followerCounts={followerCounts}
           />
           {activeId === post.id && (
             <div className="flex items-center gap-2 px-4 py-2.5 bg-slate-50 border-t border-slate-100">
@@ -193,17 +230,19 @@ const DebateBoard = ({
     return (
       <div className="flex flex-col bg-white min-h-[200px] mt-0">
         {/* 헤더 */}
-        <div className="py-3 md:px-8 border-b border-slate-100 flex items-center justify-between sticky top-0 z-10 bg-white">
+        <div className="py-1 md:px-8 border-b border-slate-100 flex items-center justify-between sticky top-0 z-10 bg-white">
           <h4 className="text-[14px] font-[1000] text-slate-700 tracking-tight flex items-center gap-3">
             <span className="flex items-center gap-1.5">
               <span className="w-2 h-2 bg-blue-400 rounded-full" />
               <span className="text-blue-600">{rule.tab1} {leftPosts.length}</span>
             </span>
-            <span className="text-slate-200">·</span>
-            <span className="flex items-center gap-1.5">
-              <span className="w-2 h-2 bg-rose-400 rounded-full" />
-              <span className="text-rose-500">{rule.tab2} {rightPosts.length}</span>
-            </span>
+            {rule.allowDisagree && (<>
+              <span className="text-slate-200">·</span>
+              <span className="flex items-center gap-1.5">
+                <span className="w-2 h-2 bg-rose-400 rounded-full" />
+                <span className="text-rose-500">{rule.tab2} {rightPosts.length}</span>
+              </span>
+            </>)}
           </h4>
           {isRootAuthor && (
             <button
@@ -220,7 +259,7 @@ const DebateBoard = ({
         </div>
 
         {/* 지그재그 댓글 목록 */}
-        <div className="flex flex-col gap-2.5 px-4 py-4">
+        <div className="flex flex-col gap-1.5 px-4 py-1">
           {zigzag.map(post => {
             const isLeft = post.side === 'left';
             const isPinned = post.id === pinnedCommentId;
@@ -231,7 +270,7 @@ const DebateBoard = ({
             const realFollowers = followerCounts[post.author] || 0;
             return (
               <div key={post.id} className={`flex ${isLeft ? 'justify-start' : 'justify-end'}`}>
-                <div className={`w-[84%] rounded-xl border px-4 py-3 transition-all ${
+                <div className={`${category === '마라톤의 전령' ? 'w-full' : 'w-[84%]'} rounded-xl border px-3 py-2 transition-all ${
                   isPinned
                     ? 'bg-amber-50 border-amber-200 ring-1 ring-amber-300'
                     : isLeft
@@ -244,10 +283,10 @@ const DebateBoard = ({
                       작성자가 고정한 댓글
                     </div>
                   )}
-                  <div className={`flex items-center justify-between mb-2 ${!isLeft ? 'flex-row-reverse' : ''}`}>
+                  <div className={`flex items-center justify-between mb-1 ${!isLeft ? 'flex-row-reverse' : ''}`}>
                     <div className={`flex items-center gap-2 ${!isLeft ? 'flex-row-reverse' : ''}`}>
                       <div className="w-7 h-7 rounded-full overflow-hidden shrink-0 border border-slate-200">
-                        <img src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${post.author}`} alt="avatar" className="w-full h-full object-cover" />
+                        <img src={authorData?.avatarUrl || `https://api.dicebear.com/7.x/adventurer/svg?seed=${post.author}`} alt="avatar" className="w-full h-full object-cover" />
                       </div>
                       <div className={`flex flex-col ${!isLeft ? 'items-end' : ''}`}>
                         <div className="flex items-center gap-2">
@@ -255,11 +294,54 @@ const DebateBoard = ({
                           <span className="text-[9px] font-bold text-slate-300">{formatTime(post.createdAt)}</span>
                         </div>
                         <span className="text-[9px] text-slate-400 font-bold leading-tight mt-0.5">
-                          Lv {displayLevel} · {getReputationLabel(displayLikes)} · 깐부 {formatKoreanNumber(realFollowers)}
+                          Lv {displayLevel} · {getReputationLabel(displayLikes)} · 깐부수 {formatKoreanNumber(realFollowers)}
                         </span>
                       </div>
                     </div>
+                    {/* 🚀 카드 헤더 우측: 좋아요·땡스볼·수정·삭제·핀 */}
                     <div className="flex items-center gap-2">
+                      {/* 좋아요 */}
+                      <button
+                        onClick={(e) => { e.stopPropagation(); onLikeClick?.(e, post.id); }}
+                        className={`flex items-center gap-1 text-[11px] font-bold transition-colors ${isLiked ? 'text-rose-500' : 'text-slate-300 hover:text-rose-400'}`}
+                      >
+                        <svg className={`w-3 h-3 ${isLiked ? 'fill-current' : 'fill-none'}`} stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+                        {post.likes || 0}
+                      </button>
+                      {/* 땡스볼: 로그인 유저 누구나 본인 댓글 제외 */}
+                      {currentNickname && post.author !== currentNickname ? (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setThanksballTarget({ docId: post.id, recipient: post.author, col: post.rootId ? 'comments' : 'posts' }); }}
+                          className="flex items-center gap-0.5 text-[11px] font-bold text-slate-300 hover:text-amber-500 transition-colors"
+                          title="땡스볼 보내기"
+                        >
+                          <span className="text-[13px] leading-none">⚾</span>
+                          {(post.thanksballTotal || 0) > 0 && <span className="text-amber-400">{post.thanksballTotal}</span>}
+                        </button>
+                      ) : (post.thanksballTotal || 0) > 0 ? (
+                        <span className="flex items-center gap-0.5 text-[11px] font-bold text-amber-400">
+                          <span className="text-[13px] leading-none">⚾</span>
+                          {post.thanksballTotal}
+                        </span>
+                      ) : null}
+                      {/* 수정 — 댓글 작성자 본인만 */}
+                      {post.author === currentNickname && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setEditingPandoraId(post.id); setEditingPandoraContent(post.content); }}
+                          className="text-[10px] font-bold text-slate-300 hover:text-blue-500 transition-colors"
+                        >수정</button>
+                      )}
+                      {/* 삭제 — 댓글 작성자 본인만 */}
+                      {post.author === currentNickname && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handlePandoraDelete(post); }}
+                          className="text-slate-300 hover:text-rose-500 transition-colors"
+                          title="삭제"
+                        >
+                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h14" /></svg>
+                        </button>
+                      )}
+                      {/* 핀 고정 — 글 작성자만 */}
                       {isRootAuthor && (
                         <button
                           onClick={() => handlePin(post.id)}
@@ -269,33 +351,27 @@ const DebateBoard = ({
                           <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>
                         </button>
                       )}
-                      <button
-                        onClick={(e) => { e.stopPropagation(); onLikeClick?.(e, post.id); }}
-                        className={`flex items-center gap-1 text-[11px] font-bold transition-colors ${isLiked ? 'text-rose-500' : 'text-slate-300 hover:text-rose-400'}`}
-                      >
-                        <svg className={`w-3 h-3 ${isLiked ? 'fill-current' : 'fill-none'}`} stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
-                        {post.likes || 0}
-                      </button>
-                      {(post.thanksballTotal || 0) > 0 && (
-                        <span className="flex items-center gap-1 text-[11px] font-bold text-amber-400">
-                          <span className="text-[13px] leading-none">⚾</span>
-                          {post.thanksballTotal}
-                        </span>
-                      )}
-                      {isRootAuthor && post.author !== currentNickname && (
-                        <button
-                          onClick={(e) => { e.stopPropagation(); setThanksballTarget({ docId: post.id, recipient: post.author, col: post.rootId ? 'comments' : 'posts' }); }}
-                          className="flex items-center gap-1 text-[11px] font-bold text-slate-300 hover:text-amber-500 transition-colors"
-                          title="이 댓글에 땡스볼 보내기"
-                        >
-                          <span className="text-[13px] leading-none">⚾</span>
-                        </button>
-                      )}
                     </div>
                   </div>
-                  <p className={`text-[13px] font-medium leading-relaxed whitespace-pre-line ${isLeft ? 'text-blue-900' : 'text-rose-900 text-right'}`}>
-                    {post.content}
-                  </p>
+                  {editingPandoraId === post.id ? (
+                    <div className="flex flex-col gap-2 mt-1">
+                      <textarea
+                        autoFocus
+                        value={editingPandoraContent}
+                        onChange={e => setEditingPandoraContent(e.target.value)}
+                        rows={3}
+                        className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-[13px] font-medium text-slate-700 outline-none focus:border-blue-400 resize-none"
+                      />
+                      <div className="flex gap-2 justify-end">
+                        <button onClick={() => setEditingPandoraId(null)} className="px-3 py-1 text-[11px] font-bold text-slate-400 hover:text-slate-600 rounded-md">취소</button>
+                        <button onClick={() => handlePandoraEditSave(post)} disabled={!editingPandoraContent.trim()} className="px-3 py-1 text-[11px] font-bold bg-slate-900 text-white rounded-md hover:bg-blue-600 disabled:opacity-50">저장</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className={`text-[13px] font-medium leading-relaxed whitespace-pre-line ${isLeft ? 'text-blue-900' : 'text-rose-900 text-right'}`}>
+                      {post.content}
+                    </p>
+                  )}
                   {post.imageUrl && (
                     <div className="mt-2 rounded-lg overflow-hidden border border-slate-200">
                       <img src={post.imageUrl} alt="" className="w-full h-auto max-h-52 object-cover" />
@@ -314,20 +390,52 @@ const DebateBoard = ({
           })}
         </div>
 
+        {/* 🚀 솔로몬의 재판 전용: 이 글에 연결된 연계글 목록 */}
+        {category === '솔로몬의 재판' && linkedPosts.length > 0 && (
+          <div className="border-t border-slate-100 px-4 py-2">
+            <h5 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
+              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>
+              연계글 {linkedPosts.length}
+            </h5>
+            <div className="flex flex-col gap-1">
+              {linkedPosts.map(lp => (
+                <button
+                  key={lp.id}
+                  onClick={() => onNavigateToPost?.(lp.id)}
+                  className={`flex items-center gap-2 w-full text-left px-3 py-1.5 rounded-lg border transition-all hover:opacity-80 ${
+                    lp.debatePosition === 'pro' ? 'bg-blue-50 border-blue-100' : 'bg-rose-50 border-rose-100'
+                  }`}
+                >
+                  <span className={`text-[9px] font-black shrink-0 px-1.5 py-0.5 rounded ${
+                    lp.debatePosition === 'pro' ? 'bg-blue-100 text-blue-600' : 'bg-rose-100 text-rose-600'
+                  }`}>
+                    {lp.debatePosition === 'pro' ? '👍 동의' : '👎 비동의'}
+                  </span>
+                  <span className={`text-[12px] font-bold truncate flex-1 ${lp.debatePosition === 'pro' ? 'text-blue-800' : 'text-rose-800'}`}>
+                    {lp.title}
+                  </span>
+                  <span className="text-[10px] font-bold text-slate-400 shrink-0">{lp.author}</span>
+                  <svg className="w-3 h-3 shrink-0 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7"/></svg>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* 하단 인라인 입력 */}
         <div className="border-t border-slate-100">
           {rootPost?.commentsLocked ? (
-            <div className="flex items-center gap-2 px-6 py-4 text-[13px] font-bold text-slate-400">
+            <div className="flex items-center gap-2 px-4 py-2 text-[13px] font-bold text-slate-400">
               <svg className="w-4 h-4 shrink-0" fill="currentColor" viewBox="0 0 24 24"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></svg>
               작성자가 댓글 기능을 잠궜습니다.
             </div>
           ) : !currentNickname ? (
-            <div className="flex items-center gap-2 px-6 py-4 text-[13px] font-bold text-slate-400">
+            <div className="flex items-center gap-2 px-4 py-2 text-[13px] font-bold text-slate-400">
               <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
               댓글을 작성하려면 로그인이 필요합니다.
             </div>
           ) : activeId === 'agree' || activeId === 'refute' ? (
-            <div className={`flex flex-col gap-2.5 px-4 py-3 border-t ${activeId === 'agree' ? 'bg-blue-50 border-blue-100' : 'bg-rose-50 border-rose-100'}`}>
+            <div className={`flex flex-col gap-1.5 px-4 py-2 border-t ${activeId === 'agree' ? 'bg-blue-50 border-blue-100' : 'bg-rose-50 border-rose-100'}`}>
               {/* 힌트 + 첨부 아이콘 */}
               <div className={`flex items-center gap-2 text-[11px] font-bold ${activeId === 'agree' ? 'text-blue-400' : 'text-rose-400'}`}>
                 <span>{activeId === 'agree' ? (rule.hintAgree ?? `${rule.tab1} 근거를 작성하세요.`) : (rule.hintRefute ?? `${rule.tab2} 근거를 작성하세요.`)}</span>
@@ -413,11 +521,30 @@ const DebateBoard = ({
               </div>
             </div>
           ) : (
-            <div className="flex flex-col gap-2 px-4 py-3">
-              <div className="flex gap-2">
-                <button onClick={() => openInline('agree')} className="flex-1 py-2.5 rounded-xl text-[12px] font-[1000] bg-blue-50 text-blue-500 hover:bg-blue-100 border border-blue-100 transition-all">{rule.tab1} 댓글...</button>
-                <button onClick={() => openInline('refute')} className="flex-1 py-2.5 rounded-xl text-[12px] font-[1000] bg-rose-50 text-rose-500 hover:bg-rose-100 border border-rose-100 transition-all">{rule.tab2} 댓글...</button>
+            <div className="flex flex-col gap-1.5 px-4 py-2">
+              {/* 🚀 마라톤의 전령 전용: 탭 버튼 없이 바로 입력창 */}
+              {category === '마라톤의 전령' ? (
+                <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2">
+                  <input
+                    type="text"
+                    value={inlineContent}
+                    onChange={e => setInlineContent(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) pandoraSubmit('left'); }}
+                    placeholder="이 뉴스에 공감해요"
+                    className="flex-1 bg-transparent text-[13px] font-bold text-slate-700 outline-none placeholder:text-slate-300 min-w-0"
+                  />
+                  <button
+                    onClick={() => pandoraSubmit('left')}
+                    disabled={isInlineSubmitting || !inlineContent.trim()}
+                    className="shrink-0 px-3 py-1.5 text-[11px] font-[1000] bg-slate-900 text-white rounded-lg hover:bg-blue-600 disabled:opacity-40 transition-colors"
+                  >댓글달기</button>
+                </div>
+              ) : (
+              <div className="flex gap-1.5">
+                <button onClick={() => openInline('agree')} className="flex-1 py-1.5 rounded-xl text-[12px] font-[1000] bg-blue-50 text-blue-500 hover:bg-blue-100 border border-blue-100 transition-all">{rule.tab1} 댓글...</button>
+                {rule.allowDisagree && <button onClick={() => openInline('refute')} className="flex-1 py-1.5 rounded-xl text-[12px] font-[1000] bg-rose-50 text-rose-500 hover:bg-rose-100 border border-rose-100 transition-all">{rule.tab2} 댓글...</button>}
               </div>
+              )}
               {/* 🚀 솔로몬의 재판 전용 연계글 버튼: 동의/비동의측 새 글 작성 팝업 트리거 */}
               {category === '솔로몬의 재판' && onOpenLinkedPost && (
                 <div className="flex items-center gap-2">
@@ -468,7 +595,7 @@ const DebateBoard = ({
 
     return (
       <div className="flex flex-col bg-white min-h-[200px] mt-0">
-        <div className="py-3 md:px-8 border-b border-slate-100 flex items-center justify-between sticky top-0 z-10 bg-white">
+        <div className="py-1 md:px-8 border-b border-slate-100 flex items-center justify-between sticky top-0 z-10 bg-white">
           <h4 className={`text-[14px] font-[1000] ${colorClass} tracking-tight flex items-center gap-2.5`}>
             <span className={`w-2.5 h-2.5 ${pointColor} rounded-full`} />
             {label} ({allChildPosts.length})
@@ -489,16 +616,33 @@ const DebateBoard = ({
             ? sortedTopLevel.map(post => renderThreadMyStory(post, 0))
             : sortedTopLevel.map(post => renderThread(post, 0))
           }
-          {allChildPosts.length === 0 && !rule.hideEmptyMessage && <div className="py-20 text-center text-slate-300 font-bold text-xs">첫 번째 글을 남겨보세요.</div>}
+          {allChildPosts.length === 0 && !rule.hideEmptyMessage && <div className="py-6 text-center text-slate-300 font-bold text-xs">첫 번째 글을 남겨보세요.</div>}
         </div>
 
         {/* 인라인 답글 활성화 카테고리 전용 — 최하단 새 댓글 입력창 */}
         {rule.allowInlineReply && (
           <div className="border-t border-slate-100">
             {!currentNickname ? (
-              <div className="flex items-center gap-2 px-6 py-4 text-[13px] font-bold text-slate-400">
+              <div className="flex items-center gap-2 px-4 py-2 text-[13px] font-bold text-slate-400">
                 <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
                 댓글을 작성하려면 로그인이 필요합니다.
+              </div>
+            ) : (category === '너와 나의 이야기' || category === '신포도와 여우' || category === '양치기 소년의 외침') ? (
+              /* 🚀 너와 나의 이야기 · 신포도와 여우: 직접 입력창 (버튼 클릭 없이 바로 입력) */
+              <div className="flex items-center gap-2 bg-slate-50 border-t border-slate-100 px-4 py-2">
+                <input
+                  type="text"
+                  value={inlineContent}
+                  onChange={e => setInlineContent(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) submitInline(null); }}
+                  placeholder={rule.placeholder}
+                  className="flex-1 bg-white border border-slate-200 rounded-xl px-3 py-2 text-[13px] font-bold text-slate-700 outline-none focus:border-slate-400 placeholder:text-slate-300 min-w-0"
+                />
+                <button
+                  onClick={() => submitInline(null)}
+                  disabled={isInlineSubmitting || !inlineContent.trim()}
+                  className="shrink-0 px-3 py-1.5 text-[11px] font-[1000] bg-slate-900 text-white rounded-lg hover:bg-blue-600 disabled:opacity-40 transition-colors"
+                >댓글달기</button>
               </div>
             ) : activeId === '__new__' ? (
               <div className="flex items-center gap-2 px-4 py-2.5 bg-slate-50 border-t border-slate-100">
@@ -513,7 +657,7 @@ const DebateBoard = ({
               </div>
             ) : (
               <button onClick={() => openInline('__new__')}
-                className="w-full px-8 py-4 text-left text-[13px] font-bold text-slate-300 hover:text-slate-500 hover:bg-slate-50 transition-colors">
+                className="w-full px-6 py-2 text-left text-[13px] font-bold text-slate-300 hover:text-slate-500 hover:bg-slate-50 transition-colors">
                 댓글 달기...
               </button>
             )}
@@ -571,7 +715,7 @@ const DebateBoard = ({
     <div className="grid grid-cols-1 md:grid-cols-2 min-h-[400px] mt-0 bg-[#F8FAFC]">
       {/* 좌측 진영 */}
       <div className="flex flex-col md:border-r border-slate-200 bg-white">
-        <div className="py-4 px-6 border-b border-slate-100 flex items-center justify-between sticky top-0 z-10 bg-white/90 backdrop-blur-sm">
+        <div className="py-1.5 px-4 border-b border-slate-100 flex items-center justify-between sticky top-0 z-10 bg-white/90 backdrop-blur-sm">
           <h4 className="text-[14px] font-[1000] text-blue-600 tracking-tight flex items-center gap-2">
             <span className="w-2.5 h-2.5 bg-blue-500 rounded-full" />
             {leftLabel} ({leftPosts.length})
@@ -584,13 +728,13 @@ const DebateBoard = ({
               onLikeClick={onLikeClick} currentNickname={currentNickname}
             />
           ))}
-          {leftPosts.length === 0 && <div className="py-16 text-center text-slate-300 font-bold text-xs">첫 글을 남겨주세요.</div>}
+          {leftPosts.length === 0 && <div className="py-6 text-center text-slate-300 font-bold text-xs">첫 글을 남겨주세요.</div>}
         </div>
       </div>
 
       {/* 우측 진영 */}
       <div className="flex flex-col bg-white">
-        <div className="py-4 px-6 border-b border-slate-100 flex items-center justify-between sticky top-0 z-10 bg-white/90 backdrop-blur-sm">
+        <div className="py-1.5 px-4 border-b border-slate-100 flex items-center justify-between sticky top-0 z-10 bg-white/90 backdrop-blur-sm">
           <h4 className="text-[14px] font-[1000] text-rose-500 tracking-tight flex items-center gap-2">
             <span className="w-2.5 h-2.5 bg-rose-400 rounded-full" />
             {rightLabel} ({rightPosts.length})
@@ -603,7 +747,7 @@ const DebateBoard = ({
               onLikeClick={onLikeClick} currentNickname={currentNickname}
             />
           ))}
-          {rightPosts.length === 0 && <div className="py-16 text-center text-slate-300 font-bold text-xs">첫 글을 남겨주세요.</div>}
+          {rightPosts.length === 0 && <div className="py-6 text-center text-slate-300 font-bold text-xs">첫 글을 남겨주세요.</div>}
         </div>
       </div>
     </div>

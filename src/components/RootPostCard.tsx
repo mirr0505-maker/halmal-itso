@@ -41,6 +41,7 @@ const RootPostCard = ({
 
   const isMyPost = post.author === currentNickname;
   const isLikedByMe = currentNickname && post.likedBy?.includes(currentNickname);
+  const authorData = (post.author_id && allUsers[post.author_id]) || allUsers[`nickname_${post.author}`];
   const [showSelfMsg, setShowSelfMsg] = useState(false);
 
   // 🚀 linkUrl OG 미리보기: post.linkUrl 우선, 없으면 content HTML의 첫 번째 <a href> 추출
@@ -75,7 +76,8 @@ const RootPostCard = ({
   // 예) topic_1234567890123_AbCxYz → ?post=topic_1234567890123
   const handleCopyUrl = () => {
     const shareToken = post.id.split('_').slice(0, 2).join('_'); // "topic_타임스탬프" 까지만
-    const shareUrl = `${window.location.origin}?post=${shareToken}`;
+    // /p/{shareToken} 형식 — ogRenderer Cloud Function이 SNS 봇에 동적 OG 반환
+    const shareUrl = `${window.location.origin}/p/${shareToken}`;
     navigator.clipboard.writeText(shareUrl).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000); // 2초 후 버튼 원상복귀
@@ -108,6 +110,7 @@ const RootPostCard = ({
   const isDark = !!(post.bgColor && DARK_BG.has(post.bgColor));
 
   return (
+    <>
     <section className="rounded-none flex flex-col mb-0" style={{ backgroundColor: post.bgColor || '#ffffff' }}>
       {/* 본문 영역 (콤팩트 패딩) */}
       <div className="flex-1 flex flex-col pt-8 px-4 md:px-8 pb-4">
@@ -188,26 +191,22 @@ const RootPostCard = ({
           </div>
         )}
 
+        {/* 🚀 OG 미리보기: 본문보다 위에 위치 — URL 주소 바로 아래 미리보기 노출 */}
+        {(post.linkUrl || contentLinkUrl) && showLinkPreview && (ogLoading || ogData) && (
+          <LinkPreviewCard data={ogData} loading={ogLoading} onClose={() => setShowLinkPreview(false)} />
+        )}
+        {post.linkUrl && !(showLinkPreview && (ogLoading || ogData)) && (
+          // OG fetch 실패 또는 미리보기 닫은 경우 — linkUrl 텍스트 fallback
+          <a href={post.linkUrl} target="_blank" rel="noopener noreferrer" className="text-[13px] font-bold text-blue-500 hover:text-blue-600 hover:underline transition-all">
+            {post.linkUrl}
+          </a>
+        )}
+
         <div className={`text-[15px] mb-6 leading-[1.8] font-medium max-w-none flex-1 [&_p]:mb-4 [&_p:last-child]:mb-0 [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:mb-4 [&_ol]:list-decimal [&_ol]:pl-5 [&_ol]:mb-4 [&_li]:mb-1 [&_strong]:font-bold [&_em]:italic [&_a]:text-blue-400 [&_a]:underline [&_blockquote]:border-l-4 [&_blockquote]:border-slate-200 [&_blockquote]:pl-4 [&_blockquote]:text-slate-500 [&_h1]:text-2xl [&_h1]:font-black [&_h2]:text-xl [&_h2]:font-black [&_h3]:text-lg [&_h3]:font-black ${isDark ? 'text-slate-200' : 'text-slate-700'}`} dangerouslySetInnerHTML={{ __html: post.content }} />
 
         {post.imageUrl && !hasImageInContent && (
           <div className="w-full md:w-2/3 mb-6 rounded-2xl overflow-hidden border border-slate-100 bg-slate-50">
             <img src={post.imageUrl} alt="Post Content" className="w-full h-auto object-contain max-h-[500px]" />
-          </div>
-        )}
-
-        {/* 🚀 OG 미리보기: post.linkUrl 또는 본문 첫 링크 추출 URL 기준 */}
-        {(post.linkUrl || contentLinkUrl) && showLinkPreview && (ogLoading || ogData) && (
-          <div className="mb-6">
-            <LinkPreviewCard data={ogData} loading={ogLoading} onClose={() => setShowLinkPreview(false)} />
-          </div>
-        )}
-        {post.linkUrl && !(showLinkPreview && (ogLoading || ogData)) && (
-          // OG fetch 실패 또는 미리보기 닫은 경우 — linkUrl 텍스트 fallback
-          <div className="mb-6">
-            <a href={post.linkUrl} target="_blank" rel="noopener noreferrer" className="text-[13px] font-bold text-blue-500 hover:text-blue-600 hover:underline transition-all">
-              {post.linkUrl}
-            </a>
           </div>
         )}
 
@@ -225,10 +224,10 @@ const RootPostCard = ({
         )}
 
         {/* 작성자 & 인터랙션 바 (박스 형태) */}
-        <div className="flex flex-col md:flex-row items-center justify-between gap-4 p-4 border border-slate-100 rounded-2xl bg-slate-50/30 mb-6">
+        <div className="flex flex-col md:flex-row items-center justify-between gap-2 p-2 border border-slate-100 rounded-2xl bg-slate-50/30 mb-2">
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 rounded-xl bg-slate-100 overflow-hidden border border-slate-200 shrink-0">
-              <img src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${post.author}`} alt="avatar" className="w-full h-full object-cover" />
+              <img src={authorData?.avatarUrl || `https://api.dicebear.com/7.x/adventurer/svg?seed=${post.author}`} alt="avatar" className="w-full h-full object-cover" />
             </div>
             <div className="flex flex-col">
               <span className="font-[1000] text-[15px] text-slate-900 mb-0.5">{post.author}</span>
@@ -283,27 +282,6 @@ const RootPostCard = ({
           </div>
         </div>
 
-        {/* 하단 통계 텍스트 */}
-        <div className="flex items-center justify-between text-[13px] font-bold text-slate-500 pt-2 px-2">
-          {/* 좌: 댓글 / 연계글 */}
-          <div className="flex gap-4">
-            <span>댓글 <span className="font-black text-slate-700">{formatKoreanNumber(totalComment)}</span></span>
-            {CATEGORY_RULES[post.category || ""]?.allowFormal && (
-              <span>연계글 <span className="font-black text-slate-700">{formatKoreanNumber(totalFormal)}</span></span>
-            )}
-          </div>
-
-          {/* 우: 동의 / 비동의 (pandora는 DebateBoard 헤더에서 표시하므로 생략) */}
-          <div className="flex gap-4">
-            {CATEGORY_RULES[post.category || ""]?.allowDisagree && CATEGORY_RULES[post.category || ""]?.boardType !== 'pandora' && (
-              <>
-                <span>동의 <span className="font-black text-slate-700">{formatKoreanNumber(uniqueAgreeCount)}</span></span>
-                <span>비동의 <span className="font-black text-slate-700">{formatKoreanNumber(uniqueDisagreeCount)}</span></span>
-              </>
-            )}
-          </div>
-        </div>
-
         {/* 땡스볼 모달 */}
         {showThanksball && currentNickname && (
           <ThanksballModal
@@ -317,6 +295,28 @@ const RootPostCard = ({
         )}
       </div>
     </section>
+
+    {/* 하단 통계 텍스트 — bgColor 영역 밖으로 분리, 댓글 영역의 시작점 */}
+    <div className="flex items-center justify-between text-[13px] font-bold text-slate-500 bg-white border-t border-slate-100 px-6 py-2">
+      {/* 좌: 댓글 / 연계글 */}
+      <div className="flex gap-4">
+        <span>댓글 <span className="font-black text-slate-700">{formatKoreanNumber(totalComment)}</span></span>
+        {CATEGORY_RULES[post.category || ""]?.allowFormal && (
+          <span>연계글 <span className="font-black text-slate-700">{formatKoreanNumber(totalFormal)}</span></span>
+        )}
+      </div>
+
+      {/* 우: 동의 / 비동의 (pandora는 DebateBoard 헤더에서 표시하므로 생략) */}
+      <div className="flex gap-4">
+        {CATEGORY_RULES[post.category || ""]?.allowDisagree && CATEGORY_RULES[post.category || ""]?.boardType !== 'pandora' && (
+          <>
+            <span>동의 <span className="font-black text-slate-700">{formatKoreanNumber(uniqueAgreeCount)}</span></span>
+            <span>비동의 <span className="font-black text-slate-700">{formatKoreanNumber(uniqueDisagreeCount)}</span></span>
+          </>
+        )}
+      </div>
+    </div>
+    </>
   );
 };
 

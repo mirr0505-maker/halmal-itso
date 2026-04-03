@@ -166,7 +166,7 @@ const AnyTalkList = ({
                     onClick={(e) => { e.stopPropagation(); onAuthorClick?.(post.author); }}
                   >
                     <div className="w-7 h-7 rounded-full bg-slate-50 overflow-hidden shrink-0 border-2 border-white shadow-sm ring-1 ring-slate-100">
-                      <img src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${post.author}`} alt="" className="w-full h-full object-cover" />
+                      <img src={authorData?.avatarUrl || `https://api.dicebear.com/7.x/adventurer/svg?seed=${post.author}`} alt="" className="w-full h-full object-cover" />
                     </div>
                     <div className="flex flex-col min-w-0">
                       <span className={`text-[11px] font-[1000] truncate leading-none mb-0.5 ${isDark ? 'text-white' : 'text-slate-900'}`}>{post.author}</span>

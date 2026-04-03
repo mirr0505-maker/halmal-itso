@@ -2,7 +2,7 @@
 
 이 문서는 **할말있소(HALMAL-ITSO)** 프로젝트의 설계 원칙, 현재 구현 상태, 그리고 AI 개발자의 **절대적 행동 지침**을 담은 단일 진실 소스(Single Source of Truth)입니다.
 
-> 최종 갱신: 2026-04-01 v26 (코드 실측 기준)  |  현재 브랜치: `main`
+> 최종 갱신: 2026-04-03 v27 (코드 실측 기준)  |  현재 브랜치: `main`
 
 ---
 
@@ -695,6 +695,31 @@ interface KanbuChat {
   - 원인: App.tsx에서 `friendCount={followerCounts[userData.nickname]}` (팔로워 수) 를 ProfileHeader에 전달 → 내정보 깐부 목록(friendList 기반, 팔로잉 수)과 불일치.
   - 해결: `friendCount={friends.length}` (내가 맺은 수) 로 수정. 팔로워 수는 `followerCount={followerCounts[userData.nickname]}` 별도 prop으로 분리 전달.
   - `types.ts` `UserData` 인터페이스에 누락 필드(ballBalance, ballSpent, ballReceived, exp 등) 추가.
+
+- [x] **댓글 영역 전면 UX 개선 (2026-04-03)**:
+
+  **공통 개선**
+  - **아바타 일관성**: `AnyTalkList`, `RootPostCard` 전체에서 `authorData?.avatarUrl || seed` 패턴 적용. 실시간 프로필 이미지 변경 즉시 반영.
+  - **땡스볼 전면 개방**: 댓글 카드(PostCard, pandora, OneCutCommentBoard) 모두 `isRootAuthor` 조건 제거 → **로그인 유저 누구나** 타인 댓글에 ⚾ 땡스볼 가능 (본인 댓글 제외).
+  - **댓글 수정/삭제**: PostCard(너와 나의 이야기·신포도와 여우·양치기 소년·유배귀양지), pandora 카드(판도라의 상자·솔로몬의 재판·마법 수정 구슬·마라톤의 전령), OneCutCommentBoard(황금알을 낳는 거위) — 본인 댓글에 수정(인라인 textarea + 저장/취소) · 삭제(confirm) 버튼 추가. `post.rootId ? 'comments' : 'posts'` 컬렉션 자동 분기.
+  - **pandora 헤더 "합계 N" 제거**: `유용해요 N · 별로예요 N · 합계 N` → `유용해요 N · 별로예요 N`. RootPostCard 하단 댓글 수와 중복 표시 제거.
+  - **RootPostCard 본문 색상 분리**: 하단 통계 텍스트("댓글 N")를 `<section style={bgColor}>` 영역 **밖**으로 이동 (`</section>` 이후 `bg-white border-t`). 본문 bgColor가 댓글 수 영역까지 오염되던 문제 해결.
+
+  **카테고리별 직접 입력 방식 확대**
+  - **너와 나의 이야기**: 버튼 클릭 → 폼 노출 방식 → `input + 댓글달기 버튼` 직접 입력 방식으로 전환.
+  - **신포도와 여우**: 동일하게 직접 입력 방식 적용. `allUsers`/`followerCounts` props 추가(아바타·레벨 정보).
+  - **양치기 소년의 외침**: 동일하게 직접 입력 방식 적용.
+  - **마라톤의 전령**: pandora 입력 영역에 inline input 삽입 → `pandoraSubmit('left')` 호출. 댓글 카드 너비 `w-[84%]` → `w-full`.
+
+  **황금알을 낳는 거위 (OneCutCommentBoard) 개선**
+  - 레이블 변경: `정보취득자` → **일반 댓글**, `정보제공자` → **글작성자 댓글**.
+  - 입력 레이블 이모지(💬, ✍) 제거.
+  - 글작성자 댓글 카드 색상: `rose` → **slate(엷은 회색)** 계열로 변경.
+  - 비로그인 메시지: 작은 텍스트 → 전체 너비 자물쇠 아이콘 + "댓글을 작성하려면 로그인이 필요합니다." 표시.
+
+  **솔로몬의 재판 연계글 목록 추가**
+  - `DebateBoard` 내 `useEffect` — `where('linkedPostId', '==', rootPost.id)` 실시간 쿼리로 연계글 목록 구독.
+  - 댓글 목록 하단(입력창 위)에 연계글 제목·배지 목록 표시. `onNavigateToPost` 클릭 시 해당 글로 이동. 과거 연계글도 포함.
 
 - [x] **마라톤의 전령 — Firebase Cloud Functions 뉴스 봇 (2026-04-01)**:
   - **구조**: `functions/index.js` — `onSchedule("every 30 minutes", region: "asia-northeast3")`
