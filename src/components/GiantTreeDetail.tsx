@@ -1,12 +1,39 @@
-// src/components/GiantTreeDetail.tsx — 거대 나무 상세 뷰 + 전파 참여 폼 (Phase 2)
+// src/components/GiantTreeDetail.tsx — 거대 나무 상세 뷰 + 전파 참여 폼 (Phase 4)
 import { useState, useEffect } from 'react';
 import { db } from '../firebase';
 import {
   collection, doc, setDoc, getDoc, updateDoc, increment,
-  onSnapshot, query, orderBy
+  onSnapshot, query, orderBy, addDoc, serverTimestamp
 } from 'firebase/firestore';
 import type { GiantTree, GiantTreeNode, UserData } from '../types';
 import GiantTreeMap from './GiantTreeMap';
+
+// 🚀 카카오톡 공유 SDK 타입 선언
+declare global { interface Window { Kakao: any; } }
+
+// 🚀 카카오톡 공유 실행 함수
+const shareKakao = (treeId: string, nodeId: string, title: string) => {
+  if (!window.Kakao?.isInitialized()) return;
+  window.Kakao.Share.sendDefault({
+    objectType: 'feed',
+    content: {
+      title: '🌳 거대 나무 — 주장 전파',
+      description: title,
+      imageUrl: 'https://halmal-itso.web.app/og-image.jpg',
+      link: {
+        mobileWebUrl: `https://halmal-itso.web.app/?tree=${treeId}&node=${nodeId}`,
+        webUrl: `https://halmal-itso.web.app/?tree=${treeId}&node=${nodeId}`,
+      },
+    },
+    buttons: [{
+      title: '전파 참여하기',
+      link: {
+        mobileWebUrl: `https://halmal-itso.web.app/?tree=${treeId}&node=${nodeId}`,
+        webUrl: `https://halmal-itso.web.app/?tree=${treeId}&node=${nodeId}`,
+      },
+    }],
+  });
+};
 
 interface Props {
   tree: GiantTree;
@@ -116,6 +143,24 @@ const GiantTreeDetail = ({ tree, currentNickname, currentUserData, allUsers = {}
         opposeCount: selectedSide === 'oppose' ? increment(1) : tree.opposeCount,
         ...(shouldBreakCircuit(newAgree, newOppose) ? { circuitBroken: true } : {}),
       });
+
+      // 5. 🚀 작성자 평판 상승 — 공감 참여 시 likes +2 (자기 나무 제외)
+      if (selectedSide === 'agree' && tree.author_id !== currentUserData.uid) {
+        await updateDoc(doc(db, 'users', tree.author_id), { likes: increment(2) });
+      }
+
+      // 6. 🚀 작성자에게 전파 알림 발송 (자기 나무 참여 제외)
+      if (tree.author_id !== currentUserData.uid) {
+        await addDoc(collection(db, 'notifications', tree.author_id, 'items'), {
+          type: 'giant_tree_spread',
+          fromNick: currentNickname,
+          treeId: tree.id,
+          treeTitle: tree.title,
+          side: selectedSide,
+          isRead: false,
+          createdAt: serverTimestamp(),
+        });
+      }
 
       setHasParticipated(true);
       setMyNodeId(nodeId);
@@ -245,6 +290,13 @@ const GiantTreeDetail = ({ tree, currentNickname, currentUserData, allUsers = {}
               className={`shrink-0 px-3 py-2 text-[11px] font-[1000] rounded-xl transition-all ${copiedUrl ? 'bg-emerald-500 text-white' : 'bg-emerald-600 text-white hover:bg-emerald-700'}`}
             >
               {copiedUrl ? '복사됨!' : '링크 복사'}
+            </button>
+            {/* 🚀 카카오톡 공유 버튼 */}
+            <button
+              onClick={() => shareKakao(tree.id, myNodeId!, tree.title)}
+              className="shrink-0 px-3 py-2 text-[11px] font-[1000] rounded-xl bg-yellow-400 text-yellow-900 hover:bg-yellow-500 transition-all"
+            >
+              💬 카카오
             </button>
           </div>
         </div>
