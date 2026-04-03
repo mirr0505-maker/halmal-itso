@@ -41,7 +41,6 @@ const CREATE_MENU_COMPONENTS: Record<string, ReturnType<typeof lazy>> = {
   knowledge_seller:lazy(() => import('./components/CreateKnowledge')),
   bone_hitting:    lazy(() => import('./components/CreateBoneHitting')),
   local_news:      lazy(() => import('./components/CreateLocalNews')),
-  crying_boy:      lazy(() => import('./components/CreateCryingBoy')),
   exile_place:     lazy(() => import('./components/CreateExile')),
   market:          lazy(() => import('./components/CreateMarket')),
 };
@@ -98,9 +97,13 @@ function App() {
   // 🚀 홈에서 새 글 쓰기 2단계 UX — 1단계(카테고리 선택) 후 설정되는 메뉴 키
   const [createMenuKey, setCreateMenuKey] = useState<string | null>(null);
 
-  const [pendingSharedPostId, setPendingSharedPostId] = useState<string | null>(() =>
-    new URLSearchParams(window.location.search).get('post')
-  );
+  const [pendingSharedPostId, setPendingSharedPostId] = useState<string | null>(() => {
+    // ?post=topic_xxx (기존 방식) 또는 /p/topic_xxx (신규 방식) 모두 지원
+    const qParam = new URLSearchParams(window.location.search).get('post');
+    if (qParam) return qParam;
+    const pathMatch = window.location.pathname.match(/^\/p\/(.+)$/);
+    return pathMatch ? pathMatch[1] : null;
+  });
 
   const accessibleRooms = kanbuRooms.filter(r =>
     r.creatorNickname === userData?.nickname || friends.includes(r.creatorNickname)
@@ -215,7 +218,7 @@ function App() {
 
       // 🚀 홈 2단계 UX — activeMenu가 'home'이고 카테고리 미선택 시 카테고리 선택 카드 화면 표시
       if (activeMenu === 'home' && !editingPost && createMenuKey === null) {
-        const CATEGORY_CARD_KEYS = ['my_story', 'naked_king', 'donkey_ears', 'knowledge_seller', 'bone_hitting', 'local_news', 'crying_boy', 'onecut'] as const;
+        const CATEGORY_CARD_KEYS = ['my_story', 'naked_king', 'donkey_ears', 'knowledge_seller', 'bone_hitting', 'local_news', 'onecut'] as const;
         return (
           <div className="w-full max-w-2xl mx-auto py-8 px-4 animate-in fade-in">
             <div className="flex items-center justify-between mb-6">
@@ -566,7 +569,17 @@ function App() {
     <div className="bg-[#F8FAFC] text-slate-900 font-sans h-screen flex flex-col overflow-hidden">
       <header className="bg-white border-b border-slate-100 h-[56px] md:h-[64px] flex items-center justify-between px-4 md:px-6 shrink-0 z-50 shadow-sm">
         <div className="flex items-center gap-4">
-          <div className="w-40 flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity shrink-0" onClick={goHome}><h1 className="text-[22px] font-[1000] italic tracking-tighter shrink-0"><span className="text-blue-600">GL</span><span className="text-slate-900">ove</span></h1><div className="flex flex-col"><span className="text-[11px] font-[1000] text-slate-500 tracking-tight leading-tight">글러브</span><span className="text-[9px] font-black text-slate-300 tracking-tight leading-tight">집단지성의 힘</span></div></div>
+          <div className="flex items-center gap-1.5 cursor-pointer hover:opacity-80 transition-opacity shrink-0" onClick={goHome}>
+            {/* 햄버거 3선 아이콘 — viewBox를 선 끝(x=12)에 맞게 잘라 우측 빈 공간 제거 */}
+            <svg className="w-3 h-5 text-slate-500 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" viewBox="0 4 12 16">
+              <line x1="1" y1="6"  x2="11" y2="6"  />
+              <line x1="1" y1="12" x2="11" y2="12" />
+              <line x1="1" y1="18" x2="11" y2="18" />
+            </svg>
+            <h1 className="text-[26px] font-[1000] italic tracking-tighter shrink-0">
+              <span className="text-red-500">G</span><span className="text-blue-600">L</span><span className="text-slate-900">ove</span>
+            </h1>
+          </div>
           <div className="hidden md:flex gap-1.5 items-center px-4 border-l border-slate-100" onClick={(e) => e.stopPropagation()}>
             <span className="text-[9px] font-black text-slate-300 uppercase tracking-tighter mr-1">Dev:</span>
             {TEST_ACCOUNTS.map((acc, i) => (

@@ -20,7 +20,6 @@ const CATEGORY_COMMENT_MAP = {
   '솔로몬의 재판':       CommentDebate,
   '황금알을 낳는 거위':  CommentKnowledge,
   '신포도와 여우':       CommentBoneHitting,
-  '양치기 소년의 외침':  CommentBoneHitting,
   '마법 수정 구슬':      CommentLocalNews,
   '마라톤의 전령':       CommentLocalNews,  // pandora 스타일 — 공감/의심 2컬럼 토론
   '유배·귀양지':         CommentExile,
@@ -85,7 +84,6 @@ export const CATEGORY_RULES: Record<string, {
   "황금알을 낳는 거위":   { allowDisagree: false, allowFormal: false, boardType: 'qa',       placeholder: "궁금한 점을 묻거나 지식을 나눠주세요...", tab1: "💬 질문/답변", tab2: "👍 유용해요" },
   "마법 수정 구슬":       { allowDisagree: true,  allowFormal: false, boardType: 'pandora',  placeholder: "현지의 생생한 정보를 공유해 주세요...", tab1: "유용해요", tab2: "별로예요", allowInlineReply: true, hintAgree: "유용한 정보 고마워요", hintRefute: "별로라고 생각해요 그래도 정보 고마워요", placeholderAgree: "유용한 정보 감사 댓글 적어 주세요", placeholderRefute: "정보가 별로인 이유가 뭔가요 적어 주세요", hideAttachment: true },
   "현지 소식":            { allowDisagree: true,  allowFormal: false, boardType: 'pandora',  placeholder: "현지의 생생한 정보를 공유해 주세요...", tab1: "유용해요", tab2: "별로예요", allowInlineReply: true, hintAgree: "유용한 정보 고마워요", hintRefute: "별로라고 생각해요 그래도 정보 고마워요", placeholderAgree: "유용한 정보 감사 댓글 적어 주세요", placeholderRefute: "정보가 별로인 이유가 뭔가요 적어 주세요", hideAttachment: true }, // backward compat
-  "양치기 소년의 외침":   { allowDisagree: false, allowFormal: false, boardType: 'single',   placeholder: "긴급 속보에 대한 의견을 남겨주세요", tab1: "💬 댓글 전용", tab2: "👍 공감", allowInlineReply: true, hideEmptyMessage: true },
   "마라톤의 전령":        { allowDisagree: false, allowFormal: false, boardType: 'pandora',  placeholder: "뉴스에 대한 의견을 남겨주세요...", tab1: "공감해요", tab2: "의심스러워요", allowInlineReply: true, hintAgree: "이 뉴스에 공감해요", hintRefute: "이 뉴스가 의심스러워요", placeholderAgree: "공감하는 이유를 적어주세요...", placeholderRefute: "의심스러운 이유를 적어주세요...", hideAttachment: true },
   "한컷":                 { allowDisagree: true,  allowFormal: false, boardType: 'onecut',   placeholder: "한컷에 대한 생각을 남겨보세요...", tab1: "👍 동의", tab2: "👎 반대" }
 };
@@ -142,7 +140,7 @@ const DiscussionView = ({
           />
         )}
 
-        {rootPost.category && !['너와 나의 이야기', '양치기 소년의 외침', '신포도와 여우', '황금알을 낳는 거위'].includes(rootPost.category) && rule.boardType !== 'pandora' && (
+        {rootPost.category && !['너와 나의 이야기', '신포도와 여우', '황금알을 낳는 거위'].includes(rootPost.category) && rule.boardType !== 'pandora' && (
           !currentNickname ? (
             <div className="flex items-center justify-center gap-2 px-6 py-4 bg-slate-50 border-b border-slate-100 text-[13px] font-bold text-slate-400">
               <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>

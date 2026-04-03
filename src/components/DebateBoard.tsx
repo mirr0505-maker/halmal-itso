@@ -585,8 +585,6 @@ const DebateBoard = ({
       label = "격리 구역 기록"; colorClass = "text-slate-500"; pointColor = "bg-slate-400";
     } else if (category === '신포도와 여우') {
       label = "뼈때리는 글"; colorClass = "text-purple-600"; pointColor = "bg-purple-500";
-    } else if (category === '양치기 소년의 외침') {
-      label = "긴급 댓글"; colorClass = "text-red-600"; pointColor = "bg-red-500";
     } else if (rule.boardType === 'onecut') {
       label = "한컷 반응"; colorClass = "text-rose-600"; pointColor = "bg-rose-500";
     } else {
@@ -627,7 +625,7 @@ const DebateBoard = ({
                 <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
                 댓글을 작성하려면 로그인이 필요합니다.
               </div>
-            ) : (category === '너와 나의 이야기' || category === '신포도와 여우' || category === '양치기 소년의 외침') ? (
+            ) : (category === '너와 나의 이야기' || category === '신포도와 여우') ? (
               /* 🚀 너와 나의 이야기 · 신포도와 여우: 직접 입력창 (버튼 클릭 없이 바로 입력) */
               <div className="flex items-center gap-2 bg-slate-50 border-t border-slate-100 px-4 py-2">
                 <input

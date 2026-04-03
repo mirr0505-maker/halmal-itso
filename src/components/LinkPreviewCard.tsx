@@ -16,7 +16,7 @@ interface Props {
 const LinkPreviewCard = ({ data, loading, onClose }: Props) => {
   if (loading) {
     return (
-      <div className="mx-4 my-2 rounded-lg border border-slate-200 bg-slate-50 p-3 animate-pulse">
+      <div className="mx-0 my-0 rounded-lg border border-slate-200 bg-slate-50 p-3 animate-pulse">
         <div className="h-3 bg-slate-200 rounded w-1/4 mb-2" />
         <div className="h-4 bg-slate-200 rounded w-3/4 mb-1.5" />
         <div className="h-3 bg-slate-200 rounded w-full" />
@@ -27,7 +27,7 @@ const LinkPreviewCard = ({ data, loading, onClose }: Props) => {
   if (!data) return null;
 
   return (
-    <div className="mx-4 my-2 rounded-lg border border-slate-200 bg-white overflow-hidden flex group relative">
+    <div className="mx-0 my-0 rounded-lg border border-slate-200 bg-white overflow-hidden flex group relative">
       {data.image && (
         <img
           src={data.image}

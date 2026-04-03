@@ -58,11 +58,12 @@ export function useFirestoreActions({
         setSelectedTopic(prev => prev && prev.id === postId ? { ...prev, ...postData } : prev);
       } else {
         const customId = `topic_${Date.now()}_${userData.uid}`;
+        const shareToken = customId.split('_').slice(0, 2).join('_'); // "topic_타임스탬프" — ogRenderer 조회용
         await setDoc(doc(db, 'posts', customId), {
           ...postData, author: userData.nickname, author_id: userData.uid,
           authorInfo: { level: userData.level, friendCount: friends.length, totalLikes: userData.likes },
           parentId: null, rootId: null, side: 'left', type: 'formal',
-          createdAt: serverTimestamp(), likes: 0, dislikes: 0,
+          createdAt: serverTimestamp(), likes: 0, dislikes: 0, shareToken,
         });
         await updateDoc(doc(db, 'users', userData.uid), { likes: increment(5) });
       }
@@ -82,11 +83,12 @@ export function useFirestoreActions({
     if (!userData) return;
     try {
       const customId = `topic_${Date.now()}_${userData.uid}`;
+      const shareToken = customId.split('_').slice(0, 2).join('_'); // "topic_타임스탬프" — ogRenderer 조회용
       await setDoc(doc(db, 'posts', customId), {
         ...postData, author: userData.nickname, author_id: userData.uid,
         authorInfo: { level: userData.level, friendCount: friends.length, totalLikes: userData.likes },
         parentId: null, rootId: null, side: 'left', type: 'formal',
-        createdAt: serverTimestamp(), likes: 0, dislikes: 0,
+        createdAt: serverTimestamp(), likes: 0, dislikes: 0, shareToken,
       });
       await updateDoc(doc(db, 'users', userData.uid), { likes: increment(5) });
       setIsCreateOpen(false);

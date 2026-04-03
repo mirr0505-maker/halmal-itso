@@ -73,11 +73,6 @@ export const MENU_MESSAGES: Record<string, { title: string, description: string,
     title: "마법 수정 구슬",
     description: "국내, 해외 지역 곳곳에 살고 있는 주민이 올리는 그 나라, 그 지역의 따끈한 소식들 (기사/뉴스 번역 포함)"
   },
-  crying_boy: {
-    emoji: "🚨",
-    title: "양치기 소년의 외침",
-    description: "지금 당장 알아야 할 속보, 긴급뉴스, 경보 — 늑대가 진짜 왔다!"
-  },
   marathon_herald: {
     emoji: "🏃",
     title: "마라톤의 전령",
