@@ -296,7 +296,7 @@ function App() {
         const CreateComponent = CREATE_MENU_COMPONENTS[resolvedKey];
         return <CreateComponent userData={userData!} editingPost={editingPost} onSubmit={handlePostSubmit} onClose={() => { setIsCreateOpen(false); setEditingPost(null); setCreateMenuKey(null); }} />;
       }
-      return <CreatePostBox userData={userData!} editingPost={editingPost} activeMenu={activeMenu} menuMessages={MENU_MESSAGES} onSubmit={handlePostSubmit} onClose={() => { setIsCreateOpen(false); setEditingPost(null); setCreateMenuKey(null); }} />;
+      return <CreatePostBox userData={userData!} editingPost={editingPost} activeMenu={resolvedKey} menuMessages={MENU_MESSAGES} onSubmit={handlePostSubmit} onClose={() => { setIsCreateOpen(false); setEditingPost(null); setCreateMenuKey(null); }} />;
     }
     
     if (activeMenu === 'mypage') {
