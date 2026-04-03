@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { auth, googleProvider, db } from '../firebase';
 import {
-  signInWithPopup, signOut, setPersistence,
+  signInWithPopup, signInWithRedirect, signOut, setPersistence,
   browserLocalPersistence, signInWithEmailAndPassword, createUserWithEmailAndPassword,
 } from 'firebase/auth';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
@@ -24,6 +24,10 @@ interface AuthActionDeps {
   setUserData: Dispatch<SetStateAction<UserData | null>>;
   setActiveMenu: (m: MenuId) => void;
 }
+
+// 🚀 모바일 브라우저 감지 — iOS Safari는 signInWithPopup을 팝업 차단함 → signInWithRedirect 사용
+// 검색어: isMobileBrowser
+const isMobileBrowser = (): boolean => /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
 // 🚀 인앱 브라우저 감지 — 카카오톡/인스타그램/라인 등 WebView는 Google OAuth 차단됨
 const detectInAppBrowser = (): 'kakao' | 'instagram' | 'other' | null => {
@@ -64,7 +68,13 @@ export function useAuthActions({ userData, setUserData, setActiveMenu }: AuthAct
     }
     try {
       await setPersistence(auth, browserLocalPersistence);
-      await signInWithPopup(auth, googleProvider);
+      if (isMobileBrowser()) {
+        // 🚀 모바일(iOS Safari 등): 팝업 차단 문제로 페이지 리디렉션 방식 사용
+        // 로그인 완료 후 원래 페이지로 돌아오면 onAuthStateChanged가 자동 처리
+        await signInWithRedirect(auth, googleProvider);
+      } else {
+        await signInWithPopup(auth, googleProvider);
+      }
     } catch (error: unknown) {
       console.error('로그인 에러:', error);
       alert('로그인 중 오류가 발생했소: ' + ((error as Error)?.message || '원인 불명'));
