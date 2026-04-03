@@ -7,12 +7,28 @@ interface Props {
   tree: GiantTree;
   nodes: GiantTreeNode[];
   allUsers?: Record<string, UserData>;
+  myNodeId?: string | null;  // 🚀 내 노드 강조용
 }
 
 // 🚀 트리 노드 재귀 구조
 interface TreeNodeItem {
   node: GiantTreeNode;
   children: TreeNodeItem[];
+}
+
+// 🚀 특정 노드 ID 기준 모든 하위 ID 수집 (해당 노드 포함)
+function collectSubtreeIds(item: TreeNodeItem, targetId: string): Set<string> {
+  if (item.node.id === targetId) {
+    const ids = new Set<string>();
+    const addAll = (i: TreeNodeItem) => { ids.add(i.node.id); i.children.forEach(addAll); };
+    addAll(item);
+    return ids;
+  }
+  for (const child of item.children) {
+    const found = collectSubtreeIds(child, targetId);
+    if (found.size > 0) return found;
+  }
+  return new Set<string>();
 }
 
 // flat 배열 → 계층 트리 변환 (루트: parentNodeId === null)
@@ -42,14 +58,31 @@ function buildTree(nodes: GiantTreeNode[]): TreeNodeItem[] {
 }
 
 // 🚀 노드 카드 컴포넌트
-const NodeCard = ({ item, allUsers, depth = 0 }: { item: TreeNodeItem; allUsers: Record<string, UserData>; depth?: number }) => {
+const NodeCard = ({ item, allUsers, depth = 0, myNodeId, subtreeIds }: {
+  item: TreeNodeItem;
+  allUsers: Record<string, UserData>;
+  depth?: number;
+  myNodeId?: string | null;
+  subtreeIds?: Set<string>;
+}) => {
   const { node, children } = item;
   const authorData = allUsers[`nickname_${node.participantNick}`];
 
-  const borderColor = node.side === 'agree' ? 'border-blue-300' : 'border-rose-300';
-  const bgColor = node.side === 'agree' ? 'bg-blue-50' : 'bg-rose-50';
+  // 🚀 내 노드 / 내 서브트리 여부 판별
+  const isMyNode = !!myNodeId && node.id === myNodeId;
+  const isInSubtree = !isMyNode && (subtreeIds?.has(node.id) ?? false);
+
+  const borderColor = isMyNode ? 'border-amber-400'
+    : isInSubtree
+      ? (node.side === 'agree' ? 'border-blue-400' : 'border-rose-400')
+      : (node.side === 'agree' ? 'border-blue-300' : 'border-rose-300');
+  const bgColor = isMyNode ? 'bg-amber-50'
+    : isInSubtree
+      ? (node.side === 'agree' ? 'bg-blue-100' : 'bg-rose-100')
+      : (node.side === 'agree' ? 'bg-blue-50' : 'bg-rose-50');
   const sideColor = node.side === 'agree' ? 'text-blue-500' : 'text-rose-500';
-  const barColor = node.side === 'agree' ? 'bg-blue-400' : 'bg-rose-400';
+  const barColor = isMyNode ? 'bg-amber-400'
+    : (node.side === 'agree' ? 'bg-blue-400' : 'bg-rose-400');
 
   return (
     <div className="flex flex-col items-center">
@@ -64,6 +97,10 @@ const NodeCard = ({ item, allUsers, depth = 0 }: { item: TreeNodeItem; allUsers:
         <div className={`absolute -top-2 left-2 text-[8px] font-black px-1.5 py-0.5 rounded-full ${node.side === 'agree' ? 'bg-blue-400 text-white' : 'bg-rose-400 text-white'}`}>
           {depth + 1}차
         </div>
+        {/* 🚀 내 노드 배지 */}
+        {isMyNode && (
+          <div className="absolute -top-2 right-2 text-[8px] font-black px-1.5 py-0.5 rounded-full bg-amber-400 text-white">나</div>
+        )}
 
         <div className="flex items-center gap-1.5 mb-1">
           <div className="w-5 h-5 rounded-full overflow-hidden border border-slate-200 shrink-0">
@@ -87,7 +124,7 @@ const NodeCard = ({ item, allUsers, depth = 0 }: { item: TreeNodeItem; allUsers:
       {children.length > 0 && (
         <div className={`flex items-start gap-4 mt-0`}>
           {children.map(child => (
-            <NodeCard key={child.node.id} item={child} allUsers={allUsers} depth={depth + 1} />
+            <NodeCard key={child.node.id} item={child} allUsers={allUsers} depth={depth + 1} myNodeId={myNodeId} subtreeIds={subtreeIds} />
           ))}
         </div>
       )}
@@ -116,10 +153,20 @@ const RootCard = ({ tree, allUsers }: { tree: GiantTree; allUsers: Record<string
   );
 };
 
-const GiantTreeMap = ({ tree, nodes, allUsers = {} }: Props) => {
+const GiantTreeMap = ({ tree, nodes, allUsers = {}, myNodeId }: Props) => {
   const [zoom, setZoom] = useState(1);
 
   const treeData = useMemo(() => buildTree(nodes), [nodes]);
+
+  // 🚀 내 노드 기준 서브트리 ID 집합 — 하이라이트용
+  const subtreeIds = useMemo(() => {
+    if (!myNodeId) return new Set<string>();
+    for (const root of treeData) {
+      const found = collectSubtreeIds(root, myNodeId);
+      if (found.size > 0) return found;
+    }
+    return new Set<string>();
+  }, [treeData, myNodeId]);
 
   return (
     <div className="relative">
@@ -167,7 +214,7 @@ const GiantTreeMap = ({ tree, nodes, allUsers = {} }: Props) => {
                   )}
                   <div className="flex items-start gap-5 flex-wrap justify-center pt-0">
                     {treeData.map(item => (
-                      <NodeCard key={item.node.id} item={item} allUsers={allUsers} depth={0} />
+                      <NodeCard key={item.node.id} item={item} allUsers={allUsers} depth={0} myNodeId={myNodeId} subtreeIds={subtreeIds} />
                     ))}
                   </div>
                 </>

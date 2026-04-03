@@ -209,6 +209,40 @@ const GiantTreeDetail = ({ tree, currentNickname, currentUserData, allUsers = {}
   const parentNode = parentNodeId ? nodes.find(n => n.id === parentNodeId) : null;
   const parentFull = parentNode !== undefined && parentNode !== null && parentNode.childCount >= 3;
 
+  // 🚀 특정 노드의 모든 하위 인원 수 (재귀 합산)
+  const countDescendants = (nodeId: string): number => {
+    const children = nodes.filter(n => n.parentNodeId === nodeId);
+    return children.length + children.reduce((sum, c) => sum + countDescendants(c.id), 0);
+  };
+
+  // 🚀 자식 노드 목록 렌더링 — 작성자/참여자 공용
+  const renderChildrenList = (children: GiantTreeNode[], totalDesc: number) => (
+    <div className="mt-3">
+      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">
+        내가 전파한 {children.length}명
+      </p>
+      <div className="flex flex-col gap-1.5">
+        {children.map(child => {
+          const data = allUsers[`nickname_${child.participantNick}`];
+          return (
+            <div key={child.id} className={`flex items-center gap-2 px-3 py-2 rounded-xl border ${child.side === 'agree' ? 'bg-blue-50 border-blue-100' : 'bg-rose-50 border-rose-100'}`}>
+              <div className="w-5 h-5 rounded-full overflow-hidden shrink-0">
+                <img src={data?.avatarUrl || `https://api.dicebear.com/7.x/adventurer/svg?seed=${child.participantNick}`} alt="" className="w-full h-full object-cover" />
+              </div>
+              <span className="text-[11px] font-black text-slate-700 flex-1 truncate">{child.participantNick}</span>
+              <span className={`text-[10px] font-bold ${child.side === 'agree' ? 'text-blue-500' : 'text-rose-500'}`}>{child.side === 'agree' ? '👍' : '👎'}</span>
+              <span className="text-[10px] font-bold text-emerald-600 shrink-0">{child.childCount}/3 전파</span>
+            </div>
+          );
+        })}
+      </div>
+      {/* 하위 전체 인원이 직계보다 많으면 총합 표시 */}
+      {totalDesc > children.length && (
+        <p className="text-[10px] font-bold text-emerald-500 mt-1.5 pl-1">└ 내 하위 총 {totalDesc}명 참여 중</p>
+      )}
+    </div>
+  );
+
   // 🚀 작성자 URL 복사 핸들러
   const handleCopyAuthorUrl = () => {
     const url = `${window.location.origin}/?tree=${tree.id}`;
@@ -327,6 +361,11 @@ const GiantTreeDetail = ({ tree, currentNickname, currentUserData, allUsers = {}
               💬 카카오
             </button>
           </div>
+          {/* 🚀 작성자 직계 자식 목록 */}
+          {rootSpreadCount > 0 && renderChildrenList(
+            nodes.filter(n => !n.parentNodeId),
+            nodes.length  // 작성자 기준 하위 = 전체 노드
+          )}
         </div>
       ) : (hasParticipated || myNodeId) ? (
         /* 🚀 참여 완료 — 전파 URL 공유 블록 + 카운터 */
@@ -371,6 +410,11 @@ const GiantTreeDetail = ({ tree, currentNickname, currentUserData, allUsers = {}
                 </button>
               </div>
             </>
+          )}
+          {/* 🚀 참여자 직계 자식 목록 */}
+          {myNodeId && myChildCount > 0 && renderChildrenList(
+            nodes.filter(n => n.parentNodeId === myNodeId),
+            countDescendants(myNodeId)
           )}
         </div>
       ) : tree.circuitBroken ? null : isFull ? (
@@ -433,7 +477,7 @@ const GiantTreeDetail = ({ tree, currentNickname, currentUserData, allUsers = {}
 
         {/* 나무 지도 탭 */}
         {bottomTab === 'map' && (
-          <GiantTreeMap tree={tree} nodes={nodes} allUsers={allUsers} />
+          <GiantTreeMap tree={tree} nodes={nodes} allUsers={allUsers} myNodeId={myNodeId} />
         )}
 
         {/* 참여자 목록 탭 */}
