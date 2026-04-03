@@ -19,20 +19,33 @@ interface Props {
   currentNickname?: string;
   currentUserData?: UserData | null;
   allUsers?: Record<string, UserData>;
+  initialTreeId?: string;       // 🚀 ?tree= URL 파라미터 — 해당 트리 자동 오픈
+  initialParentNodeId?: string; // 🚀 ?node= URL 파라미터 — 전파 참여 시 부모 노드
 }
 
-const GiantTreeView = ({ currentNickname, currentUserData, allUsers = {} }: Props) => {
+const GiantTreeView = ({ currentNickname, currentUserData, allUsers = {}, initialTreeId, initialParentNodeId }: Props) => {
   const [trees, setTrees] = useState<GiantTree[]>([]);
   const [view, setView] = useState<'list' | 'create' | 'detail'>('list');
   const [selectedTree, setSelectedTree] = useState<GiantTree | null>(null);
+  // 🚀 전파 URL로 진입한 경우 부모 노드 ID 보존 — GiantTreeDetail에 전달
+  const [activeParentNodeId, setActiveParentNodeId] = useState<string | null>(initialParentNodeId || null);
 
   // 🚀 giant_trees 컬렉션 실시간 구독 (최신순 20개)
   useEffect(() => {
     const q = query(collection(db, 'giant_trees'), orderBy('createdAt', 'desc'), limit(20));
     const unsub = onSnapshot(q, snap => {
-      setTrees(snap.docs.map(d => ({ id: d.id, ...d.data() } as GiantTree)));
+      const loaded = snap.docs.map(d => ({ id: d.id, ...d.data() } as GiantTree));
+      setTrees(loaded);
+
+      // 🚀 initialTreeId가 있으면 목록 로드 후 해당 트리 자동 선택
+      if (initialTreeId && view === 'list') {
+        const target = loaded.find(t => t.id === initialTreeId);
+        if (target) { setSelectedTree(target); setView('detail'); }
+      }
     });
     return () => unsub();
+  // initialTreeId는 마운트 시 1회만 처리 — deps에서 제외
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const formatTime = (ts: { seconds: number } | null | undefined) => {
@@ -62,7 +75,8 @@ const GiantTreeView = ({ currentNickname, currentUserData, allUsers = {} }: Prop
         currentNickname={currentNickname}
         currentUserData={currentUserData}
         allUsers={allUsers}
-        onBack={() => { setView('list'); setSelectedTree(null); }}
+        parentNodeId={activeParentNodeId}
+        onBack={() => { setView('list'); setSelectedTree(null); setActiveParentNodeId(null); }}
       />
     );
   }
@@ -126,7 +140,7 @@ const GiantTreeView = ({ currentNickname, currentUserData, allUsers = {} }: Prop
             return (
               <button
                 key={tree.id}
-                onClick={() => { setSelectedTree(tree); setView('detail'); }}
+                onClick={() => { setSelectedTree(tree); setActiveParentNodeId(null); setView('detail'); }}
                 className="w-full text-left bg-white border border-slate-100 rounded-2xl p-4 hover:border-emerald-200 hover:shadow-sm transition-all"
               >
                 {/* 상단: 작성자 + 상태 배지 */}

@@ -106,6 +106,14 @@ function App() {
     return pathMatch ? pathMatch[1] : null;
   });
 
+  // 🚀 거대 나무 공유 URL 처리: ?tree=treeId&node=parentNodeId
+  const [pendingTreeId] = useState<string | null>(() =>
+    new URLSearchParams(window.location.search).get('tree')
+  );
+  const [pendingParentNodeId] = useState<string | null>(() =>
+    new URLSearchParams(window.location.search).get('node')
+  );
+
   const accessibleRooms = kanbuRooms.filter(r =>
     r.creatorNickname === userData?.nickname || friends.includes(r.creatorNickname)
   );
@@ -130,6 +138,14 @@ function App() {
     setAllRootPosts, setSelectedTopic, setIsCreateOpen, setEditingPost, setCreateMenuKey,
     setActiveMenu, setActiveTab, setLinkedPostSide,
   });
+
+  // 🚀 거대 나무 공유 링크 접근: ?tree= 파라미터 감지 시 giant_tree 메뉴 자동 이동
+  useEffect(() => {
+    if (pendingTreeId) {
+      setActiveMenu('giant_tree');
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, [pendingTreeId]);
 
   useEffect(() => { if (replyTarget) { setSelectedType('comment'); setNewTitle(""); } }, [replyTarget]);
   useEffect(() => { setSelectedFriend(null); setViewingAuthor(null); }, [activeMenu, activeTab]);
@@ -442,7 +458,7 @@ function App() {
     }
 
     if (activeMenu === 'giant_tree') {
-      return <GiantTreeView currentNickname={userData?.nickname} currentUserData={userData} allUsers={allUsers} />;
+      return <GiantTreeView currentNickname={userData?.nickname} currentUserData={userData} allUsers={allUsers} initialTreeId={pendingTreeId || undefined} initialParentNodeId={pendingParentNodeId || undefined} />;
     }
 
     if (activeMenu === 'ranking') {
