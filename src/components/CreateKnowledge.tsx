@@ -125,14 +125,6 @@ const CreateKnowledge = ({ userData, editingPost, onSubmit, onClose }: Props) =>
                 </button>
               );
             })}
-            {/* 선택 현황 표시 */}
-            {(postData.infoFields || []).length > 0 && (
-              <div className="px-2.5 pt-2 pb-1 flex flex-col gap-1">
-                {(postData.infoFields || []).map(f => (
-                  <span key={f} className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-yellow-400 text-yellow-900 truncate">{f}</span>
-                ))}
-              </div>
-            )}
           </div>
           {/* 우측: 선택된 그룹 항목 */}
           <div className="flex-1 flex flex-wrap content-start gap-1.5 px-3 py-2.5">
