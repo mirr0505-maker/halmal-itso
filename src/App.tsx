@@ -773,7 +773,11 @@ function App() {
         </button>
         {/* 장갑 */}
         <button onClick={() => { setActiveMenu('glove'); setSelectedTopic(null); setIsCreateOpen(false); }} className={`flex-1 flex flex-col items-center justify-center h-full transition-colors ${activeMenu === 'glove' && !selectedTopic && !isCreateOpen ? 'text-blue-600' : 'text-slate-400'}`}>
-          <span className={`text-[22px] leading-none transition-all ${activeMenu === 'glove' && !selectedTopic && !isCreateOpen ? 'scale-110' : ''}`}>🧤</span>
+          {activeMenu === 'glove' && !selectedTopic && !isCreateOpen ? (
+            <svg className="w-[24px] h-[24px]" fill="currentColor" viewBox="0 0 24 24"><path d="M21 7.5C21 6.1 19.9 5 18.5 5S16 6.1 16 7.5V12h-.5V4.5C15.5 3.1 14.4 2 13 2s-2.5 1.1-2.5 2.5V12H10V5.5C10 4.1 8.9 3 7.5 3S5 4.1 5 5.5V13h-.5C3.7 13 3 13.7 3 14.5v1C3 18.6 5.4 21 8.5 21h6c2.8 0 5.1-1.9 5.8-4.5L21 11V7.5z"/></svg>
+          ) : (
+            <svg className="w-[24px] h-[24px]" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M18.5 5C19.9 5 21 6.1 21 7.5V11l-.7 5.5C19.6 19.1 17.3 21 14.5 21h-6C5.4 21 3 18.6 3 15.5v-1C3 13.7 3.7 13 4.5 13H5V5.5C5 4.1 6.1 3 7.5 3S10 4.1 10 5.5V12h.5V4.5C10.5 3.1 11.6 2 13 2s2.5 1.1 2.5 2.5V12h.5V7.5C16 6.1 17.1 5 18.5 5z"/></svg>
+          )}
         </button>
         {/* 랭킹 */}
         <button onClick={() => { setActiveMenu('ranking'); setSelectedTopic(null); setIsCreateOpen(false); }} className={`flex-1 flex flex-col items-center justify-center h-full transition-colors ${activeMenu === 'ranking' && !selectedTopic && !isCreateOpen ? 'text-blue-600' : 'text-slate-400'}`}>
