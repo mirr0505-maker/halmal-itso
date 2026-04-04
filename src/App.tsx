@@ -584,6 +584,30 @@ function App() {
       if (selectedFriend) filteredPosts = filteredPosts.filter(p => p.author === selectedFriend);
     }
 
+    // 🚀 한컷 인라인 섹션: 탭 기준과 동일한 필터 → 최신순 정렬 후 4개 표시
+    const onecutAllPosts = allRootPosts.filter(p => p.isOneCut || p.category === '한컷');
+    let onecutTabPosts: Post[] = [];
+    if (activeTab === 'any') {
+      onecutTabPosts = onecutAllPosts.filter(p => {
+        const createdAt = p.createdAt?.toDate ? p.createdAt.toDate() : (p.createdAt?.seconds ? new Date(p.createdAt.seconds * 1000) : null);
+        return createdAt && createdAt > newPostCutoff;
+      });
+    } else if (activeTab === 'recent') {
+      onecutTabPosts = onecutAllPosts.filter(p => {
+        const createdAt = p.createdAt?.toDate ? p.createdAt.toDate() : (p.createdAt?.seconds ? new Date(p.createdAt.seconds * 1000) : null);
+        return (p.likes || 0) >= POST_FILTER.REGISTERED_MIN_LIKES && (!createdAt || createdAt <= newPostCutoff);
+      });
+    } else if (activeTab === 'best') {
+      onecutTabPosts = onecutAllPosts.filter(p => (p.likes || 0) >= POST_FILTER.BEST_MIN_LIKES);
+    } else if (activeTab === 'rank') {
+      onecutTabPosts = onecutAllPosts.filter(p => (p.likes || 0) >= POST_FILTER.RANK_MIN_LIKES);
+    } else if (activeTab === 'friend') {
+      onecutTabPosts = onecutAllPosts.filter(p =>
+        friends.includes(p.author) && (p.likes || 0) >= POST_FILTER.REGISTERED_MIN_LIKES
+      );
+    }
+    onecutTabPosts = onecutTabPosts.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+
     // 특정 작가 피드 보기 (A 탭 칩 또는 글카드 작가 클릭)
     if (viewingAuthor) {
       const authorPosts = filterBySearch(basePosts.filter(p => p.author === viewingAuthor));
@@ -626,7 +650,7 @@ function App() {
             ))}
           </div>
         )}
-        <AnyTalkList posts={searchedPosts} onTopicClick={handleViewPost} onLikeClick={handleLike} commentCounts={commentCounts} currentNickname={userData?.nickname} currentUserData={userData} allUsers={allUsers} followerCounts={followerCounts} tab={activeTab} onAuthorClick={setViewingAuthor} onShareCount={handleShareCount} />
+        <AnyTalkList posts={searchedPosts} onTopicClick={handleViewPost} onLikeClick={handleLike} commentCounts={commentCounts} currentNickname={userData?.nickname} currentUserData={userData} allUsers={allUsers} followerCounts={followerCounts} tab={activeTab} onAuthorClick={setViewingAuthor} onShareCount={handleShareCount} oneCutPosts={onecutTabPosts} onOneCutMoreClick={() => setActiveMenu('onecut')} />
       </div>
     );
   };

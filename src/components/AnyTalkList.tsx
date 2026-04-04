@@ -14,12 +14,16 @@ interface Props {
   followerCounts?: Record<string, number>;
   tab?: string;
   onAuthorClick?: (author: string) => void;
+  // 🚀 한컷 인라인 섹션: 탭별 필터된 한컷 목록 + 더보기 콜백
+  oneCutPosts?: Post[];
+  onOneCutMoreClick?: () => void;
   // 🚀 공유수 카운트: URL 복사 버튼 클릭 시 호출 → posts.shareCount + users.totalShares +1
   onShareCount?: (postId: string, authorId?: string) => void;
 }
 
 const AnyTalkList = ({
-  posts, onTopicClick, onLikeClick, commentCounts = {}, currentNickname, allUsers = {}, followerCounts = {}, tab, onAuthorClick, onShareCount
+  posts, onTopicClick, onLikeClick, commentCounts = {}, currentNickname, allUsers = {}, followerCounts = {}, tab, onAuthorClick, onShareCount,
+  oneCutPosts, onOneCutMoreClick,
 }: Props) => {
   const isNewTab = tab === 'any';
 
@@ -65,9 +69,10 @@ const AnyTalkList = ({
   };
 
   return (
-    <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-2 w-full pb-20">
+    <div className="w-full pb-20">
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-2 w-full">
       {posts.length === 0 ? (
-        <div className="col-span-full py-40 text-center text-slate-400 font-bold text-sm italic">기록된 글이 없어요.</div>
+        <div className={`col-span-full text-center text-slate-400 font-bold text-sm italic ${oneCutPosts && oneCutPosts.length > 0 ? 'py-10' : 'py-40'}`}>기록된 글이 없어요.</div>
       ) : (
         posts.map((post) => {
           const promoLevel = Math.min(post.likes || 0, 3);
@@ -215,6 +220,41 @@ const AnyTalkList = ({
             </div>
           );
         })
+      )}
+      </div>
+
+      {/* 🚀 한컷 인라인 섹션: 탭별 필터 적용한 한컷 최신 4개 가로 배치 */}
+      {oneCutPosts && oneCutPosts.length > 0 && (
+        <div className="mt-6 border-t border-slate-100 pt-5">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-[13px] font-[1000] text-slate-700 flex items-center gap-1.5">
+              🎞️ 한컷
+              <span className="text-[10px] font-bold text-slate-400">· {oneCutPosts.length}개</span>
+            </span>
+            <button onClick={onOneCutMoreClick} className="text-[11px] font-bold text-blue-500 hover:text-blue-700 transition-colors">더보기 →</button>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {oneCutPosts.slice(0, 4).map(post => (
+              <div
+                key={post.id}
+                onClick={() => onTopicClick(post)}
+                className="relative aspect-[16/9] rounded-xl overflow-hidden cursor-pointer group bg-slate-900 shadow-sm hover:shadow-lg transition-shadow"
+              >
+                {post.imageUrl ? (
+                  <img src={post.imageUrl} alt="" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                ) : (
+                  <div className="w-full h-full bg-slate-800 flex items-center justify-center">
+                    <svg className="w-6 h-6 text-slate-700" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                  </div>
+                )}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
+                <div className="absolute bottom-0 left-0 right-0 p-2.5">
+                  <p className="text-white text-[11px] font-[1000] line-clamp-2 leading-tight drop-shadow-sm">{post.title}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       )}
     </div>
   );
