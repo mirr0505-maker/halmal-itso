@@ -132,7 +132,7 @@ const AnyTalkList = ({
               {/* 2. 중간: 본문 — HTML 그대로 렌더링, 이미지는 숨김 */}
               {hasContent && (
                 <div
-                  className={`flex-1 overflow-hidden mb-1 text-[13px] leading-relaxed font-medium [&_img]:hidden [&_p]:mb-1 [&_p:last-child]:mb-0 [&_strong]:font-bold [&_em]:italic [&_ul]:list-disc [&_ul]:pl-4 [&_ol]:list-decimal [&_ol]:pl-4 ${displayImage ? 'line-clamp-3' : 'line-clamp-7'} ${isDark ? 'text-slate-300' : 'text-slate-500'}`}
+                  className={`overflow-hidden mb-1 text-[13px] leading-relaxed font-medium [&_img]:hidden [&_p]:mb-1 [&_p:last-child]:mb-0 [&_strong]:font-bold [&_em]:italic [&_ul]:list-disc [&_ul]:pl-4 [&_ol]:list-decimal [&_ol]:pl-4 [&_h1]:text-[14px] [&_h1]:font-bold [&_h2]:text-[13px] [&_h2]:font-bold [&_h3]:text-[13px] [&_h3]:font-semibold ${displayImage ? 'line-clamp-3' : 'line-clamp-6'} ${isDark ? 'text-slate-300' : 'text-slate-500'}`}
                   dangerouslySetInnerHTML={{ __html: post.content }}
                 />
               )}
