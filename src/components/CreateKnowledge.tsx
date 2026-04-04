@@ -34,8 +34,6 @@ const CreateKnowledge = ({ userData, editingPost, onSubmit, onClose }: Props) =>
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
-  // 🚀 정보 분야 그룹 탭 — 좌측 선택된 그룹 인덱스
-  const [activeGroupIdx, setActiveGroupIdx] = useState(0);
 
   // 🚀 분야 칩 토글 — 최대 2개, 선택 시 tags[0]/[1]에 자동 반영 (tags[2]~[4]는 유저 직접 입력용 유지)
   const toggleField = (field: string) => {
@@ -104,67 +102,48 @@ const CreateKnowledge = ({ userData, editingPost, onSubmit, onClose }: Props) =>
           <input type="text" placeholder="제목을 입력하세요" value={postData.title || ''} onChange={(e) => setPostData({ ...postData, title: e.target.value })} className="w-full bg-transparent text-[18px] font-bold text-slate-900 outline-none placeholder:text-slate-200 placeholder:font-normal" />
         </div>
 
-        {/* 🚀 정보 분야 선택 — 좌측 그룹 탭 + 우측 세부 항목, 최대 2개 */}
-        <div className="border-b border-slate-100 shrink-0">
-          <div className="flex items-center gap-2 px-5 pt-2.5 pb-1.5">
+        {/* 🚀 정보 분야 선택 — 그룹 소제목 + 항목 전체 펼침, 최대 2개 */}
+        <div className="border-b border-slate-100 shrink-0 px-5 py-3 flex flex-col gap-3">
+          <div className="flex items-center gap-2">
             <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">정보 분야</span>
             <span className="text-[9px] font-bold text-slate-200">최대 2개</span>
-            {(postData.infoFields || []).length > 0 && (
-              <div className="flex gap-1 ml-1">
-                {(postData.infoFields || []).map(f => (
-                  <span key={f} className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-yellow-400 text-yellow-900">{f}</span>
-                ))}
+            {(postData.infoFields || []).map(f => (
+              <span key={f} className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-yellow-400 text-yellow-900">{f}</span>
+            ))}
+          </div>
+          {INFO_GROUPS.map(g => {
+            const selectedCount = g.items.filter(item => (postData.infoFields || []).includes(item)).length;
+            return (
+              <div key={g.label}>
+                <p className={`text-[9px] font-black uppercase tracking-widest mb-1.5 ${selectedCount > 0 ? 'text-yellow-500' : 'text-slate-300'}`}>
+                  {g.label}
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {g.items.map(field => {
+                    const isSelected = (postData.infoFields || []).includes(field);
+                    const isDisabled = !isSelected && (postData.infoFields || []).length >= 2;
+                    return (
+                      <button
+                        key={field}
+                        type="button"
+                        onClick={() => toggleField(field)}
+                        disabled={isDisabled}
+                        className={`px-3 py-1.5 rounded-full text-[12px] font-bold transition-all border ${
+                          isSelected
+                            ? 'bg-yellow-400 text-yellow-900 border-yellow-400 shadow-sm'
+                            : isDisabled
+                              ? 'bg-white text-slate-200 border-slate-100 cursor-not-allowed'
+                              : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50 hover:border-slate-300'
+                        }`}
+                      >
+                        {field}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
-            )}
-          </div>
-          {/* 스크롤 없음 — 좌측 6줄 고정, 우측 전체 항목 표시 */}
-          <div className="flex">
-            {/* 좌측: 그룹 탭 6줄 */}
-            <div className="flex flex-col w-[92px] shrink-0 border-r border-slate-100">
-              {INFO_GROUPS.map((g, idx) => {
-                const hasSelected = g.items.some(item => (postData.infoFields || []).includes(item));
-                return (
-                  <button
-                    key={g.label}
-                    type="button"
-                    onClick={() => setActiveGroupIdx(idx)}
-                    className={`px-3 py-2.5 text-left text-[11px] font-bold transition-colors flex items-center gap-1.5 ${
-                      activeGroupIdx === idx
-                        ? 'bg-amber-50 text-slate-800 border-r-2 border-yellow-400'
-                        : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'
-                    }`}
-                  >
-                    {hasSelected && <span className="w-1.5 h-1.5 rounded-full bg-yellow-400 shrink-0" />}
-                    {g.label}
-                  </button>
-                );
-              })}
-            </div>
-            {/* 우측: 선택된 그룹의 항목 전부 표시 */}
-            <div className="flex-1 flex flex-wrap content-start gap-2 px-3 py-3">
-              {INFO_GROUPS[activeGroupIdx].items.map(field => {
-                const isSelected = (postData.infoFields || []).includes(field);
-                const isDisabled = !isSelected && (postData.infoFields || []).length >= 2;
-                return (
-                  <button
-                    key={field}
-                    type="button"
-                    onClick={() => toggleField(field)}
-                    disabled={isDisabled}
-                    className={`px-3 py-1.5 rounded-full text-[12px] font-bold transition-all border ${
-                      isSelected
-                        ? 'bg-yellow-400 text-yellow-900 border-yellow-400 shadow-sm'
-                        : isDisabled
-                          ? 'bg-white text-slate-200 border-slate-100 cursor-not-allowed'
-                          : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50 hover:border-slate-300'
-                    }`}
-                  >
-                    {field}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
+            );
+          })}
         </div>
 
         {/* 에디터 */}
