@@ -34,6 +34,7 @@ const CreateKnowledge = ({ userData, editingPost, onSubmit, onClose }: Props) =>
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [activeGroupIdx, setActiveGroupIdx] = useState(0);
 
   // 🚀 분야 칩 토글 — 최대 2개, 선택 시 tags[0]/[1]에 자동 반영 (tags[2]~[4]는 유저 직접 입력용 유지)
   const toggleField = (field: string) => {
@@ -102,48 +103,65 @@ const CreateKnowledge = ({ userData, editingPost, onSubmit, onClose }: Props) =>
           <input type="text" placeholder="제목을 입력하세요" value={postData.title || ''} onChange={(e) => setPostData({ ...postData, title: e.target.value })} className="w-full bg-transparent text-[18px] font-bold text-slate-900 outline-none placeholder:text-slate-200 placeholder:font-normal" />
         </div>
 
-        {/* 🚀 정보 분야 선택 — 그룹 소제목 + 항목 전체 펼침, 최대 2개 */}
-        <div className="border-b border-slate-100 shrink-0 px-5 py-3 flex flex-col gap-3">
-          <div className="flex items-center gap-2">
-            <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">정보 분야</span>
-            <span className="text-[9px] font-bold text-slate-200">최대 2개</span>
-            {(postData.infoFields || []).map(f => (
-              <span key={f} className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-yellow-400 text-yellow-900">{f}</span>
-            ))}
-          </div>
-          {INFO_GROUPS.map(g => {
-            const selectedCount = g.items.filter(item => (postData.infoFields || []).includes(item)).length;
-            return (
-              <div key={g.label}>
-                <p className={`text-[9px] font-black uppercase tracking-widest mb-1.5 ${selectedCount > 0 ? 'text-yellow-500' : 'text-slate-300'}`}>
+        {/* 🚀 정보 분야 선택 — 좌측 그룹 탭 + 우측 항목, 최대 2개 */}
+        <div className="border-b border-slate-100 shrink-0 flex" style={{ minHeight: 0 }}>
+          {/* 좌측: 그룹 탭 6개 */}
+          <div className="flex flex-col w-[90px] shrink-0 border-r border-slate-100 py-1">
+            {INFO_GROUPS.map((g, idx) => {
+              const hasSelected = g.items.some(item => (postData.infoFields || []).includes(item));
+              return (
+                <button
+                  key={g.label}
+                  type="button"
+                  onClick={() => setActiveGroupIdx(idx)}
+                  className={`px-2.5 py-[7px] text-left text-[11px] font-bold transition-colors flex items-center gap-1.5 leading-tight ${
+                    activeGroupIdx === idx
+                      ? 'bg-amber-50 text-slate-800 border-r-2 border-yellow-400 -mr-px'
+                      : 'text-slate-400 hover:text-slate-600'
+                  }`}
+                >
+                  {hasSelected && <span className="w-1.5 h-1.5 rounded-full bg-yellow-400 shrink-0" />}
                   {g.label}
-                </p>
-                <div className="flex flex-wrap gap-1.5">
-                  {g.items.map(field => {
-                    const isSelected = (postData.infoFields || []).includes(field);
-                    const isDisabled = !isSelected && (postData.infoFields || []).length >= 2;
-                    return (
-                      <button
-                        key={field}
-                        type="button"
-                        onClick={() => toggleField(field)}
-                        disabled={isDisabled}
-                        className={`px-3 py-1.5 rounded-full text-[12px] font-bold transition-all border ${
-                          isSelected
-                            ? 'bg-yellow-400 text-yellow-900 border-yellow-400 shadow-sm'
-                            : isDisabled
-                              ? 'bg-white text-slate-200 border-slate-100 cursor-not-allowed'
-                              : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50 hover:border-slate-300'
-                        }`}
-                      >
-                        {field}
-                      </button>
-                    );
-                  })}
-                </div>
+                </button>
+              );
+            })}
+            {/* 선택 현황 표시 */}
+            {(postData.infoFields || []).length > 0 && (
+              <div className="px-2.5 pt-2 pb-1 flex flex-col gap-1">
+                {(postData.infoFields || []).map(f => (
+                  <span key={f} className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-yellow-400 text-yellow-900 truncate">{f}</span>
+                ))}
               </div>
-            );
-          })}
+            )}
+          </div>
+          {/* 우측: 선택된 그룹 항목 */}
+          <div className="flex-1 flex flex-wrap content-start gap-1.5 px-3 py-2.5">
+            <div className="w-full flex items-center gap-1.5 mb-0.5">
+              <span className="text-[9px] font-black text-slate-300 uppercase tracking-widest">{INFO_GROUPS[activeGroupIdx].label}</span>
+              <span className="text-[9px] font-bold text-slate-200">· 최대 2개</span>
+            </div>
+            {INFO_GROUPS[activeGroupIdx].items.map(field => {
+              const isSelected = (postData.infoFields || []).includes(field);
+              const isDisabled = !isSelected && (postData.infoFields || []).length >= 2;
+              return (
+                <button
+                  key={field}
+                  type="button"
+                  onClick={() => toggleField(field)}
+                  disabled={isDisabled}
+                  className={`px-3 py-1.5 rounded-full text-[12px] font-bold transition-all border ${
+                    isSelected
+                      ? 'bg-yellow-400 text-yellow-900 border-yellow-400 shadow-sm'
+                      : isDisabled
+                        ? 'bg-white text-slate-200 border-slate-100 cursor-not-allowed'
+                        : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50 hover:border-slate-300'
+                  }`}
+                >
+                  {field}
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         {/* 에디터 */}
