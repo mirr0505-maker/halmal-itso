@@ -235,7 +235,7 @@ const AnyTalkList = ({
 
             {/* 🚀 한컷 인터리브 스트립: 일반글 2줄(8개)마다 한컷 4개 삽입, 더보기→한컷 메뉴 */}
             {stripCuts.length > 0 && (
-              <div className="mt-4 mb-4 border-t border-slate-100 pt-4">
+              <div className="my-4 border-y border-slate-100 py-4">
                 <div className="flex items-center justify-between mb-3">
                   <span className="text-[13px] font-[1000] text-slate-700 flex items-center gap-1.5">
                     🎞️ 한컷
