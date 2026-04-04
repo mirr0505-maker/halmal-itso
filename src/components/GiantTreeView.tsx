@@ -101,7 +101,7 @@ const GiantTreeView = ({ currentNickname, currentUserData, allUsers = {}, initia
             </div>
             <div className="w-px h-3 bg-slate-200 shrink-0 mx-1" />
             <p className="text-[12px] font-bold text-slate-500 truncate tracking-tight break-keep">
-              자신의 주장을 다단계 전파 형태로 보낼 수 있는 곳
+              할말 있소!!! 자신의 주장을 다단계 형태로 전파
             </p>
             {currentNickname && (
               <>
