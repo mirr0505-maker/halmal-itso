@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { db, auth } from '../firebase';
 import { onAuthStateChanged } from 'firebase/auth';
-import { collection, onSnapshot, doc, setDoc, serverTimestamp, query, where, getDocs } from 'firebase/firestore';
+import { collection, onSnapshot, doc, setDoc, updateDoc, increment, serverTimestamp, query, where, getDocs } from 'firebase/firestore';
 import type { Post, KanbuRoom, Community, UserData } from '../types';
 
 export function useFirebaseListeners() {
@@ -81,6 +81,11 @@ export function useFirebaseListeners() {
             setUserData({ ...data, uid: user.uid } as UserData);
             setFriends(data.friendList || []);
             setBlocks(data.blockList || []);
+            // 🚀 출석 EXP: 1일 1회 +5 — lastLoginDate와 오늘 비교
+            const today = new Date().toISOString().slice(0, 10); // "2026-04-05"
+            if (data.lastLoginDate !== today) {
+              updateDoc(doc(db, 'users', user.uid), { exp: increment(5), lastLoginDate: today }).catch(() => {});
+            }
           } else {
             const initialData = {
               nickname: user.displayName || "익명",

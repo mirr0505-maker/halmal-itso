@@ -106,6 +106,8 @@ const RootPostCard = ({
     if (window.confirm("정말 영구히 파기하겠소?")) {
       try {
         await deleteDoc(doc(db, "posts", post.id));
+        // 🚀 EXP 차감: 글 삭제 -2
+        if (post.author_id) updateDoc(doc(db, 'users', post.author_id), { exp: increment(-2) }).catch(() => {});
         if (onDeleteSuccess) onDeleteSuccess();
         else window.location.reload();
       } catch (error) { console.error("삭제 실패:", error); }

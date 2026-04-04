@@ -226,8 +226,8 @@ const GiantTreeDetail = ({ tree: treeProp, currentNickname, currentUserData, all
       if (selectedSide === 'agree' && tree.author_id !== currentUserData.uid) {
         await updateDoc(doc(db, 'users', tree.author_id), { likes: increment(2) });
       }
-      // 참여자 보상: 공감·반대 무관하게 likes+1 (참여 동기부여)
-      await updateDoc(doc(db, 'users', currentUserData.uid), { likes: increment(1) });
+      // 🚀 EXP: 전파 참여 +3
+      await updateDoc(doc(db, 'users', currentUserData.uid), { exp: increment(3) });
 
       // 6. 🚀 작성자에게 전파 알림 발송 (자기 나무 참여 제외)
       if (tree.author_id !== currentUserData.uid) {
@@ -385,8 +385,8 @@ const GiantTreeDetail = ({ tree: treeProp, currentNickname, currentUserData, all
       await setDoc(doc(db, 'giant_trees', tree.id, 'participants', currentUserData.uid), {
         joinedAt: serverTimestamp(), type: 'leaf',
       });
-      // 참여자 보상: likes+1
-      await updateDoc(doc(db, 'users', currentUserData.uid), { likes: increment(1) });
+      // 🚀 EXP: 잎사귀 참여 +1
+      await updateDoc(doc(db, 'users', currentUserData.uid), { exp: increment(1) });
       setHasLeafed(true);
       setComment('');
       setSelectedSide(null);

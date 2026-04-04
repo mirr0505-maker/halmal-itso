@@ -101,6 +101,8 @@ const OneCutDetailView = ({
     if (!window.confirm('댓글을 삭제하시겠습니까?')) return;
     await deleteDoc(doc(db, 'comments', comment.id));
     await updateDoc(doc(db, 'posts', rootPost.id), { commentCount: increment(-1) });
+    // 🚀 EXP 차감: 댓글 삭제 -2
+    if (comment.author_id) updateDoc(doc(db, 'users', comment.author_id), { exp: increment(-2) }).catch(() => {});
   };
 
   // 댓글 수정 저장

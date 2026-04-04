@@ -5,7 +5,7 @@ import ThanksballModal from './ThanksballModal';
 import type { Post, UserData } from '../types';
 import { CATEGORY_RULES } from './DiscussionView';
 import { db } from '../firebase';
-import { doc, updateDoc, deleteDoc, collection, query, where, onSnapshot } from 'firebase/firestore';
+import { doc, updateDoc, deleteDoc, increment, collection, query, where, onSnapshot } from 'firebase/firestore';
 import { formatKoreanNumber, getReputationLabel, getReputationScore } from '../utils';
 import { uploadToR2 } from '../uploadToR2';
 
@@ -114,6 +114,8 @@ const DebateBoard = ({
     try {
       const col = post.rootId ? 'comments' : 'posts';
       await deleteDoc(doc(db, col, post.id));
+      // 🚀 EXP 차감: 삭제 -2
+      if (post.author_id) updateDoc(doc(db, 'users', post.author_id), { exp: increment(-2) }).catch(() => {});
     } catch (e) { console.error(e); }
   };
 

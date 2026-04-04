@@ -67,6 +67,7 @@ const ThanksballModal = ({ postId, postAuthor, postTitle, currentNickname, allUs
         tx.update(senderRef, {
           ballBalance: increment(-finalAmount),
           ballSpent: increment(finalAmount),
+          exp: increment(1), // 🚀 EXP: 준 땡스볼 +1
         });
         if (recipientUid) {
           tx.set(doc(db, 'users', recipientUid), {

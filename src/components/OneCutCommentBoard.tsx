@@ -7,7 +7,7 @@ import { useState } from 'react';
 import ThanksballModal from './ThanksballModal';
 import type { Post, UserData } from '../types';
 import { db } from '../firebase';
-import { doc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { doc, updateDoc, deleteDoc, increment } from 'firebase/firestore';
 import { formatKoreanNumber, getReputationLabel, getReputationScore } from '../utils';
 
 interface Props {
@@ -54,6 +54,8 @@ const OneCutCommentBoard = ({
     if (!window.confirm('정말 삭제하시겠소?')) return;
     const col = post.rootId ? 'comments' : 'posts';
     await deleteDoc(doc(db, col, post.id));
+    // 🚀 EXP 차감: 삭제 -2
+    if (post.author_id) updateDoc(doc(db, 'users', post.author_id), { exp: increment(-2) }).catch(() => {});
   };
 
   const pinnedCommentId = rootPost.pinnedCommentId;

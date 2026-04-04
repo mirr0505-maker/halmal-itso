@@ -106,6 +106,8 @@ const CommunityView = ({ community, currentUserData, allUsers, onBack, onClosed 
       await updateDoc(doc(db, 'communities', community.id), { postCount: increment(-1) });
     }
     await deleteDoc(doc(db, 'community_posts', post.id));
+    // 🚀 EXP 차감: 장갑 글 삭제 -2
+    if (post.author_id) updateDoc(doc(db, 'users', post.author_id), { exp: increment(-2) }).catch(() => {});
     if (selectedPost?.id === post.id) setSelectedPost(null);
   };
 
@@ -221,8 +223,10 @@ const CommunityView = ({ community, currentUserData, allUsers, onBack, onClosed 
         createdAt: serverTimestamp(),
       });
       batch.update(doc(db, 'communities', community.id), { postCount: increment(1) });
-      // 🚀 활동지수 반영 — App.tsx 일반 글 작성과 동일 기준(+5)
-      batch.update(doc(db, 'users', currentUserData.uid), { likes: increment(5) });
+      // 🚀 EXP: 장갑 글 작성 +2 (10자 이상일 때만)
+      if (newContent.replace(/<[^>]*>/g, '').trim().length >= 10) {
+        batch.update(doc(db, 'users', currentUserData.uid), { exp: increment(2) });
+      }
 
       // 🚀 알림 구독자 push — 50명 이하이면 같은 batch에 포함 (원자성 보장)
       const targets = (community.notifyMembers ?? []).filter(uid => uid !== currentUserData.uid);
@@ -568,8 +572,10 @@ const CommunityPostDetail = ({ post, currentUserData, allUsers: _allUsers, onClo
         createdAt: serverTimestamp(),
       });
       await updateDoc(doc(db, 'community_posts', post.id), { commentCount: increment(1) });
-      // 🚀 장갑 댓글 작성 시 활동지수 반영 — App.tsx 인라인 댓글과 동일 기준(+1)
-      await updateDoc(doc(db, 'users', currentUserData.uid), { likes: increment(1) });
+      // 🚀 EXP: 장갑 댓글 +2 (10자 이상일 때만)
+      if (newComment.trim().length >= 10) {
+        await updateDoc(doc(db, 'users', currentUserData.uid), { exp: increment(2) });
+      }
       setNewComment('');
     } finally { setIsSubmitting(false); }
   };

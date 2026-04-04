@@ -7,6 +7,12 @@ import {
 import type { Dispatch, SetStateAction, FormEvent } from 'react';
 import type { Post, UserData } from '../types';
 import type { MenuId } from '../components/Sidebar';
+import { isEligibleForExp } from '../utils';
+
+// 🚀 Rate Limit 쿨다운 (클라이언트 사이드)
+const RATE_LIMIT = { POST_COOLDOWN_MS: 60_000, COMMENT_COOLDOWN_MS: 15_000 };
+let lastPostTime = 0;
+let lastCommentTime = 0;
 
 interface FirestoreActionDeps {
   userData: UserData | null;
@@ -50,6 +56,10 @@ export function useFirestoreActions({
   // 게시글 제출/수정 — postId가 있으면 수정, 없으면 신규
   const handlePostSubmit = async (postData: Partial<Post>, postId?: string) => {
     if (!userData) return;
+    // 🚀 Rate Limit: 신규 글 작성 60초 쿨다운
+    if (!postId && Date.now() - lastPostTime < RATE_LIMIT.POST_COOLDOWN_MS) {
+      alert('글 작성은 1분에 1개만 가능합니다.'); return;
+    }
     try {
       if (postId) {
         await updateDoc(doc(db, 'posts', postId), postData);
@@ -65,7 +75,11 @@ export function useFirestoreActions({
           parentId: null, rootId: null, side: 'left', type: 'formal',
           createdAt: serverTimestamp(), likes: 0, dislikes: 0, shareToken,
         });
-        await updateDoc(doc(db, 'users', userData.uid), { likes: increment(5) });
+        // 🚀 EXP: 새글 작성 +2 (10자 이상일 때만)
+        if (isEligibleForExp(postData.content || '')) {
+          await updateDoc(doc(db, 'users', userData.uid), { exp: increment(2) });
+        }
+        lastPostTime = Date.now();
       }
       setIsCreateOpen(false);
       setEditingPost(null);
@@ -90,7 +104,10 @@ export function useFirestoreActions({
         parentId: null, rootId: null, side: 'left', type: 'formal',
         createdAt: serverTimestamp(), likes: 0, dislikes: 0, shareToken,
       });
-      await updateDoc(doc(db, 'users', userData.uid), { likes: increment(5) });
+      // 🚀 EXP: 연계글 작성 +2 (10자 이상일 때만)
+      if (isEligibleForExp(postData.content || '')) {
+        await updateDoc(doc(db, 'users', userData.uid), { exp: increment(2) });
+      }
       setIsCreateOpen(false);
       setLinkedPostSide(null);
       // selectedTopic 유지 → 솔로몬의 재판 원글로 돌아감
@@ -108,6 +125,10 @@ export function useFirestoreActions({
     linkUrl?: string,
   ) => {
     if (!userData || !content.trim() || !selectedTopic) return;
+    // 🚀 Rate Limit: 댓글 15초 쿨다운
+    if (Date.now() - lastCommentTime < RATE_LIMIT.COMMENT_COOLDOWN_MS) {
+      alert('댓글은 15초에 1개만 작성할 수 있습니다.'); return;
+    }
     const customId = `comment_${Date.now()}_${userData.uid}`;
     try {
       await setDoc(doc(db, 'comments', customId), {
@@ -122,7 +143,11 @@ export function useFirestoreActions({
         ...(linkUrl ? { linkUrl } : {}),
       });
       await updateDoc(doc(db, 'posts', selectedTopic.id), { commentCount: increment(1) });
-      await updateDoc(doc(db, 'users', userData.uid), { likes: increment(1) });
+      // 🚀 EXP: 댓글 작성 +2 (10자 이상일 때만)
+      if (isEligibleForExp(content)) {
+        await updateDoc(doc(db, 'users', userData.uid), { exp: increment(2) });
+      }
+      lastCommentTime = Date.now();
     } catch (e: unknown) {
       console.error('[handleInlineReply]', e);
       alert('댓글 등록에 실패했습니다: ' + (e as Error).message);
@@ -134,6 +159,10 @@ export function useFirestoreActions({
   const handleCommentSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!userData || !newContent.trim() || !selectedTopic) return;
+    // 🚀 Rate Limit: 댓글 15초 쿨다운
+    if (Date.now() - lastCommentTime < RATE_LIMIT.COMMENT_COOLDOWN_MS) {
+      alert('댓글은 15초에 1개만 작성할 수 있습니다.'); return;
+    }
     setIsSubmitting(true);
     const customId = `comment_${Date.now()}_${userData.uid}`;
     try {
@@ -148,7 +177,11 @@ export function useFirestoreActions({
         createdAt: serverTimestamp(), likes: 0, dislikes: 0,
       });
       await updateDoc(doc(db, 'posts', selectedTopic.id), { commentCount: increment(1) });
-      await updateDoc(doc(db, 'users', userData.uid), { likes: increment(selectedType === 'formal' ? 2 : 1) });
+      // 🚀 EXP: 댓글 작성 +2 (10자 이상일 때만)
+      if (isEligibleForExp(newContent)) {
+        await updateDoc(doc(db, 'users', userData.uid), { exp: increment(2) });
+      }
+      lastCommentTime = Date.now();
       setNewTitle('');
       setNewContent('');
       setReplyTarget(null);
@@ -167,6 +200,8 @@ export function useFirestoreActions({
     try {
       await updateDoc(doc(db, 'users', userData.uid), {
         friendList: isFriend ? arrayRemove(author) : arrayUnion(author),
+        // 🚀 EXP: 깐부 맺기 +10, 해제 -15 (먹튀 방지)
+        exp: increment(isFriend ? -15 : 10),
       });
     } catch (e) { console.error(e); }
   };
@@ -201,6 +236,12 @@ export function useFirestoreActions({
       if (targetPost.author_id) {
         await updateDoc(doc(db, 'users', targetPost.author_id), { likes: increment(diff * 3) });
       }
+      // 🚀 등록글 EXP: 좋아요 3개 달성 시 작성자에게 exp +5 (1회만)
+      // 조건: 좋아요가 2→3이 되는 순간 (diff=+1이고 기존 likes가 2)
+      const newLikes = (targetPost.likes || 0) + diff;
+      if (diff === 1 && newLikes === 3 && targetPost.author_id) {
+        await updateDoc(doc(db, 'users', targetPost.author_id), { exp: increment(5) });
+      }
     } catch (e) { console.error(e); }
   };
 
@@ -212,6 +253,8 @@ export function useFirestoreActions({
     if (sessionStorage.getItem(sessionKey)) return;
     sessionStorage.setItem(sessionKey, '1');
     updateDoc(doc(db, 'posts', post.id), { viewCount: increment(1) }).catch(() => {});
+    // 🚀 EXP: 글 조회 +1 (로그인 유저, 타인 글, 글당 1회)
+    updateDoc(doc(db, 'users', userData.uid), { exp: increment(1) }).catch(() => {});
   };
 
   // 🚀 공유수 카운트: URL 복사 버튼 클릭 시 두 곳 동시 +1

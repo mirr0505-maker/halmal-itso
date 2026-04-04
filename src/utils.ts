@@ -46,12 +46,44 @@ export const getCategoryDisplayName = (category?: string): string => {
 };
 
 /**
- * 🚀 평판 점수 계산: 좋아요 + (공유수 × 2)
- * userData.likes 대신 항상 이 함수를 사용하세요.
+ * 🚀 레벨 계산 — EXP 기반, DB에 level 저장 안 함 (프론트에서만 계산)
+ * 검색어: calculateLevel
+ */
+const LEVEL_TABLE = [0, 30, 100, 250, 500, 1000, 2000, 4000, 7000, 10000];
+export const calculateLevel = (exp: number): number => {
+  for (let i = LEVEL_TABLE.length - 1; i >= 0; i--) {
+    if (exp >= LEVEL_TABLE[i]) return i + 1;
+  }
+  return 1;
+};
+
+/**
+ * 🚀 다음 레벨까지 EXP 진행률(%) 계산
+ */
+export const getLevelProgress = (exp: number): number => {
+  const level = calculateLevel(exp);
+  if (level >= 10) return 100;
+  const current = LEVEL_TABLE[level - 1];
+  const next = LEVEL_TABLE[level];
+  return Math.round(((exp - current) / (next - current)) * 100);
+};
+
+/**
+ * 🚀 EXP 지급 조건 — 본문 10자 미만이면 EXP 미지급 (등록은 허용)
+ * HTML 태그 제거 후 순수 텍스트 길이 판정
+ */
+const MIN_CHARS_FOR_EXP = 10;
+export const isEligibleForExp = (content: string): boolean => {
+  return content.replace(/<[^>]*>/g, '').trim().length >= MIN_CHARS_FOR_EXP;
+};
+
+/**
+ * 🚀 평판 점수 계산: (좋아요 × 2) + (공유수 × 3) + (받은 땡스볼 × 5)
+ * 레벨(성실도)과 완전 분리 — 타인의 반응만 반영
  * 검색어: getReputationScore
  */
-export const getReputationScore = (userData: { likes?: number; totalShares?: number }): number => {
-  return (userData.likes || 0) + (userData.totalShares || 0) * 2;
+export const getReputationScore = (userData: { likes?: number; totalShares?: number; ballReceived?: number }): number => {
+  return (userData.likes || 0) * 2 + (userData.totalShares || 0) * 3 + (userData.ballReceived || 0) * 5;
 };
 
 /**

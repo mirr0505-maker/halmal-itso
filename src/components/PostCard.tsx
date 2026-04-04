@@ -1,7 +1,7 @@
 // src/components/PostCard.tsx
 import { useState } from 'react';
 import { db } from '../firebase';
-import { doc, deleteDoc, updateDoc } from 'firebase/firestore';
+import { doc, deleteDoc, updateDoc, increment } from 'firebase/firestore';
 import type { Post, UserData } from '../types';
 import { formatKoreanNumber, getReputationLabel, getReputationScore } from '../utils';
 import { sanitizeHtml, extractText } from '../sanitize';
@@ -46,6 +46,8 @@ const PostCard = ({
       try {
         const col = post.rootId ? 'comments' : 'posts';
         await deleteDoc(doc(db, col, post.id));
+        // 🚀 EXP 차감: 삭제 시 -2
+        if (post.author_id) updateDoc(doc(db, 'users', post.author_id), { exp: increment(-2) }).catch(() => {});
       } catch (e) { console.error(e); }
     }
   };
