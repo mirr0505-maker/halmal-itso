@@ -90,32 +90,43 @@ const GiantTreeView = ({ currentNickname, currentUserData, allUsers = {}, initia
   }
 
   return (
-    <div className="w-full max-w-2xl mx-auto px-4 py-6 animate-in fade-in duration-500">
-      {/* 헤더 */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h2 className="text-xl font-[1000] text-slate-900 flex items-center gap-2">
-            🌳 거대 나무
-          </h2>
-          <p className="text-[12px] font-bold text-slate-400 mt-0.5">자신의 주장을 다단계 전파 형태로 보낼 수 있는 곳</p>
+    <div className="w-full animate-in fade-in duration-500">
+      {/* 🚀 헤더: CategoryHeader와 동일 스타일 — 전체 너비 좌측 정렬 */}
+      <div className="sticky top-0 z-30 bg-[#F8FAFC]/80 backdrop-blur-md pt-2">
+        <div className="flex items-center border-b border-slate-200 h-[36px] px-4">
+          <div className="flex items-center gap-3 overflow-hidden">
+            <div className="flex items-center gap-1.5 shrink-0">
+              <span className="text-blue-600 font-black text-[15px]">#</span>
+              <h2 className="text-[14px] font-[1000] text-slate-900 tracking-tighter whitespace-nowrap">거대 나무</h2>
+            </div>
+            <div className="w-px h-3 bg-slate-200 shrink-0 mx-1" />
+            <p className="text-[12px] font-bold text-slate-500 truncate tracking-tight break-keep">
+              자신의 주장을 다단계 전파 형태로 보낼 수 있는 곳
+            </p>
+            {currentNickname && (
+              <>
+                <div className="w-px h-3 bg-slate-200 shrink-0 mx-1" />
+                <button
+                  onClick={() => {
+                    const rep = getReputationLabel(currentUserData ? getReputationScore(currentUserData) : 0);
+                    if (MAX_SPREAD_BY_REPUTATION[rep] === 0) {
+                      alert('평판 등급이 "약간 우호" 이상이어야 거대 나무를 심을 수 있습니다.');
+                      return;
+                    }
+                    setView('create');
+                  }}
+                  className="flex items-center gap-0.5 text-[11px] font-bold text-slate-400 hover:text-blue-500 transition-colors shrink-0 whitespace-nowrap"
+                >
+                  <span className="text-[10px]">+</span>나무 심기
+                </button>
+              </>
+            )}
+          </div>
         </div>
-        {currentNickname && (
-          <button
-            onClick={() => {
-              const rep = getReputationLabel(currentUserData ? getReputationScore(currentUserData) : 0);
-              if (MAX_SPREAD_BY_REPUTATION[rep] === 0) {
-                alert('평판 등급이 "약간 우호" 이상이어야 거대 나무를 심을 수 있습니다.');
-                return;
-              }
-              setView('create');
-            }}
-            className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 text-white text-[12px] font-[1000] rounded-xl hover:bg-emerald-700 transition-colors"
-          >
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4"/></svg>
-            나무 심기
-          </button>
-        )}
+        <div className="h-3" />
       </div>
+
+      <div className="max-w-2xl mx-auto px-4 pb-6">
 
       {/* 전파 규모 안내 배지 */}
       {currentNickname && (
@@ -191,6 +202,7 @@ const GiantTreeView = ({ currentNickname, currentUserData, allUsers = {}, initia
           })}
         </div>
       )}
+      </div>
     </div>
   );
 };
