@@ -8,6 +8,7 @@
 
 - **blueprint.md** — 설계 계약서 (아키텍처·규칙·가이드라인). 모든 작업 전 반드시 참조.
 - **changelog.md** — 구현 완료 기능 이력 (blueprint.md 섹션 8 분리). 과거 구현 확인 시 참조.
+- **GIANTTREE.md** — 거대 나무 상세 설계서 (blueprint.md 섹션 10 분리). 전파 시스템·잎사귀·시든 가지 등.
 - **GEMINI.md** — 범용 AI 개발 원칙 (코드 품질, Firebase 규칙 등).
 - **src/types.ts** — TypeScript 인터페이스 전체. 새 타입 추가 시 여기에만 작성.
 
