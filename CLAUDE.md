@@ -6,7 +6,8 @@
 
 ## 프로젝트 핵심 파악
 
-- **blueprint.md** — 설계 계약서. 모든 작업 전 반드시 참조.
+- **blueprint.md** — 설계 계약서 (아키텍처·규칙·가이드라인). 모든 작업 전 반드시 참조.
+- **changelog.md** — 구현 완료 기능 이력 (blueprint.md 섹션 8 분리). 과거 구현 확인 시 참조.
 - **GEMINI.md** — 범용 AI 개발 원칙 (코드 품질, Firebase 규칙 등).
 - **src/types.ts** — TypeScript 인터페이스 전체. 새 타입 추가 시 여기에만 작성.
 
