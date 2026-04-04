@@ -120,6 +120,50 @@ const GiantTreeDetail = ({ tree, currentNickname, currentUserData, allUsers = {}
         if (snap.exists()) setParentNodeDepth((snap.data() as GiantTreeNode).depth);
       });
     }
+
+    // 🚀 시든 가지 알림: 내 노드 48시간 경과 + childCount < 3 → 1회 알림 push
+    const myNodeForWilt = nodes.find(n => n.participantId === currentUserData.uid);
+    if (myNodeForWilt && myNodeForWilt.childCount < 3) {
+      const createdMs = myNodeForWilt.createdAt?.seconds ? myNodeForWilt.createdAt.seconds * 1000 : 0;
+      const isWilted = createdMs > 0 && (Date.now() - createdMs) > 48 * 60 * 60 * 1000;
+      // 세션 내 중복 방지 — 같은 노드에 대해 한 세션에 1번만 발송
+      const wiltKey = `wilt_notified_${myNodeForWilt.id}`;
+      if (isWilted && !sessionStorage.getItem(wiltKey)) {
+        sessionStorage.setItem(wiltKey, '1');
+        const wiltedCount = 3 - myNodeForWilt.childCount;
+        addDoc(collection(db, 'notifications', currentUserData.uid, 'items'), {
+          type: 'giant_tree_wilt',
+          treeId: tree.id,
+          treeTitle: tree.title,
+          nodeId: myNodeForWilt.id,
+          wiltedCount,
+          message: `전파한 3명 중 ${myNodeForWilt.childCount}명만 참여했습니다. 나머지 ${wiltedCount}명에게 재전파하세요.`,
+          isRead: false,
+          createdAt: serverTimestamp(),
+        }).catch(() => {});
+      }
+    }
+
+    // 🚀 작성자 시든 가지 알림: 나무 생성 48시간 경과 + 루트 자식 < 3
+    if (tree.author_id === currentUserData.uid) {
+      const treeCreatedMs = tree.createdAt?.seconds ? tree.createdAt.seconds * 1000 : 0;
+      const rootChildren = nodes.filter(n => !n.parentNodeId).length;
+      const isWilted = treeCreatedMs > 0 && (Date.now() - treeCreatedMs) > 48 * 60 * 60 * 1000 && rootChildren < 3;
+      const wiltKey = `wilt_notified_author_${tree.id}`;
+      if (isWilted && !sessionStorage.getItem(wiltKey)) {
+        sessionStorage.setItem(wiltKey, '1');
+        const wiltedCount = 3 - rootChildren;
+        addDoc(collection(db, 'notifications', currentUserData.uid, 'items'), {
+          type: 'giant_tree_wilt',
+          treeId: tree.id,
+          treeTitle: tree.title,
+          wiltedCount,
+          message: `나무에 전파한 3명 중 ${rootChildren}명만 참여했습니다. 나머지 ${wiltedCount}명에게 재전파하세요.`,
+          isRead: false,
+          createdAt: serverTimestamp(),
+        }).catch(() => {});
+      }
+    }
   }, [tree.id, tree.author_id, currentUserData?.uid, parentNodeId, nodes]);
 
   const handleParticipate = async () => {
