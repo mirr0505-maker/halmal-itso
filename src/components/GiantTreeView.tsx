@@ -264,12 +264,12 @@ const GiantTreeView = ({ currentNickname, currentUserData, allUsers = {}, initia
               <div className="px-3 py-3 border-b border-amber-200">
                 <h4 className="text-[13px] font-[1000] text-amber-600 tracking-tighter flex items-center gap-1.5">
                   🌳 거대 나무 <span className="text-amber-400 font-bold text-[11px]">({giantTrees.length})</span>
+                  <span className="text-[9px] font-bold text-amber-400 ml-1">전파가 완료된 주장</span>
                 </h4>
-                <p className="text-[9px] font-bold text-amber-400 mt-0.5">전파가 완료된 주장</p>
               </div>
               {giantTrees.length === 0 ? (
                 <div className="py-10 text-center text-slate-300 font-bold text-[11px]">
-                  아직 전파 완료된 나무가 없어요.
+                  아직 전파 완료된 거대 나무가 없어요.
                 </div>
               ) : (
                 <div className="flex flex-col">
