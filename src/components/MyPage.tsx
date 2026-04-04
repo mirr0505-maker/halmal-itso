@@ -49,6 +49,8 @@ const MyPage = ({
   communities = [], joinedCommunityIds = [], onGloveClick, onLeaveGlove, onLogout
 }: Props) => {
   const [activeTab, setActiveTab] = useState<'posts' | 'onecuts' | 'comments' | 'avatars' | 'friends' | 'thanksball' | 'sentball' | 'glove'>('posts');
+  // 🚀 깐부 목록 서브탭: 내가 맺은 깐부(팔로잉) vs 나를 맺은 깐부수(팔로워)
+  const [friendSubTab, setFriendSubTab] = useState<'following' | 'followers'>('following');
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [sentBalls, setSentBalls] = useState<SentBall[]>([]);
   // 🚀 프로필 수정: editData + 업로드 상태
@@ -495,29 +497,84 @@ const MyPage = ({
                   </div>
                 )}
 
-                {activeTab === 'friends' && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {friends.length === 0 ? (
-                      <div className="col-span-full py-20 text-center text-slate-300 font-bold italic">아직 맺은 깐부가 없어요.</div>
-                    ) : (
-                      friends.map(fname => {
-                        const fData = allUsers[`nickname_${fname}`] || allUsers[fname];
-                        return (
-                          <div key={fname} className="bg-slate-50 p-4 rounded-2xl flex items-center justify-between border border-slate-100">
-                            <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 rounded-full bg-white overflow-hidden border border-slate-200 shadow-sm"><img src={fData?.avatarUrl || `https://api.dicebear.com/7.x/adventurer/svg?seed=${fname}`} alt="" /></div>
-                              <div className="flex flex-col">
-                                <span className="font-black text-[13px] text-slate-900">{fname}</span>
-                                <span className="text-[10px] font-bold text-slate-400">Lv {fData?.level || 1} · 깐부수 {followerCounts[fname] || 0}</span>
-                              </div>
-                            </div>
-                            <button onClick={() => onToggleFriend(fname)} className="text-[10px] font-black text-rose-500 bg-white px-3 py-1.5 rounded-lg border border-rose-100 shadow-sm hover:bg-rose-50 transition-all">깐부해제</button>
-                          </div>
-                        );
-                      })
-                    )}
-                  </div>
-                )}
+                {activeTab === 'friends' && (() => {
+                  // 🚀 나를 깐부로 맺은 사람(팔로워) 목록 역산: allUsers 전체에서 friendList에 내 닉네임 포함된 유저 추출
+                  const myNickname = userData.nickname;
+                  const followerNicknames = Object.values(allUsers)
+                    .filter(u => u.uid && u.nickname && u.nickname !== myNickname && (u.friendList || []).includes(myNickname))
+                    .reduce((acc, u) => { if (!acc.includes(u.nickname)) acc.push(u.nickname); return acc; }, [] as string[]);
+
+                  return (
+                    <div>
+                      {/* 서브탭: 깐부 목록 / 깐부수 목록 */}
+                      <div className="flex gap-2 mb-4">
+                        <button
+                          onClick={() => setFriendSubTab('following')}
+                          className={`px-4 py-2 rounded-xl text-[12px] font-[1000] transition-all ${friendSubTab === 'following' ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}
+                        >
+                          깐부 목록 ({friends.length})
+                        </button>
+                        <button
+                          onClick={() => setFriendSubTab('followers')}
+                          className={`px-4 py-2 rounded-xl text-[12px] font-[1000] transition-all ${friendSubTab === 'followers' ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}
+                        >
+                          깐부수 목록 ({followerNicknames.length})
+                        </button>
+                      </div>
+
+                      {friendSubTab === 'following' ? (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {friends.length === 0 ? (
+                            <div className="col-span-full py-20 text-center text-slate-300 font-bold italic">아직 맺은 깐부가 없어요.</div>
+                          ) : (
+                            friends.map(fname => {
+                              const fData = allUsers[`nickname_${fname}`] || allUsers[fname];
+                              return (
+                                <div key={fname} className="bg-slate-50 p-4 rounded-2xl flex items-center justify-between border border-slate-100">
+                                  <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-full bg-white overflow-hidden border border-slate-200 shadow-sm"><img src={fData?.avatarUrl || `https://api.dicebear.com/7.x/adventurer/svg?seed=${fname}`} alt="" className="w-full h-full object-cover" /></div>
+                                    <div className="flex flex-col">
+                                      <span className="font-black text-[13px] text-slate-900">{fname}</span>
+                                      <span className="text-[10px] font-bold text-slate-400">Lv {fData?.level || 1} · 깐부수 {followerCounts[fname] || 0}</span>
+                                    </div>
+                                  </div>
+                                  <button onClick={() => onToggleFriend(fname)} className="text-[10px] font-black text-rose-500 bg-white px-3 py-1.5 rounded-lg border border-rose-100 shadow-sm hover:bg-rose-50 transition-all">깐부해제</button>
+                                </div>
+                              );
+                            })
+                          )}
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {followerNicknames.length === 0 ? (
+                            <div className="col-span-full py-20 text-center text-slate-300 font-bold italic">아직 나를 깐부로 맺은 사람이 없어요.</div>
+                          ) : (
+                            followerNicknames.map(fname => {
+                              const fData = allUsers[`nickname_${fname}`] || allUsers[fname];
+                              const isMutual = friends.includes(fname);
+                              return (
+                                <div key={fname} className="bg-slate-50 p-4 rounded-2xl flex items-center justify-between border border-slate-100">
+                                  <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-full bg-white overflow-hidden border border-slate-200 shadow-sm"><img src={fData?.avatarUrl || `https://api.dicebear.com/7.x/adventurer/svg?seed=${fname}`} alt="" className="w-full h-full object-cover" /></div>
+                                    <div className="flex flex-col">
+                                      <span className="font-black text-[13px] text-slate-900">{fname}</span>
+                                      <span className="text-[10px] font-bold text-slate-400">Lv {fData?.level || 1} · 깐부수 {followerCounts[fname] || 0}</span>
+                                    </div>
+                                  </div>
+                                  {isMutual ? (
+                                    <span className="text-[10px] font-black text-emerald-500 bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-100">서로 깐부</span>
+                                  ) : (
+                                    <button onClick={() => onToggleFriend(fname)} className="text-[10px] font-black text-blue-500 bg-white px-3 py-1.5 rounded-lg border border-blue-100 shadow-sm hover:bg-blue-50 transition-all">+ 깐부맺기</button>
+                                  )}
+                                </div>
+                              );
+                            })
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
 
                 {/* 🚀 내 장갑 탭: 가입한 커뮤니티 관리 (역할·알림·통계·탈퇴) */}
                 {activeTab === 'glove' && (() => {
