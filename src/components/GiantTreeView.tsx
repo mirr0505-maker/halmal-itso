@@ -126,31 +126,7 @@ const GiantTreeView = ({ currentNickname, currentUserData, allUsers = {}, initia
         <div className="h-3" />
       </div>
 
-      <div className="max-w-2xl mx-auto px-4 pb-6">
-
-      {/* 🚀 권한 안내 배너 — 비로그인 / 평판 부족 */}
-      {!currentNickname ? (
-        <div className="mb-4 flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3">
-          <svg className="w-4 h-4 text-slate-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
-          <span className="text-[12px] font-bold text-slate-500">나무를 심으려면 로그인과 평판이 필요합니다.</span>
-        </div>
-      ) : (() => {
-        const rep = getReputationLabel(currentUserData ? getReputationScore(currentUserData) : 0);
-        const max = MAX_SPREAD_BY_REPUTATION[rep] || 0;
-        return max === 0 ? (
-          <div className="mb-4 flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
-            <span className="text-[14px]">🌱</span>
-            <span className="text-[12px] font-bold text-amber-700">평판 "약간 우호" 이상이면 나무를 심을 수 있어요. (현재: {rep})</span>
-          </div>
-        ) : (
-          <div className="mb-4 flex items-center gap-2 flex-wrap">
-            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">내 전파 규모:</span>
-            <span className="text-[11px] font-black text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-lg">{rep} · 최대 {max}명</span>
-          </div>
-        );
-      })()}
-
-      {/* 🚀 나무 성장 단계 헬퍼 함수 — 진행률 기반 6단계 */}
+      {/* 🚀 나무 성장 단계 헬퍼 — 컴포넌트 밖에서 정의하면 JSX 내 참조 불가하므로 렌더 블록 내 정의 */}
       {(() => {
         const getGrowthStage = (current: number, max: number) => {
           const pct = max > 0 ? Math.min((current / max) * 100, 100) : 0;
@@ -162,10 +138,10 @@ const GiantTreeView = ({ currentNickname, currentUserData, allUsers = {}, initia
           return                  { emoji: '🌰', label: '씨앗',     color: 'bg-slate-300',    textColor: 'text-slate-500',    borderColor: 'border-slate-200' };
         };
 
-        // 🚀 목록 분리: 자라는 나무 vs 거대 나무(전파 완료)
         const growingTrees = trees.filter(t => !(t.totalNodes >= t.maxSpread && !t.circuitBroken));
         const giantTrees = trees.filter(t => t.totalNodes >= t.maxSpread && !t.circuitBroken);
 
+        // 🚀 메인 카드 — 자라는 나무용 (풀사이즈)
         const renderTreeCard = (tree: GiantTree) => {
           const authorData = allUsers[`nickname_${tree.author}`];
           const totalVotes = tree.agreeCount + tree.opposeCount;
@@ -173,15 +149,13 @@ const GiantTreeView = ({ currentNickname, currentUserData, allUsers = {}, initia
           const pct = tree.maxSpread > 0 ? Math.min((tree.totalNodes / tree.maxSpread) * 100, 100) : 0;
           const stage = getGrowthStage(tree.totalNodes, tree.maxSpread);
           const isBroken = tree.circuitBroken;
-          const isFull = tree.totalNodes >= tree.maxSpread;
 
           return (
             <button
               key={tree.id}
               onClick={() => { setSelectedTree(tree); setActiveParentNodeId(null); setView('detail'); }}
-              className={`w-full text-left bg-white rounded-2xl p-4 hover:shadow-sm transition-all ${isFull && !isBroken ? 'border-2 border-amber-300 shadow-sm shadow-amber-50' : 'border border-slate-100 hover:border-emerald-200'}`}
+              className="w-full text-left bg-white border border-slate-100 rounded-2xl p-4 hover:border-emerald-200 hover:shadow-sm transition-all"
             >
-              {/* 상단: 작성자 + 성장 단계 배지 */}
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
                   <div className="w-7 h-7 rounded-full overflow-hidden border border-slate-100">
@@ -200,11 +174,7 @@ const GiantTreeView = ({ currentNickname, currentUserData, allUsers = {}, initia
                   <span className="text-[9px] font-bold text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded-md">{tree.authorReputation} · 최대 {tree.maxSpread}명</span>
                 </div>
               </div>
-
-              {/* 제목 */}
               <h3 className="text-[14px] font-[1000] text-slate-900 leading-snug mb-2 line-clamp-2">{tree.title}</h3>
-
-              {/* 하단: 성장 진행 바 + 통계 */}
               <div className="flex items-center gap-3">
                 <div className="flex-1 bg-slate-100 rounded-full h-1.5 overflow-hidden">
                   <div className={`h-full ${stage.color} rounded-full transition-all duration-500`} style={{ width: `${pct}%` }} />
@@ -216,39 +186,112 @@ const GiantTreeView = ({ currentNickname, currentUserData, allUsers = {}, initia
           );
         };
 
-        return trees.length === 0 ? (
-          <div className="py-16 text-center text-slate-300 font-bold text-sm">
-            아직 심어진 나무가 없습니다.<br />첫 번째 주장을 전파해보세요.
-          </div>
-        ) : (
-          <>
-            {/* 🚀 자라는 나무 섹션 */}
-            {growingTrees.length > 0 && (
-              <div className="mb-6">
-                <h3 className="text-[12px] font-black text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-1.5">
-                  🌱 자라는 나무 <span className="text-slate-300 font-bold normal-case">({growingTrees.length})</span>
-                </h3>
+        // 🚀 사이드바 카드 — 거대 나무(전파 완료)용 (컴팩트)
+        const renderGiantCard = (tree: GiantTree) => {
+          const authorData = allUsers[`nickname_${tree.author}`];
+          const totalVotes = tree.agreeCount + tree.opposeCount;
+          const agreeRatio = totalVotes > 0 ? Math.round((tree.agreeCount / totalVotes) * 100) : 0;
+
+          return (
+            <div
+              key={tree.id}
+              onClick={() => { setSelectedTree(tree); setActiveParentNodeId(null); setView('detail'); }}
+              className="bg-white border-b border-amber-100 cursor-pointer hover:bg-amber-50/30 transition-all group"
+            >
+              <div className="px-3 pt-2 pb-1">
+                <h5 className="text-[11px] font-[1000] text-slate-900 line-clamp-2 leading-snug tracking-tighter group-hover:text-amber-700 transition-colors">{tree.title}</h5>
+              </div>
+              <div className="px-3 pb-2 flex items-center justify-between">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <div className="w-4 h-4 rounded-full overflow-hidden border border-slate-100 bg-slate-50 shrink-0">
+                    <img src={authorData?.avatarUrl || `https://api.dicebear.com/7.x/adventurer/svg?seed=${tree.author}`} alt="" className="w-full h-full object-cover" />
+                  </div>
+                  <span className="text-[9px] font-black text-slate-700 truncate">{tree.author}</span>
+                </div>
+                <div className="flex items-center gap-2 text-[8px] font-black text-slate-400 shrink-0">
+                  <span>{tree.totalNodes}/{tree.maxSpread}명</span>
+                  <span className="text-blue-500">공감 {agreeRatio}%</span>
+                </div>
+              </div>
+            </div>
+          );
+        };
+
+        return (
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-4 w-full max-w-[1600px] mx-auto px-4 pb-6 items-start">
+            {/* 🚀 좌측: 자라는 나무 (메인 영역) */}
+            <div className="col-span-1 md:col-span-8">
+              {/* 권한 안내 배너 */}
+              {!currentNickname ? (
+                <div className="mb-4 flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3">
+                  <svg className="w-4 h-4 text-slate-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+                  <span className="text-[12px] font-bold text-slate-500">나무를 심으려면 로그인과 평판이 필요합니다.</span>
+                </div>
+              ) : (() => {
+                const rep = getReputationLabel(currentUserData ? getReputationScore(currentUserData) : 0);
+                const max = MAX_SPREAD_BY_REPUTATION[rep] || 0;
+                return max === 0 ? (
+                  <div className="mb-4 flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
+                    <span className="text-[14px]">🌱</span>
+                    <span className="text-[12px] font-bold text-amber-700">평판 "약간 우호" 이상이면 나무를 심을 수 있어요. (현재: {rep})</span>
+                  </div>
+                ) : (
+                  <div className="mb-4 flex items-center gap-2 flex-wrap">
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">내 전파 규모:</span>
+                    <span className="text-[11px] font-black text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-lg">{rep} · 최대 {max}명</span>
+                  </div>
+                );
+              })()}
+
+              {/* 자라는 나무 목록 */}
+              {growingTrees.length === 0 && giantTrees.length === 0 ? (
+                <div className="py-16 text-center text-slate-300 font-bold text-sm">
+                  아직 심어진 나무가 없습니다.<br />첫 번째 주장을 전파해보세요.
+                </div>
+              ) : growingTrees.length === 0 ? (
+                <div className="py-10 text-center text-slate-300 font-bold text-sm">
+                  현재 자라는 나무가 없습니다.
+                </div>
+              ) : (
                 <div className="flex flex-col gap-3">
                   {growingTrees.map(renderTreeCard)}
                 </div>
-              </div>
-            )}
+              )}
+            </div>
 
-            {/* 🚀 거대 나무 섹션 — 전파 완료 */}
+            {/* 🚀 우측: 거대 나무 사이드바 (전파 완료) */}
+            <aside className="hidden md:block md:col-span-4 sticky top-12 bg-slate-50 rounded-xl max-h-[calc(100vh-120px)] overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] border-l-2 border-amber-200">
+              <div className="px-3 py-3 border-b border-amber-200">
+                <h4 className="text-[13px] font-[1000] text-amber-600 tracking-tighter flex items-center gap-1.5">
+                  🌳 거대 나무 <span className="text-amber-400 font-bold text-[11px]">({giantTrees.length})</span>
+                </h4>
+                <p className="text-[9px] font-bold text-amber-400 mt-0.5">전파가 완료된 주장</p>
+              </div>
+              {giantTrees.length === 0 ? (
+                <div className="py-10 text-center text-slate-300 font-bold text-[11px]">
+                  아직 전파 완료된 나무가 없어요.
+                </div>
+              ) : (
+                <div className="flex flex-col">
+                  {giantTrees.map(renderGiantCard)}
+                </div>
+              )}
+            </aside>
+
+            {/* 🚀 모바일: 거대 나무 하단 표시 */}
             {giantTrees.length > 0 && (
-              <div>
-                <h3 className="text-[12px] font-black text-amber-500 uppercase tracking-widest mb-3 flex items-center gap-1.5">
-                  🌳 거대 나무 <span className="text-amber-400 font-bold normal-case">({giantTrees.length})</span>
-                </h3>
+              <div className="col-span-1 md:hidden border-t border-amber-200 pt-4">
+                <h4 className="text-[12px] font-[1000] text-amber-600 tracking-tighter mb-3 flex items-center gap-1.5">
+                  🌳 거대 나무 <span className="text-amber-400 font-bold text-[11px]">({giantTrees.length})</span>
+                </h4>
                 <div className="flex flex-col gap-3">
                   {giantTrees.map(renderTreeCard)}
                 </div>
               </div>
             )}
-          </>
+          </div>
         );
       })()}
-      </div>
     </div>
   );
 };
