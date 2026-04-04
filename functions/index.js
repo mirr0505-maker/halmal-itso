@@ -22,7 +22,7 @@ const RSS_FEEDS = [
   { url: "https://news.kbs.co.kr/rss/rss.do?source=news",            source: "KBS뉴스" },
   { url: "https://www.khan.co.kr/rss/rssdata/total_news.xml",        source: "경향신문" },
   { url: "https://www.donga.com/news/rss",                           source: "동아일보" },
-  { url: "https://news.sbs.co.kr/news/SectionRssFeed.do?sectionId=01&plink=RSSREADER", source: "SBS뉴스" },
+  { url: "https://www.news1.kr/rss/main.xml",                       source: "뉴스1" },
 ];
 
 // 🚨 속보 판정 키워드 — 기사 제목에 하나라도 포함되면 등록, 없으면 스킵
