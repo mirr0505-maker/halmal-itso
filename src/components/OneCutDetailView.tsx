@@ -495,6 +495,7 @@ const OneCutDetailView = ({
       {/* 우측: 다른 한컷 목록 */}
       <OneCutListSidebar
         oneCuts={sideOneCuts}
+        allPosts={otherTopics}
         onOneCutClick={onTopicChange}
         commentCounts={commentCounts}
         allUsers={allUsers}
