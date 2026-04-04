@@ -635,14 +635,27 @@ function App() {
     <div className="bg-[#F8FAFC] text-slate-900 font-sans h-screen flex flex-col overflow-hidden">
       <header className="bg-white border-b border-slate-100 h-[56px] md:h-[64px] flex items-center justify-between px-4 md:px-6 shrink-0 z-50 shadow-sm">
         <div className="flex items-center gap-4">
-          <div className="flex items-center gap-1.5 cursor-pointer hover:opacity-80 transition-opacity shrink-0" onClick={goHome}>
-            {/* 햄버거 3선 아이콘 — viewBox를 선 끝(x=12)에 맞게 잘라 우측 빈 공간 제거 */}
+          {/* 데스크톱: ≡+GLove 함께 클릭 → 홈 */}
+          <div className="hidden md:flex items-center gap-1.5 cursor-pointer hover:opacity-80 transition-opacity shrink-0" onClick={goHome}>
             <svg className="w-3 h-5 text-slate-500 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" viewBox="0 4 12 16">
               <line x1="1" y1="6"  x2="11" y2="6"  />
               <line x1="1" y1="12" x2="11" y2="12" />
               <line x1="1" y1="18" x2="11" y2="18" />
             </svg>
             <h1 className="text-[26px] font-[1000] italic tracking-tighter shrink-0">
+              <span className="text-red-500">G</span><span className="text-blue-600">L</span><span className="text-slate-900">ove</span>
+            </h1>
+          </div>
+          {/* 모바일: ≡ 버튼(드로어) + GLove 텍스트(홈) 분리 */}
+          <div className="flex md:hidden items-center gap-1">
+            <button onClick={() => setIsMobileMenuOpen(true)} className="w-9 h-9 flex items-center justify-center rounded-xl text-slate-500 hover:bg-slate-50 transition-colors" aria-label="전체 메뉴">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" viewBox="0 0 24 24">
+                <line x1="3" y1="6"  x2="21" y2="6"  />
+                <line x1="3" y1="12" x2="21" y2="12" />
+                <line x1="3" y1="18" x2="21" y2="18" />
+              </svg>
+            </button>
+            <h1 className="text-[26px] font-[1000] italic tracking-tighter cursor-pointer shrink-0" onClick={goHome}>
               <span className="text-red-500">G</span><span className="text-blue-600">L</span><span className="text-slate-900">ove</span>
             </h1>
           </div>
@@ -656,17 +669,25 @@ function App() {
         <div className="hidden md:flex flex-1 justify-center h-full items-center px-4"><div className="relative flex items-center bg-slate-50/80 rounded-full px-4 h-[42px] border border-slate-100 focus-within:border-blue-500 focus-within:bg-white transition-all w-full max-w-sm"><svg className="w-4 h-4 text-slate-400 mr-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg><input type="text" placeholder="검색어를 입력해 주세요." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="bg-transparent outline-none w-full text-[13px] font-bold text-slate-700" /></div></div>
         {/* 🚀 데스크톱 우측 액션 — 모바일에서 숨김 */}
         <div className="hidden md:flex items-center gap-4 ml-auto shrink-0">{isLoading ? <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div> : userData ? <>{!['giant_tree', 'glove', 'ranking'].includes(activeMenu) && <button onClick={() => setIsCreateOpen(true)} className="bg-blue-600 hover:bg-blue-700 text-white px-5 h-[40px] rounded-xl text-[13px] font-black shadow-sm">+ 새 글</button>}<NotificationBell currentUid={userData.uid} currentNickname={userData.nickname} onNavigate={(postId) => { const post = allRootPosts.find(p => p.id === postId); if (post) { setSelectedTopic(post); setActiveMenu('home'); } }} /><div className="flex items-center gap-3"><div className="w-[42px] h-[42px] rounded-full border-2 border-slate-100 overflow-hidden cursor-pointer bg-slate-50" onClick={() => setActiveMenu('mypage')}><img src={userData.avatarUrl || `https://api.dicebear.com/7.x/adventurer/svg?seed=${userData.nickname}`} alt="avatar" /></div><button onClick={handleLogout} className="text-[11px] font-black text-slate-300 hover:text-rose-500 transition-colors uppercase tracking-widest">Logout</button></div></> : <button onClick={handleLogin} className="flex items-center gap-2 bg-white border border-slate-200 hover:border-slate-900 px-5 h-[42px] rounded-xl text-[13px] font-black transition-all shadow-sm group"><svg className="w-4 h-4 group-hover:scale-110 transition-transform" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>구글 계정으로 시작하기</button>}</div>
-        {/* 🚀 모바일 우측 — 햄버거 버튼만 표시 */}
-        <div className="flex md:hidden items-center gap-2 ml-auto shrink-0">
-          <button
-            onClick={() => setIsMobileMenuOpen(true)}
-            className="w-9 h-9 flex items-center justify-center rounded-xl text-slate-500 hover:bg-slate-50 transition-colors"
-            aria-label="메뉴 열기"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 6h16M4 12h16M4 18h16" />
-            </svg>
-          </button>
+        {/* 🚀 모바일 우측 — 알림 + 내정보/로그인 버튼 */}
+        <div className="flex md:hidden items-center gap-1.5 ml-auto shrink-0">
+          {userData ? (
+            <>
+              <NotificationBell
+                currentUid={userData.uid}
+                currentNickname={userData.nickname}
+                onNavigate={(postId) => { const post = allRootPosts.find(p => p.id === postId); if (post) { setSelectedTopic(post); setActiveMenu('home'); } }}
+              />
+              <button onClick={() => { setActiveMenu('mypage'); setSelectedTopic(null); setIsCreateOpen(false); }} className={`w-9 h-9 rounded-full overflow-hidden border-2 transition-all ${activeMenu === 'mypage' ? 'border-blue-400' : 'border-slate-200'}`}>
+                <img src={userData.avatarUrl || `https://api.dicebear.com/7.x/adventurer/svg?seed=${userData.nickname}`} alt="내정보" className="w-full h-full object-cover" />
+              </button>
+            </>
+          ) : (
+            <button onClick={handleLogin} className="flex items-center gap-1.5 bg-blue-600 text-white px-3 h-8 rounded-xl text-[12px] font-black shadow-sm">
+              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24"><path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="currentColor" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="currentColor" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="currentColor" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+              로그인
+            </button>
+          )}
         </div>
       </header>
       <div className="flex flex-1 overflow-hidden">{!(selectedTopic || isCreateOpen) && <Sidebar activeMenu={activeMenu} setActiveMenu={(menu) => { setActiveMenu(menu); setSelectedTopic(null); setIsCreateOpen(false); setSelectedRoom(null); }} kanbuRoomCount={accessibleRooms.length} />}<main className={`flex-1 overflow-y-auto bg-[#F8FAFC] transition-all duration-500 ${(selectedTopic || isCreateOpen) ? 'px-4 md:px-6 pt-4' : 'pt-0'}`}><div className={(selectedTopic || isCreateOpen) ? "max-w-[1600px] mx-auto pb-20 md:pb-20 pb-28" : "pb-20 md:pb-20 pb-28"}>
@@ -721,73 +742,46 @@ function App() {
         </div>
       )}
 
-      {/* 🚀 모바일 하단 네비게이션 바 — md 미만에서만 표시 */}
-      <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-white border-t border-slate-100 flex items-stretch h-14 safe-area-inset-bottom">
+      {/* 🚀 모바일 하단 탭바 — 텍스트 없음, 5탭, 중앙 새글 버튼 돌출 */}
+      <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-white/95 backdrop-blur-md border-t border-slate-100 flex items-end h-16 pb-1 safe-area-inset-bottom">
         {/* 홈 */}
-        <button
-          onClick={goHome}
-          className={`flex-1 flex flex-col items-center justify-center gap-0.5 transition-colors ${activeMenu === 'home' && !selectedTopic && !isCreateOpen ? 'text-blue-600' : 'text-slate-400'}`}
-        >
-          <svg className="w-[22px] h-[22px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-          </svg>
-          <span className="text-[9px] font-[1000]">홈</span>
-        </button>
-        {/* 새 글 — giant_tree·glove 메뉴에서는 숨김 */}
-        {!['giant_tree', 'glove', 'ranking'].includes(activeMenu) && (
-          <button
-            onClick={() => { setIsCreateOpen(true); setSelectedTopic(null); }}
-            className={`flex-1 flex flex-col items-center justify-center gap-0.5 transition-colors ${isCreateOpen ? 'text-blue-600' : 'text-slate-400'}`}
-          >
-            <svg className="w-[22px] h-[22px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4" />
-            </svg>
-            <span className="text-[9px] font-[1000]">새 글</span>
-          </button>
-        )}
-        {/* 알림 */}
-        <div className="flex-1 flex flex-col items-center justify-center">
-          {userData ? (
-            <NotificationBell
-              currentUid={userData.uid}
-              currentNickname={userData.nickname}
-              onNavigate={(postId) => {
-                const post = allRootPosts.find(p => p.id === postId);
-                if (post) { setSelectedTopic(post); setActiveMenu('home'); }
-              }}
-            />
+        <button onClick={goHome} className={`flex-1 flex flex-col items-center justify-center h-full transition-colors ${activeMenu === 'home' && !selectedTopic && !isCreateOpen ? 'text-blue-600' : 'text-slate-400'}`}>
+          {activeMenu === 'home' && !selectedTopic && !isCreateOpen ? (
+            <svg className="w-[24px] h-[24px]" fill="currentColor" viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
           ) : (
-            <svg className="w-[22px] h-[22px] text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-            </svg>
+            <svg className="w-[24px] h-[24px]" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
           )}
-          <span className="text-[9px] font-[1000] text-slate-400 mt-0.5">알림</span>
-        </div>
-        {/* 내정보 */}
-        <button
-          onClick={() => { setActiveMenu('mypage'); setSelectedTopic(null); setIsCreateOpen(false); }}
-          className={`flex-1 flex flex-col items-center justify-center gap-0.5 transition-colors ${activeMenu === 'mypage' && !selectedTopic && !isCreateOpen ? 'text-blue-600' : 'text-slate-400'}`}
-        >
-          {userData ? (
-            <div className={`w-6 h-6 rounded-full overflow-hidden border-2 ${activeMenu === 'mypage' ? 'border-blue-400' : 'border-slate-200'}`}>
-              <img src={userData.avatarUrl || `https://api.dicebear.com/7.x/adventurer/svg?seed=${userData.nickname}`} alt="avatar" className="w-full h-full object-cover" />
-            </div>
-          ) : (
-            <svg className="w-[22px] h-[22px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-            </svg>
-          )}
-          <span className="text-[9px] font-[1000]">내정보</span>
         </button>
-        {/* 메뉴 더보기 */}
+        {/* 한컷 */}
+        <button onClick={() => { setActiveMenu('onecut'); setSelectedTopic(null); setIsCreateOpen(false); }} className={`flex-1 flex flex-col items-center justify-center h-full transition-colors ${activeMenu === 'onecut' && !selectedTopic && !isCreateOpen ? 'text-blue-600' : 'text-slate-400'}`}>
+          {activeMenu === 'onecut' && !selectedTopic && !isCreateOpen ? (
+            <svg className="w-[24px] h-[24px]" fill="currentColor" viewBox="0 0 24 24"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>
+          ) : (
+            <svg className="w-[24px] h-[24px]" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+          )}
+        </button>
+        {/* 🚀 새글 — 중앙 돌출 원형 버튼 (월드와이드 패턴) */}
         <button
-          onClick={() => setIsMobileMenuOpen(true)}
-          className="flex-1 flex flex-col items-center justify-center gap-0.5 text-slate-400 transition-colors"
+          onClick={() => { setActiveMenu('home'); setIsCreateOpen(true); setSelectedTopic(null); }}
+          className="flex-1 flex flex-col items-center justify-start"
         >
-          <svg className="w-[22px] h-[22px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 6h16M4 12h16M4 18h16" />
-          </svg>
-          <span className="text-[9px] font-[1000]">메뉴</span>
+          <div className={`w-13 h-13 w-[52px] h-[52px] rounded-full flex items-center justify-center shadow-lg transition-all -mt-5 border-4 border-white ${isCreateOpen ? 'bg-blue-700 scale-95' : 'bg-blue-600'}`}>
+            <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" strokeWidth="2.8" viewBox="0 0 24 24">
+              <path strokeLinecap="round" d="M12 5v14M5 12h14"/>
+            </svg>
+          </div>
+        </button>
+        {/* 장갑 */}
+        <button onClick={() => { setActiveMenu('glove'); setSelectedTopic(null); setIsCreateOpen(false); }} className={`flex-1 flex flex-col items-center justify-center h-full transition-colors ${activeMenu === 'glove' && !selectedTopic && !isCreateOpen ? 'text-blue-600' : 'text-slate-400'}`}>
+          <span className={`text-[22px] leading-none transition-all ${activeMenu === 'glove' && !selectedTopic && !isCreateOpen ? 'scale-110' : ''}`}>🧤</span>
+        </button>
+        {/* 랭킹 */}
+        <button onClick={() => { setActiveMenu('ranking'); setSelectedTopic(null); setIsCreateOpen(false); }} className={`flex-1 flex flex-col items-center justify-center h-full transition-colors ${activeMenu === 'ranking' && !selectedTopic && !isCreateOpen ? 'text-blue-600' : 'text-slate-400'}`}>
+          {activeMenu === 'ranking' && !selectedTopic && !isCreateOpen ? (
+            <svg className="w-[24px] h-[24px]" fill="currentColor" viewBox="0 0 24 24"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zm4.24 16L12 15.45 7.77 18l1.12-4.81-3.73-3.23 4.92-.42L12 5l1.92 4.53 4.92.42-3.73 3.23L16.23 18z"/></svg>
+          ) : (
+            <svg className="w-[24px] h-[24px]" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/></svg>
+          )}
         </button>
       </nav>
 
