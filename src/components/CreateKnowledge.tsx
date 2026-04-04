@@ -12,8 +12,14 @@ interface Props {
   onClose: () => void;
 }
 
-// 🚀 황금알 정보 분야: 돈이 될 만한 정보 카테고리 10개, 최대 2개 선택
-const INFO_FIELDS = ['주식', '코인', '부동산', '경제', '경영', '정책', '세금', '창업', '재테크', '글로벌'];
+// 🚀 황금알 정보 분야: 최대 2개 선택, 비슷한 분야끼리 인접 배치
+// 금융투자 → 경제경영 → 글로벌 → 지식학문 순
+const INFO_FIELDS = [
+  '주식', '코인', '부동산', '재테크',       // 금융·투자
+  '경제', '경영', '창업', '세금', '정책',   // 경제·경영
+  '글로벌',                                  // 세계
+  'IT', '과학', '철학', '인문',             // 지식·학문
+];
 
 const CreateKnowledge = ({ userData, editingPost, onSubmit, onClose }: Props) => {
   const [postData, setPostData] = useState<Partial<Post>>({
