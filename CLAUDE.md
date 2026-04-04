@@ -71,7 +71,7 @@
 | `DebateBoard.tsx` | 너와 나의 이야기 댓글 IME 처리 — InlineForm 컴포넌트 금지, 인라인 JSX 유지. `isComposing` 체크 보호. |
 | `RootPostCard.tsx` | 하단 통계 바 3컬럼 구조(댓글\|땡스볼\|동의) 유지. `onBack` prop 체인 보호. |
 | `ThanksballModal.tsx` | `sentBalls` + `notifications` + `thanksballTotal` 3곳 동시 쓰기 — 하나라도 누락 금지. |
-| `NotificationBell.tsx` | `notifications/{nick}/items` 실시간 구독. `writeBatch`로 일괄 읽음 처리. |
+| `NotificationBell.tsx` | `notifications/{uid}/items` 실시간 구독. `writeBatch`로 일괄 읽음 처리. 타입: `thanksball·community_post·finger_promoted·giant_tree_spread`. `isUnread()` 헬퍼로 `read`/`isRead` 두 필드 통합 판단. |
 | `EditorToolbar.tsx` | 링크 삽입 후 Workers 호출 → `LinkPreviewCard` 표시. `fetchPreview` 내부 상태 보호. |
 | `LinkPreviewCard.tsx` | OgData 타입 export — EditorToolbar에서 import해 사용. |
 

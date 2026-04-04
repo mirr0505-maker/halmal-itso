@@ -2,7 +2,7 @@
 
 이 문서는 **할말있소(HALMAL-ITSO)** 프로젝트의 설계 원칙, 현재 구현 상태, 그리고 AI 개발자의 **절대적 행동 지침**을 담은 단일 진실 소스(Single Source of Truth)입니다.
 
-> 최종 갱신: 2026-04-03 v30 (코드 실측 기준)  |  현재 브랜치: `main`
+> 최종 갱신: 2026-04-04 v31 (코드 실측 기준)  |  현재 브랜치: `main`
 
 ---
 
@@ -726,6 +726,30 @@ interface KanbuChat {
   - **DB 삭제**: Firestore `posts` 7건 + `comments` 9건 Admin SDK 스크립트로 영구 삭제.
   - **코드 삭제**: `CreateCryingBoy.tsx` 파일 삭제. `Sidebar.tsx` MenuId 타입·메뉴 항목, `constants.ts` `crying_boy` 객체, `App.tsx` lazy import·카테고리 카드, `DiscussionView.tsx` CATEGORY_RULES·CATEGORY_COMMENT_MAP, `DebateBoard.tsx` 조건문 2곳 전부 제거.
   - **backward compat 불필요**: DB 데이터 자체가 없으므로 기존 글 렌더링 경로 유지 불필요.
+
+- [x] **버그·UX 전체 정비 + 모바일 네비게이션 재설계 (2026-04-04 v31)**:
+
+  **버그 수정**
+  - **랭킹 글 클릭 → 상세글 진입 불가**: App.tsx 렌더 순서 교정 — `activeMenu === 'ranking'` 분기가 `selectedTopic` 분기보다 앞에 있어 글 클릭이 무시됨. `selectedTopic` 체크를 ranking 분기 앞으로 이동.
+  - **알림 오표시 (님이 볼 땡스볼을 보냈어요)**: `giant_tree_spread` 타입이 NotificationBell에 미등록 → thanksball 분기로 낙하. 타입 추가 + `fromNick`(거대나무) vs `fromNickname`(땡스볼), `isRead` vs `read` 필드명 불일치 통합. `isUnread()` 헬퍼 신설.
+  - **카드 본문 텍스트 겹침**: `AnyTalkList` 본문 div의 `flex-1`과 `line-clamp` 충돌. `flex-1` 제거 → overflow 정상 클립. 헤딩 태그(h1/h2/h3) 크기 통일 추가.
+  - **iOS Safari 로그인 팝업 차단 (auth/popup-blocked)**: `isMobileBrowser()` 헬퍼 추가. 모바일에서 `signInWithPopup` → `signInWithRedirect` 전환. 데스크톱은 기존 유지.
+
+  **모바일 딥링크 복원**
+  - `signInWithRedirect` 후 복귀 시 URL 파라미터(`?post=`, `?tree=`) 소실 문제. 리디렉션 전 `sessionStorage('authRedirectUrl')`에 현재 URL 저장. `getDeepLinkParams()` 헬퍼(모듈 레벨 캐싱 IIFE) — 복귀 시 sessionStorage에서 post·tree·node·/p/ 파라미터 복원. 검색어: `getDeepLinkParams`.
+
+  **SNS 공유 OG 미리보기 완성**
+  - `AnyTalkList`, `OneCutDetailView` 공유 URL을 `?post=` → `/p/` 형식으로 통일. 모든 공유 버튼이 `ogRenderer` Cloud Function을 거쳐 글 제목·내용·이미지 동적 OG 반환. `RootPostCard`는 이미 `/p/` 형식 사용 중.
+  - `ogRenderer` 함수 이미 배포 완료. Firestore 조회 3단계 폴백(직접ID → shareToken → prefix 범위검색).
+
+  **모바일 네비게이션 전면 재설계**
+  - **헤더**: 좌측 `≡`(드로어 열기) + GLove 텍스트(홈) 분리. 우측 햄버거 제거 → 알림벨 + 아바타(내정보) / 로그인 버튼.
+  - **하단 탭바 5탭 (텍스트 없음)**: 홈·한컷·⊕새글(중앙 돌출 파란 원형 `-mt-5`)·장갑·랭킹. active = filled 아이콘, inactive = outline 아이콘. 장갑 이모지 → SVG outline 아이콘으로 통일.
+  - **중복 제거**: 우측상단 햄버거 + 하단 메뉴 버튼 모두 제거 → 좌측 ≡ 하나만 드로어 트리거.
+
+  **기타 개선**
+  - 사이드메뉴 레이블 `랭킹` → `실시간 랭킹`. CategoryHeader `tags` 옵션 필드 추가 — `marathon_herald`에 `속보, 단독, 지진, 폭발, 테러, 비상계엄` 키워드 표시 (functions/index.js BREAKING_KEYWORDS 실제값 동기화).
+  - `CreateKnowledge` 정보분야 35개로 확장 (금융·투자/경제·경영/사회·정치/지식·학문/엔터·문화/라이프 6그룹). UI: 좌측 그룹 탭 + 우측 항목 선택 2컬럼, 선택 배지 제거.
 
 - [x] **실시간 랭킹 전면 개선 + 공유수 시스템 + 평판 로직 전체정리 (2026-04-03 v30)**:
   - **RankingView 4탭**: 좋아요·땡스볼·조회수·공유수 기준 탭 분리. 상위 3위 Hero 카드(숫자 크게, 메달 제거) + progress bar 목록. TOP 20 / 전체 토글(`ViewMode`).
