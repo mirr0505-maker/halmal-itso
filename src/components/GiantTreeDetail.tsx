@@ -106,7 +106,7 @@ const GiantTreeDetail = ({ tree, currentNickname, currentUserData, allUsers = {}
   }, [tree.id, tree.author_id, currentUserData?.uid, parentNodeId, nodes]);
 
   const handleParticipate = async () => {
-    if (!currentNickname || !currentUserData?.uid || !selectedSide || !comment.trim()) return;
+    if (!currentNickname || !currentUserData?.uid || !selectedSide) return;
     if (hasParticipated || isAuthor) return;
 
     setIsSubmitting(true);
@@ -149,10 +149,12 @@ const GiantTreeDetail = ({ tree, currentNickname, currentUserData, allUsers = {}
         ...(shouldBreakCircuit(newAgree, newOppose) ? { circuitBroken: true } : {}),
       });
 
-      // 5. 🚀 작성자 평판 상승 — 공감 참여 시 likes +2 (자기 나무 제외)
+      // 5. 🚀 평판 상승 — 공감 참여 시 작성자 likes+2, 참여자 likes+1
       if (selectedSide === 'agree' && tree.author_id !== currentUserData.uid) {
         await updateDoc(doc(db, 'users', tree.author_id), { likes: increment(2) });
       }
+      // 참여자 보상: 공감·반대 무관하게 likes+1 (참여 동기부여)
+      await updateDoc(doc(db, 'users', currentUserData.uid), { likes: increment(1) });
 
       // 6. 🚀 작성자에게 전파 알림 발송 (자기 나무 참여 제외)
       if (tree.author_id !== currentUserData.uid) {
@@ -543,7 +545,7 @@ const GiantTreeDetail = ({ tree, currentNickname, currentUserData, allUsers = {}
       ) : (
         <div className="bg-white border border-slate-200 rounded-2xl p-4 mb-4">
           <p className="text-[12px] font-black text-slate-600 mb-3">
-            이 주장에 대한 의견을 남기고 전파하세요
+            이 주장에 공감 또는 반대를 선택하세요
             {parentNodeId && <span className="ml-1.5 text-[10px] font-bold text-emerald-500 bg-emerald-50 px-1.5 py-0.5 rounded-md">{depthLabel}</span>}
           </p>
           <div className="flex gap-2 mb-3">
@@ -558,14 +560,13 @@ const GiantTreeDetail = ({ tree, currentNickname, currentUserData, allUsers = {}
           </div>
           {selectedSide && (
             <div className="mb-3">
-              <textarea autoFocus value={comment} onChange={e => setComment(e.target.value.slice(0, 100))}
-                placeholder={selectedSide === 'agree' ? '공감하는 이유를 짧게 적어주세요 (최대 100자)' : '반대하는 이유를 짧게 적어주세요 (최대 100자)'}
-                rows={2}
-                className="w-full border border-slate-200 rounded-xl px-3 py-2 text-[13px] font-medium text-slate-700 outline-none focus:border-emerald-400 resize-none placeholder:text-slate-300" />
-              <span className="text-[10px] font-bold text-slate-300 float-right">{comment.length}/100</span>
+              <input value={comment} onChange={e => setComment(e.target.value.slice(0, 50))}
+                placeholder="한 줄 의견 (선택, 최대 50자)"
+                className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-[13px] font-medium text-slate-700 outline-none focus:border-emerald-400 placeholder:text-slate-300" />
+              <span className="text-[10px] font-bold text-slate-300 float-right mt-0.5">{comment.length}/50</span>
             </div>
           )}
-          <button onClick={handleParticipate} disabled={isSubmitting || !selectedSide || !comment.trim()}
+          <button onClick={handleParticipate} disabled={isSubmitting || !selectedSide}
             className="w-full py-2.5 text-[13px] font-[1000] bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 disabled:opacity-40 transition-colors clear-both">
             {isSubmitting ? '참여 중...' : '🌿 전파 참여하기'}
           </button>
@@ -619,7 +620,7 @@ const GiantTreeDetail = ({ tree, currentNickname, currentUserData, allUsers = {}
                       {isMyNode && <span className="text-[9px] font-black text-emerald-600 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded-md">나</span>}
                       <span className="text-[9px] font-bold text-slate-300 ml-auto">{formatTime(node.createdAt)}</span>
                     </div>
-                    <p className="text-[12.5px] font-medium text-slate-600 leading-relaxed">{node.comment}</p>
+                    {node.comment && <p className="text-[12.5px] font-medium text-slate-600 leading-relaxed">{node.comment}</p>}
                   </div>
                 </div>
               );

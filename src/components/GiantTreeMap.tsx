@@ -113,7 +113,7 @@ const NodeCard = ({ item, allUsers, depth = 0, myNodeId, subtreeIds }: {
           {node.side === 'agree' ? '👍 공감' : '👎 반대'}
         </div>
 
-        <p className="text-[9px] font-medium text-slate-600 leading-relaxed line-clamp-2">{node.comment}</p>
+        {node.comment && <p className="text-[9px] font-medium text-slate-600 leading-relaxed line-clamp-2">{node.comment}</p>}
 
         {node.childCount > 0 && (
           <div className="mt-1 text-[8px] font-bold text-emerald-600">→ {node.childCount}명 전파</div>

@@ -218,7 +218,7 @@ export interface GiantTreeNode {
   participantNick: string;           // 이 노드 참여자 닉네임
   participantId: string;             // 이 노드 참여자 UID
   side: 'agree' | 'oppose';          // 공감 or 반대
-  comment: string;                   // 짧은 코멘트 (최대 100자)
+  comment: string;                   // 짧은 코멘트 (선택, 최대 50자, 빈 문자열 허용)
   childCount: number;                // 자식 노드 수 (0~3)
   createdAt: FirestoreTimestamp;
 }
