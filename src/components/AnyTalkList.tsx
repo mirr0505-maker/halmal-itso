@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import type { Post, UserData } from '../types';
 import { formatKoreanNumber, getReputationLabel, getReputationScore, getCategoryDisplayName } from '../utils';
+import { sanitizeHtml, extractText, extractFirstImage } from '../sanitize';
 
 interface Props {
   posts: Post[];
@@ -45,18 +46,10 @@ const AnyTalkList = ({
 
   // 본문에서 텍스트 존재 여부 확인용 (렌더링은 HTML 그대로)
   const hasText = (html: string) => {
-    const tmp = document.createElement("DIV");
-    tmp.innerHTML = html;
-    return !!(tmp.innerText || tmp.textContent || "").trim();
+    return !!extractText(html).trim();
   };
 
-  // 🚀 본문 HTML에서 첫 번째 이미지 URL 추출
-  const extractFirstImage = (html: string) => {
-    const div = document.createElement('div');
-    div.innerHTML = html;
-    const img = div.querySelector('img');
-    return img ? img.src : null;
-  };
+  // 🚀 본문 HTML에서 첫 번째 이미지 URL 추출 (sanitize.ts의 안전한 DOMParser 사용)
 
   const formatRelativeTime = (timestamp: { seconds: number } | null | undefined) => {
     if (!timestamp) return "방금 전";
@@ -148,7 +141,7 @@ const AnyTalkList = ({
               {hasContent && (
                 <div
                   className={`overflow-hidden mb-1 text-[13px] leading-relaxed font-medium [&_img]:hidden [&_p]:mb-1 [&_p:last-child]:mb-0 [&_strong]:font-bold [&_em]:italic [&_ul]:list-disc [&_ul]:pl-4 [&_ol]:list-decimal [&_ol]:pl-4 [&_h1]:text-[14px] [&_h1]:font-bold [&_h2]:text-[13px] [&_h2]:font-bold [&_h3]:text-[13px] [&_h3]:font-semibold ${displayImage ? 'line-clamp-3' : 'line-clamp-6'} ${isDark ? 'text-slate-300' : 'text-slate-500'}`}
-                  dangerouslySetInnerHTML={{ __html: post.content }}
+                  dangerouslySetInnerHTML={{ __html: sanitizeHtml(post.content) }}
                 />
               )}
 
@@ -242,26 +235,61 @@ const AnyTalkList = ({
                   </span>
                   <button onClick={onOneCutMoreClick} className="text-[11px] font-bold text-blue-500 hover:text-blue-700 transition-colors">더보기 →</button>
                 </div>
+                {/* 🚀 한컷 인라인 카드: OneCutList.tsx와 동일 형태 (이미지+제목+작성자+좋아요) */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                  {stripCuts.map(post => (
-                    <div
-                      key={post.id}
-                      onClick={() => onTopicClick(post)}
-                      className="relative aspect-[16/9] rounded-xl overflow-hidden cursor-pointer group bg-slate-900 shadow-sm hover:shadow-lg transition-shadow"
-                    >
-                      {post.imageUrl ? (
-                        <img src={post.imageUrl} alt="" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
-                      ) : (
-                        <div className="w-full h-full bg-slate-800 flex items-center justify-center">
-                          <svg className="w-6 h-6 text-slate-700" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                  {stripCuts.map(post => {
+                    const isLikedByMe = currentNickname && post.likedBy?.includes(currentNickname);
+                    const authorData = (post.author_id && allUsers[post.author_id]) || allUsers[`nickname_${post.author}`];
+                    const realFollowers = followerCounts[post.author] || 0;
+                    const displayLevel = authorData ? authorData.level : (post.authorInfo?.level || 1);
+                    const displayLikes = authorData ? authorData.likes : (post.authorInfo?.totalLikes || 0);
+                    return (
+                      <div
+                        key={post.id}
+                        onClick={() => onTopicClick(post)}
+                        className="group flex flex-col bg-white rounded-[4px] overflow-hidden cursor-pointer shadow-sm hover:shadow-xl transition-all duration-300 border border-slate-100"
+                      >
+                        {/* 이미지 */}
+                        <div className="relative aspect-[16/9] overflow-hidden bg-slate-900 shrink-0 border-b border-slate-50">
+                          {post.imageUrl ? (
+                            <img src={post.imageUrl} alt="" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center bg-slate-800 text-slate-700">
+                              <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                            </div>
+                          )}
                         </div>
-                      )}
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
-                      <div className="absolute bottom-0 left-0 right-0 p-2.5">
-                        <p className="text-white text-[11px] font-[1000] line-clamp-2 leading-tight drop-shadow-sm">{post.title}</p>
+                        {/* 제목 + 작성자 + 좋아요 */}
+                        <div className="flex-1 p-3 flex flex-col gap-1.5 bg-white">
+                          <h3 className="text-[13px] font-[1000] text-slate-900 line-clamp-1 tracking-tighter leading-tight group-hover:text-blue-600 transition-colors">
+                            {post.title}
+                          </h3>
+                          <div className="mt-auto pt-1.5 border-t border-slate-50 flex items-center justify-between">
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <div className="w-6 h-6 rounded-full overflow-hidden border border-slate-100 bg-slate-50 shrink-0">
+                                <img src={authorData?.avatarUrl || `https://api.dicebear.com/7.x/adventurer/svg?seed=${post.author}`} alt="" className="w-full h-full object-cover" />
+                              </div>
+                              <div className="flex flex-col min-w-0 leading-tight">
+                                <span className="text-slate-900 text-[10px] font-black truncate">{post.author}</span>
+                                <span className="text-slate-400 text-[8px] font-bold truncate">
+                                  Lv {displayLevel} · {getReputationLabel(authorData ? getReputationScore(authorData) : displayLikes)} · 깐부수 {formatKoreanNumber(realFollowers)}
+                                </span>
+                              </div>
+                            </div>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); onLikeClick?.(e, post.id); }}
+                              className={`flex items-center gap-0.5 text-[10px] font-black transition-all shrink-0 ${isLikedByMe ? 'text-rose-500 scale-105' : 'text-slate-300 hover:text-rose-400'}`}
+                            >
+                              <svg className={`w-3 h-3 ${isLikedByMe ? 'fill-current' : 'fill-none'}`} stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                                <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
+                              </svg>
+                              {formatKoreanNumber(post.likes || 0)}
+                            </button>
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             )}
