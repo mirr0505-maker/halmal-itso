@@ -3,14 +3,30 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     // 포럼 콘텐츠 — 비로그인도 읽기 가능 (공개 게시판)
+    // 🔒 보안: update/delete는 작성자 본인만 허용 (클라이언트 우회 공격 방지)
     match /posts/{id} {
       allow read: if true;
-      allow write: if request.auth != null;
+      allow create: if request.auth != null;
+      // 본문 수정·삭제: 작성자 본인만
+      allow delete: if request.auth != null
+        && resource.data.author_id == request.auth.uid;
+      // update: 작성자 본인이거나, 카운터/상태 필드만 변경하는 경우 허용
+      // Why: 좋아요·댓글수·조회수·공유수·땡스볼 등은 타인도 업데이트해야 함
+      allow update: if request.auth != null
+        && (resource.data.author_id == request.auth.uid
+          || request.resource.data.diff(resource.data).affectedKeys()
+              .hasOnly(['likes', 'likedBy', 'commentCount', 'viewCount', 'shareCount', 'thanksballTotal']));
       match /{sub=**} { allow read: if true; allow write: if request.auth != null; }
     }
     match /comments/{id} {
       allow read: if true;
-      allow write: if request.auth != null;
+      allow create: if request.auth != null;
+      allow delete: if request.auth != null
+        && resource.data.author_id == request.auth.uid;
+      allow update: if request.auth != null
+        && (resource.data.author_id == request.auth.uid
+          || request.resource.data.diff(resource.data).affectedKeys()
+              .hasOnly(['likes', 'likedBy', 'thanksballTotal']));
       match /{sub=**} { allow read: if true; allow write: if request.auth != null; }
     }
     match /kanbu_rooms/{id} {
@@ -55,7 +71,16 @@ service cloud.firestore {
     // Why: 악의적 사용자가 클라이언트 우회 후 타인 글 삭제 방지
     match /community_posts/{id} {
       allow read: if true;
-      allow create, update: if request.auth != null;
+      allow create: if request.auth != null;
+      // 🔒 보안: 본문 수정은 작성자 본인 또는 관리자(thumb/index)만 허용
+      // Why: 좋아요(likes/likedBy)·댓글수(commentCount)·땡스볼(thanksballTotal) 등
+      //       카운터 필드는 일반 로그인 사용자도 업데이트해야 하므로, 해당 필드만 별도 허용
+      //       isBlinded는 관리자 전용 — 카운터 목록에서 제외하여 관리자 검증을 반드시 거치도록 함
+      allow update: if request.auth != null
+        && (resource.data.author_id == request.auth.uid
+          || get(/databases/$(database)/documents/community_memberships/$(resource.data.communityId + '_' + request.auth.uid)).data.finger in ['thumb', 'index']
+          || request.resource.data.diff(resource.data).affectedKeys()
+              .hasOnly(['likes', 'likedBy', 'commentCount', 'thanksballTotal']));
       allow delete: if request.auth != null
         && (resource.data.author_id == request.auth.uid
           || get(/databases/$(database)/documents/community_memberships/$(resource.data.communityId + '_' + request.auth.uid)).data.finger in ['thumb', 'index']);
@@ -69,17 +94,48 @@ service cloud.firestore {
       match /{sub=**} { allow read: if true; allow write: if request.auth != null; }
     }
 
-    // 유저 프로필 — 로그인 사용자만 읽기 (ballBalance·email 등 보호)
+    // 유저 프로필 — 읽기는 로그인 사용자, 쓰기는 조건부 허용
+    // 🔒 보안: 민감 필드(ballBalance·email·nickname 등)는 본인만 수정 가능
+    // Why: 좋아요·공유·땡스볼 등에서 타인의 likes·totalShares·ballReceived를 증가시켜야 하므로
+    //       전면 차단 대신, 민감 필드 변경 시에만 본인 확인
     match /users/{id} {
-      allow read, write: if request.auth != null;
+      allow read: if request.auth != null;
+      // 본인 UID 문서: 자유 쓰기
+      allow write: if request.auth != null
+        && request.auth.uid == id;
+      // nickname_ 접두사 문서: 본인 닉네임 동기화용 (문서 ID가 nickname_xxx 형태)
+      // Why: MyPage에서 닉네임 변경 시 nickname_ 접두사 문서도 함께 업데이트해야 함
+      // create: 문서 미존재 시 → request.resource(새 문서)의 uid로 본인 확인
+      allow create: if request.auth != null
+        && id.matches('nickname_.*')
+        && request.resource.data.uid == request.auth.uid;
+      // update: 기존 문서 → resource(현재 문서)의 uid로 본인 확인
+      allow update: if request.auth != null
+        && id.matches('nickname_.*')
+        && resource.data.uid == request.auth.uid;
+      // 타인 문서: likes·totalShares·ballReceived·ballSpent만 허용 (카운터 증가용)
+      allow update: if request.auth != null
+        && request.auth.uid != id
+        && !id.matches('nickname_.*')
+        && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['likes', 'totalShares', 'ballReceived', 'ballSpent']);
     }
 
-    // 알림·내역 — 로그인 사용자만
+    // 알림·내역 — 본인 문서만 읽기/쓰기
+    // 🔒 보안: 타인의 알림·내역 접근 차단
+    // Why: {nick}은 사용자 UID — 로그인 사용자와 경로의 nick이 일치해야 접근 허용
+    // 🔒 알림: 읽기·수정·삭제는 본인만, 생성은 로그인 사용자 누구나
+    // Why: 땡스볼·커뮤니티 등에서 타인에게 알림을 보내야 하므로 create만 개방
     match /notifications/{nick}/items/{itemId} {
-      allow read, write: if request.auth != null;
+      allow read: if request.auth != null
+        && request.auth.uid == nick;
+      allow create: if request.auth != null;
+      allow update, delete: if request.auth != null
+        && request.auth.uid == nick;
     }
     match /sentBalls/{nick}/items/{itemId} {
-      allow read, write: if request.auth != null;
+      allow read, write: if request.auth != null
+        && request.auth.uid == nick;
     }
   }
 }
