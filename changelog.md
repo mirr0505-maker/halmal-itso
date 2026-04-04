@@ -457,6 +457,28 @@
   - `firebase.json`: `headers` 섹션 추가 — `index.html`에 `Cache-Control: no-cache, no-store, must-revalidate`. `/assets/**`에 `Cache-Control: public, max-age=31536000, immutable`. 새 배포 후 구버전 index.html 캐시로 인한 청크 MIME 오류 방지.
   - `main.tsx`: `window.addEventListener('unhandledrejection')` — "Failed to fetch dynamically imported module" 감지 시 `window.location.reload()` 자동 실행. 5초 쿨다운(`sessionStorage chunkReloadAt`)으로 무한루프 방지.
 
+- [x] **R2 업로드 보안 전환 — Worker 프록시 (2026-04-04 v33)**:
+  - **문제**: 클라이언트 번들에 R2 API 키(accessKeyId, secretAccessKey)가 평문 노출. 브라우저 개발자도구에서 누구나 확인 가능, 버킷 파일 삭제/덮어쓰기 공격 가능.
+  - **해결**: 별도 Cloudflare Worker(`halmal-upload-worker`) 생성. R2 바인딩으로 직접 접근 (API 키 불필요). Firebase Auth ID Token으로 인증. `uploads/` 경로는 본인 UID 폴더만 허용.
+  - **Worker**: `upload-worker/src/index.ts` — `POST /` multipart/form-data(file + filePath). JWT 서명 검증(Google 공개키 RSA256). 버킷 자동 선택(`avatars/` → AVATARS_BUCKET, 그 외 → UPLOADS_BUCKET). 10MB 제한.
+  - **클라이언트**: `src/uploadToR2.ts` 신규 — `uploadToR2(file, filePath)` 함수. `auth.currentUser.getIdToken()` 자동 획득 → Worker에 Bearer 토큰 전송.
+  - **15개 컴포넌트 일괄 전환**: `PutObjectCommand` + `s3Client` 직접 호출 → `uploadToR2()` 단일 함수 호출로 교체. 대상: CreatePostBox, CreateOneCutBox, CreateDebate, CreateMyStory, CreateKnowledge, CreateLocalNews, CreateMarathonHerald, CreateMarket, CreateNakedKing, CreateExile, CreateBoneHitting, DebateBoard, CommunityView, MyPage, MyProfileCard.
+  - **패키지 제거**: `@aws-sdk/client-s3` 번들에서 완전 제거 (기존 ~199KB 청크 삭제).
+  - **환경변수 정리**: `.env`에서 `VITE_R2_ACCESS_KEY_ID`, `VITE_R2_SECRET_ACCESS_KEY`, `VITE_R2_ENDPOINT`, `VITE_R2_BUCKET_NAME` 제거.
+
+- [x] **한컷 카드 UI 고도화 (2026-04-04 v33)**:
+  - **통계 바 추가**: OneCutList, AnyTalkList 인라인 스트립, OneCutDetailView 인터랙션 바에 댓글수·땡스볼·좋아요·공유 버튼 추가. 일반 글 카드와 동일한 상호작용 가능.
+  - **인라인 스트립 카드 형태 변경**: 이미지만 표시하던 카드 → OneCutList와 동일한 전체 형태(이미지+제목+작성자+통계 바). 홈 피드에서 바로 좋아요 가능.
+  - **게시물 수 표시 제거**: `🎞️ 한컷 · N개` → `🎞️ 한컷` (추후 한컷 증가 시 의미 없어지므로).
+  - **하단 여백 축소**: 텍스트 영역 `p-3 gap-1.5` → `px-3 pt-2.5 pb-2 gap-1` (통계 바 아래 불필요 여백 제거).
+
+- [x] **Firestore 감사볼 알림 권한 수정 (2026-04-04 v33)**:
+  - **문제**: `notifications/{uid}/items` write 규칙이 `request.auth.uid == nick`으로 제한 → 발신자가 수신자 경로에 알림을 쓸 수 없어 감사볼 전송 실패.
+  - **해결**: `create`만 로그인 사용자 전체 허용, `read/update/delete`는 본인만 유지.
+
+- [x] **깐부방 헤더 통일 (2026-04-04 v33)**:
+  - CategoryHeader와 동일 스타일의 `#깐부방` sticky 헤더 적용. 설명문 좌측 정렬. `+새 깐부방` 버튼 회색 텍스트로 축소. 빈 상태 안내 텍스트 사이즈 확대.
+
 ### 🛠️ 진행 중 / 개선 필요 사항
 - [ ] **에디터 보완**: `bubble-menu` 활성화 (텍스트 선택 시 서식 도구 노출).
 - [ ] **검색 엔진**: Firestore 텍스트 검색 한계 보완 (현재는 클라이언트 사이드 필터링).

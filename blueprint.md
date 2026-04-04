@@ -2,7 +2,7 @@
 
 이 문서는 **할말있소(HALMAL-ITSO)** 프로젝트의 설계 원칙, 현재 구현 상태, 그리고 AI 개발자의 **절대적 행동 지침**을 담은 단일 진실 소스(Single Source of Truth)입니다.
 
-> 최종 갱신: 2026-04-04 v32 (코드 실측 기준)  |  현재 브랜치: `main`
+> 최종 갱신: 2026-04-04 v33 (코드 실측 기준)  |  현재 브랜치: `main`
 
 ---
 
@@ -40,7 +40,7 @@
 | **스타일** | Tailwind CSS (@tailwindcss/vite) | 4.2.1 |
 | **에디터** | Tiptap | 3.20.1 |
 | **DB / Auth** | Firebase (Firestore + Auth) | 12.10.0 |
-| **파일 스토리지** | Cloudflare R2 (AWS SDK S3) | 3.1000.0 |
+| **파일 스토리지** | Cloudflare R2 (Worker 프록시 업로드) | — |
 | **링크 미리보기** | Cloudflare Workers (자체 OG 파싱) | wrangler 4.76.0 |
 
 ### Tiptap 익스텐션 목록
@@ -76,7 +76,7 @@
 ├── types.ts                 # 공용 인터페이스
 ├── constants.ts             # 앱 전역 설정 (MENU_MESSAGES, TEST_ACCOUNTS)
 ├── firebase.ts              # Firebase 초기화
-├── s3Client.ts              # R2 S3Client 설정
+├── uploadToR2.ts            # R2 업로드 프록시 (Worker 경유, Firebase Auth 토큰 인증)
 ├── utils.ts                 # 유틸리티 (포맷팅, 라벨링 등)
 ├── index.css                # 전역 스타일 & 애니메이션
 ├── hooks/
@@ -344,18 +344,22 @@ interface KanbuChat {
 ## 8. 구현 이력 (Changelog)
 
 > 📋 완료된 기능 전체 이력은 **[changelog.md](./changelog.md)** 를 참조하세요.
-> 최신 버전: v32 (2026-04-04)
+> 최신 버전: v33 (2026-04-04)
 
 ## 9. 외부 서비스 규칙
 
 ### Cloudflare R2 (이미지 스토리지)
 - 비ASCII 파일명 금지, `uploads/{userId}/{filename}` 경로.
 - 공개 URL: `https://pub-9e6af273cd034aa6b7857343d0745224.r2.dev`
+- 버킷 2개: `halmal-itso-bucket` (게시글 이미지), `avatars` (아바타)
+- **업로드 경로**: 클라이언트 → `halmal-upload-worker` (Cloudflare Worker) → R2 바인딩 직접 저장
+- **보안**: 클라이언트에 R2 API 키 없음. Worker가 Firebase Auth ID Token 검증 후 업로드 처리. `uploads/` 경로는 본인 UID 폴더만 허용.
 
-### Cloudflare Workers (링크 미리보기)
-- 소스: `workers/src/index.ts` | 배포: `cd workers && npx wrangler deploy`
+### Cloudflare Workers
+- **halmal-link-preview** (링크 미리보기): 소스 `workers/src/index.ts` | 배포 `cd workers && npx wrangler deploy`
+- **halmal-upload-worker** (R2 업로드 프록시): 소스 `upload-worker/src/index.ts` | 배포 `cd upload-worker && npx wrangler deploy`
 - Firebase deploy와 **별개** — 소스 수정 시 wrangler deploy 별도 실행 필요.
-- ALLOWED_ORIGIN 환경변수: `wrangler.toml`의 `[vars]` 섹션에서 관리.
+- ALLOWED_ORIGIN 환경변수: 각 `wrangler.toml`의 `[vars]` 섹션에서 관리.
 
 ### Firebase
 - `post_timestamp_nickname` ID 규칙 준수.
