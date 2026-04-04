@@ -117,9 +117,10 @@ const CreateKnowledge = ({ userData, editingPost, onSubmit, onClose }: Props) =>
               </div>
             )}
           </div>
-          <div className="flex h-[120px]">
-            {/* 좌측: 그룹 탭 */}
-            <div className="flex flex-col w-[88px] shrink-0 border-r border-slate-100 overflow-y-auto">
+          {/* 스크롤 없음 — 좌측 6줄 고정, 우측 전체 항목 표시 */}
+          <div className="flex">
+            {/* 좌측: 그룹 탭 6줄 */}
+            <div className="flex flex-col w-[92px] shrink-0 border-r border-slate-100">
               {INFO_GROUPS.map((g, idx) => {
                 const hasSelected = g.items.some(item => (postData.infoFields || []).includes(item));
                 return (
@@ -127,10 +128,10 @@ const CreateKnowledge = ({ userData, editingPost, onSubmit, onClose }: Props) =>
                     key={g.label}
                     type="button"
                     onClick={() => setActiveGroupIdx(idx)}
-                    className={`px-2.5 py-2 text-left text-[11px] font-bold transition-colors shrink-0 flex items-center gap-1 ${
+                    className={`px-3 py-2.5 text-left text-[11px] font-bold transition-colors flex items-center gap-1.5 ${
                       activeGroupIdx === idx
-                        ? 'bg-slate-50 text-slate-800 border-r-2 border-yellow-400'
-                        : 'text-slate-400 hover:text-slate-600'
+                        ? 'bg-amber-50 text-slate-800 border-r-2 border-yellow-400'
+                        : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'
                     }`}
                   >
                     {hasSelected && <span className="w-1.5 h-1.5 rounded-full bg-yellow-400 shrink-0" />}
@@ -139,8 +140,8 @@ const CreateKnowledge = ({ userData, editingPost, onSubmit, onClose }: Props) =>
                 );
               })}
             </div>
-            {/* 우측: 세부 항목 */}
-            <div className="flex-1 flex flex-wrap content-start gap-1.5 px-3 py-2.5 overflow-y-auto">
+            {/* 우측: 선택된 그룹의 항목 전부 표시 */}
+            <div className="flex-1 flex flex-wrap content-start gap-2 px-3 py-3">
               {INFO_GROUPS[activeGroupIdx].items.map(field => {
                 const isSelected = (postData.infoFields || []).includes(field);
                 const isDisabled = !isSelected && (postData.infoFields || []).length >= 2;
@@ -150,9 +151,9 @@ const CreateKnowledge = ({ userData, editingPost, onSubmit, onClose }: Props) =>
                     type="button"
                     onClick={() => toggleField(field)}
                     disabled={isDisabled}
-                    className={`px-2.5 py-1 rounded-full text-[11px] font-bold transition-all border ${
+                    className={`px-3 py-1.5 rounded-full text-[12px] font-bold transition-all border ${
                       isSelected
-                        ? 'bg-yellow-400 text-yellow-900 border-yellow-400'
+                        ? 'bg-yellow-400 text-yellow-900 border-yellow-400 shadow-sm'
                         : isDisabled
                           ? 'bg-white text-slate-200 border-slate-100 cursor-not-allowed'
                           : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50 hover:border-slate-300'
