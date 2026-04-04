@@ -23,7 +23,7 @@ const OneCutListSidebar = ({ oneCuts, onOneCutClick, commentCounts, allUsers, fo
   };
 
   return (
-    <aside className="hidden md:block md:col-span-3 sticky top-0 pt-2 bg-slate-50 rounded-xl max-h-[calc(100vh-100px)] overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] border-l-2 border-slate-200">
+    <aside className="hidden md:block md:col-span-4 sticky top-0 pt-2 bg-slate-50 rounded-xl max-h-[calc(100vh-100px)] overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] border-l-2 border-slate-200">
       <div className="flex flex-col gap-4 pb-20 pl-4 pr-2">
         <div className="px-3 mb-2">
           <h4 className="text-[16px] font-[1000] text-slate-900 tracking-tighter">다른 한컷 보기</h4>
@@ -48,7 +48,7 @@ const OneCutListSidebar = ({ oneCuts, onOneCutClick, commentCounts, allUsers, fo
               </div>
 
               {/* 세로형 이미지 */}
-              <div className="w-full aspect-[3/4] overflow-hidden">
+              <div className="w-full aspect-[16/9] overflow-hidden">
                 <img src={topic.imageUrl || ""} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
               </div>
 

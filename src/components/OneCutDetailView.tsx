@@ -138,7 +138,7 @@ const OneCutDetailView = ({
     <div className="grid grid-cols-1 md:grid-cols-12 gap-4 w-full max-w-[1600px] mx-auto animate-in fade-in duration-700 items-start pb-20">
 
       {/* 메인 컬럼 */}
-      <div className="col-span-1 md:col-span-9 flex flex-col">
+      <div className="col-span-1 md:col-span-8 flex flex-col">
         <section className="rounded-none flex flex-col mb-0 bg-white">
 
           {/* 헤더: ← 한컷 / 경과시간 / 공유 / 수정·삭제 */}
@@ -206,7 +206,7 @@ const OneCutDetailView = ({
 
             {/* 이미지 — 본문 위 배치, 2/3 너비 */}
             {rootPost.imageUrl && !imageError && (
-              <div className="w-full md:w-2/3 mb-5 rounded-2xl overflow-hidden border border-slate-100 bg-slate-50">
+              <div className="w-full mb-5 rounded-2xl overflow-hidden border border-slate-100 bg-slate-50">
                 <img
                   src={rootPost.imageUrl}
                   alt="한컷"
