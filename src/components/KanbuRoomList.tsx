@@ -31,8 +31,8 @@ const KanbuRoomList = ({ rooms, onRoomClick, onCreateRoom, currentUserLevel }: P
   };
 
   return (
-    <div className="w-full max-w-2xl mx-auto animate-in fade-in duration-300">
-      {/* 🚀 헤더: CategoryHeader와 동일 스타일 — #깐부방 + 설명 + 새 깐부방 버튼 */}
+    <div className="w-full animate-in fade-in duration-300">
+      {/* 🚀 헤더: CategoryHeader와 동일 스타일 — 전체 너비 좌측 정렬 */}
       <div className="sticky top-0 z-30 bg-[#F8FAFC]/80 backdrop-blur-md pt-2">
         <div className="flex items-center border-b border-slate-200 h-[36px] px-4">
           <div className="flex items-center gap-3 overflow-hidden">
@@ -56,6 +56,8 @@ const KanbuRoomList = ({ rooms, onRoomClick, onCreateRoom, currentUserLevel }: P
         <div className="h-3" />
       </div>
 
+      {/* 컨텐츠 영역 — 중앙 정렬 */}
+      <div className="max-w-2xl mx-auto">
       {/* 레벨 부족 알림 */}
       {showLevelAlert && (
         <div className="mb-4 flex items-center gap-3 bg-rose-50 border border-rose-200 rounded-xl px-4 py-3">
@@ -113,6 +115,7 @@ const KanbuRoomList = ({ rooms, onRoomClick, onCreateRoom, currentUserLevel }: P
           })}
         </div>
       )}
+      </div>
     </div>
   );
 };
