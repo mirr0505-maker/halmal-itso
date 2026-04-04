@@ -1,6 +1,6 @@
 // functions/index.js — 마라톤의 전령 뉴스 자동화 봇
 // Firebase Cloud Functions v2 (Blaze 플랜 필수)
-// 스케줄: 매 30분마다 한국 주요 언론사 RSS 속보만 Firestore 저장
+// 스케줄: 매 10분마다 실행, 분대(0~5)별 6개 언론사 1개씩 순차 수집
 
 const { onSchedule } = require("firebase-functions/v2/scheduler");
 const { onRequest } = require("firebase-functions/v2/https");
@@ -16,8 +16,10 @@ const BOT_NICKNAME = "전령";
 const BOT_UID = "marathon-herald-bot";
 const BOT_AVATAR_URL = "https://api.dicebear.com/7.x/adventurer/svg?seed=marathon-herald";
 
-// 📰 RSS 피드 목록 — 2026-04-01 기준 실제 작동 확인된 피드만 사용
+// 📰 RSS 피드 목록 — 매 10분마다 실행, 분대(0~5)에 따라 1개씩 순차 수집
+// 0분대(0~9분)=MBC, 10분대=연합, 20분대=KBS, 30분대=경향, 40분대=동아, 50분대=뉴스1
 const RSS_FEEDS = [
+  { url: "https://imnews.imbc.com/rss/news/news_00.xml",             source: "MBC뉴스" },
   { url: "https://www.yonhapnewstv.co.kr/browse/feed/",              source: "연합뉴스TV" },
   { url: "https://news.kbs.co.kr/rss/rss.do?source=news",            source: "KBS뉴스" },
   { url: "https://www.khan.co.kr/rss/rssdata/total_news.xml",        source: "경향신문" },
@@ -134,17 +136,24 @@ function urlToKey(url) {
 }
 
 // ============================================================
-// 🚀 스케줄 함수 — 매 30분 실행 (서울 리전)
+// 🚀 스케줄 함수 — 매 10분 실행, 분대별 1개 언론사 순차 수집 (서울 리전)
 // ============================================================
 exports.fetchMarathonNews = onSchedule(
   {
-    schedule: "every 30 minutes",
+    schedule: "every 10 minutes",
     region: "asia-northeast3",
-    timeoutSeconds: 120,
+    timeoutSeconds: 60,
     memory: "256MiB",
   },
   async () => {
-    console.log("[마라톤의 전령] 뉴스 수집 시작");
+    // 🚀 현재 시각의 분대(0~5)에 해당하는 언론사 1개만 처리
+    // 0분대(0~9분)=MBC, 10분대=연합, 20분대=KBS, 30분대=경향, 40분대=동아, 50분대=뉴스1
+    const nowMinute = new Date().getMinutes();
+    const slotIndex = Math.floor(nowMinute / 10);  // 0~5
+    const feed = RSS_FEEDS[slotIndex];
+    if (!feed) { console.log(`[마라톤의 전령] 슬롯 ${slotIndex} 피드 없음 — 스킵`); return; }
+
+    console.log(`[마라톤의 전령] ${feed.source} 수집 시작 (슬롯 ${slotIndex}, ${nowMinute}분)`);
 
     // 1️⃣ 24시간 이내 등록된 URL 캐시 로드 (중복 방지)
     const cutoff = Timestamp.fromMillis(Date.now() - DEDUP_WINDOW_MS);
@@ -152,13 +161,12 @@ exports.fetchMarathonNews = onSchedule(
       .where("createdAt", ">=", cutoff)
       .get();
     const postedKeys = new Set(dedupSnap.docs.map((d) => d.id));
-    console.log(`[마라톤의 전령] 캐시 ${postedKeys.size}건`);
 
     let totalAdded = 0;
     let totalSkipped = 0;
 
-    // 2️⃣ 각 피드 처리
-    for (const feed of RSS_FEEDS) {
+    // 2️⃣ 해당 슬롯의 피드 1개만 처리
+    for (const feed of [RSS_FEEDS[slotIndex]]) {
       const items = await fetchRSS(feed.url);
       let feedAdded = 0;
 
@@ -230,7 +238,7 @@ exports.fetchMarathonNews = onSchedule(
       }
     }
 
-    console.log(`[마라톤의 전령] 완료 — 등록 ${totalAdded}건 / 키워드 미해당 스킵 ${totalSkipped}건`);
+    console.log(`[마라톤의 전령] ${feed.source} 완료 — 등록 ${totalAdded}건 / 키워드 미해당 스킵 ${totalSkipped}건`);
   }
 );
 
