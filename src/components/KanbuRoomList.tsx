@@ -76,8 +76,8 @@ const KanbuRoomList = ({ rooms, onRoomClick, onCreateRoom, currentUserLevel }: P
       {/* 방 목록 */}
       {rooms.length === 0 ? (
         <div className="py-24 text-center">
-          <p className="text-slate-300 font-bold text-[13px]">아직 입장 가능한 깐부방이 없습니다.</p>
-          <p className="text-slate-200 font-bold text-[11px] mt-1">깐부를 더 맺거나 직접 방을 개설해보세요.</p>
+          <p className="text-slate-300 font-[1000] text-[18px]">아직 입장 가능한 깐부방이 없습니다.</p>
+          <p className="text-slate-300 font-bold text-[14px] mt-2">깐부를 더 맺거나 직접 방을 개설해보세요.</p>
         </div>
       ) : (
         <div className="flex flex-col gap-3">
