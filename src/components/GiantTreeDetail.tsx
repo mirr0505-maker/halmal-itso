@@ -458,27 +458,43 @@ const GiantTreeDetail = ({ tree, currentNickname, currentUserData, allUsers = {}
         </div>
       )}
 
-      {/* 전파 현황 */}
-      <div className="bg-slate-50 border border-slate-100 rounded-2xl px-5 py-4 mb-4">
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-[11px] font-black text-slate-500 uppercase tracking-widest">전파 현황</span>
-          <span className="text-[11px] font-black text-slate-700">{tree.totalNodes} / {tree.maxSpread}명</span>
-        </div>
-        <div className="bg-slate-200 rounded-full h-2 mb-3 overflow-hidden">
-          <div className="h-full bg-emerald-400 rounded-full transition-all duration-500"
-            style={{ width: `${Math.min((tree.totalNodes / tree.maxSpread) * 100, 100)}%` }} />
-        </div>
-        {totalVotes > 0 && (
-          <div className="flex rounded-full h-1.5 overflow-hidden mb-2">
-            <div className="bg-blue-400 transition-all" style={{ width: `${agreeRatio}%` }} />
-            <div className="bg-rose-400 transition-all" style={{ width: `${100 - agreeRatio}%` }} />
+      {/* 전파 현황 — 잎사귀 보너스 반영 */}
+      {(() => {
+        const basePct = tree.maxSpread > 0 ? Math.min((tree.totalNodes / tree.maxSpread) * 100, 100) : 0;
+        // 잎사귀 보너스: 10개당 1%, 최대 10%
+        const leafBonus = Math.min(Math.floor(leaves.length / 10), 10);
+        const displayPct = Math.min(basePct + leafBonus, 100);
+        return (
+          <div className="bg-slate-50 border border-slate-100 rounded-2xl px-5 py-4 mb-4">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[11px] font-black text-slate-500 uppercase tracking-widest">전파 현황</span>
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] font-black text-slate-700">{tree.totalNodes} / {tree.maxSpread}명</span>
+                {leaves.length > 0 && (
+                  <span className="text-[9px] font-bold text-green-500 bg-green-50 border border-green-100 px-1.5 py-0.5 rounded-md">🍃 {leaves.length}</span>
+                )}
+              </div>
+            </div>
+            <div className="bg-slate-200 rounded-full h-2 mb-1 overflow-hidden">
+              <div className="h-full bg-emerald-400 rounded-full transition-all duration-500"
+                style={{ width: `${displayPct}%` }} />
+            </div>
+            {leafBonus > 0 && (
+              <p className="text-[9px] font-bold text-green-500 mb-2">🍃 잎사귀 보너스 +{leafBonus}% (잎사귀 {leaves.length}개)</p>
+            )}
+            {totalVotes > 0 && (
+              <div className="flex rounded-full h-1.5 overflow-hidden mb-2">
+                <div className="bg-blue-400 transition-all" style={{ width: `${agreeRatio}%` }} />
+                <div className="bg-rose-400 transition-all" style={{ width: `${100 - agreeRatio}%` }} />
+              </div>
+            )}
+            <div className="flex justify-between text-[10px] font-bold">
+              <span className="text-blue-500">공감 {tree.agreeCount}명 ({agreeRatio}%)</span>
+              <span className="text-rose-500">반대 {tree.opposeCount}명 ({100 - agreeRatio}%)</span>
+            </div>
           </div>
-        )}
-        <div className="flex justify-between text-[10px] font-bold">
-          <span className="text-blue-500">공감 {tree.agreeCount}명 ({agreeRatio}%)</span>
-          <span className="text-rose-500">반대 {tree.opposeCount}명 ({100 - agreeRatio}%)</span>
-        </div>
-      </div>
+        );
+      })()}
 
       {/* 전파 참여 폼 / 상태 */}
       {!currentNickname ? (
