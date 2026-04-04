@@ -44,7 +44,11 @@ const TiptapEditor = ({ content, onChange, onImageUpload, placeholder }: Props) 
 
   const editor = useEditor({
     extensions: [
-      StarterKit,
+      StarterKit.configure({
+        // Link·Underline은 아래에서 커스텀 설정으로 별도 등록하므로 StarterKit 내장 비활성화
+        link: false,
+        underline: false,
+      }),
       Underline,
       TextStyle,
       Color,

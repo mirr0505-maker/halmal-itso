@@ -8,6 +8,7 @@ import { CATEGORY_RULES } from './DiscussionView';
 import LinkPreviewCard from './LinkPreviewCard';
 import type { OgData } from './LinkPreviewCard';
 import { EXTERNAL_URLS } from '../constants';
+import { sanitizeHtml } from '../sanitize';
 import ThanksballModal from './ThanksballModal';
 import PandoraDetail from './PandoraDetail';
 
@@ -207,7 +208,7 @@ const RootPostCard = ({
           </a>
         )}
 
-        <div className={`text-[15px] mb-6 leading-[1.8] font-medium max-w-none flex-1 [&_p]:mb-4 [&_p:last-child]:mb-0 [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:mb-4 [&_ol]:list-decimal [&_ol]:pl-5 [&_ol]:mb-4 [&_li]:mb-1 [&_strong]:font-bold [&_em]:italic [&_a]:text-blue-400 [&_a]:underline [&_blockquote]:border-l-4 [&_blockquote]:border-slate-200 [&_blockquote]:pl-4 [&_blockquote]:text-slate-500 [&_h1]:text-2xl [&_h1]:font-black [&_h2]:text-xl [&_h2]:font-black [&_h3]:text-lg [&_h3]:font-black ${isDark ? 'text-slate-200' : 'text-slate-700'}`} dangerouslySetInnerHTML={{ __html: post.content }} />
+        <div className={`text-[15px] mb-6 leading-[1.8] font-medium max-w-none flex-1 [&_p]:mb-4 [&_p:last-child]:mb-0 [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:mb-4 [&_ol]:list-decimal [&_ol]:pl-5 [&_ol]:mb-4 [&_li]:mb-1 [&_strong]:font-bold [&_em]:italic [&_a]:text-blue-400 [&_a]:underline [&_blockquote]:border-l-4 [&_blockquote]:border-slate-200 [&_blockquote]:pl-4 [&_blockquote]:text-slate-500 [&_h1]:text-2xl [&_h1]:font-black [&_h2]:text-xl [&_h2]:font-black [&_h3]:text-lg [&_h3]:font-black ${isDark ? 'text-slate-200' : 'text-slate-700'}`} dangerouslySetInnerHTML={{ __html: sanitizeHtml(post.content) }} />
 
         {post.imageUrl && !hasImageInContent && (
           <div className="w-full md:w-2/3 mb-6 rounded-2xl overflow-hidden border border-slate-100 bg-slate-50">

@@ -29,3 +29,6 @@ serviceAccount.json
 serviceAccountKey.json
 *serviceAccount*.json
 migrate.cjs
+
+# Firebase
+.firebase/

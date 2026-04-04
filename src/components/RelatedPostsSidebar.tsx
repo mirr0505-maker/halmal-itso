@@ -1,6 +1,7 @@
 // src/components/RelatedPostsSidebar.tsx — 게시글 상세 우측 사이드바: 같은 카테고리 관련 글 목록
 import type { Post, UserData } from '../types';
 import { formatKoreanNumber, getReputationLabel, getReputationScore, getCategoryDisplayName } from '../utils';
+import { sanitizeHtml, extractFirstImage } from '../sanitize';
 
 interface Props {
   relatedPosts: Post[];
@@ -26,12 +27,7 @@ const RelatedPostsSidebar = ({
   };
 
 
-  const extractFirstImage = (html: string) => {
-    const div = document.createElement('div');
-    div.innerHTML = html;
-    const img = div.querySelector('img');
-    return img ? img.src : null;
-  };
+  // extractFirstImage는 sanitize.ts에서 import (안전한 DOMParser 사용)
 
   return (
     <aside className="hidden md:block md:col-span-4 sticky top-0 pt-2 bg-slate-50 rounded-xl">
@@ -68,7 +64,7 @@ const RelatedPostsSidebar = ({
 
               {/* 본문 미리보기 */}
               <div className={`text-[12px] text-slate-500 leading-relaxed font-medium [&_img]:hidden [&_p]:mb-1 [&_p:last-child]:mb-0 [&_strong]:font-bold [&_em]:italic ${topicImage ? 'line-clamp-2' : 'line-clamp-4'}`}
-                dangerouslySetInnerHTML={{ __html: topic.content }}
+                dangerouslySetInnerHTML={{ __html: sanitizeHtml(topic.content) }}
               />
 
               {/* 썸네일 이미지 */}

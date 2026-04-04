@@ -10,8 +10,7 @@ import ProfileEditForm from './ProfileEditForm';
 import ActivityMilestones from './ActivityMilestones';
 import AvatarCollection from './AvatarCollection';
 import OneCutList from './OneCutList';
-import { s3Client, BUCKET_NAME, PUBLIC_URL } from '../s3Client';
-import { PutObjectCommand } from '@aws-sdk/client-s3';
+import { uploadToR2 } from '../uploadToR2';
 
 interface SentBall {
   id: string;
@@ -147,10 +146,9 @@ const MyPage = ({
     if (file.size > 2 * 1024 * 1024) { alert('이미지가 너무 큽니다. 2MB 이하만 가능해요.'); return; }
     setIsUploading(true);
     try {
-      const arrayBuffer = await file.arrayBuffer();
       const fileName = `avatars/${userData.nickname}_${Date.now()}_${file.name.replace(/\s+/g, '_')}`;
-      await s3Client.send(new PutObjectCommand({ Bucket: BUCKET_NAME, Key: fileName, Body: new Uint8Array(arrayBuffer), ContentType: file.type }));
-      setEditData(prev => ({ ...prev, avatarUrl: `${PUBLIC_URL}/${fileName}` }));
+      const avatarUrl = await uploadToR2(file, fileName);
+      setEditData(prev => ({ ...prev, avatarUrl }));
     } catch (err: unknown) {
       console.error('[프로필 사진 업로드 실패]', err);
       alert(`사진 업로드에 실패했습니다: ${(err as Error).message || '원인 불명'}`);
@@ -192,7 +190,7 @@ const MyPage = ({
         nickname: newNickname,
         bio: editData.bio.trim(),
         avatarUrl: editData.avatarUrl,
-      }).catch(() => {}); // nickname_ 문서 없을 경우 무시
+      }).catch((err) => console.warn('nickname_ 문서 업데이트 실패 (문서 미존재 가능):', err));
 
       // 🚀 2단계: 닉네임 변경 시 community_memberships + communities 일괄 업데이트
       // Why: nickname이 비정규화되어 있으므로 변경 즉시 모든 관련 문서에 반영해야 파편화 방지

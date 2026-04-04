@@ -4,6 +4,7 @@ import { db } from '../firebase';
 import { doc, deleteDoc, updateDoc } from 'firebase/firestore';
 import type { Post, UserData } from '../types';
 import { formatKoreanNumber, getReputationLabel, getReputationScore } from '../utils';
+import { sanitizeHtml, extractText } from '../sanitize';
 
 interface Props {
   post: Post;
@@ -30,9 +31,7 @@ const PostCard = ({
   const [isEditing, setIsEditing] = useState(false);
   // HTML 태그 제거 후 편집용 plain text 추출
   const [editContent, setEditContent] = useState(() => {
-    const div = document.createElement('div');
-    div.innerHTML = post.content;
-    return div.textContent || div.innerText || '';
+    return extractText(post.content);
   });
 
   // 🚀 실시간 사용자 데이터 바인딩
@@ -180,7 +179,7 @@ const PostCard = ({
           ) : (
             <div
               className="text-[13.5px] text-slate-700 leading-relaxed font-medium break-words line-clamp-3 prose-compact"
-              dangerouslySetInnerHTML={{ __html: post.content }}
+              dangerouslySetInnerHTML={{ __html: sanitizeHtml(post.content) }}
             />
           )}
 

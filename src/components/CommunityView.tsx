@@ -5,8 +5,8 @@ import { collection, onSnapshot, query, where, orderBy, doc, setDoc, updateDoc, 
 import type { Community, CommunityPost, CommunityMember, FingerRole, UserData, FirestoreTimestamp } from '../types';
 import TiptapEditor from './TiptapEditor';
 import CommunityAdminPanel from './CommunityAdminPanel';
-import { PutObjectCommand } from '@aws-sdk/client-s3';
-import { s3Client, BUCKET_NAME, PUBLIC_URL } from '../s3Client';
+import { sanitizeHtml } from '../sanitize';
+import { uploadToR2 } from '../uploadToR2';
 
 // 🚀 다섯 손가락 Phase 2 — 손가락 배지 정의
 const FINGER_META: Record<FingerRole, { emoji: string; label: string; colorCls: string }> = {
@@ -192,9 +192,7 @@ const CommunityView = ({ community, currentUserData, allUsers, onBack, onClosed 
     const fileName = `cpost_${Date.now()}_${Math.random().toString(36).substring(2, 7)}.${fileExt}`;
     const filePath = `uploads/${currentUserData.uid}/${fileName}`;
     try {
-      const arrayBuffer = await file.arrayBuffer();
-      await s3Client.send(new PutObjectCommand({ Bucket: BUCKET_NAME, Key: filePath, Body: new Uint8Array(arrayBuffer), ContentType: file.type }));
-      return `${PUBLIC_URL}/${filePath}`;
+      return await uploadToR2(file, filePath);
     } catch { alert('이미지 업로드에 실패했습니다.'); return null; }
     finally { setIsUploading(false); }
   };
@@ -444,7 +442,7 @@ const CommunityView = ({ community, currentUserData, allUsers, onBack, onClosed 
                   <span className="text-[10px] font-black text-amber-600 bg-amber-100 px-2 py-0.5 rounded-full">📌 공지</span>
                 </div>
                 {pinnedPost.title && <h3 className="text-[15px] font-[1000] text-slate-900 group-hover:text-amber-700 transition-colors mb-1">{pinnedPost.title}</h3>}
-                <div className="text-[13px] font-medium text-slate-500 line-clamp-2 leading-relaxed [&_img]:hidden [&_p]:mb-1" dangerouslySetInnerHTML={{ __html: pinnedPost.content }} />
+                <div className="text-[13px] font-medium text-slate-500 line-clamp-2 leading-relaxed [&_img]:hidden [&_p]:mb-1" dangerouslySetInnerHTML={{ __html: sanitizeHtml(pinnedPost.content) }} />
                 <div className="flex items-center gap-2 mt-2 pt-2 border-t border-amber-200">
                   <img src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${pinnedPost.author}`} className="w-4 h-4 rounded-full bg-amber-100" alt="" />
                   <span className="text-[10px] font-bold text-amber-600">{pinnedPost.author}</span>
@@ -465,7 +463,7 @@ const CommunityView = ({ community, currentUserData, allUsers, onBack, onClosed 
                   )}
                   <div
                     className="text-[13px] font-medium text-slate-500 line-clamp-3 leading-relaxed [&_img]:hidden [&_p]:mb-1"
-                    dangerouslySetInnerHTML={{ __html: post.content }}
+                    dangerouslySetInnerHTML={{ __html: sanitizeHtml(post.content) }}
                   />
                   <div className="flex items-center justify-between mt-3 pt-2 border-t border-slate-50">
                     <div className="flex items-center gap-2">
@@ -605,7 +603,7 @@ const CommunityPostDetail = ({ post, currentUserData, allUsers: _allUsers, onClo
           </div>
           <div
             className="text-[14px] font-medium text-slate-700 leading-[1.8] [&_p]:mb-3 [&_strong]:font-bold [&_em]:italic [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_img]:rounded-lg [&_img]:max-w-full [&_a]:text-blue-400 [&_a]:underline"
-            dangerouslySetInnerHTML={{ __html: post.content }}
+            dangerouslySetInnerHTML={{ __html: sanitizeHtml(post.content) }}
           />
           <div className="flex items-center gap-4 mt-4 pt-4 border-t border-slate-100">
             <span

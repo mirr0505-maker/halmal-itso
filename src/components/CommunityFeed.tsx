@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { db } from '../firebase';
 import { collection, query, where, orderBy, onSnapshot } from 'firebase/firestore';
 import type { CommunityPost, Community, UserData } from '../types';
+import { sanitizeHtml } from '../sanitize';
 
 interface Props {
   currentUserData: UserData | null;
@@ -81,7 +82,7 @@ const CommunityFeed = ({ currentUserData, joinedCommunityIds, allUsers }: Props)
             )}
             <div
               className="text-[13px] font-medium text-slate-500 line-clamp-2 leading-relaxed [&_img]:hidden [&_p]:mb-0.5"
-              dangerouslySetInnerHTML={{ __html: post.content }}
+              dangerouslySetInnerHTML={{ __html: sanitizeHtml(post.content) }}
             />
             <div className="flex items-center justify-between mt-3 pt-2 border-t border-slate-50">
               <div className="flex items-center gap-2">

@@ -1,8 +1,7 @@
 // src/components/CreateOneCutBox.tsx — 한컷 작성/수정 폼 (이미지 업로드 + 미리보기)
 import React, { useState, useRef } from 'react';
 import type { Post, UserData } from '../types';
-import { s3Client, BUCKET_NAME, PUBLIC_URL } from '../s3Client';
-import { PutObjectCommand } from "@aws-sdk/client-s3";
+import { uploadToR2 } from '../uploadToR2';
 import LinkSearchModal from './LinkSearchModal';
 
 interface Props {
@@ -38,19 +37,9 @@ const CreateOneCutBox = ({ userData, editingPost, allPosts, onSubmit, onClose }:
     setPostData(prev => ({ ...prev, imageUrl: localPreviewUrl }));
 
     try {
-      const arrayBuffer = await file.arrayBuffer();
-      const fileData = new Uint8Array(arrayBuffer);
       const extension = file.name.split('.').pop();
       const fileName = `uploads/${userData.uid}/${Date.now()}.${extension}`;
-      
-      await s3Client.send(new PutObjectCommand({
-        Bucket: BUCKET_NAME,
-        Key: fileName,
-        Body: fileData,
-        ContentType: file.type,
-      }));
-
-      const finalUrl = `${PUBLIC_URL}/${fileName}`;
+      const finalUrl = await uploadToR2(file, fileName);
       setPostData(prev => ({ ...prev, imageUrl: finalUrl }));
     } catch (error: unknown) {
       console.error("업로드 실패:", error);

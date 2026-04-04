@@ -2,8 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import ProfileEditForm from './ProfileEditForm';
 import { db } from '../firebase'; // storage 임포트 제거
-import { s3Client, BUCKET_NAME, PUBLIC_URL } from '../s3Client'; // R2 클라이언트 도입
-import { PutObjectCommand } from "@aws-sdk/client-s3"; // S3 업로드 명령
+import { uploadToR2 } from '../uploadToR2';
 import { doc, updateDoc } from 'firebase/firestore';
 
 interface UserData {
@@ -18,10 +17,11 @@ interface UserData {
 
 interface Props {
   userData: UserData;
+  uid: string;
   friendCount: number;
 }
 
-const MyProfileCard = ({ userData, friendCount }: Props) => {
+const MyProfileCard = ({ userData, uid, friendCount }: Props) => {
   const [isEditing, setIsEditing] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const isUploadingRef = useRef(false);
@@ -62,24 +62,8 @@ const MyProfileCard = ({ userData, friendCount }: Props) => {
     }, 30000);
 
     try {
-      // 🚀 에러 해결: File을 Uint8Array로 변환 (브라우저 호환성 강화)
-      const arrayBuffer = await file.arrayBuffer();
-      const fileData = new Uint8Array(arrayBuffer);
       const fileName = `avatars/${userData.nickname}_${Date.now()}_${file.name.replace(/\s+/g, '_')}`;
-
-      // 🚀 R2 전송 명령 생성 (PutObject)
-      const command = new PutObjectCommand({
-        Bucket: BUCKET_NAME,
-        Key: fileName,
-        Body: fileData,
-        ContentType: file.type, // 파일 타입 명시 (매우 중요)
-      });
-
-      // 🚀 실제로 R2에 전송
-      await s3Client.send(command);
-
-      // 🚀 R2 이미지 URL 생성 (Public URL 기준)
-      const url = `${PUBLIC_URL}/${fileName}`;
+      const url = await uploadToR2(file, fileName);
       setEditData(prev => ({ ...prev, avatarUrl: url }));
 
       if (timerRef.current) {
@@ -97,7 +81,8 @@ const MyProfileCard = ({ userData, friendCount }: Props) => {
 
   const handleUpdate = async () => {
     try {
-      await updateDoc(doc(db, "users", "user_heukmooyoung"), {
+      // 🔒 보안: 현재 로그인 사용자의 UID로 본인 문서만 수정
+      await updateDoc(doc(db, "users", uid), {
         nickname: editData.nickname,
         bio: editData.bio,
         avatarUrl: editData.avatarUrl,

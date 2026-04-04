@@ -1,0 +1,19 @@
+name = "halmal-upload-worker"
+main = "src/index.ts"
+compatibility_date = "2024-01-01"
+
+[vars]
+ALLOWED_ORIGIN = "https://halmal-itso.web.app"
+# 🚀 R2 공개 URL — 업로드 후 클라이언트에 반환할 URL 베이스
+PUBLIC_URL_UPLOADS = "https://pub-9e6af273cd034aa6b7857343d0745224.r2.dev"
+PUBLIC_URL_AVATARS = "https://pub-9e6af273cd034aa6b7857343d0745224.r2.dev"
+
+# 🚀 R2 바인딩 — Cloudflare 대시보드에서 버킷 연결 필요
+# wrangler deploy 전에 아래 바인딩이 Cloudflare 계정의 R2 버킷과 연결되어야 함
+[[r2_buckets]]
+binding = "UPLOADS_BUCKET"
+bucket_name = "halmal-itso-bucket"
+
+[[r2_buckets]]
+binding = "AVATARS_BUCKET"
+bucket_name = "avatars"

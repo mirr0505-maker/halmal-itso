@@ -1,7 +1,6 @@
 // src/components/CreateMyStory.tsx — 너와 나의 이야기 새글 작성 폼
 import { useState } from 'react';
-import { PutObjectCommand } from "@aws-sdk/client-s3";
-import { s3Client, BUCKET_NAME, PUBLIC_URL } from '../s3Client';
+import { uploadToR2 } from '../uploadToR2';
 import type { Post, UserData } from '../types';
 import TiptapEditor from './TiptapEditor';
 
@@ -33,10 +32,7 @@ const CreateMyStory = ({ userData, editingPost, onSubmit, onClose }: Props) => {
     const fileName = `post_${Date.now()}_${Math.random().toString(36).substring(2, 7)}.${fileExt}`;
     const filePath = `uploads/${userData.uid}/${fileName}`;
     try {
-      const arrayBuffer = await file.arrayBuffer();
-      const uint8Array = new Uint8Array(arrayBuffer);
-      await s3Client.send(new PutObjectCommand({ Bucket: BUCKET_NAME, Key: filePath, Body: uint8Array, ContentType: file.type }));
-      return `${PUBLIC_URL}/${filePath}`;
+      return await uploadToR2(file, filePath);
     } catch { alert("이미지 업로드에 실패했습니다."); return null; }
     finally { setIsUploading(false); }
   };

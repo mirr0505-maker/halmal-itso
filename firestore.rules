@@ -87,6 +87,14 @@ service cloud.firestore {
       match /{sub=**} { allow read: if true; allow write: if request.auth != null; }
     }
 
+    // 커뮤니티 댓글 — 비로그인도 읽기 가능, 수정·삭제는 작성자 본인만
+    match /community_post_comments/{id} {
+      allow read: if true;
+      allow create: if request.auth != null;
+      allow update, delete: if request.auth != null
+        && resource.data.author_id == request.auth.uid;
+    }
+
     // 거대 나무 — 비로그인도 목록·상세 읽기 가능, 쓰기는 로그인 필요
     match /giant_trees/{id} {
       allow read: if true;

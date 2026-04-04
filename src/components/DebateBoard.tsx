@@ -7,8 +7,7 @@ import { CATEGORY_RULES } from './DiscussionView';
 import { db } from '../firebase';
 import { doc, updateDoc, deleteDoc, collection, query, where, onSnapshot } from 'firebase/firestore';
 import { formatKoreanNumber, getReputationLabel, getReputationScore } from '../utils';
-import { PutObjectCommand } from '@aws-sdk/client-s3';
-import { s3Client, BUCKET_NAME, PUBLIC_URL } from '../s3Client';
+import { uploadToR2 } from '../uploadToR2';
 
 interface Props {
   allChildPosts: Post[];
@@ -64,9 +63,7 @@ const DebateBoard = ({
     const safeName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
     const filePath = `uploads/${currentNickname || 'pandora'}/${Date.now()}_${safeName}`;
     try {
-      const uint8Array = new Uint8Array(await file.arrayBuffer());
-      await s3Client.send(new PutObjectCommand({ Bucket: BUCKET_NAME, Key: filePath, Body: uint8Array, ContentType: file.type }));
-      return `${PUBLIC_URL}/${filePath}`;
+      return await uploadToR2(file, filePath);
     } catch { alert('이미지 업로드에 실패했습니다.'); return null; }
     finally { setPandoraUploading(false); }
   };
