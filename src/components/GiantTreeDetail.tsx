@@ -5,7 +5,7 @@ import {
   collection, doc, setDoc, getDoc, getDocs, updateDoc, deleteDoc, increment,
   onSnapshot, query, orderBy, addDoc, serverTimestamp, writeBatch
 } from 'firebase/firestore';
-import type { GiantTree, GiantTreeNode, UserData } from '../types';
+import type { GiantTree, GiantTreeNode, GiantTreeLeaf, UserData } from '../types';
 import GiantTreeMap from './GiantTreeMap';
 
 // 🚀 카카오톡 공유 SDK 타입 선언
@@ -65,6 +65,10 @@ const GiantTreeDetail = ({ tree, currentNickname, currentUserData, allUsers = {}
   // 🚀 Phase 3: 하단 탭 (참여자 목록 / 나무 지도)
   const [bottomTab, setBottomTab] = useState<'list' | 'map'>('list');
 
+  // 🚀 잎사귀 (일반 참여자) 상태
+  const [leaves, setLeaves] = useState<GiantTreeLeaf[]>([]);
+  const [hasLeafed, setHasLeafed] = useState(false);
+
   // 🚀 작성자 수정·삭제 상태
   const [isEditMode, setIsEditMode] = useState(false);
   const [editTitle, setEditTitle] = useState(tree.title);
@@ -81,6 +85,19 @@ const GiantTreeDetail = ({ tree, currentNickname, currentUserData, allUsers = {}
     });
     return () => unsub();
   }, [tree.id]);
+
+  // 🚀 잎사귀 목록 실시간 구독
+  useEffect(() => {
+    const q = query(collection(db, 'giant_trees', tree.id, 'leaves'), orderBy('createdAt', 'asc'));
+    const unsub = onSnapshot(q, snap => {
+      const leafData = snap.docs.map(d => ({ id: d.id, ...d.data() } as GiantTreeLeaf));
+      setLeaves(leafData);
+      if (currentUserData?.uid) {
+        setHasLeafed(leafData.some(l => l.participantId === currentUserData.uid));
+      }
+    });
+    return () => unsub();
+  }, [tree.id, currentUserData?.uid]);
 
   // 🚀 중복 참여 여부 + 작성자 여부 + 부모 노드 depth 확인
   useEffect(() => {
@@ -275,9 +292,10 @@ const GiantTreeDetail = ({ tree, currentNickname, currentUserData, allUsers = {}
       // 서브컬렉션(nodes, participants)을 batch로 삭제 — Firestore는 부모 삭제 시 서브컬렉션 자동 삭제 안 됨
       const nodesSnap = await getDocs(collection(db, 'giant_trees', tree.id, 'nodes'));
       const partsSnap = await getDocs(collection(db, 'giant_trees', tree.id, 'participants'));
+      const leavesSnap = await getDocs(collection(db, 'giant_trees', tree.id, 'leaves'));
 
       // writeBatch 500건 제한 대응: 청크 분할
-      const allDocs = [...nodesSnap.docs, ...partsSnap.docs];
+      const allDocs = [...nodesSnap.docs, ...partsSnap.docs, ...leavesSnap.docs];
       for (let i = 0; i < allDocs.length; i += 450) {
         const batch = writeBatch(db);
         allDocs.slice(i, i + 450).forEach(d => batch.delete(d.ref));
@@ -290,6 +308,36 @@ const GiantTreeDetail = ({ tree, currentNickname, currentUserData, allUsers = {}
     } catch (err) {
       alert('삭제에 실패했습니다: ' + ((err as Error).message || ''));
       setIsDeleting(false);
+    }
+  };
+
+  // 🚀 잎사귀 참여 핸들러 — 앱 내 직접 진입 일반 유저
+  const handleLeafParticipate = async () => {
+    if (!currentNickname || !currentUserData?.uid || !selectedSide) return;
+    if (hasParticipated || hasLeafed || isAuthor) return;
+    setIsSubmitting(true);
+    try {
+      const leafId = `leaf_${Date.now()}_${currentUserData.uid}`;
+      await setDoc(doc(db, 'giant_trees', tree.id, 'leaves', leafId), {
+        participantNick: currentNickname,
+        participantId: currentUserData.uid,
+        side: selectedSide,
+        comment: comment.trim(),
+        createdAt: serverTimestamp(),
+      });
+      // 잎사귀도 participants에 등록 (중복 참여 방지)
+      await setDoc(doc(db, 'giant_trees', tree.id, 'participants', currentUserData.uid), {
+        joinedAt: serverTimestamp(), type: 'leaf',
+      });
+      // 참여자 보상: likes+1
+      await updateDoc(doc(db, 'users', currentUserData.uid), { likes: increment(1) });
+      setHasLeafed(true);
+      setComment('');
+      setSelectedSide(null);
+    } catch (err) {
+      alert('참여에 실패했습니다: ' + ((err as Error).message || ''));
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -542,12 +590,48 @@ const GiantTreeDetail = ({ tree, currentNickname, currentUserData, allUsers = {}
         <div className="px-4 py-3 bg-amber-50 border border-amber-200 rounded-2xl text-[12px] font-bold text-amber-600 mb-4 text-center">
           이 전파 경로는 이미 3명에게 전달되어 더 이상 참여할 수 없습니다.
         </div>
-      ) : (
-        <div className="bg-white border border-slate-200 rounded-2xl p-4 mb-4">
-          <p className="text-[12px] font-black text-slate-600 mb-3">
-            이 주장에 공감 또는 반대를 선택하세요
-            {parentNodeId && <span className="ml-1.5 text-[10px] font-bold text-emerald-500 bg-emerald-50 px-1.5 py-0.5 rounded-md">{depthLabel}</span>}
+      ) : parentNodeId ? (
+        /* 🚀 직계 전파 참여 — 카톡 URL로 진입한 유저 → 정식 노드 */
+        <div className="bg-white border border-emerald-200 rounded-2xl p-4 mb-4">
+          <p className="text-[12px] font-black text-emerald-700 mb-3">
+            🌿 전파 참여 <span className="ml-1.5 text-[10px] font-bold text-emerald-500 bg-emerald-50 px-1.5 py-0.5 rounded-md">{depthLabel}</span>
           </p>
+          <div className="flex gap-2 mb-3">
+            <button onClick={() => setSelectedSide('agree')}
+              className={`flex-1 py-2.5 rounded-xl text-[12px] font-[1000] border transition-all ${selectedSide === 'agree' ? 'bg-blue-500 text-white border-blue-500' : 'bg-blue-50 text-blue-500 border-blue-100 hover:bg-blue-100'}`}>
+              👍 공감해요
+            </button>
+            <button onClick={() => setSelectedSide('oppose')}
+              className={`flex-1 py-2.5 rounded-xl text-[12px] font-[1000] border transition-all ${selectedSide === 'oppose' ? 'bg-rose-500 text-white border-rose-500' : 'bg-rose-50 text-rose-500 border-rose-100 hover:bg-rose-100'}`}>
+              👎 반대해요
+            </button>
+          </div>
+          {selectedSide && (
+            <div className="mb-3">
+              <input value={comment} onChange={e => setComment(e.target.value.slice(0, 50))}
+                placeholder="한 줄 의견 (선택, 최대 50자)"
+                className="w-full border border-emerald-200 rounded-xl px-3 py-2.5 text-[13px] font-medium text-slate-700 outline-none focus:border-emerald-400 placeholder:text-slate-300" />
+              <span className="text-[10px] font-bold text-slate-300 float-right mt-0.5">{comment.length}/50</span>
+            </div>
+          )}
+          <button onClick={handleParticipate} disabled={isSubmitting || !selectedSide}
+            className="w-full py-2.5 text-[13px] font-[1000] bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 disabled:opacity-40 transition-colors clear-both">
+            {isSubmitting ? '참여 중...' : '🌿 전파 참여하기'}
+          </button>
+        </div>
+      ) : hasLeafed ? (
+        /* 🚀 잎사귀 참여 완료 */
+        <div className="px-4 py-3 bg-green-50 border border-green-200 rounded-2xl text-[12px] font-bold text-green-600 mb-4 text-center">
+          🍃 잎사귀로 참여했습니다. 이 나무를 응원하고 있어요!
+        </div>
+      ) : (
+        /* 🚀 잎사귀 참여 — 앱 내 직접 진입한 일반 유저 */
+        <div className="bg-white border border-slate-200 rounded-2xl p-4 mb-4">
+          <div className="flex items-center gap-2 mb-3">
+            <span className="text-[14px]">🍃</span>
+            <p className="text-[12px] font-black text-slate-600">잎사귀로 응원하기</p>
+            <span className="text-[9px] font-bold text-slate-300 ml-auto">트리 카운트에는 미포함</span>
+          </div>
           <div className="flex gap-2 mb-3">
             <button onClick={() => setSelectedSide('agree')}
               className={`flex-1 py-2.5 rounded-xl text-[12px] font-[1000] border transition-all ${selectedSide === 'agree' ? 'bg-blue-500 text-white border-blue-500' : 'bg-blue-50 text-blue-500 border-blue-100 hover:bg-blue-100'}`}>
@@ -566,9 +650,9 @@ const GiantTreeDetail = ({ tree, currentNickname, currentUserData, allUsers = {}
               <span className="text-[10px] font-bold text-slate-300 float-right mt-0.5">{comment.length}/50</span>
             </div>
           )}
-          <button onClick={handleParticipate} disabled={isSubmitting || !selectedSide}
-            className="w-full py-2.5 text-[13px] font-[1000] bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 disabled:opacity-40 transition-colors clear-both">
-            {isSubmitting ? '참여 중...' : '🌿 전파 참여하기'}
+          <button onClick={handleLeafParticipate} disabled={isSubmitting || !selectedSide}
+            className="w-full py-2.5 text-[13px] font-[1000] bg-green-600 text-white rounded-xl hover:bg-green-700 disabled:opacity-40 transition-colors clear-both">
+            {isSubmitting ? '참여 중...' : '🍃 잎사귀 달기'}
           </button>
         </div>
       )}
@@ -580,7 +664,7 @@ const GiantTreeDetail = ({ tree, currentNickname, currentUserData, allUsers = {}
             onClick={() => setBottomTab('list')}
             className={`px-3 py-2 text-[12px] font-[1000] rounded-t-lg transition-colors border-b-2 -mb-px ${bottomTab === 'list' ? 'text-emerald-700 border-emerald-500' : 'text-slate-400 border-transparent hover:text-slate-600'}`}
           >
-            참여자 {nodes.length}명
+            참여자 {nodes.length}명{leaves.length > 0 ? ` · 잎사귀 ${leaves.length}` : ''}
           </button>
           <button
             onClick={() => setBottomTab('map')}
@@ -627,6 +711,34 @@ const GiantTreeDetail = ({ tree, currentNickname, currentUserData, allUsers = {}
             })}
           </div>
         ))}
+
+        {/* 🚀 잎사귀 목록 — 앱 내 직접 진입한 일반 참여자 */}
+        {bottomTab === 'list' && leaves.length > 0 && (
+          <div className="mt-4 pt-3 border-t border-green-100">
+            <h4 className="text-[11px] font-black text-green-600 mb-2 flex items-center gap-1">
+              🍃 잎사귀 <span className="text-green-400 font-bold">({leaves.length})</span>
+            </h4>
+            <div className="flex flex-col gap-1.5">
+              {leaves.map(leaf => {
+                const leafAuthor = allUsers[`nickname_${leaf.participantNick}`];
+                const isMe = leaf.participantId === currentUserData?.uid;
+                return (
+                  <div key={leaf.id} className={`flex items-center gap-2 px-3 py-2 rounded-lg bg-green-50/50 border border-green-100/50 ${isMe ? 'ring-1 ring-green-300' : ''}`}>
+                    <div className="w-5 h-5 rounded-full overflow-hidden border border-slate-100 shrink-0">
+                      <img src={leafAuthor?.avatarUrl || `https://api.dicebear.com/7.x/adventurer/svg?seed=${leaf.participantNick}`} alt="" className="w-full h-full object-cover" />
+                    </div>
+                    <span className="text-[10px] font-black text-slate-700">{leaf.participantNick}</span>
+                    <span className={`text-[8px] font-black px-1 py-0.5 rounded ${leaf.side === 'agree' ? 'bg-blue-100 text-blue-600' : 'bg-rose-100 text-rose-600'}`}>
+                      {leaf.side === 'agree' ? '👍' : '👎'}
+                    </span>
+                    {leaf.comment && <span className="text-[10px] font-medium text-slate-500 truncate">{leaf.comment}</span>}
+                    {isMe && <span className="text-[8px] font-black text-green-600 ml-auto">나</span>}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

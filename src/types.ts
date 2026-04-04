@@ -222,3 +222,14 @@ export interface GiantTreeNode {
   childCount: number;                // 자식 노드 수 (0~3)
   createdAt: FirestoreTimestamp;
 }
+
+// 🚀 거대 나무 잎사귀 — 앱 내에서 직접 진입한 일반 참여자
+// 트리 정식 카운트(totalNodes)에 미포함, 잎사귀 10개 = 보너스 1% 성장 (최대 10%)
+export interface GiantTreeLeaf {
+  id: string;
+  participantNick: string;
+  participantId: string;
+  side: 'agree' | 'oppose';
+  comment: string;                   // 선택, 최대 50자
+  createdAt: FirestoreTimestamp;
+}
