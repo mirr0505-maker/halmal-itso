@@ -127,7 +127,7 @@ const CreateOneCutBox = ({ userData, editingPost, allPosts, onSubmit, onClose }:
               </div>
 
               <div className="space-y-3">
-                <label className="text-[11px] font-black text-slate-400 ml-1 uppercase tracking-widest">📸 메인 이미지 (9:16)</label>
+                <label className="text-[11px] font-black text-slate-400 ml-1 uppercase tracking-widest">📸 메인 이미지 (16:9 가로 권장)</label>
                 <div className="flex gap-3">
                   <input type="text" placeholder="이미지 주소를 입력하거나 아래에 붙여넣으세요." value={postData.imageUrl || ''} onChange={e => setPostData(prev => ({...prev, imageUrl: e.target.value}))} className="flex-1 bg-slate-50 border-2 border-transparent px-6 py-4 rounded-2xl text-[14px] font-bold text-slate-600 focus:bg-white focus:border-rose-500 outline-none transition-all placeholder:text-slate-300" />
                   <button onClick={() => fileInputRef.current?.click()} className="px-8 bg-[#0F172A] text-white rounded-2xl font-black text-[13px] hover:bg-slate-800 transition-all shrink-0 shadow-lg shadow-slate-100">사진 선택</button>
@@ -172,11 +172,6 @@ const CreateOneCutBox = ({ userData, editingPost, allPosts, onSubmit, onClose }:
               </div>
 
               <div className="space-y-3">
-                <label className="text-[11px] font-black text-slate-400 ml-1 uppercase tracking-widest">상세 설명</label>
-                <textarea placeholder="한컷에 대한 보충 설명을 입력하세요." value={postData.content ?? ''} onChange={e => setPostData(prev => ({...prev, content: e.target.value}))} className="w-full bg-slate-50 border-2 border-transparent px-8 py-6 rounded-[2rem] text-[15px] font-medium text-slate-700 outline-none focus:bg-white focus:border-rose-500 transition-all resize-none min-h-[180px] leading-relaxed" />
-              </div>
-
-              <div className="space-y-3">
                 <label className="text-[11px] font-black text-slate-400 ml-1 uppercase tracking-widest">태그</label>
                 <div className="grid grid-cols-5 gap-3">
                   {[0,1,2,3,4].map(idx => (
@@ -192,13 +187,13 @@ const CreateOneCutBox = ({ userData, editingPost, allPosts, onSubmit, onClose }:
             {/* Right Section: Mobile Preview */}
             <div className="lg:col-span-5 space-y-4">
               <div className="sticky top-0 space-y-4">
-                <label className="text-[11px] font-black text-slate-400 ml-1 uppercase tracking-widest">📱 한컷 미리보기 (9:16)</label>
-                <div className="aspect-[9/16] bg-slate-900 rounded-[3.5rem] overflow-hidden border-[12px] border-[#0F172A] shadow-2xl relative flex items-center justify-center group">
+                <label className="text-[11px] font-black text-slate-400 ml-1 uppercase tracking-widest">🖼️ 한컷 미리보기 (16:9)</label>
+                <div className="aspect-[16/9] bg-slate-900 rounded-xl overflow-hidden border-4 border-[#0F172A] shadow-2xl relative flex items-center justify-center group">
                   {postData.imageUrl ? (
                     <>
                       <img src={postData.imageUrl} alt="preview" className={`w-full h-full object-cover transition-transform duration-700 group-hover:scale-105 ${imageError ? 'hidden' : 'block'}`} onError={() => setImageError(true)} />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-transparent pointer-events-none" />
-                      <div className="absolute bottom-12 left-10 right-10 text-white">
+                      <div className="absolute bottom-6 left-8 right-8 text-white">
                         <h3 className="text-[24px] font-[1000] italic leading-tight mb-4 tracking-tighter drop-shadow-lg">{postData.title || "제목을 입력하세요"}</h3>
                         <div className="flex items-center gap-3 bg-white/10 backdrop-blur-md px-4 py-2 rounded-xl w-fit border border-white/10">
                           <div className="w-7 h-7 rounded-full bg-white/20 overflow-hidden"><img src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${userData?.nickname}`} alt="" className="w-full h-full object-cover" /></div>

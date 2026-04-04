@@ -27,12 +27,6 @@ const OneCutList = ({ posts, allPosts, onTopicClick, onLikeClick, currentNicknam
         // 연결된 원본글 찾기
         const linkedPost = post.linkedPostId ? allPosts.find(p => p.id === post.linkedPostId) : null;
 
-        const stripHtml = (html: string) => {
-          const tmp = document.createElement("DIV");
-          tmp.innerHTML = html;
-          return tmp.innerText || tmp.textContent || "";
-        };
-
         return (
           <div 
             key={post.id} 
@@ -40,7 +34,7 @@ const OneCutList = ({ posts, allPosts, onTopicClick, onLikeClick, currentNicknam
             className="group flex flex-col bg-white rounded-[4px] overflow-hidden cursor-pointer shadow-sm hover:shadow-xl transition-all duration-300 border border-slate-100"
           >
             {/* 1. 이미지 영역 (세로 사이즈 절반 축소) */}
-            <div className="relative aspect-[9/6.5] overflow-hidden bg-slate-900 shrink-0 border-b border-slate-50">
+            <div className="relative aspect-[16/9] overflow-hidden bg-slate-900 shrink-0 border-b border-slate-50">
               {post.imageUrl ? (
                 <img src={post.imageUrl} alt="" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
               ) : (
@@ -65,10 +59,6 @@ const OneCutList = ({ posts, allPosts, onTopicClick, onLikeClick, currentNicknam
               <h3 className="text-[13px] font-[1000] text-slate-900 line-clamp-1 tracking-tighter leading-tight group-hover:text-blue-600 transition-colors">
                 {post.title}
               </h3>
-              
-              <p className="text-[10px] text-slate-500 font-bold line-clamp-2 leading-relaxed min-h-[30px]">
-                {stripHtml(post.content)}
-              </p>
 
               <div className="pt-1">
                 {linkedPost ? (
