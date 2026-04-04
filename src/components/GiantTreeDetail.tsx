@@ -658,7 +658,7 @@ const GiantTreeDetail = ({ tree: treeProp, currentNickname, currentUserData, all
           })()}
           {!mySpreadFull && (
             <>
-              <p className="text-[11px] font-bold text-emerald-600 mb-2">아래 링크를 공유하면, 친구들이 이 주장을 이어서 전파할 수 있습니다.</p>
+              <p className="text-[11px] font-bold text-emerald-600 mb-2">아래 링크를 공유하면, 지인 · 친구들이 이 주장을 이어서 전파할 수 있습니다.</p>
               <div className="flex items-center gap-2">
                 <div className="flex-1 bg-white border border-emerald-200 rounded-xl px-3 py-2 text-[11px] font-bold text-slate-500 truncate">
                   {`${window.location.origin}/?tree=${tree.id}&node=${myNodeId}`}
