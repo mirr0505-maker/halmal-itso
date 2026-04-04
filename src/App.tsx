@@ -526,7 +526,23 @@ function App() {
     }
 
     if (activeMenu === 'onecut') {
-      const onecutPosts = allRootPosts.filter(p => p.isOneCut);
+      // 🚀 한컷 메뉴: 일반 홈 피드와 동일한 탭 필터 적용 (새글=2시간 이내, 등록글=2시간+좋아요3, 인기=좋아요10, 최고=좋아요30)
+      const onecutAll = allRootPosts.filter(p => p.isOneCut || p.category === '한컷');
+      const onecutCutoff = new Date(Date.now() - POST_FILTER.NEW_POST_WINDOW_MS);
+      let onecutPosts: Post[];
+      if (activeTab === 'any') {
+        onecutPosts = onecutAll.filter(p => { const ca = p.createdAt?.toDate ? p.createdAt.toDate() : (p.createdAt?.seconds ? new Date(p.createdAt.seconds * 1000) : null); return ca && ca > onecutCutoff; });
+      } else if (activeTab === 'recent') {
+        onecutPosts = onecutAll.filter(p => { const ca = p.createdAt?.toDate ? p.createdAt.toDate() : (p.createdAt?.seconds ? new Date(p.createdAt.seconds * 1000) : null); return (p.likes || 0) >= POST_FILTER.REGISTERED_MIN_LIKES && (!ca || ca <= onecutCutoff); });
+      } else if (activeTab === 'best') {
+        onecutPosts = onecutAll.filter(p => (p.likes || 0) >= POST_FILTER.BEST_MIN_LIKES);
+      } else if (activeTab === 'rank') {
+        onecutPosts = onecutAll.filter(p => (p.likes || 0) >= POST_FILTER.RANK_MIN_LIKES);
+      } else if (activeTab === 'friend') {
+        onecutPosts = onecutAll.filter(p => friends.includes(p.author) && (p.likes || 0) >= POST_FILTER.REGISTERED_MIN_LIKES);
+      } else {
+        onecutPosts = onecutAll;
+      }
       return <div className="w-full animate-in fade-in"><OneCutList posts={onecutPosts} allPosts={allRootPosts} onTopicClick={handleViewPost} onLikeClick={handleLike} currentNickname={userData?.nickname} allUsers={allUsers} followerCounts={followerCounts} onEditClick={(post) => { setEditingPost(post); setIsCreateOpen(true); }} /></div>;
     }
 
@@ -716,7 +732,7 @@ function App() {
       </header>
       <div className="flex flex-1 overflow-hidden">{!(selectedTopic || isCreateOpen) && <Sidebar activeMenu={activeMenu} setActiveMenu={(menu) => { setActiveMenu(menu); setSelectedTopic(null); setIsCreateOpen(false); setSelectedRoom(null); }} kanbuRoomCount={accessibleRooms.length} />}<main className={`flex-1 overflow-y-auto bg-[#F8FAFC] transition-all duration-500 ${(selectedTopic || isCreateOpen) ? 'px-4 md:px-6 pt-4' : 'pt-0'}`}><div className={(selectedTopic || isCreateOpen) ? "max-w-[1600px] mx-auto pb-20 md:pb-20 pb-28" : "pb-20 md:pb-20 pb-28"}>
         {!(selectedTopic || isCreateOpen) && (
-          activeMenu === 'home' ? (
+          (activeMenu === 'home' || activeMenu === 'onecut') ? (
             <SubNavbar activeTab={activeTab} onTabClick={setActiveTab} showTabs={true} />
           ) : MENU_MESSAGES[activeMenu] ? (
             <CategoryHeader menuInfo={MENU_MESSAGES[activeMenu]} />
