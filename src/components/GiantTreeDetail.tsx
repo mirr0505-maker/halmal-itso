@@ -2,8 +2,8 @@
 import { useState, useEffect } from 'react';
 import { db } from '../firebase';
 import {
-  collection, doc, setDoc, getDoc, updateDoc, increment,
-  onSnapshot, query, orderBy, addDoc, serverTimestamp
+  collection, doc, setDoc, getDoc, getDocs, updateDoc, deleteDoc, increment,
+  onSnapshot, query, orderBy, addDoc, serverTimestamp, writeBatch
 } from 'firebase/firestore';
 import type { GiantTree, GiantTreeNode, UserData } from '../types';
 import GiantTreeMap from './GiantTreeMap';
@@ -64,6 +64,14 @@ const GiantTreeDetail = ({ tree, currentNickname, currentUserData, allUsers = {}
 
   // 🚀 Phase 3: 하단 탭 (참여자 목록 / 나무 지도)
   const [bottomTab, setBottomTab] = useState<'list' | 'map'>('list');
+
+  // 🚀 작성자 수정·삭제 상태
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [editTitle, setEditTitle] = useState(tree.title);
+  const [editContent, setEditContent] = useState(tree.content);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteInput, setDeleteInput] = useState('');
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // 🚀 노드 목록 실시간 구독
   useEffect(() => {
@@ -243,6 +251,46 @@ const GiantTreeDetail = ({ tree, currentNickname, currentUserData, allUsers = {}
     </div>
   );
 
+  // 🚀 작성자 글 수정 핸들러
+  const handleEditSave = async () => {
+    if (!editTitle.trim() || !editContent.trim()) return;
+    try {
+      await updateDoc(doc(db, 'giant_trees', tree.id), {
+        title: editTitle.trim(),
+        content: editContent.trim(),
+      });
+      setIsEditMode(false);
+    } catch (err) {
+      alert('수정에 실패했습니다: ' + ((err as Error).message || ''));
+    }
+  };
+
+  // 🚀 작성자 글 삭제 핸들러 — nodes + participants + 루트 문서 일괄 삭제
+  const handleDelete = async () => {
+    if (deleteInput !== '글 삭제') return;
+    setIsDeleting(true);
+    try {
+      // 서브컬렉션(nodes, participants)을 batch로 삭제 — Firestore는 부모 삭제 시 서브컬렉션 자동 삭제 안 됨
+      const nodesSnap = await getDocs(collection(db, 'giant_trees', tree.id, 'nodes'));
+      const partsSnap = await getDocs(collection(db, 'giant_trees', tree.id, 'participants'));
+
+      // writeBatch 500건 제한 대응: 청크 분할
+      const allDocs = [...nodesSnap.docs, ...partsSnap.docs];
+      for (let i = 0; i < allDocs.length; i += 450) {
+        const batch = writeBatch(db);
+        allDocs.slice(i, i + 450).forEach(d => batch.delete(d.ref));
+        await batch.commit();
+      }
+
+      // 루트 문서 삭제
+      await deleteDoc(doc(db, 'giant_trees', tree.id));
+      onBack();
+    } catch (err) {
+      alert('삭제에 실패했습니다: ' + ((err as Error).message || ''));
+      setIsDeleting(false);
+    }
+  };
+
   // 🚀 작성자 URL 복사 핸들러
   const handleCopyAuthorUrl = () => {
     const url = `${window.location.origin}/?tree=${tree.id}`;
@@ -289,10 +337,76 @@ const GiantTreeDetail = ({ tree, currentNickname, currentUserData, allUsers = {}
             <span className="text-[9px] font-bold text-slate-400 ml-1.5">{tree.authorReputation} · Lv {tree.authorLevel}</span>
           </div>
           <span className="ml-auto text-[9px] font-bold text-slate-300">{formatTime(tree.createdAt)}</span>
+          {/* 🚀 작성자 수정·삭제 버튼 */}
+          {isAuthor && !isEditMode && (
+            <div className="flex items-center gap-2 ml-2">
+              <button onClick={() => { setEditTitle(tree.title); setEditContent(tree.content); setIsEditMode(true); }}
+                className="text-[10px] font-bold text-slate-400 hover:text-blue-500 transition-colors">수정</button>
+              <button onClick={() => { setShowDeleteConfirm(true); setDeleteInput(''); }}
+                className="text-[10px] font-bold text-slate-400 hover:text-rose-500 transition-colors">삭제</button>
+            </div>
+          )}
         </div>
-        <h2 className="text-[17px] font-[1000] text-slate-900 mb-3 leading-snug">{tree.title}</h2>
-        <p className="text-[13.5px] text-slate-600 font-medium leading-relaxed whitespace-pre-line">{tree.content}</p>
+
+        {isEditMode ? (
+          /* 🚀 수정 모드 — 제목·본문 인라인 편집 */
+          <div className="flex flex-col gap-3">
+            <input
+              value={editTitle}
+              onChange={e => setEditTitle(e.target.value)}
+              maxLength={80}
+              className="w-full px-3 py-2 border border-slate-200 rounded-xl text-[15px] font-[1000] text-slate-900 outline-none focus:border-blue-400"
+              placeholder="제목"
+            />
+            <textarea
+              value={editContent}
+              onChange={e => setEditContent(e.target.value)}
+              className="w-full px-3 py-2 border border-slate-200 rounded-xl text-[13px] font-medium text-slate-700 outline-none focus:border-blue-400 resize-none h-32"
+              placeholder="본문"
+            />
+            <div className="flex justify-end gap-2">
+              <button onClick={() => setIsEditMode(false)}
+                className="px-4 py-1.5 text-[11px] font-bold text-slate-400 hover:text-slate-600 transition-colors">취소</button>
+              <button onClick={handleEditSave} disabled={!editTitle.trim() || !editContent.trim()}
+                className="px-4 py-1.5 text-[11px] font-bold bg-blue-500 hover:bg-blue-600 text-white rounded-lg disabled:opacity-50 transition-colors">저장</button>
+            </div>
+          </div>
+        ) : (
+          <>
+            <h2 className="text-[17px] font-[1000] text-slate-900 mb-3 leading-snug">{tree.title}</h2>
+            <p className="text-[13.5px] text-slate-600 font-medium leading-relaxed whitespace-pre-line">{tree.content}</p>
+          </>
+        )}
       </div>
+
+      {/* 🚀 삭제 확인 모달 — "글 삭제" 입력 필수 */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => setShowDeleteConfirm(false)}>
+          <div className="bg-white rounded-2xl p-6 w-[380px] shadow-2xl" onClick={e => e.stopPropagation()}>
+            <h3 className="text-[16px] font-[1000] text-slate-900 mb-2">거대 나무 삭제</h3>
+            <p className="text-[12px] font-bold text-slate-500 mb-1">이 나무와 전파된 모든 참여 기록이 영구 삭제됩니다.</p>
+            <p className="text-[12px] font-bold text-rose-500 mb-4">삭제하려면 아래에 <strong>"글 삭제"</strong>를 입력하세요.</p>
+            <input
+              value={deleteInput}
+              onChange={e => setDeleteInput(e.target.value)}
+              placeholder="글 삭제"
+              className="w-full px-3 py-2.5 border-2 border-slate-200 rounded-xl text-[14px] font-bold text-slate-900 outline-none focus:border-rose-400 mb-4"
+              autoFocus
+            />
+            <div className="flex gap-2">
+              <button onClick={() => setShowDeleteConfirm(false)}
+                className="flex-1 py-2.5 rounded-xl text-[12px] font-[1000] text-slate-400 bg-slate-50 hover:bg-slate-100 transition-colors">취소</button>
+              <button
+                onClick={handleDelete}
+                disabled={deleteInput !== '글 삭제' || isDeleting}
+                className={`flex-1 py-2.5 rounded-xl text-[12px] font-[1000] transition-all ${deleteInput === '글 삭제' && !isDeleting ? 'bg-rose-500 text-white hover:bg-rose-600' : 'bg-slate-100 text-slate-300 cursor-not-allowed'}`}
+              >
+                {isDeleting ? '삭제 중...' : '영구 삭제'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 전파 현황 */}
       <div className="bg-slate-50 border border-slate-100 rounded-2xl px-5 py-4 mb-4">
