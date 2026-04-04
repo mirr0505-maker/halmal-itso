@@ -12,14 +12,15 @@ interface Props {
   onClose: () => void;
 }
 
-// 🚀 황금알 정보 분야: 최대 2개 선택, 비슷한 분야끼리 인접 배치
-const INFO_FIELDS = [
-  '주식', '코인', '부동산', '재테크', '금융',           // 금융·투자
-  '경제', '경영', '창업', '세금', '정책',               // 경제·경영
-  '정치', '사회', '글로벌',                             // 사회·정치
-  'IT', '컴퓨터', '과학', '교육외국어', '철학', '인문', '문학', '종교', // 지식·학문
-  '게임', '애니메이션', '방송', '영화', '음악', '문화예술', // 엔터·문화
-  '여행', '스포츠', '반려동물', '취미', '생활', '패션미용', '건강', '육아', // 라이프
+// 🚀 황금알 정보 분야: 그룹별 구조, 최대 2개 선택
+// 좌측 그룹 탭 선택 → 우측 세부 항목 선택
+const INFO_GROUPS: { label: string; items: string[] }[] = [
+  { label: '금융·투자', items: ['주식', '코인', '부동산', '재테크', '금융'] },
+  { label: '경제·경영', items: ['경제', '경영', '창업', '세금', '정책'] },
+  { label: '사회·정치', items: ['정치', '사회', '글로벌'] },
+  { label: '지식·학문', items: ['IT', '컴퓨터', '과학', '교육외국어', '철학', '인문', '문학', '종교'] },
+  { label: '엔터·문화', items: ['게임', '애니메이션', '방송', '영화', '음악', '문화예술'] },
+  { label: '라이프',   items: ['여행', '스포츠', '반려동물', '취미', '생활', '패션미용', '건강', '육아'] },
 ];
 
 const CreateKnowledge = ({ userData, editingPost, onSubmit, onClose }: Props) => {
@@ -33,6 +34,8 @@ const CreateKnowledge = ({ userData, editingPost, onSubmit, onClose }: Props) =>
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  // 🚀 정보 분야 그룹 탭 — 좌측 선택된 그룹 인덱스
+  const [activeGroupIdx, setActiveGroupIdx] = useState(0);
 
   // 🚀 분야 칩 토글 — 최대 2개, 선택 시 tags[0]/[1]에 자동 반영 (tags[2]~[4]는 유저 직접 입력용 유지)
   const toggleField = (field: string) => {
@@ -101,31 +104,66 @@ const CreateKnowledge = ({ userData, editingPost, onSubmit, onClose }: Props) =>
           <input type="text" placeholder="제목을 입력하세요" value={postData.title || ''} onChange={(e) => setPostData({ ...postData, title: e.target.value })} className="w-full bg-transparent text-[18px] font-bold text-slate-900 outline-none placeholder:text-slate-200 placeholder:font-normal" />
         </div>
 
-        {/* 🚀 정보 분야 선택 — 최대 2개, 선택된 분야는 상세글에 배지로 표시 */}
-        <div className="flex items-center gap-2.5 px-5 py-2.5 border-b border-slate-100 shrink-0 flex-wrap">
-          <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest shrink-0">정보 분야</span>
-          <span className="text-[9px] font-bold text-slate-200 shrink-0">최대 2개</span>
-          {INFO_FIELDS.map(field => {
-            const isSelected = (postData.infoFields || []).includes(field);
-            const isDisabled = !isSelected && (postData.infoFields || []).length >= 2;
-            return (
-              <button
-                key={field}
-                type="button"
-                onClick={() => toggleField(field)}
-                disabled={isDisabled}
-                className={`px-3 py-1 rounded-full text-[11px] font-bold transition-all border ${
-                  isSelected
-                    ? 'bg-yellow-400 text-yellow-900 border-yellow-400'
-                    : isDisabled
-                      ? 'bg-white text-slate-200 border-slate-100 cursor-not-allowed'
-                      : 'bg-white text-slate-400 border-slate-200 hover:bg-slate-50 hover:border-slate-300'
-                }`}
-              >
-                {field}
-              </button>
-            );
-          })}
+        {/* 🚀 정보 분야 선택 — 좌측 그룹 탭 + 우측 세부 항목, 최대 2개 */}
+        <div className="border-b border-slate-100 shrink-0">
+          <div className="flex items-center gap-2 px-5 pt-2.5 pb-1.5">
+            <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">정보 분야</span>
+            <span className="text-[9px] font-bold text-slate-200">최대 2개</span>
+            {(postData.infoFields || []).length > 0 && (
+              <div className="flex gap-1 ml-1">
+                {(postData.infoFields || []).map(f => (
+                  <span key={f} className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-yellow-400 text-yellow-900">{f}</span>
+                ))}
+              </div>
+            )}
+          </div>
+          <div className="flex h-[120px]">
+            {/* 좌측: 그룹 탭 */}
+            <div className="flex flex-col w-[88px] shrink-0 border-r border-slate-100 overflow-y-auto">
+              {INFO_GROUPS.map((g, idx) => {
+                const hasSelected = g.items.some(item => (postData.infoFields || []).includes(item));
+                return (
+                  <button
+                    key={g.label}
+                    type="button"
+                    onClick={() => setActiveGroupIdx(idx)}
+                    className={`px-2.5 py-2 text-left text-[11px] font-bold transition-colors shrink-0 flex items-center gap-1 ${
+                      activeGroupIdx === idx
+                        ? 'bg-slate-50 text-slate-800 border-r-2 border-yellow-400'
+                        : 'text-slate-400 hover:text-slate-600'
+                    }`}
+                  >
+                    {hasSelected && <span className="w-1.5 h-1.5 rounded-full bg-yellow-400 shrink-0" />}
+                    {g.label}
+                  </button>
+                );
+              })}
+            </div>
+            {/* 우측: 세부 항목 */}
+            <div className="flex-1 flex flex-wrap content-start gap-1.5 px-3 py-2.5 overflow-y-auto">
+              {INFO_GROUPS[activeGroupIdx].items.map(field => {
+                const isSelected = (postData.infoFields || []).includes(field);
+                const isDisabled = !isSelected && (postData.infoFields || []).length >= 2;
+                return (
+                  <button
+                    key={field}
+                    type="button"
+                    onClick={() => toggleField(field)}
+                    disabled={isDisabled}
+                    className={`px-2.5 py-1 rounded-full text-[11px] font-bold transition-all border ${
+                      isSelected
+                        ? 'bg-yellow-400 text-yellow-900 border-yellow-400'
+                        : isDisabled
+                          ? 'bg-white text-slate-200 border-slate-100 cursor-not-allowed'
+                          : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50 hover:border-slate-300'
+                    }`}
+                  >
+                    {field}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
         </div>
 
         {/* 에디터 */}
