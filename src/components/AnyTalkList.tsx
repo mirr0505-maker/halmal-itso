@@ -239,7 +239,6 @@ const AnyTalkList = ({
                 <div className="flex items-center justify-between mb-3">
                   <span className="text-[13px] font-[1000] text-slate-700 flex items-center gap-1.5">
                     🎞️ 한컷
-                    <span className="text-[10px] font-bold text-slate-400">· {oneCutPosts!.length}개</span>
                   </span>
                   <button onClick={onOneCutMoreClick} className="text-[11px] font-bold text-blue-500 hover:text-blue-700 transition-colors">더보기 →</button>
                 </div>
