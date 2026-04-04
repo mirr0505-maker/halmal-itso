@@ -15,6 +15,15 @@ export const MAX_SPREAD_BY_REPUTATION: Record<string, number> = {
   '중립':     0,   // 중립은 전파 불가
 };
 
+// 🚀 평판 등급 → 동시 활성 나무 수 제한
+// Why: 남용 방지. 기존 나무가 거대 나무(전파 완료)되어야 다음 나무 심기 가능.
+const MAX_ACTIVE_TREES: Record<string, number> = {
+  '확고':     3,
+  '우호':     2,
+  '약간 우호': 1,
+  '중립':     0,
+};
+
 interface Props {
   currentNickname?: string;
   currentUserData?: UserData | null;
@@ -103,24 +112,33 @@ const GiantTreeView = ({ currentNickname, currentUserData, allUsers = {}, initia
             <p className="text-[12px] font-bold text-slate-500 truncate tracking-tight break-keep">
               할말 있소!!! 자신의 주장을 다단계 형태로 전파
             </p>
-            {currentNickname && (
-              <>
-                <div className="w-px h-3 bg-slate-200 shrink-0 mx-1" />
-                <button
-                  onClick={() => {
-                    const rep = getReputationLabel(currentUserData ? getReputationScore(currentUserData) : 0);
-                    if (MAX_SPREAD_BY_REPUTATION[rep] === 0) {
-                      alert('평판 등급이 "약간 우호" 이상이어야 거대 나무를 심을 수 있습니다.');
-                      return;
-                    }
-                    setView('create');
-                  }}
-                  className="flex items-center gap-0.5 text-[11px] font-bold text-slate-400 hover:text-blue-500 transition-colors shrink-0 whitespace-nowrap"
-                >
-                  <span className="text-[10px]">+</span>나무 심기
-                </button>
-              </>
-            )}
+            {currentNickname && (() => {
+              const rep = getReputationLabel(currentUserData ? getReputationScore(currentUserData) : 0);
+              const maxActive = MAX_ACTIVE_TREES[rep] || 0;
+              // 활성 나무 = 전파 완료도 중단도 아닌 내 나무
+              const myActiveTrees = trees.filter(t =>
+                t.author_id === currentUserData?.uid && !(t.totalNodes >= t.maxSpread) && !t.circuitBroken
+              ).length;
+              const canPlant = maxActive > 0 && myActiveTrees < maxActive;
+
+              return (
+                <>
+                  <div className="w-px h-3 bg-slate-200 shrink-0 mx-1" />
+                  {canPlant ? (
+                    <button
+                      onClick={() => setView('create')}
+                      className="flex items-center gap-0.5 text-[11px] font-bold text-slate-400 hover:text-blue-500 transition-colors shrink-0 whitespace-nowrap"
+                    >
+                      <span className="text-[10px]">+</span>나무 심기
+                    </button>
+                  ) : maxActive === 0 ? (
+                    <span className="text-[10px] font-bold text-slate-300 shrink-0 whitespace-nowrap">평판 약간 우호 이상 필요</span>
+                  ) : (
+                    <span className="text-[10px] font-bold text-amber-400 shrink-0 whitespace-nowrap">심은 나무가 거대 나무가 되어야 다시 심기 가능</span>
+                  )}
+                </>
+              );
+            })()}
           </div>
         </div>
         <div className="h-3" />
