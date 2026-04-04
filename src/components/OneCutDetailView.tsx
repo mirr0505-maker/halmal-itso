@@ -62,7 +62,7 @@ const OneCutDetailView = ({
   // 공유 URL 복사 — RootPostCard와 동일 방식
   const handleCopyUrl = () => {
     const shareToken = rootPost.id.split('_').slice(0, 2).join('_');
-    const shareUrl = `${window.location.origin}?post=${shareToken}`;
+    const shareUrl = `${window.location.origin}/p/${shareToken}`; // /p/ 경로 → ogRenderer (동적 OG 태그)
     navigator.clipboard.writeText(shareUrl).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);

@@ -29,7 +29,7 @@ const AnyTalkList = ({
   const handleCopyUrl = (e: React.MouseEvent, postId: string) => {
     e.stopPropagation(); // 카드 전체 클릭 이벤트(글 열기) 차단
     const shareToken = postId.split('_').slice(0, 2).join('_'); // UID 제거: "topic_타임스탬프"만 사용
-    const shareUrl = `${window.location.origin}?post=${shareToken}`;
+    const shareUrl = `${window.location.origin}/p/${shareToken}`; // /p/ 경로 → ogRenderer (동적 OG 태그)
     navigator.clipboard.writeText(shareUrl).then(() => {
       setCopiedPostId(postId);
       setTimeout(() => setCopiedPostId(null), 2000);
