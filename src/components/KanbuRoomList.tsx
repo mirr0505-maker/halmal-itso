@@ -35,7 +35,7 @@ const KanbuRoomList = ({ rooms, onRoomClick, onCreateRoom, currentUserLevel }: P
       {/* 🚀 헤더: CategoryHeader와 동일 스타일 — #깐부방 + 설명 + 새 깐부방 버튼 */}
       <div className="sticky top-0 z-30 bg-[#F8FAFC]/80 backdrop-blur-md pt-2">
         <div className="flex items-center border-b border-slate-200 h-[36px] px-4">
-          <div className="flex items-center gap-3 overflow-hidden flex-1">
+          <div className="flex items-center gap-3 overflow-hidden">
             <div className="flex items-center gap-1.5 shrink-0">
               <span className="text-blue-600 font-black text-[15px]">#</span>
               <h2 className="text-[14px] font-[1000] text-slate-900 tracking-tighter whitespace-nowrap">깐부방</h2>
@@ -44,16 +44,14 @@ const KanbuRoomList = ({ rooms, onRoomClick, onCreateRoom, currentUserLevel }: P
             <p className="text-[12px] font-bold text-slate-500 truncate tracking-tight break-keep">
               내 깐부가 개설한 방에 입장할 수 있어요. 내 깐부의 이야기에 주목해 보세요
             </p>
+            <div className="w-px h-3 bg-slate-200 shrink-0 mx-1" />
+            <button
+              onClick={handleCreateClick}
+              className="flex items-center gap-0.5 text-[11px] font-bold text-slate-400 hover:text-blue-500 transition-colors shrink-0 whitespace-nowrap"
+            >
+              <span className="text-[10px]">+</span>새 깐부방
+            </button>
           </div>
-          <button
-            onClick={handleCreateClick}
-            className="flex items-center gap-1 bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-[11px] font-[1000] transition-colors shadow-sm shrink-0 ml-3"
-          >
-            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4" />
-            </svg>
-            새 깐부방
-          </button>
         </div>
         <div className="h-3" />
       </div>
