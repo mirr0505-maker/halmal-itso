@@ -2,7 +2,7 @@
 
 이 문서는 **할말있소(HALMAL-ITSO)** 프로젝트의 설계 원칙, 현재 구현 상태, 그리고 AI 개발자의 **절대적 행동 지침**을 담은 단일 진실 소스(Single Source of Truth)입니다.
 
-> 최종 갱신: 2026-04-04 v31 (코드 실측 기준)  |  현재 브랜치: `main`
+> 최종 갱신: 2026-04-04 v32 (코드 실측 기준)  |  현재 브랜치: `main`
 
 ---
 
@@ -276,7 +276,7 @@ interface KanbuChat {
 
 | 메뉴 ID | 표시명 (Title) | 카테고리 키 (DB) | 특이사항 |
 |---------|--------------|-----------------|----------|
-| `onecut` | 한컷 | (isOneCut 플래그) | 9:16 세로형 이미지 전용 |
+| `onecut` | 한컷 | (isOneCut 플래그) | 16:9 가로형 이미지 전용 |
 | `my_story` | 너와 나의 이야기 | 너와 나의 이야기 | 일상, 공감 위주 |
 | `naked_king` | 판도라의 상자 | 판도라의 상자 | 지그재그 댓글 보드 (동의/반박 인라인 입력, 핀 고정, boardType: pandora) |
 | `donkey_ears` | 솔로몬의 재판 | 솔로몬의 재판 | 동의/비동의 지그재그 pandora 댓글 보드 + 연계글 팝업(CreateDebate). boardType: pandora |
@@ -334,8 +334,10 @@ interface KanbuChat {
   - 그 외 탭 / 카테고리 뷰: Lv5 이상 유저가 좋아요를 누른 수(`goldStarCount`) > 0 일 때만 금색 별(⭐) + 숫자 표시. `text-amber-400 fill-current`. 0이면 아무것도 표시하지 않음.
 
 ### 7.3 한컷 시스템 (`OneCut`)
-- **비율**: 9:16 세로형 이미지 최적화 (`aspect-[9/16]`).
+- **비율**: 16:9 가로형 이미지 (`aspect-[16/9]`). 업로드 미리보기 · 목록 카드 · 상세 뷰 동일 비율 통일.
 - **연결**: 일반 게시글과 한컷을 `linkedPostId`로 상호 연결하여 이동 지원.
+- **상세 설명 없음**: 이미지 + 제목만으로 의미 전달. CreateOneCutBox에서 상세 설명 textarea 제거.
+- **홈 피드 인라인 섹션**: 새글/등록글/인기글/최고글/깐부글 탭 하단에 탭 기준과 동일한 필터의 한컷 최신 4개를 가로 그리드로 표시. 더보기 → 한컷 메뉴로 이동.
 
 ---
 
@@ -780,6 +782,23 @@ interface KanbuChat {
   - **평판 상승**: 공감 참여 시 작성자 `users.likes += 2` (자기 나무 · 반대 제외).
   - **알림**: 참여 시 `notifications/{author_id}/items`에 `giant_tree_spread` 타입 push (자기 나무 제외).
   - **D3.js 고도화**: Phase 5로 별도 분리 (미구현) — 노드 50개 이상 대응, collapse/expand, d3.zoom() 기반.
+
+- [x] **한컷 비율 개선 + 홈 피드 인라인 섹션 (2026-04-04 v32)**:
+
+  **한컷 이미지 비율 통일 (9:16 → 16:9)**
+  - `CreateOneCutBox.tsx`: 미리보기 `aspect-[9/16]` → `aspect-[16/9]`. 폰 목업 프레임(`rounded-[3.5rem] border-[12px]`) → 심플 프레임(`rounded-xl border-4`). 라벨 "(9:16)" → "(16:9 가로 권장)".
+  - `CreateOneCutBox.tsx`: 상세 설명 textarea 블록 제거 — 이미지+제목만으로 한컷 취지 구현.
+  - `OneCutList.tsx`: 카드 이미지 `aspect-[9/6.5]` → `aspect-[16/9]`. 설명 텍스트 줄(`stripHtml` 결과) 및 `stripHtml` 함수 제거.
+  - `OneCutDetailView.tsx`: 기존 `h-auto object-contain` 방식이므로 비율 변경 불필요 (이미 반응형 자연 비율).
+
+  **홈 피드 탭 한컷 인라인 섹션**
+  - `AnyTalkList.tsx`: `oneCutPosts?: Post[]`, `onOneCutMoreClick?: () => void` prop 추가. 일반글 그리드 하단에 `🎞️ 한컷 · N개` 헤더 + 더보기 버튼 + 16:9 카드 2열(모바일)/4열(데스크톱) 그리드. 한컷 없으면 섹션 자체 숨김.
+  - `App.tsx`: `onecutTabPosts` 계산 — `allRootPosts.filter(p => p.isOneCut)` 기반, `activeTab` 기준과 동일한 시간·좋아요 필터 적용 후 최신순 정렬. 메인 `AnyTalkList` 호출에 `oneCutPosts={onecutTabPosts} onOneCutMoreClick={() => setActiveMenu('onecut')}` 전달.
+  - 일반글 0개일 때도 한컷 섹션 표시 (빈 상태 메시지 높이 `py-40` → `py-10` 자동 조정).
+
+  **배포 후 화이트스크린 버그 수정**
+  - `firebase.json`: `headers` 섹션 추가 — `index.html`에 `Cache-Control: no-cache, no-store, must-revalidate`. `/assets/**`에 `Cache-Control: public, max-age=31536000, immutable`. 새 배포 후 구버전 index.html 캐시로 인한 청크 MIME 오류 방지.
+  - `main.tsx`: `window.addEventListener('unhandledrejection')` — "Failed to fetch dynamically imported module" 감지 시 `window.location.reload()` 자동 실행. 5초 쿨다운(`sessionStorage chunkReloadAt`)으로 무한루프 방지.
 
 ### 🛠️ 진행 중 / 개선 필요 사항
 - [ ] **에디터 보완**: `bubble-menu` 활성화 (텍스트 선택 시 서식 도구 노출).
