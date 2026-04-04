@@ -1,5 +1,5 @@
 // src/components/GiantTreeDetail.tsx — 거대 나무 상세 뷰 + 전파 참여 폼 (Phase 4)
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { db } from '../firebase';
 import {
   collection, doc, setDoc, getDoc, getDocs, updateDoc, deleteDoc, increment,
@@ -77,6 +77,9 @@ const GiantTreeDetail = ({ tree, currentNickname, currentUserData, allUsers = {}
   const [deleteInput, setDeleteInput] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
 
+  // 🚀 시든 가지 알림 발송 추적 (useRef — 렌더 간 유지, sessionStorage 불필요)
+  const wiltNotifiedRef = useRef<Set<string>>(new Set());
+
   // 🚀 노드 목록 실시간 구독
   useEffect(() => {
     const q = query(collection(db, 'giant_trees', tree.id, 'nodes'), orderBy('createdAt', 'asc'));
@@ -126,10 +129,9 @@ const GiantTreeDetail = ({ tree, currentNickname, currentUserData, allUsers = {}
     if (myNodeForWilt && myNodeForWilt.childCount < 3) {
       const createdMs = myNodeForWilt.createdAt?.seconds ? myNodeForWilt.createdAt.seconds * 1000 : 0;
       const isWilted = createdMs > 0 && (Date.now() - createdMs) > 48 * 60 * 60 * 1000;
-      // 세션 내 중복 방지 — 같은 노드에 대해 한 세션에 1번만 발송
-      const wiltKey = `wilt_notified_${myNodeForWilt.id}`;
-      if (isWilted && !sessionStorage.getItem(wiltKey)) {
-        sessionStorage.setItem(wiltKey, '1');
+      const wiltKey = `node_${myNodeForWilt.id}`;
+      if (isWilted && !wiltNotifiedRef.current.has(wiltKey)) {
+        wiltNotifiedRef.current.add(wiltKey);
         const wiltedCount = 3 - myNodeForWilt.childCount;
         addDoc(collection(db, 'notifications', currentUserData.uid, 'items'), {
           type: 'giant_tree_wilt',
@@ -140,18 +142,19 @@ const GiantTreeDetail = ({ tree, currentNickname, currentUserData, allUsers = {}
           message: `전파한 3명 중 ${myNodeForWilt.childCount}명만 참여했습니다. 나머지 ${wiltedCount}명에게 재전파하세요.`,
           isRead: false,
           createdAt: serverTimestamp(),
-        }).catch(() => {});
+        }).catch(err => console.warn('[시든 가지 알림 발송 실패]', err));
       }
     }
 
-    // 🚀 작성자 시든 가지 알림: 나무 생성 48시간 경과 + 루트 자식 < 3
+    // 🚀 작성자 시든 가지 알림: 나무 생성 48시간 경과 + 루트 직계 자식(depth=1, parentNodeId===null) < 3
     if (tree.author_id === currentUserData.uid) {
       const treeCreatedMs = tree.createdAt?.seconds ? tree.createdAt.seconds * 1000 : 0;
-      const rootChildren = nodes.filter(n => !n.parentNodeId).length;
+      // parentNodeId가 null인 노드 = 작성자가 직접 공유한 1차 전파자
+      const rootChildren = nodes.filter(n => n.parentNodeId === null || n.parentNodeId === undefined).length;
       const isWilted = treeCreatedMs > 0 && (Date.now() - treeCreatedMs) > 48 * 60 * 60 * 1000 && rootChildren < 3;
-      const wiltKey = `wilt_notified_author_${tree.id}`;
-      if (isWilted && !sessionStorage.getItem(wiltKey)) {
-        sessionStorage.setItem(wiltKey, '1');
+      const wiltKey = `author_${tree.id}`;
+      if (isWilted && !wiltNotifiedRef.current.has(wiltKey)) {
+        wiltNotifiedRef.current.add(wiltKey);
         const wiltedCount = 3 - rootChildren;
         addDoc(collection(db, 'notifications', currentUserData.uid, 'items'), {
           type: 'giant_tree_wilt',
@@ -161,7 +164,7 @@ const GiantTreeDetail = ({ tree, currentNickname, currentUserData, allUsers = {}
           message: `나무에 전파한 3명 중 ${rootChildren}명만 참여했습니다. 나머지 ${wiltedCount}명에게 재전파하세요.`,
           isRead: false,
           createdAt: serverTimestamp(),
-        }).catch(() => {});
+        }).catch(err => console.warn('[작성자 시든 가지 알림 발송 실패]', err));
       }
     }
   }, [tree.id, tree.author_id, currentUserData?.uid, parentNodeId, nodes]);

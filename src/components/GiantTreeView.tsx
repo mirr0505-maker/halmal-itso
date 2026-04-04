@@ -1,5 +1,5 @@
 // src/components/GiantTreeView.tsx — 거대 나무 목록 뷰
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { db } from '../firebase';
 import { collection, query, orderBy, limit, onSnapshot } from 'firebase/firestore';
 import type { GiantTree, UserData } from '../types';
@@ -13,6 +13,17 @@ export const MAX_SPREAD_BY_REPUTATION: Record<string, number> = {
   '우호':     30,
   '약간 우호': 10,
   '중립':     0,   // 중립은 전파 불가
+};
+
+// 🚀 나무 성장 단계 — 진행률 기반 6단계
+const getGrowthStage = (current: number, max: number) => {
+  const pct = max > 0 ? Math.min((current / max) * 100, 100) : 0;
+  if (pct >= 100) return { emoji: '🌳', label: '거대 나무', color: 'bg-amber-400', textColor: 'text-amber-600', borderColor: 'border-amber-300' };
+  if (pct >= 80)  return { emoji: '🌳', label: '큰 나무',   color: 'bg-teal-400',    textColor: 'text-teal-600',    borderColor: 'border-teal-200' };
+  if (pct >= 60)  return { emoji: '🌲', label: '중간 나무', color: 'bg-emerald-400',  textColor: 'text-emerald-600',  borderColor: 'border-emerald-200' };
+  if (pct >= 40)  return { emoji: '🌿', label: '어린 나무', color: 'bg-green-400',    textColor: 'text-green-600',    borderColor: 'border-green-200' };
+  if (pct >= 20)  return { emoji: '🌱', label: '새싹',     color: 'bg-lime-400',     textColor: 'text-lime-600',     borderColor: 'border-lime-200' };
+  return                  { emoji: '🌰', label: '씨앗',     color: 'bg-slate-300',    textColor: 'text-slate-500',    borderColor: 'border-slate-200' };
 };
 
 // 🚀 평판 등급 → 동시 활성 나무 수 제한
@@ -74,6 +85,20 @@ const GiantTreeView = ({ currentNickname, currentUserData, allUsers = {}, initia
     return new Date(ts.seconds * 1000).toLocaleDateString('ko-KR', { month: '2-digit', day: '2-digit' });
   };
 
+  // 🚀 useMemo: 나무 심기 권한 상태
+  const plantStatus = useMemo(() => {
+    const rep = getReputationLabel(currentUserData ? getReputationScore(currentUserData) : 0);
+    const maxActive = MAX_ACTIVE_TREES[rep] || 0;
+    const myActiveTrees = trees.filter(t =>
+      t.author_id === currentUserData?.uid && !(t.totalNodes >= t.maxSpread) && !t.circuitBroken
+    ).length;
+    return { rep, maxActive, canPlant: maxActive > 0 && myActiveTrees < maxActive, maxSpread: MAX_SPREAD_BY_REPUTATION[rep] || 0 };
+  }, [currentUserData, trees]);
+
+  // 🚀 useMemo: 목록 분리 (자라는 나무 vs 거대 나무)
+  const growingTrees = useMemo(() => trees.filter(t => !(t.totalNodes >= t.maxSpread && !t.circuitBroken)), [trees]);
+  const giantTrees = useMemo(() => trees.filter(t => t.totalNodes >= t.maxSpread && !t.circuitBroken), [trees]);
+
   if (view === 'create') {
     return (
       <CreateGiantTree
@@ -112,54 +137,30 @@ const GiantTreeView = ({ currentNickname, currentUserData, allUsers = {}, initia
             <p className="text-[12px] font-bold text-slate-500 truncate tracking-tight break-keep">
               할말 있소!!! 자신의 주장을 다단계 형태로 전파
             </p>
-            {currentNickname && (() => {
-              const rep = getReputationLabel(currentUserData ? getReputationScore(currentUserData) : 0);
-              const maxActive = MAX_ACTIVE_TREES[rep] || 0;
-              // 활성 나무 = 전파 완료도 중단도 아닌 내 나무
-              const myActiveTrees = trees.filter(t =>
-                t.author_id === currentUserData?.uid && !(t.totalNodes >= t.maxSpread) && !t.circuitBroken
-              ).length;
-              const canPlant = maxActive > 0 && myActiveTrees < maxActive;
-
-              return (
-                <>
-                  <div className="w-px h-3 bg-slate-200 shrink-0 mx-1" />
-                  {canPlant ? (
-                    <button
-                      onClick={() => setView('create')}
-                      className="flex items-center gap-0.5 text-[11px] font-bold text-slate-400 hover:text-blue-500 transition-colors shrink-0 whitespace-nowrap"
-                    >
-                      <span className="text-[10px]">+</span>나무 심기
-                    </button>
-                  ) : maxActive === 0 ? (
-                    <span className="text-[10px] font-bold text-slate-300 shrink-0 whitespace-nowrap">평판 약간 우호 이상 필요</span>
-                  ) : (
-                    <span className="text-[10px] font-bold text-amber-400 shrink-0 whitespace-nowrap">심은 나무가 거대 나무가 되어야 다시 심기 가능</span>
-                  )}
-                </>
-              );
-            })()}
+            {currentNickname && (
+              <>
+                <div className="w-px h-3 bg-slate-200 shrink-0 mx-1" />
+                {plantStatus.canPlant ? (
+                  <button
+                    onClick={() => setView('create')}
+                    className="flex items-center gap-0.5 text-[11px] font-bold text-slate-400 hover:text-blue-500 transition-colors shrink-0 whitespace-nowrap"
+                  >
+                    <span className="text-[10px]">+</span>나무 심기
+                  </button>
+                ) : plantStatus.maxActive === 0 ? (
+                  <span className="text-[10px] font-bold text-slate-300 shrink-0 whitespace-nowrap">평판 약간 우호 이상 필요</span>
+                ) : (
+                  <span className="text-[10px] font-bold text-amber-400 shrink-0 whitespace-nowrap">심은 나무가 거대 나무가 되어야 다시 심기 가능</span>
+                )}
+              </>
+            )}
           </div>
         </div>
         <div className="h-3" />
       </div>
 
-      {/* 🚀 나무 성장 단계 헬퍼 — 컴포넌트 밖에서 정의하면 JSX 내 참조 불가하므로 렌더 블록 내 정의 */}
+      {/* 🚀 메인 컨텐츠 */}
       {(() => {
-        const getGrowthStage = (current: number, max: number) => {
-          const pct = max > 0 ? Math.min((current / max) * 100, 100) : 0;
-          if (pct >= 100) return { emoji: '🌳', label: '거대 나무', color: 'bg-amber-400', textColor: 'text-amber-600', borderColor: 'border-amber-300' };
-          if (pct >= 80)  return { emoji: '🌳', label: '큰 나무',   color: 'bg-teal-400',    textColor: 'text-teal-600',    borderColor: 'border-teal-200' };
-          if (pct >= 60)  return { emoji: '🌲', label: '중간 나무', color: 'bg-emerald-400',  textColor: 'text-emerald-600',  borderColor: 'border-emerald-200' };
-          if (pct >= 40)  return { emoji: '🌿', label: '어린 나무', color: 'bg-green-400',    textColor: 'text-green-600',    borderColor: 'border-green-200' };
-          if (pct >= 20)  return { emoji: '🌱', label: '새싹',     color: 'bg-lime-400',     textColor: 'text-lime-600',     borderColor: 'border-lime-200' };
-          return                  { emoji: '🌰', label: '씨앗',     color: 'bg-slate-300',    textColor: 'text-slate-500',    borderColor: 'border-slate-200' };
-        };
-
-        const growingTrees = trees.filter(t => !(t.totalNodes >= t.maxSpread && !t.circuitBroken));
-        const giantTrees = trees.filter(t => t.totalNodes >= t.maxSpread && !t.circuitBroken);
-
-        // 🚀 메인 카드 — 자라는 나무용 (풀사이즈)
         const renderTreeCard = (tree: GiantTree) => {
           const authorData = allUsers[`nickname_${tree.author}`];
           const totalVotes = tree.agreeCount + tree.opposeCount;
@@ -245,21 +246,17 @@ const GiantTreeView = ({ currentNickname, currentUserData, allUsers = {}, initia
                   <svg className="w-4 h-4 text-slate-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
                   <span className="text-[12px] font-bold text-slate-500">나무를 심으려면 로그인과 평판이 필요합니다.</span>
                 </div>
-              ) : (() => {
-                const rep = getReputationLabel(currentUserData ? getReputationScore(currentUserData) : 0);
-                const max = MAX_SPREAD_BY_REPUTATION[rep] || 0;
-                return max === 0 ? (
-                  <div className="mb-4 flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
-                    <span className="text-[14px]">🌱</span>
-                    <span className="text-[12px] font-bold text-amber-700">평판 "약간 우호" 이상이면 나무를 심을 수 있어요. (현재: {rep})</span>
-                  </div>
-                ) : (
-                  <div className="mb-4 flex items-center gap-2 flex-wrap">
-                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">내 전파 규모:</span>
-                    <span className="text-[11px] font-black text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-lg">{rep} · 최대 {max}명</span>
-                  </div>
-                );
-              })()}
+              ) : plantStatus.maxSpread === 0 ? (
+                <div className="mb-4 flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
+                  <span className="text-[14px]">🌱</span>
+                  <span className="text-[12px] font-bold text-amber-700">평판 "약간 우호" 이상이면 나무를 심을 수 있어요. (현재: {plantStatus.rep})</span>
+                </div>
+              ) : (
+                <div className="mb-4 flex items-center gap-2 flex-wrap">
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">내 전파 규모:</span>
+                  <span className="text-[11px] font-black text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-lg">{plantStatus.rep} · 최대 {plantStatus.maxSpread}명</span>
+                </div>
+              )}
 
               {/* 자라는 나무 목록 */}
               {growingTrees.length === 0 && giantTrees.length === 0 ? (
