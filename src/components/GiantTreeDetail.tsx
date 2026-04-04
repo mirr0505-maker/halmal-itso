@@ -45,7 +45,16 @@ const shouldBreakCircuit = (agree: number, oppose: number): boolean => {
   return total >= 10 && (oppose / total) >= 0.7;
 };
 
-const GiantTreeDetail = ({ tree, currentNickname, currentUserData, allUsers = {}, parentNodeId, onBack }: Props) => {
+const GiantTreeDetail = ({ tree: treeProp, currentNickname, currentUserData, allUsers = {}, parentNodeId, onBack }: Props) => {
+  // 🚀 tree 문서 실시간 구독 — 수정 즉시 반영 (props만으로는 부모 리렌더 전까지 반영 안 됨)
+  const [tree, setTree] = useState<GiantTree>(treeProp);
+  useEffect(() => {
+    const unsub = onSnapshot(doc(db, 'giant_trees', treeProp.id), snap => {
+      if (snap.exists()) setTree({ id: snap.id, ...snap.data() } as GiantTree);
+    });
+    return () => unsub();
+  }, [treeProp.id]);
+
   const [nodes, setNodes] = useState<GiantTreeNode[]>([]);
   const [hasParticipated, setHasParticipated] = useState(false);
   const [isAuthor, setIsAuthor] = useState(false);
