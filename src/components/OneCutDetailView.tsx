@@ -119,10 +119,15 @@ const OneCutDetailView = ({
     });
   };
 
-  // 댓글 목록: 최상위 댓글, 시간 오름차순
+  // 댓글 목록: 최상위 댓글, 고정 댓글 최상단 + 시간 오름차순
   const topComments = allPosts
     .filter(p => p.parentId === p.rootId)
-    .sort((a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0));
+    .sort((a, b) => {
+      // 고정 댓글 최상단 우선
+      if (a.id === pinnedCommentId) return -1;
+      if (b.id === pinnedCommentId) return 1;
+      return (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0);
+    });
 
   const agreeCount = allPosts.filter(p => p.side === 'left').length;
   const disagreeCount = allPosts.filter(p => p.side === 'right').length;
