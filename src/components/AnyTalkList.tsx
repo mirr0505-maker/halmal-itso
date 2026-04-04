@@ -260,10 +260,18 @@ const AnyTalkList = ({
                           )}
                         </div>
                         {/* 제목 + 작성자 + 통계 바 */}
-                        <div className="flex-1 p-3 flex flex-col gap-1.5 bg-white">
+                        <div className="flex-1 px-3 pt-2.5 pb-2 flex flex-col gap-1 bg-white">
                           <h3 className="text-[13px] font-[1000] text-slate-900 line-clamp-1 tracking-tighter leading-tight group-hover:text-blue-600 transition-colors">
                             {post.title}
                           </h3>
+                          {/* 원본글 링크 */}
+                          {post.linkUrl && (
+                            <a href={post.linkUrl} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()}
+                              className="flex items-center gap-1 text-blue-600 bg-blue-50/50 px-2 py-0.5 rounded-[2px] border border-blue-100/20 hover:bg-blue-50 transition-colors">
+                              <span className="text-[8px]">🔗</span>
+                              <span className="text-[8px] font-black truncate tracking-tighter">{(() => { try { return new URL(post.linkUrl!).hostname; } catch { return '원본글'; } })()}</span>
+                            </a>
+                          )}
                           {/* 작성자 */}
                           <div className="mt-auto pt-1.5 border-t border-slate-50 flex items-center gap-1.5">
                             <div className="w-6 h-6 rounded-full overflow-hidden border border-slate-100 bg-slate-50 shrink-0">
