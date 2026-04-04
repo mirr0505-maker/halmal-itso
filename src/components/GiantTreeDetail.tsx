@@ -506,6 +506,21 @@ const GiantTreeDetail = ({ tree, currentNickname, currentUserData, allUsers = {}
               {authorSpreadFull ? '전파 시작 완료 (3/3)' : `${rootSpreadCount}/3명에게 전파함`}
             </span>
           </div>
+          {/* 🚀 시든 가지 판정 (작성자) */}
+          {(() => {
+            const treeCreatedMs = tree.createdAt?.seconds ? tree.createdAt.seconds * 1000 : 0;
+            const elapsed = Date.now() - treeCreatedMs;
+            const hasWilted = treeCreatedMs > 0 && elapsed > 48 * 60 * 60 * 1000 && rootSpreadCount < 3;
+            const wiltedCount = hasWilted ? 3 - rootSpreadCount : 0;
+            return hasWilted ? (
+              <div className="mb-2 flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
+                <span className="text-[12px]">🍂</span>
+                <span className="text-[11px] font-bold text-amber-700">
+                  {wiltedCount}개의 시든 가지 — 48시간 내 미참여. 다른 사람에게 재전파하세요.
+                </span>
+              </div>
+            ) : null;
+          })()}
           {/* 공유 URL */}
           <p className="text-[11px] font-bold text-emerald-600 mb-2">아래 링크를 3명에게 공유하면 주장이 전파됩니다.</p>
           <div className="flex items-center gap-2">
@@ -553,7 +568,23 @@ const GiantTreeDetail = ({ tree, currentNickname, currentUserData, allUsers = {}
           </div>
           {mySpreadFull ? (
             <p className="text-[11px] font-bold text-slate-400 text-center py-1">3명에게 모두 전파했습니다.</p>
-          ) : (
+          ) : (() => {
+            // 🚀 시든 가지 판정: 내 노드 생성 후 48시간 경과 + 아직 3명 미달
+            const myCreatedMs = myNode?.createdAt?.seconds ? myNode.createdAt.seconds * 1000 : 0;
+            const elapsed = Date.now() - myCreatedMs;
+            const WILT_HOURS = 48;
+            const hasWiltedSlots = myCreatedMs > 0 && elapsed > WILT_HOURS * 60 * 60 * 1000 && myChildCount < 3;
+            const wiltedCount = hasWiltedSlots ? 3 - myChildCount : 0;
+            return hasWiltedSlots ? (
+              <div className="mb-2 flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
+                <span className="text-[12px]">🍂</span>
+                <span className="text-[11px] font-bold text-amber-700">
+                  {wiltedCount}개의 시든 가지 — 48시간 내 미참여. 다른 사람에게 재전파하세요.
+                </span>
+              </div>
+            ) : null;
+          })()}
+          {!mySpreadFull && (
             <>
               <p className="text-[11px] font-bold text-emerald-600 mb-2">아래 링크를 공유하면, 친구들이 이 주장을 이어서 전파할 수 있습니다.</p>
               <div className="flex items-center gap-2">
