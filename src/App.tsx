@@ -776,11 +776,11 @@ function App() {
       {/* 🚀 모바일 하단 탭바 — 텍스트 없음, 5탭, 중앙 새글 버튼 돌출 */}
       <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-white/95 backdrop-blur-md border-t border-slate-100 flex items-end h-16 pb-1 safe-area-inset-bottom">
         {/* ≡ 메뉴 (드로어 열기) — 왼손 접근 최적 */}
-        <button onClick={() => setIsMobileMenuOpen(true)} className="flex-1 flex flex-col items-center justify-center h-full text-slate-400 active:text-violet-600 transition-colors">
-          <svg className="w-[24px] h-[24px]" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" viewBox="0 0 24 24">
-            <line x1="4" y1="7" x2="20" y2="7" />
-            <line x1="4" y1="12" x2="20" y2="12" />
-            <line x1="4" y1="17" x2="20" y2="17" />
+        <button onClick={() => setIsMobileMenuOpen(true)} className="flex-1 flex flex-col items-center justify-center h-full active:opacity-70 transition-opacity">
+          <svg className="w-[24px] h-[24px]" fill="none" strokeWidth="2.5" strokeLinecap="round" viewBox="0 0 24 24">
+            <line x1="4" y1="7" x2="20" y2="7" stroke="#7c3aed" />
+            <line x1="4" y1="12" x2="20" y2="12" stroke="#ef4444" />
+            <line x1="4" y1="17" x2="20" y2="17" stroke="#3b82f6" />
           </svg>
         </button>
         {/* 한컷 */}
