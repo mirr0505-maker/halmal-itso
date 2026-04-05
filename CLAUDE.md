@@ -59,9 +59,10 @@
 ### 레벨·평판 시스템
 - **레벨(EXP)** = 성실도. DB에 `exp` 필드만 `increment()` 누적. `level` 필드 DB 저장 금지.
 - 프론트에서 `calculateLevel(exp)` 함수로 실시간 계산 (`utils.ts`)
-- **평판(Reputation)** = 신뢰도. `(likes×2) + (totalShares×3) + (ballReceived×5)`. `getReputationScore()` 함수.
+- **평판(Reputation)** = 신뢰도 5단계. `(likes×2) + (totalShares×3) + (ballReceived×5)`. 중립(0~299)→약간 우호(300)→우호(1000)→매우 우호(2000)→확고(3000).
 - EXP 지급 조건: 본문 10자 이상 (`isEligibleForExp()`). Rate Limit: 글 60초, 댓글 15초 쿨다운.
 - 삭제 시 EXP 차감: 글 -2, 댓글 -2, 깐부 해제 -15.
+- **공개 프로필**: 아바타 클릭 → `PublicProfile` (7영역). 사이드바 내정보 → `MyPage` (관리).
 
 ### TypeScript
 - 빌드 에러 0 유지 (`npm run build` 확인)

@@ -502,6 +502,43 @@
   - OneCutListSidebar: 댓글·땡스볼·좋아요 통계 바 + linkedPost 원본글 배지. 아바타 실제 이미지 반영.
   - OneCutDetailView: 이미지 w-2/3→w-full. 그리드 9:3→8:4. 사이드바 aspect-[3/4]→[16/9].
 
+- [x] **레벨·평판 시스템 v3 전면 구현 (2026-04-05 v35)**:
+  - **레벨(EXP) = 성실도**: DB에 `exp` 필드만 `increment()` 누적. `level` 필드 DB 저장 제거. 프론트에서 `calculateLevel(exp)` 실시간 계산.
+  - **EXP 획득**: 새글+2, 등록글(좋아요3)+5, 댓글+2, 깐부맺기+10, 출석+5, 장갑글+2, 전파참여+3, 잎사귀+1, 준땡스볼+1, 글조회+1.
+  - **EXP 차감**: 글삭제-2, 댓글삭제-2, 깐부해제-15. 10자 미만 EXP 미지급.
+  - **Rate Limit**: 글 60초, 댓글 15초 쿨다운. 어뷰징 방지.
+  - **평판(Reputation) = 신뢰도 5단계**: (likes×2)+(totalShares×3)+(ballReceived×5). 중립→약간 우호(300)→우호(1000)→매우 우호(2000)→확고(3000).
+  - **17개 컴포넌트** `displayLevel` → `calculateLevel(exp)` 일괄 전환. MyProfileCard level DB 저장 제거.
+  - **기존 유저 마이그레이션**: 로그인 시 `exp === 0 && likes > 0`이면 `exp = likes` 자동 이관.
+
+- [x] **공개 프로필 (PublicProfile) 신규 (2026-04-05 v35)**:
+  - 아바타 클릭(우측 상단) → 공개 프로필 표시. 사이드바 내정보 → 기존 MyPage 유지.
+  - 7영역: Identity(레벨+평판 프로그레스 바) + Social CTA(깐부맺기/서로깐부) + Intro(bio) + Showcase(내 홍보 이미지) + Stats(활동 지표) + Best 3(인기글) + Feed(전체 글 목록).
+  - 글카드 작성자 닉네임 클릭 → 해당 유저 공개 프로필.
+
+- [x] **내 홍보 섹션 (MyPromotion) 신규 (2026-04-05 v35)**:
+  - 아바타 수집 탭 제거 → 프로필 영역 바로 아래에 '내 홍보' 3×2 그리드 (16:9 비율).
+  - 레벨별 해금: 윗줄 Lv1,2,4 항상 표시. 아랫줄 Lv6,8,10 해금 시 펼침 애니메이션.
+  - R2 Worker 업로드. `promoImages` 배열로 Firestore 저장.
+
+- [x] **R2 업로드 보안 강화 (2026-04-05 v35)**:
+  - Worker 경로 보안: `uploads/`, `promo/`, `avatars/` 3곳 모두 본인 UID 검증.
+  - 아바타 경로: `avatars/{nickname}` → `avatars/{uid}/` 로 변경.
+
+- [x] **iOS Safari 로그인 수정 (2026-04-05 v35)**:
+  - `signInWithRedirect` → `signInWithPopup` 우선 (ITP 쿠키 차단 우회). 팝업 차단 시에만 redirect 폴백.
+  - `getRedirectResult(auth)` 호출 추가.
+
+- [x] **모바일 UX 개선 (2026-04-05 v35)**:
+  - 하단 탭바: 홈 → ≡메뉴(드로어 열기)로 교체. 왼손 접근 최적화.
+  - 상단: ≡ 삼색선 제거, GLove 로고만 남김 (터치 시 홈).
+  - 삼색선: 자주·빨강·파랑 (PC·모바일 동일).
+  - 브랜드 컬러: blue-600 → violet-600 계열 전환. GLove 로고는 G빨강 L파랑 유지.
+
+- [x] **테스트 계정 5개 레벨·평판 설정 (2026-04-05 v35)**:
+  - 깐부1(Lv1,중립) 깐부2(Lv2,약간우호) 깐부3(Lv3,우호) 깐부4(Lv4,매우우호) 깐부5(Lv5,확고).
+  - 로그인 시 exp/likes 강제 세팅.
+
 ### 🛠️ 진행 중 / 개선 필요 사항
 - [ ] **에디터 보완**: `bubble-menu` 활성화 (텍스트 선택 시 서식 도구 노출).
 - [ ] **검색 엔진**: Firestore 텍스트 검색 한계 보완 (현재는 클라이언트 사이드 필터링).
