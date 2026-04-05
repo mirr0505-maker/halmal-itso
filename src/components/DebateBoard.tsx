@@ -24,10 +24,11 @@ interface Props {
   rootPost?: Post;
   allUsers?: Record<string, UserData>;
   followerCounts?: Record<string, number>;
+  onAuthorClick?: (nickname: string) => void;
 }
 
 const DebateBoard = ({
-  allChildPosts, setReplyTarget, onPostClick, onLikeClick, currentNickname, category, onInlineReply, onOpenLinkedPost, onNavigateToPost, rootPost, allUsers = {}, followerCounts = {}
+  allChildPosts, setReplyTarget, onPostClick, onLikeClick, currentNickname, category, onInlineReply, onOpenLinkedPost, onNavigateToPost, rootPost, allUsers = {}, followerCounts = {}, onAuthorClick
 }: Props) => {
   const rule = CATEGORY_RULES[category] || CATEGORY_RULES["너와 나의 이야기"];
 
@@ -99,6 +100,9 @@ const DebateBoard = ({
   // 판도라 댓글 인라인 수정 상태
   const [editingPandoraId, setEditingPandoraId] = useState<string | null>(null);
   const [editingPandoraContent, setEditingPandoraContent] = useState('');
+
+  // 🚀 ⋯ 메뉴: 열린 댓글 ID 추적
+  const [commentMenuId, setCommentMenuId] = useState<string | null>(null);
 
   const handlePandoraEditSave = async (post: Post) => {
     if (!editingPandoraContent.trim()) return;
@@ -350,6 +354,20 @@ const DebateBoard = ({
                           <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>
                         </button>
                       )}
+                      {/* 🚀 ⋯ 메뉴 */}
+                      <div className="relative">
+                        <button onClick={(e) => { e.stopPropagation(); setCommentMenuId(commentMenuId === post.id ? null : post.id); }}
+                          className="text-slate-300 hover:text-slate-500 transition-colors">
+                          <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>
+                        </button>
+                        {commentMenuId === post.id && (
+                          <div className="absolute right-0 bottom-5 z-50 bg-white border border-slate-200 rounded-xl shadow-lg py-1 w-36 animate-in fade-in duration-150">
+                            <button onClick={(e) => { e.stopPropagation(); setCommentMenuId(null); onAuthorClick?.(post.author); }}
+                              className="w-full text-left px-3 py-2 text-[11px] font-bold text-slate-700 hover:bg-slate-50">공개프로필 보기</button>
+                            <button disabled className="w-full text-left px-3 py-2 text-[11px] font-bold text-slate-300 cursor-not-allowed">신고하기</button>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
                   {editingPandoraId === post.id ? (

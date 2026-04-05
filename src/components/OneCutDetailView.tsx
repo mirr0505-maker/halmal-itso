@@ -23,12 +23,13 @@ interface Props {
   onBack?: () => void;
   isFriend?: boolean;
   onToggleFriend?: () => void;
+  onAuthorClick?: (nickname: string) => void;
 }
 
 const OneCutDetailView = ({
   rootPost, allPosts, otherTopics, onTopicChange,
   onInlineReply, onLikeClick, currentNickname, allUsers = {}, followerCounts = {},
-  commentCounts = {}, onEditPost, onBack, isFriend, onToggleFriend
+  commentCounts = {}, onEditPost, onBack, isFriend, onToggleFriend, onAuthorClick
 }: Props) => {
   const [imageError, setImageError] = useState(false);
   // 🚀 댓글 입력 내부 상태 — "공감해요(left) / 공감하기 힘들어요(right)"
@@ -48,6 +49,8 @@ const OneCutDetailView = ({
   const [editContent, setEditContent] = useState('');
   // 댓글 땡스볼 대상
   const [thanksballCommentTarget, setThanksballCommentTarget] = useState<{ docId: string; recipient: string } | null>(null);
+  // 🚀 ⋯ 메뉴: 열린 댓글 ID 추적
+  const [commentMenuId, setCommentMenuId] = useState<string | null>(null);
 
   useEffect(() => { setImageError(false); setInputValue(''); setSelectedSide('left'); setInputVisible(false); }, [rootPost.id]);
 
@@ -416,6 +419,20 @@ const OneCutDetailView = ({
                                   className="text-[9px] font-bold text-slate-300 hover:text-rose-400 transition-colors">삭제</button>
                               </>
                             )}
+                            {/* 🚀 ⋯ 메뉴 */}
+                            <div className="relative">
+                              <button onClick={(e) => { e.stopPropagation(); setCommentMenuId(commentMenuId === comment.id ? null : comment.id); }}
+                                className="text-slate-300 hover:text-slate-500 transition-colors">
+                                <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>
+                              </button>
+                              {commentMenuId === comment.id && (
+                                <div className="absolute right-0 bottom-5 z-50 bg-white border border-slate-200 rounded-xl shadow-lg py-1 w-36 animate-in fade-in duration-150">
+                                  <button onClick={(e) => { e.stopPropagation(); setCommentMenuId(null); onAuthorClick?.(comment.author); }}
+                                    className="w-full text-left px-3 py-2 text-[11px] font-bold text-slate-700 hover:bg-slate-50">공개프로필 보기</button>
+                                  <button disabled className="w-full text-left px-3 py-2 text-[11px] font-bold text-slate-300 cursor-not-allowed">신고하기</button>
+                                </div>
+                              )}
+                            </div>
                           </div>
                         </div>
                         {/* 본문 or 수정 textarea */}

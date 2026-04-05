@@ -19,11 +19,12 @@ interface Props {
   onInlineReply?: (content: string, parentPost: Post | null, side?: 'left' | 'right') => Promise<void>;
   allUsers?: Record<string, UserData>;
   followerCounts?: Record<string, number>;
+  onAuthorClick?: (nickname: string) => void;
 }
 
 const OneCutCommentBoard = ({
   allChildPosts, rootPost, currentNickname,
-  onLikeClick, onInlineReply, allUsers = {}, followerCounts = {},
+  onLikeClick, onInlineReply, allUsers = {}, followerCounts = {}, onAuthorClick,
 }: Props) => {
   // 현재 유저가 글 작성자인지 여부
   const isRootAuthor = !!(currentNickname && rootPost.author === currentNickname);
@@ -42,6 +43,9 @@ const OneCutCommentBoard = ({
   // 댓글 인라인 수정 상태 (메인 댓글 + 대댓글 공통)
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingContent, setEditingContent] = useState('');
+
+  // 🚀 ⋯ 메뉴: 열린 댓글 ID 추적
+  const [commentMenuId, setCommentMenuId] = useState<string | null>(null);
 
   const handleEditSave = async (post: Post) => {
     if (!editingContent.trim()) return;
@@ -248,6 +252,20 @@ const OneCutCommentBoard = ({
                           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h14" /></svg>
                         </button>
                       </>)}
+                      {/* 🚀 ⋯ 메뉴 */}
+                      <div className="relative">
+                        <button onClick={(e) => { e.stopPropagation(); setCommentMenuId(commentMenuId === post.id ? null : post.id); }}
+                          className="text-slate-300 hover:text-slate-500 transition-colors">
+                          <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>
+                        </button>
+                        {commentMenuId === post.id && (
+                          <div className="absolute right-0 bottom-5 z-50 bg-white border border-slate-200 rounded-xl shadow-lg py-1 w-36 animate-in fade-in duration-150">
+                            <button onClick={(e) => { e.stopPropagation(); setCommentMenuId(null); onAuthorClick?.(post.author); }}
+                              className="w-full text-left px-3 py-2 text-[11px] font-bold text-slate-700 hover:bg-slate-50">공개프로필 보기</button>
+                            <button disabled className="w-full text-left px-3 py-2 text-[11px] font-bold text-slate-300 cursor-not-allowed">신고하기</button>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
 

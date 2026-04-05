@@ -66,7 +66,12 @@
       "Bash(grep -v \"^\\\\.$\\\\|^\\\\.\\\\.$\")",
       "Bash(grep -r \"credentials\\\\|apiKey\\\\|sk-\" /e/halmal-itso --include=*.json --exclude-dir=node_modules -n)",
       "Bash(where gsutil:*)",
-      "Bash(firebase:*)"
+      "Bash(firebase:*)",
+      "Bash(find /e/halmal-itso/src -name \"*.tsx\" -exec grep -l \"flex.*flex-col\\\\|flex.*gap\" {} \\\\;)",
+      "Bash(grep -E \"\\\\.\\(tsx|css\\)$\")",
+      "Bash(grep -n \"h-1\\\\|h-\\\\[1px\\\\]\\\\|h-\\\\[2px\\\\]\\\\|h-0.5\" /e/halmal-itso/src/components/*.tsx)",
+      "Bash(grep:*)",
+      "Bash(find /e/halmal-itso/src -type f -name \"*.tsx\" -exec grep -l \"flex.*\\\\[\" {} \\\\;)"
     ]
   }
 }

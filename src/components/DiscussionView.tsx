@@ -199,6 +199,7 @@ const DiscussionView = ({
               rootPost={rootPost}
               allUsers={allUsers}
               followerCounts={followerCounts}
+              onAuthorClick={onAuthorClick}
             />
           </div>
         )}

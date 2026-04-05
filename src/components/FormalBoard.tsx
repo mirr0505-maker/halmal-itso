@@ -13,15 +13,19 @@ interface Props {
   currentUserFriends?: string[];
   currentNickname?: string;
   onLikeClick?: (e: React.MouseEvent | null, postId: string) => void;
+  onAuthorClick?: (nickname: string) => void;
 }
 
-const FormalBoard = ({ agreePosts, disagreePosts, onPostClick, currentUserData, currentUserFriends, currentNickname, onLikeClick }: Props) => {
+const FormalBoard = ({ agreePosts, disagreePosts, onPostClick, currentUserData, currentUserFriends, currentNickname, onLikeClick, onAuthorClick }: Props) => {
   const [visibleAgree, setVisibleAgree] = useState(2);
   const [visibleDisagree, setVisibleDisagree] = useState(2);
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState("");
   const [editContent, setEditContent] = useState("");
+
+  // 🚀 ⋯ 메뉴: 열린 댓글 ID 추적
+  const [commentMenuId, setCommentMenuId] = useState<string | null>(null);
 
   // 로그인 상태에서만 내 글 여부 판별 — 비로그인 시 항상 false (수정/삭제 버튼 미노출)
   const isMyPost = (author: string) => !!currentNickname && author === currentNickname;
@@ -101,15 +105,31 @@ const FormalBoard = ({ agreePosts, disagreePosts, onPostClick, currentUserData, 
                 <span className="text-slate-400">👤 {post.author}</span>
                 {renderAuthorInfo(post)}
               </div>
-              <button 
-                onClick={(e) => { e.stopPropagation(); onLikeClick?.(null, post.id); }}
-                className={`flex items-center gap-1 px-2.5 py-1 rounded-lg transition-all ${isLikedByMe ? 'bg-rose-50 text-rose-500' : `bg-${sideColor}-50 text-${sideColor}-600 hover:bg-rose-50 hover:text-rose-500`}`}
-              >
-                <svg className={`w-3 h-3 transition-colors ${isLikedByMe ? 'fill-current' : 'fill-none'}`} viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">
-                  <path d="M11.645 20.91l-.007-.003-.022-.012a15.247 15.247 0 01-.383-.218 25.18 25.18 0 01-4.244-3.17C4.688 15.36 2.25 12.174 2.25 8.25 2.25 5.322 4.714 3 7.688 3A5.5 5.5 0 0112 5.052 5.5 5.5 0 0116.313 3c2.973 0 5.437 2.322 5.437 5.25 0 3.925-2.438 7.111-4.739 9.256a25.175 25.175 0 01-4.244 3.17 15.247 15.247 0 01-.383.219l-.022.012-.007.004-.003.001a.752.752 0 01-.704 0l-.003-.001z" />
-                </svg>
-                <span>{post.likes || 0}</span>
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={(e) => { e.stopPropagation(); onLikeClick?.(null, post.id); }}
+                  className={`flex items-center gap-1 px-2.5 py-1 rounded-lg transition-all ${isLikedByMe ? 'bg-rose-50 text-rose-500' : `bg-${sideColor}-50 text-${sideColor}-600 hover:bg-rose-50 hover:text-rose-500`}`}
+                >
+                  <svg className={`w-3 h-3 transition-colors ${isLikedByMe ? 'fill-current' : 'fill-none'}`} viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">
+                    <path d="M11.645 20.91l-.007-.003-.022-.012a15.247 15.247 0 01-.383-.218 25.18 25.18 0 01-4.244-3.17C4.688 15.36 2.25 12.174 2.25 8.25 2.25 5.322 4.714 3 7.688 3A5.5 5.5 0 0112 5.052 5.5 5.5 0 0116.313 3c2.973 0 5.437 2.322 5.437 5.25 0 3.925-2.438 7.111-4.739 9.256a25.175 25.175 0 01-4.244 3.17 15.247 15.247 0 01-.383.219l-.022.012-.007.004-.003.001a.752.752 0 01-.704 0l-.003-.001z" />
+                  </svg>
+                  <span>{post.likes || 0}</span>
+                </button>
+                {/* 🚀 ⋯ 메뉴 */}
+                <div className="relative">
+                  <button onClick={(e) => { e.stopPropagation(); setCommentMenuId(commentMenuId === post.id ? null : post.id); }}
+                    className="text-slate-300 hover:text-slate-500 transition-colors">
+                    <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>
+                  </button>
+                  {commentMenuId === post.id && (
+                    <div className="absolute right-0 bottom-5 z-50 bg-white border border-slate-200 rounded-xl shadow-lg py-1 w-36 animate-in fade-in duration-150">
+                      <button onClick={(e) => { e.stopPropagation(); setCommentMenuId(null); onAuthorClick?.(post.author); }}
+                        className="w-full text-left px-3 py-2 text-[11px] font-bold text-slate-700 hover:bg-slate-50">공개프로필 보기</button>
+                      <button disabled className="w-full text-left px-3 py-2 text-[11px] font-bold text-slate-300 cursor-not-allowed">신고하기</button>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           </>
         )}
