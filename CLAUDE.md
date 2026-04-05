@@ -33,27 +33,35 @@
 
 ### Firebase / Firestore
 - Firestore 자동 생성 ID 금지 → `topic_timestamp_uid` / `comment_timestamp_uid` 형식 사용
-  - **예외**: `notifications/{nick}/items`, `sentBalls/{nick}/items` — 알림·내역 데이터는 `addDoc` 자동 ID 허용
+  - **예외**: `notifications/{uid}/items`, `sentBalls/{uid}/items`, `giant_trees/{id}/leaves` — 보조 데이터는 `addDoc` 자동 ID 허용
 - 실시간 리스너: `onSnapshot` (App.tsx 또는 개별 컴포넌트에서 관리)
-- 컬렉션: `posts`, `users`, `kanbu_rooms`, `notifications`, `sentBalls`
+- 컬렉션: `posts`, `comments`, `users`, `kanbu_rooms`, `notifications`, `sentBalls`, `communities`, `community_posts`, `community_memberships`, `community_post_comments`, `giant_trees`, `marathon_dedup`
 
 ### Cloudflare R2 이미지 업로드
-- `File` → `ArrayBuffer` → `Uint8Array` → `PutObjectCommand`
+- **Worker 프록시 방식**: 클라이언트 → `halmal-upload-worker` (Firebase Auth ID Token 인증) → R2 바인딩 직접 저장
+- 클라이언트 함수: `src/uploadToR2.ts` — `uploadToR2(file, filePath)` 
 - 메타데이터에 한국어(비ASCII) 금지
-- 업로드 경로: `uploads/{userId}/{filename}`
+- 업로드 경로: `uploads/{userId}/{filename}`, `avatars/{nickname}_{timestamp}`
 - 공개 URL 베이스: `https://pub-9e6af273cd034aa6b7857343d0745224.r2.dev`
+- **클라이언트에 R2 API 키 없음** — Worker가 R2 바인딩으로 직접 접근
 
-### Cloudflare Workers (링크 미리보기)
-- 엔드포인트: `https://halmal-link-preview.mirr0505.workers.dev`
-- 소스: `workers/src/index.ts` — OG 태그 파싱, 내부 IP 차단, CORS 제한
-- 배포: `workers/` 디렉토리에서 `npx wrangler deploy` (wrangler 로그인 필요)
+### Cloudflare Workers
+- **halmal-link-preview** (링크 미리보기): `workers/src/index.ts` | 배포: `cd workers && npx wrangler deploy`
+- **halmal-upload-worker** (R2 업로드 프록시): `upload-worker/src/index.ts` | 배포: `cd upload-worker && npx wrangler deploy`
 - CORS 허용: `halmal-itso.web.app` + `localhost:5173/4173`
-- **Workers 코드 수정 시**: `npm run build` 후 `npx wrangler deploy` 별도 실행 필요 (Firebase deploy와 별개)
+- **Workers 코드 수정 시**: Firebase deploy와 별개로 각 디렉토리에서 `npx wrangler deploy` 별도 실행 필요
 
 ### HTML 렌더링
 - 에디터 출력은 `dangerouslySetInnerHTML={{ __html: post.content }}` 사용
 - `@tailwindcss/typography` 미설치 → `prose` 클래스 무효. Tailwind arbitrary selector 사용 (`[&_p]:mb-4` 등)
 - 목록 뷰에서 이미지는 `[&_img]:hidden` (line-clamp 적용)
+
+### 레벨·평판 시스템
+- **레벨(EXP)** = 성실도. DB에 `exp` 필드만 `increment()` 누적. `level` 필드 DB 저장 금지.
+- 프론트에서 `calculateLevel(exp)` 함수로 실시간 계산 (`utils.ts`)
+- **평판(Reputation)** = 신뢰도. `(likes×2) + (totalShares×3) + (ballReceived×5)`. `getReputationScore()` 함수.
+- EXP 지급 조건: 본문 10자 이상 (`isEligibleForExp()`). Rate Limit: 글 60초, 댓글 15초 쿨다운.
+- 삭제 시 EXP 차감: 글 -2, 댓글 -2, 깐부 해제 -15.
 
 ### TypeScript
 - 빌드 에러 0 유지 (`npm run build` 확인)
@@ -69,11 +77,11 @@
 | `TiptapEditor.tsx` | 스티키 툴바 + 버블 메뉴 로직 손대지 않기. 커서 위치 유지 로직 보호. |
 | `CreatePostBox.tsx` | 카테고리 목록에서 "한컷" 제외 유지. |
 | `DiscussionView.tsx` | `CATEGORY_RULES` 객체 — 카테고리별 댓글 규칙 정의. 임의 변경 금지. |
-| `OneCutDetailView.tsx` | 3컬럼 레이아웃 유지. |
+| `OneCutDetailView.tsx` | 2컬럼 레이아웃(8:4 그리드) 유지. tree 문서 실시간 구독(`onSnapshot`). |
 | `DebateBoard.tsx` | 너와 나의 이야기 댓글 IME 처리 — InlineForm 컴포넌트 금지, 인라인 JSX 유지. `isComposing` 체크 보호. |
 | `RootPostCard.tsx` | 하단 통계 바 3컬럼 구조(댓글\|땡스볼\|동의) 유지. `onBack` prop 체인 보호. |
 | `ThanksballModal.tsx` | `sentBalls` + `notifications` + `thanksballTotal` 3곳 동시 쓰기 — 하나라도 누락 금지. |
-| `NotificationBell.tsx` | `notifications/{uid}/items` 실시간 구독. `writeBatch`로 일괄 읽음 처리. 타입: `thanksball·community_post·finger_promoted·giant_tree_spread`. `isUnread()` 헬퍼로 `read`/`isRead` 두 필드 통합 판단. |
+| `NotificationBell.tsx` | `notifications/{uid}/items` 실시간 구독. `writeBatch`로 일괄 읽음 처리. 타입: `thanksball·community_post·finger_promoted·giant_tree_spread·giant_tree_wilt`. `isUnread()` 헬퍼로 `read`/`isRead` 두 필드 통합 판단. |
 | `EditorToolbar.tsx` | 링크 삽입 후 Workers 호출 → `LinkPreviewCard` 표시. `fetchPreview` 내부 상태 보호. |
 | `LinkPreviewCard.tsx` | OgData 타입 export — EditorToolbar에서 import해 사용. |
 
@@ -81,7 +89,7 @@
 
 ## 개발·테스트 환경
 
-- 테스트 계정: 깐부1호, 깐부2호, 깐부3호 (헤더 Dev 버튼으로 전환)
+- 테스트 계정: 깐부1호, 깐부2호, 깐부3호, 깐부4호 (헤더 Dev 버튼으로 전환)
 - 빌드: `npm run build`
 - 배포: `firebase deploy --only hosting`
 - 린트: `npx eslint . --fix`
