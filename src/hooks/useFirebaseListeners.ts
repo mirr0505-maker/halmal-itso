@@ -90,8 +90,13 @@ export function useFirebaseListeners() {
             setUserData({ ...data, uid: user.uid } as UserData);
             setFriends(data.friendList || []);
             setBlocks(data.blockList || []);
+            // 🚀 EXP 마이그레이션: 기존 유저의 likes 기반 활동량을 exp 초기값으로 반영 (1회만)
+            // Why: likes→exp 전환 후 기존 유저의 exp가 0이면 레벨이 Lv1로 리셋됨
+            if (!data.exp && (data.likes || 0) > 0) {
+              updateDoc(doc(db, 'users', user.uid), { exp: data.likes }).catch(() => {});
+            }
             // 🚀 출석 EXP: 1일 1회 +5 — lastLoginDate와 오늘 비교
-            const today = new Date().toISOString().slice(0, 10); // "2026-04-05"
+            const today = new Date().toISOString().slice(0, 10);
             if (data.lastLoginDate !== today) {
               updateDoc(doc(db, 'users', user.uid), { exp: increment(5), lastLoginDate: today }).catch(() => {});
             }
