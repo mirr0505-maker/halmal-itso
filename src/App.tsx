@@ -248,7 +248,7 @@ function App() {
     if (isLoading) return (
       <div className="w-full flex flex-col items-center justify-center py-40 gap-3">
         <h1 className="text-[36px] font-[1000] italic tracking-tighter animate-logo-pulse">
-          <span className="text-blue-600">GL</span><span className="text-slate-900">ove</span>
+          <span className="text-violet-600">GL</span><span className="text-slate-900">ove</span>
         </h1>
         <p className="text-[11px] font-black text-slate-300 tracking-tight">집단지성의 힘</p>
       </div>
@@ -375,7 +375,7 @@ function App() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">{others.map(u => (
             <div key={u.uid} className="bg-white border border-slate-100 p-6 rounded-2xl flex items-center justify-between shadow-sm">
               <div className="flex items-center gap-4"><div className="w-14 h-14 rounded-full overflow-hidden bg-slate-50 shrink-0"><img src={u.avatarUrl || `${EXTERNAL_URLS.AVATAR_BASE}${u.nickname}`} alt="" className="w-full h-full object-cover" /></div><div><h3 className="font-[1000] text-slate-900">{u.nickname}</h3><p className="text-xs text-slate-400 font-bold">깐부수 {followerCounts[u.nickname] || 0} · 좋아요 {u.likes?.toLocaleString() || 0}</p></div></div>
-              <button onClick={() => toggleFriend(u.nickname)} className={`px-5 py-2 rounded-xl text-xs font-black transition-all ${friends.includes(u.nickname) ? 'bg-slate-100 text-slate-400' : 'bg-blue-600 text-white hover:bg-blue-700 shadow-md'}`}>{friends.includes(u.nickname) ? '깐부해제' : '+ 깐부맺기'}</button>
+              <button onClick={() => toggleFriend(u.nickname)} className={`px-5 py-2 rounded-xl text-xs font-black transition-all ${friends.includes(u.nickname) ? 'bg-slate-100 text-slate-400' : 'bg-violet-600 text-white hover:bg-violet-700 shadow-md'}`}>{friends.includes(u.nickname) ? '깐부해제' : '+ 깐부맺기'}</button>
             </div>
           ))}</div>
         </div>
@@ -652,13 +652,13 @@ function App() {
           <div className="flex items-center gap-2 px-1 pb-3 overflow-x-auto">
             <button
               onClick={() => setSelectedFriend(null)}
-              className={`flex items-center px-3 py-1.5 rounded-full text-[11px] font-[1000] transition-all shrink-0 ${!selectedFriend ? 'bg-blue-600 text-white shadow-sm' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}
+              className={`flex items-center px-3 py-1.5 rounded-full text-[11px] font-[1000] transition-all shrink-0 ${!selectedFriend ? 'bg-violet-600 text-white shadow-sm' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}
             >전체</button>
             {friends.map(nick => (
               <button
                 key={nick}
                 onClick={() => setSelectedFriend(selectedFriend === nick ? null : nick)}
-                className={`flex items-center gap-1.5 pl-1.5 pr-3 py-1 rounded-full text-[11px] font-[1000] transition-all shrink-0 ${selectedFriend === nick ? 'bg-blue-600 text-white shadow-sm' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}
+                className={`flex items-center gap-1.5 pl-1.5 pr-3 py-1 rounded-full text-[11px] font-[1000] transition-all shrink-0 ${selectedFriend === nick ? 'bg-violet-600 text-white shadow-sm' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}
               >
                 <img src={`${EXTERNAL_URLS.AVATAR_BASE}${nick}`} className="w-5 h-5 rounded-full bg-white" alt="" />
                 {nick}
@@ -683,7 +683,7 @@ function App() {
               <line x1="1" y1="18" x2="11" y2="18" />
             </svg>
             <h1 className="text-[26px] font-[1000] italic tracking-tighter shrink-0">
-              <span className="text-red-500">G</span><span className="text-blue-600">L</span><span className="text-slate-900">ove</span>
+              <span className="text-violet-600">G</span><span className="text-violet-400">L</span><span className="text-slate-900">ove</span>
             </h1>
           </div>
           {/* 모바일: ≡ 버튼(드로어) + GLove 텍스트(홈) 분리 */}
@@ -696,19 +696,19 @@ function App() {
               </svg>
             </button>
             <h1 className="text-[26px] font-[1000] italic tracking-tighter cursor-pointer shrink-0" onClick={goHome}>
-              <span className="text-red-500">G</span><span className="text-blue-600">L</span><span className="text-slate-900">ove</span>
+              <span className="text-violet-600">G</span><span className="text-violet-400">L</span><span className="text-slate-900">ove</span>
             </h1>
           </div>
           <div className="hidden md:flex gap-1.5 items-center px-4 border-l border-slate-100" onClick={(e) => e.stopPropagation()}>
             <span className="text-[9px] font-black text-slate-300 uppercase tracking-tighter mr-1">Dev:</span>
             {TEST_ACCOUNTS.map((acc, i) => (
-              <button key={i} onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleTestLogin(acc); }} className={`text-[10px] font-bold px-2 py-1 rounded border transition-all ${userData?.nickname === acc.nickname ? 'bg-blue-600 text-white border-blue-600' : 'bg-slate-50 text-slate-500 hover:text-blue-600 border-slate-100 hover:bg-white'}`}>{acc.nickname}</button>
+              <button key={i} onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleTestLogin(acc); }} className={`text-[10px] font-bold px-2 py-1 rounded border transition-all ${userData?.nickname === acc.nickname ? 'bg-violet-600 text-white border-violet-600' : 'bg-slate-50 text-slate-500 hover:text-violet-600 border-slate-100 hover:bg-white'}`}>{acc.nickname}</button>
             ))}
           </div>
         </div>
-        <div className="hidden md:flex flex-1 justify-center h-full items-center px-4"><div className="relative flex items-center bg-slate-50/80 rounded-full px-4 h-[42px] border border-slate-100 focus-within:border-blue-500 focus-within:bg-white transition-all w-full max-w-sm"><svg className="w-4 h-4 text-slate-400 mr-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg><input type="text" placeholder="검색어를 입력해 주세요." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="bg-transparent outline-none w-full text-[13px] font-bold text-slate-700" /></div></div>
+        <div className="hidden md:flex flex-1 justify-center h-full items-center px-4"><div className="relative flex items-center bg-slate-50/80 rounded-full px-4 h-[42px] border border-slate-100 focus-within:border-violet-500 focus-within:bg-white transition-all w-full max-w-sm"><svg className="w-4 h-4 text-slate-400 mr-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg><input type="text" placeholder="검색어를 입력해 주세요." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="bg-transparent outline-none w-full text-[13px] font-bold text-slate-700" /></div></div>
         {/* 🚀 데스크톱 우측 액션 — 모바일에서 숨김 */}
-        <div className="hidden md:flex items-center gap-4 ml-auto shrink-0">{isLoading ? <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div> : userData ? <>{!['giant_tree', 'glove', 'ranking'].includes(activeMenu) && <button onClick={() => setIsCreateOpen(true)} className="bg-blue-600 hover:bg-blue-700 text-white px-5 h-[40px] rounded-xl text-[13px] font-black shadow-sm">+ 새 글</button>}<NotificationBell currentUid={userData.uid} currentNickname={userData.nickname} onNavigate={(postId) => { const post = allRootPosts.find(p => p.id === postId); if (post) { setSelectedTopic(post); setActiveMenu('home'); } }} /><div className="flex items-center gap-3"><div className="w-[42px] h-[42px] rounded-full border-2 border-slate-100 overflow-hidden cursor-pointer bg-slate-50" onClick={() => setActiveMenu('mypage')}><img src={userData.avatarUrl || `https://api.dicebear.com/7.x/adventurer/svg?seed=${userData.nickname}`} alt="avatar" /></div><button onClick={handleLogout} className="text-[11px] font-black text-slate-300 hover:text-rose-500 transition-colors uppercase tracking-widest">Logout</button></div></> : <button onClick={handleLogin} className="flex items-center gap-2 bg-white border border-slate-200 hover:border-slate-900 px-5 h-[42px] rounded-xl text-[13px] font-black transition-all shadow-sm group"><svg className="w-4 h-4 group-hover:scale-110 transition-transform" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>구글 계정으로 시작하기</button>}</div>
+        <div className="hidden md:flex items-center gap-4 ml-auto shrink-0">{isLoading ? <div className="w-8 h-8 border-2 border-violet-600 border-t-transparent rounded-full animate-spin"></div> : userData ? <>{!['giant_tree', 'glove', 'ranking'].includes(activeMenu) && <button onClick={() => setIsCreateOpen(true)} className="bg-violet-600 hover:bg-violet-700 text-white px-5 h-[40px] rounded-xl text-[13px] font-black shadow-sm">+ 새 글</button>}<NotificationBell currentUid={userData.uid} currentNickname={userData.nickname} onNavigate={(postId) => { const post = allRootPosts.find(p => p.id === postId); if (post) { setSelectedTopic(post); setActiveMenu('home'); } }} /><div className="flex items-center gap-3"><div className="w-[42px] h-[42px] rounded-full border-2 border-slate-100 overflow-hidden cursor-pointer bg-slate-50" onClick={() => setActiveMenu('mypage')}><img src={userData.avatarUrl || `https://api.dicebear.com/7.x/adventurer/svg?seed=${userData.nickname}`} alt="avatar" /></div><button onClick={handleLogout} className="text-[11px] font-black text-slate-300 hover:text-rose-500 transition-colors uppercase tracking-widest">Logout</button></div></> : <button onClick={handleLogin} className="flex items-center gap-2 bg-white border border-slate-200 hover:border-slate-900 px-5 h-[42px] rounded-xl text-[13px] font-black transition-all shadow-sm group"><svg className="w-4 h-4 group-hover:scale-110 transition-transform" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>구글 계정으로 시작하기</button>}</div>
         {/* 🚀 모바일 우측 — 알림 + 내정보/로그인 버튼 */}
         <div className="flex md:hidden items-center gap-1.5 ml-auto shrink-0">
           {userData ? (
@@ -718,12 +718,12 @@ function App() {
                 currentNickname={userData.nickname}
                 onNavigate={(postId) => { const post = allRootPosts.find(p => p.id === postId); if (post) { setSelectedTopic(post); setActiveMenu('home'); } }}
               />
-              <button onClick={() => { setActiveMenu('mypage'); setSelectedTopic(null); setIsCreateOpen(false); }} className={`w-9 h-9 rounded-full overflow-hidden border-2 transition-all ${activeMenu === 'mypage' ? 'border-blue-400' : 'border-slate-200'}`}>
+              <button onClick={() => { setActiveMenu('mypage'); setSelectedTopic(null); setIsCreateOpen(false); }} className={`w-9 h-9 rounded-full overflow-hidden border-2 transition-all ${activeMenu === 'mypage' ? 'border-violet-400' : 'border-slate-200'}`}>
                 <img src={userData.avatarUrl || `https://api.dicebear.com/7.x/adventurer/svg?seed=${userData.nickname}`} alt="내정보" className="w-full h-full object-cover" />
               </button>
             </>
           ) : (
-            <button onClick={handleLogin} className="flex items-center gap-1.5 bg-blue-600 text-white px-3 h-8 rounded-xl text-[12px] font-black shadow-sm">
+            <button onClick={handleLogin} className="flex items-center gap-1.5 bg-violet-600 text-white px-3 h-8 rounded-xl text-[12px] font-black shadow-sm">
               <svg className="w-3.5 h-3.5" viewBox="0 0 24 24"><path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="currentColor" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="currentColor" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="currentColor" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
               로그인
             </button>
@@ -739,7 +739,7 @@ function App() {
           ) : null
         )}
         <div className={(selectedTopic || isCreateOpen) ? "w-full" : "w-full px-4"}>
-          <Suspense fallback={<div className="w-full flex items-center justify-center py-20"><div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div></div>}>
+          <Suspense fallback={<div className="w-full flex items-center justify-center py-20"><div className="w-6 h-6 border-2 border-violet-600 border-t-transparent rounded-full animate-spin"></div></div>}>
             {renderContent()}
           </Suspense>
         </div>
@@ -785,7 +785,7 @@ function App() {
       {/* 🚀 모바일 하단 탭바 — 텍스트 없음, 5탭, 중앙 새글 버튼 돌출 */}
       <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-white/95 backdrop-blur-md border-t border-slate-100 flex items-end h-16 pb-1 safe-area-inset-bottom">
         {/* 홈 */}
-        <button onClick={goHome} className={`flex-1 flex flex-col items-center justify-center h-full transition-colors ${activeMenu === 'home' && !selectedTopic && !isCreateOpen ? 'text-blue-600' : 'text-slate-400'}`}>
+        <button onClick={goHome} className={`flex-1 flex flex-col items-center justify-center h-full transition-colors ${activeMenu === 'home' && !selectedTopic && !isCreateOpen ? 'text-violet-600' : 'text-slate-400'}`}>
           {activeMenu === 'home' && !selectedTopic && !isCreateOpen ? (
             <svg className="w-[24px] h-[24px]" fill="currentColor" viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
           ) : (
@@ -793,7 +793,7 @@ function App() {
           )}
         </button>
         {/* 한컷 */}
-        <button onClick={() => { setActiveMenu('onecut'); setSelectedTopic(null); setIsCreateOpen(false); }} className={`flex-1 flex flex-col items-center justify-center h-full transition-colors ${activeMenu === 'onecut' && !selectedTopic && !isCreateOpen ? 'text-blue-600' : 'text-slate-400'}`}>
+        <button onClick={() => { setActiveMenu('onecut'); setSelectedTopic(null); setIsCreateOpen(false); }} className={`flex-1 flex flex-col items-center justify-center h-full transition-colors ${activeMenu === 'onecut' && !selectedTopic && !isCreateOpen ? 'text-violet-600' : 'text-slate-400'}`}>
           {activeMenu === 'onecut' && !selectedTopic && !isCreateOpen ? (
             <svg className="w-[24px] h-[24px]" fill="currentColor" viewBox="0 0 24 24"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>
           ) : (
@@ -805,14 +805,14 @@ function App() {
           onClick={() => { setActiveMenu('home'); setIsCreateOpen(true); setSelectedTopic(null); }}
           className="flex-1 flex flex-col items-center justify-start"
         >
-          <div className={`w-13 h-13 w-[52px] h-[52px] rounded-full flex items-center justify-center shadow-lg transition-all -mt-5 border-4 border-white ${isCreateOpen ? 'bg-blue-700 scale-95' : 'bg-blue-600'}`}>
+          <div className={`w-13 h-13 w-[52px] h-[52px] rounded-full flex items-center justify-center shadow-lg transition-all -mt-5 border-4 border-white ${isCreateOpen ? 'bg-violet-700 scale-95' : 'bg-violet-600'}`}>
             <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" strokeWidth="2.8" viewBox="0 0 24 24">
               <path strokeLinecap="round" d="M12 5v14M5 12h14"/>
             </svg>
           </div>
         </button>
         {/* 장갑 */}
-        <button onClick={() => { setActiveMenu('glove'); setSelectedTopic(null); setIsCreateOpen(false); }} className={`flex-1 flex flex-col items-center justify-center h-full transition-colors ${activeMenu === 'glove' && !selectedTopic && !isCreateOpen ? 'text-blue-600' : 'text-slate-400'}`}>
+        <button onClick={() => { setActiveMenu('glove'); setSelectedTopic(null); setIsCreateOpen(false); }} className={`flex-1 flex flex-col items-center justify-center h-full transition-colors ${activeMenu === 'glove' && !selectedTopic && !isCreateOpen ? 'text-violet-600' : 'text-slate-400'}`}>
           {activeMenu === 'glove' && !selectedTopic && !isCreateOpen ? (
             <svg className="w-[24px] h-[24px]" fill="currentColor" viewBox="0 0 24 24"><path d="M21 7.5C21 6.1 19.9 5 18.5 5S16 6.1 16 7.5V12h-.5V4.5C15.5 3.1 14.4 2 13 2s-2.5 1.1-2.5 2.5V12H10V5.5C10 4.1 8.9 3 7.5 3S5 4.1 5 5.5V13h-.5C3.7 13 3 13.7 3 14.5v1C3 18.6 5.4 21 8.5 21h6c2.8 0 5.1-1.9 5.8-4.5L21 11V7.5z"/></svg>
           ) : (
@@ -820,7 +820,7 @@ function App() {
           )}
         </button>
         {/* 랭킹 */}
-        <button onClick={() => { setActiveMenu('ranking'); setSelectedTopic(null); setIsCreateOpen(false); }} className={`flex-1 flex flex-col items-center justify-center h-full transition-colors ${activeMenu === 'ranking' && !selectedTopic && !isCreateOpen ? 'text-blue-600' : 'text-slate-400'}`}>
+        <button onClick={() => { setActiveMenu('ranking'); setSelectedTopic(null); setIsCreateOpen(false); }} className={`flex-1 flex flex-col items-center justify-center h-full transition-colors ${activeMenu === 'ranking' && !selectedTopic && !isCreateOpen ? 'text-violet-600' : 'text-slate-400'}`}>
           {activeMenu === 'ranking' && !selectedTopic && !isCreateOpen ? (
             <svg className="w-[24px] h-[24px]" fill="currentColor" viewBox="0 0 24 24"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zm4.24 16L12 15.45 7.77 18l1.12-4.81-3.73-3.23 4.92-.42L12 5l1.92 4.53 4.92.42-3.73 3.23L16.23 18z"/></svg>
           ) : (

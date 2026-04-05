@@ -1,7 +1,7 @@
 // src/hooks/useFirebaseListeners.ts — Firestore 실시간 리스너 및 인증 상태 관리 훅
 import { useState, useEffect } from 'react';
 import { db, auth } from '../firebase';
-import { onAuthStateChanged } from 'firebase/auth';
+import { onAuthStateChanged, getRedirectResult } from 'firebase/auth';
 import { collection, onSnapshot, doc, setDoc, updateDoc, increment, serverTimestamp, query, where, getDocs } from 'firebase/firestore';
 import type { Post, KanbuRoom, Community, UserData } from '../types';
 
@@ -21,6 +21,15 @@ export function useFirebaseListeners() {
   useEffect(() => {
     let unsubUsers: (() => void) | null = null;
     let unsubUserDoc: (() => void) | null = null;
+
+    // 🚀 iOS Safari signInWithRedirect 결과 처리
+    // Why: redirect 복귀 시 onAuthStateChanged보다 먼저 결과를 확인해야 iOS에서 로그인 누락 방지
+    getRedirectResult(auth).catch(err => {
+      // auth/popup-closed-by-user 등은 정상 케이스 — 무시
+      if ((err as { code?: string })?.code !== 'auth/popup-closed-by-user') {
+        console.warn('[getRedirectResult]', err);
+      }
+    });
 
     // 🚀 공개 컬렉션 구독 — 비로그인도 읽기 가능 (Firestore rules: allow read: if true)
     // posts, kanbu_rooms, communities는 인증 없이 바로 구독 시작
