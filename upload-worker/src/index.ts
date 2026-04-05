@@ -172,9 +172,9 @@ export default {
       });
     }
 
-    // 🔒 경로 보안: uploads/, promo/ 경로는 본인 UID 폴더만 허용
+    // 🔒 경로 보안: uploads/, promo/, avatars/ 경로는 본인 UID 폴더만 허용
     // Why: 타인의 파일을 덮어쓰는 공격 방지
-    if (filePath.startsWith('uploads/') || filePath.startsWith('promo/')) {
+    if (filePath.startsWith('uploads/') || filePath.startsWith('promo/') || filePath.startsWith('avatars/')) {
       const pathUid = filePath.split('/')[1];
       if (pathUid !== user.uid) {
         return new Response(JSON.stringify({ error: '본인 폴더에만 업로드할 수 있습니다.' }), {

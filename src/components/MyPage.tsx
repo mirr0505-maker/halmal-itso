@@ -149,7 +149,7 @@ const MyPage = ({
     if (file.size > 2 * 1024 * 1024) { alert('이미지가 너무 큽니다. 2MB 이하만 가능해요.'); return; }
     setIsUploading(true);
     try {
-      const fileName = `avatars/${userData.nickname}_${Date.now()}_${file.name.replace(/\s+/g, '_')}`;
+      const fileName = `avatars/${userData.uid}/${Date.now()}_${file.name.replace(/\s+/g, '_')}`;
       const avatarUrl = await uploadToR2(file, fileName);
       setEditData(prev => ({ ...prev, avatarUrl }));
     } catch (err: unknown) {

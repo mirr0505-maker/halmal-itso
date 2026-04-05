@@ -65,7 +65,7 @@ const MyProfileCard = ({ userData, uid, friendCount }: Props) => {
     }, 30000);
 
     try {
-      const fileName = `avatars/${userData.nickname}_${Date.now()}_${file.name.replace(/\s+/g, '_')}`;
+      const fileName = `avatars/${uid}/${Date.now()}_${file.name.replace(/\s+/g, '_')}`;
       const url = await uploadToR2(file, fileName);
       setEditData(prev => ({ ...prev, avatarUrl: url }));
 
