@@ -10,6 +10,7 @@ import GiantTreeDetail from './GiantTreeDetail';
 // 🚀 평판 등급 → 최대 전파 인원 매핑 (초기 개발 규모)
 export const MAX_SPREAD_BY_REPUTATION: Record<string, number> = {
   '확고':     100,
+  '매우 우호': 50,
   '우호':     30,
   '약간 우호': 10,
   '중립':     0,   // 중립은 전파 불가
@@ -30,6 +31,7 @@ const getGrowthStage = (current: number, max: number) => {
 // Why: 남용 방지. 기존 나무가 거대 나무(전파 완료)되어야 다음 나무 심기 가능.
 const MAX_ACTIVE_TREES: Record<string, number> = {
   '확고':     3,
+  '매우 우호': 3,
   '우호':     2,
   '약간 우호': 1,
   '중립':     0,

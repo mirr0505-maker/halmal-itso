@@ -80,7 +80,7 @@ export const getNextLevelExp = (exp: number): number => {
 /**
  * 🚀 다음 평판 등급 임계값 반환
  */
-const REPUTATION_THRESHOLDS = [300, 1000, 2000];
+const REPUTATION_THRESHOLDS = [300, 1000, 2000, 3000];
 export const getNextReputationThreshold = (score: number): number => {
   for (const t of REPUTATION_THRESHOLDS) {
     if (score < t) return t;
@@ -110,7 +110,8 @@ export const getReputationScore = (userData: { likes?: number; totalShares?: num
  * 평판 점수에 따른 등급 이름을 반환합니다.
  */
 export const getReputationLabel = (score: number): string => {
-  if (score >= 2000) return "확고";
+  if (score >= 3000) return "확고";
+  if (score >= 2000) return "매우 우호";
   if (score >= 1000) return "우호";
   if (score >= 300) return "약간 우호";
   return "중립";
@@ -120,7 +121,8 @@ export const getReputationLabel = (score: number): string => {
  * 평판 등급에 따른 배경 및 텍스트 색상 클래스를 반환합니다.
  */
 export const getReputationStyle = (score: number): string => {
-  if (score >= 2000) return "bg-purple-600 text-white shadow-purple-100"; // 확고: 보라
+  if (score >= 3000) return "bg-purple-600 text-white shadow-purple-100"; // 확고: 보라
+  if (score >= 2000) return "bg-violet-500 text-white shadow-violet-100"; // 매우 우호: 바이올렛
   if (score >= 1000) return "bg-emerald-500 text-white shadow-emerald-100"; // 우호: 녹색
   if (score >= 300) return "bg-emerald-50 text-emerald-600 border-emerald-100"; // 약간 우호: 연녹색
   return "bg-slate-100 text-slate-500 border-slate-200"; // 중립: 회색
@@ -157,7 +159,8 @@ export const calculateReputation = (
  * 다음 등급까지의 퍼센트(%)를 계산합니다.
  */
 export const getReputationProgress = (score: number): number => {
-  if (score >= 2000) return 100;
+  if (score >= 3000) return 100;
+  if (score >= 2000) return ((score - 2000) / 1000) * 100;
   if (score >= 1000) return ((score - 1000) / 1000) * 100;
   if (score >= 300) return ((score - 300) / 700) * 100;
   return (score / 300) * 100;
