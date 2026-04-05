@@ -25,9 +25,8 @@ interface AuthActionDeps {
   setActiveMenu: (m: MenuId) => void;
 }
 
-// 🚀 모바일 브라우저 감지 — iOS Safari는 signInWithPopup을 팝업 차단함 → signInWithRedirect 사용
-// 검색어: isMobileBrowser
-const isMobileBrowser = (): boolean => /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+// 🚀 모바일 브라우저 감지 (인앱 브라우저 판정용)
+// 로그인은 signInWithPopup 우선 → 팝업 차단 시 signInWithRedirect 폴백
 
 // 🚀 인앱 브라우저 감지 — 카카오톡/인스타그램/라인 등 WebView는 Google OAuth 차단됨
 const detectInAppBrowser = (): 'kakao' | 'instagram' | 'other' | null => {
@@ -68,14 +67,21 @@ export function useAuthActions({ userData, setUserData, setActiveMenu }: AuthAct
     }
     try {
       await setPersistence(auth, browserLocalPersistence);
-      if (isMobileBrowser()) {
-        // 🚀 모바일(iOS Safari 등): 팝업 차단 문제로 페이지 리디렉션 방식 사용
-        // 리디렉션 전에 현재 URL 저장 — 복귀 후 딥링크(공유 글, 거대나무) 복원에 사용
-        // 검색어: authRedirectUrl
-        sessionStorage.setItem('authRedirectUrl', window.location.href);
-        await signInWithRedirect(auth, googleProvider);
-      } else {
+      // 🚀 모든 환경에서 signInWithPopup 사용
+      // Why: signInWithRedirect는 iOS Safari ITP(쿠키 차단)로 인해 로그인 후 홈으로 돌아오는 버그 발생.
+      // signInWithPopup은 사용자 클릭 직후 호출하면 iOS Safari에서도 팝업 차단 안 됨.
+      // 딥링크 복원 불필요 (페이지 이동 없이 팝업으로 처리되므로 URL 유지).
+      try {
         await signInWithPopup(auth, googleProvider);
+      } catch (popupError: unknown) {
+        const code = (popupError as { code?: string })?.code;
+        // 팝업 차단된 경우에만 redirect 폴백 (구형 모바일 브라우저 대응)
+        if (code === 'auth/popup-blocked') {
+          sessionStorage.setItem('authRedirectUrl', window.location.href);
+          await signInWithRedirect(auth, googleProvider);
+        } else if (code !== 'auth/popup-closed-by-user' && code !== 'auth/cancelled-popup-request') {
+          throw popupError;
+        }
       }
     } catch (error: unknown) {
       console.error('로그인 에러:', error);
