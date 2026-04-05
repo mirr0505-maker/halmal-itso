@@ -34,12 +34,14 @@ interface Props {
   thanksballTotal?: number;
   allUsers?: Record<string, UserData>;
   onNavigateToPost?: (postId: string) => void; // 연계글에서 원본글로 이동
+  onAuthorClick?: (nickname: string) => void; // 🚀 공개프로필 이동
 }
 
 const RootPostCard = ({
-  post, totalComment, totalFormal, uniqueAgreeCount, uniqueDisagreeCount, isFriend, onToggleFriend, userData, friendCount, onDeleteSuccess, onLikeClick, currentNickname, onEdit, onBack, thanksballTotal, allUsers = {}, onNavigateToPost
+  post, totalComment, totalFormal, uniqueAgreeCount, uniqueDisagreeCount, isFriend, onToggleFriend, userData, friendCount, onDeleteSuccess, onLikeClick, currentNickname, onEdit, onBack, thanksballTotal, allUsers = {}, onNavigateToPost, onAuthorClick
 }: Props) => {
 
+  const [showPostMenu, setShowPostMenu] = useState(false);
   const isMyPost = post.author === currentNickname;
   const isLikedByMe = currentNickname && post.likedBy?.includes(currentNickname);
   const authorData = (post.author_id && allUsers[post.author_id]) || allUsers[`nickname_${post.author}`];
@@ -153,6 +155,20 @@ const RootPostCard = ({
                 <button onClick={handleDelete} className="text-[11px] font-bold text-slate-400 hover:text-rose-500 transition-colors">삭제</button>
               </>
             )}
+            {/* 🚀 ⋯ 메뉴 — 공개프로필 보기 + 신고하기 */}
+            <div className="relative">
+              <button onClick={() => setShowPostMenu(!showPostMenu)}
+                className="w-6 h-6 flex items-center justify-center text-slate-300 hover:text-slate-500 transition-colors rounded-full hover:bg-slate-100">
+                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>
+              </button>
+              {showPostMenu && (
+                <div className="absolute right-0 top-7 z-50 bg-white border border-slate-200 rounded-xl shadow-lg py-1 w-36 animate-in fade-in duration-150">
+                  <button onClick={() => { setShowPostMenu(false); onAuthorClick?.(post.author); }}
+                    className="w-full text-left px-3 py-2 text-[11px] font-bold text-slate-700 hover:bg-slate-50 transition-colors">공개프로필 보기</button>
+                  <button disabled className="w-full text-left px-3 py-2 text-[11px] font-bold text-slate-300 cursor-not-allowed">신고하기</button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
