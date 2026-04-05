@@ -63,8 +63,12 @@ const MyPromotion = ({ userData, currentLevel }: Props) => {
         <span className="text-[9px] font-bold text-slate-300">나를 PR하는 이미지</span>
       </div>
       <input type="file" accept="image/*" ref={fileRef} className="hidden" onChange={handleUpload} />
-      <div className="grid grid-cols-6 gap-2">
-        {SLOTS.map(slot => {
+      {(() => {
+        const topSlots = SLOTS.slice(0, 3);   // Lv1, Lv2, Lv4 — 항상 표시
+        const bottomSlots = SLOTS.slice(3);    // Lv6, Lv8, Lv10 — 하나라도 해금 시 펼침
+        const showBottom = bottomSlots.some(s => currentLevel >= s.lockLevel);
+
+        const renderSlot = (slot: typeof SLOTS[0]) => {
           const isLocked = currentLevel < slot.lockLevel;
           const imageUrl = promoImages[slot.index] || '';
           const isUploading = uploading === slot.index;
@@ -116,8 +120,26 @@ const MyPromotion = ({ userData, currentLevel }: Props) => {
               )}
             </div>
           );
-        })}
-      </div>
+        };
+
+        return (
+          <div className="flex flex-col gap-2">
+            {/* 윗줄: 3칸 (항상 표시) */}
+            <div className="grid grid-cols-3 gap-2">
+              {topSlots.map(renderSlot)}
+            </div>
+            {/* 아랫줄: 3칸 (Lv6 이상 해금 시 펼침) */}
+            {showBottom && (
+              <div className="grid grid-cols-3 gap-2 animate-in fade-in slide-in-from-top-2 duration-300">
+                {bottomSlots.map(renderSlot)}
+              </div>
+            )}
+            {!showBottom && (
+              <p className="text-[9px] font-bold text-slate-300 text-center py-1">Lv.6 달성 시 3칸 추가 해금</p>
+            )}
+          </div>
+        );
+      })()}
     </div>
   );
 };
