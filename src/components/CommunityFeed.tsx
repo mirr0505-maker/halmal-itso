@@ -5,6 +5,7 @@ import { db } from '../firebase';
 import { collection, query, where, orderBy, onSnapshot } from 'firebase/firestore';
 import type { CommunityPost, Community, UserData } from '../types';
 import { sanitizeHtml } from '../sanitize';
+import { calculateLevel } from '../utils';
 
 interface Props {
   currentUserData: UserData | null;
@@ -88,7 +89,7 @@ const CommunityFeed = ({ currentUserData, joinedCommunityIds, allUsers }: Props)
               <div className="flex items-center gap-2">
                 <img src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${post.author}`} className="w-5 h-5 rounded-full bg-slate-50" alt="" />
                 <span className="text-[11px] font-bold text-slate-500">{post.author}</span>
-                {authorData && <span className="text-[10px] font-bold text-slate-300">Lv{authorData.level || 1}</span>}
+                {authorData && <span className="text-[10px] font-bold text-slate-300">Lv{calculateLevel(authorData?.exp || 0)}</span>}
               </div>
               <div className="flex items-center gap-3 text-[11px] font-black text-slate-300">
                 <span className="flex items-center gap-1">

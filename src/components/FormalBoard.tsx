@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { db } from '../firebase';
 import { doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import type { Post, UserData } from '../types';
+import { calculateLevel } from '../utils';
 
 interface Props {
   agreePosts: Post[];
@@ -28,7 +29,7 @@ const FormalBoard = ({ agreePosts, disagreePosts, onPostClick, currentUserData, 
   const renderAuthorInfo = (post: Post) => {
     const isMe = isMyPost(post.author);
     const info = isMe && currentUserData ? {
-      level: currentUserData.level || 1,
+      level: calculateLevel(currentUserData?.exp || 0),
       friendCount: currentUserFriends?.length || 0,
       totalLikes: currentUserData.likes || 0
     } : (post.authorInfo || { level: 1, friendCount: 2, totalLikes: 123456 });

@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { db } from '../firebase';
 import { doc, deleteDoc, updateDoc, increment } from 'firebase/firestore';
 import type { Post, UserData } from '../types';
-import { formatKoreanNumber, getReputationLabel, getReputationScore } from '../utils';
+import { formatKoreanNumber, getReputationLabel, getReputationScore, calculateLevel } from '../utils';
 import { sanitizeHtml, extractText } from '../sanitize';
 
 interface Props {
@@ -37,7 +37,7 @@ const PostCard = ({
   // 🚀 실시간 사용자 데이터 바인딩
   const authorData = (post.author_id && allUsers[post.author_id]) || allUsers[`nickname_${post.author}`];
   const realFollowers = followerCounts[post.author] || 0;
-  const displayLevel = authorData ? authorData.level : (post.authorInfo?.level || 1);
+  const displayLevel = calculateLevel(authorData?.exp || 0);
   const displayLikes = authorData ? authorData.likes : (post.authorInfo?.totalLikes || 0);
 
   const handleDelete = async (e: React.MouseEvent) => {

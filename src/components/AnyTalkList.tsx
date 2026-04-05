@@ -1,7 +1,7 @@
 // src/components/AnyTalkList.tsx
 import React, { useState } from 'react';
 import type { Post, UserData } from '../types';
-import { formatKoreanNumber, getReputationLabel, getReputationScore, getCategoryDisplayName } from '../utils';
+import { formatKoreanNumber, getReputationLabel, getReputationScore, getCategoryDisplayName, calculateLevel } from '../utils';
 import { sanitizeHtml, extractText, extractFirstImage } from '../sanitize';
 
 interface Props {
@@ -87,12 +87,12 @@ const AnyTalkList = ({
           // 🚀 실시간 사용자 데이터 바인딩
           const authorData = (post.author_id && allUsers[post.author_id]) || allUsers[`nickname_${post.author}`];
           const realFollowers = followerCounts[post.author] || 0;
-          const displayLevel = authorData ? authorData.level : (post.authorInfo?.level || 1);
+          const displayLevel = calculateLevel(authorData?.exp || 0);
           const displayLikes = authorData ? (authorData.likes || 0) : (post.authorInfo?.totalLikes || 0);
 
           const goldHeartCount = (post.likedBy || []).filter(nickname => {
             const ud = allUsers[`nickname_${nickname}`];
-            return ud && (ud.level || 1) >= 5;
+            return ud && calculateLevel(ud.exp || 0) >= 5;
           }).length;
 
           const DARK_BG = new Set(['#1e293b', '#7c3aed']);
@@ -241,7 +241,7 @@ const AnyTalkList = ({
                     const isLikedByMe = currentNickname && post.likedBy?.includes(currentNickname);
                     const authorData = (post.author_id && allUsers[post.author_id]) || allUsers[`nickname_${post.author}`];
                     const realFollowers = followerCounts[post.author] || 0;
-                    const displayLevel = authorData ? authorData.level : (post.authorInfo?.level || 1);
+                    const displayLevel = calculateLevel(authorData?.exp || 0);
                     const displayLikes = authorData ? authorData.likes : (post.authorInfo?.totalLikes || 0);
                     return (
                       <div

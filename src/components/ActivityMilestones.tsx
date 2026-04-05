@@ -1,6 +1,6 @@
 import type { UserData } from '../types';
 // src/components/ActivityMilestones.tsx
-import { getReputationProgress, getReputationStyle, getLevelStyle, getReputationLabel, getReputationScore } from '../utils';
+import { getReputationProgress, getReputationStyle, getLevelStyle, getReputationLabel, getReputationScore, calculateLevel } from '../utils';
 
 interface ActivityMilestonesProps {
   userData: UserData;
@@ -19,7 +19,7 @@ const ActivityMilestones = ({ userData, rootCount, formalCount, commentCount, to
 
   // 🚀 스타일 로직 연동
   const repStyleClass = getReputationStyle(repScore);
-  const levelStyleClass = getLevelStyle(userData.level || 1);
+  const levelStyleClass = getLevelStyle(calculateLevel(userData?.exp || 0));
 
   return (
     <section className="mb-10">
@@ -32,7 +32,7 @@ const ActivityMilestones = ({ userData, rootCount, formalCount, commentCount, to
           {/* 경험치 영역 */}
           <div className="flex items-center gap-6">
             <div className={`w-12 h-16 ${levelStyleClass} rounded-lg flex items-center justify-center font-[1000] text-base shadow-lg relative overflow-hidden shrink-0`}>
-              Lv {userData.level}
+              Lv {calculateLevel(userData?.exp || 0)}
               <div className="absolute -bottom-2 -right-2 w-6 h-6 bg-white/20 rotate-45" />
             </div>
             <div className="flex-1 flex flex-col gap-2">

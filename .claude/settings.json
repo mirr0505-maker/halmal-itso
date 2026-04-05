@@ -3,7 +3,9 @@
     "allow": [
       "Bash(grep -rn \"topic_\\\\`\\\\|topic_\\\\${\" e:/halmal-itso/src/)",
       "Bash(ls e:/halmal-itso/*.json)",
-      "Bash(ls e:/halmal-itso/functions/*.json)"
+      "Bash(ls e:/halmal-itso/functions/*.json)",
+      "Bash(firebase functions:list)",
+      "Bash(ls e:/halmal-itso/src/components/Create*.tsx)"
     ]
   }
 }

@@ -7,6 +7,7 @@ import TiptapEditor from './TiptapEditor';
 import CommunityAdminPanel from './CommunityAdminPanel';
 import { sanitizeHtml } from '../sanitize';
 import { uploadToR2 } from '../uploadToR2';
+import { calculateLevel } from '../utils';
 
 // 🚀 다섯 손가락 Phase 2 — 손가락 배지 정의
 const FINGER_META: Record<FingerRole, { emoji: string; label: string; colorCls: string }> = {
@@ -473,7 +474,7 @@ const CommunityView = ({ community, currentUserData, allUsers, onBack, onClosed 
                     <div className="flex items-center gap-2">
                       <img src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${post.author}`} className="w-5 h-5 rounded-full bg-slate-50" alt="" />
                       <span className="text-[11px] font-bold text-slate-500">{post.author}</span>
-                      {authorData && <span className="text-[10px] font-bold text-slate-300">Lv{authorData.level || 1}</span>}
+                      {authorData && <span className="text-[10px] font-bold text-slate-300">Lv{calculateLevel(authorData?.exp || 0)}</span>}
                       <span className="text-[10px] font-bold text-slate-300">{formatTime(post.createdAt)}</span>
                     </div>
                     <div className="flex items-center gap-2 text-[11px] font-black text-slate-300">

@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from 'react';
 import { db } from '../firebase';
 import { collection, onSnapshot, query, orderBy, limit, doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import type { KanbuRoom, KanbuChat, Post, UserData } from '../types';
+import { calculateLevel } from '../utils';
 
 interface Props {
   room: KanbuRoom;
@@ -67,7 +68,7 @@ const KanbuRoomView = ({ room, roomPosts, onBack, currentUserData }: Props) => {
       rootId: null,
       side: 'left',
       type: 'comment',
-      authorInfo: { level: currentUserData.level, friendCount: 0, totalLikes: currentUserData.likes },
+      authorInfo: { level: calculateLevel(currentUserData?.exp || 0), friendCount: 0, totalLikes: currentUserData.likes },
       createdAt: serverTimestamp(),
       likes: 0,
       dislikes: 0,

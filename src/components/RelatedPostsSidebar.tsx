@@ -1,6 +1,6 @@
 // src/components/RelatedPostsSidebar.tsx — 게시글 상세 우측 사이드바: 같은 카테고리 관련 글 목록
 import type { Post, UserData } from '../types';
-import { formatKoreanNumber, getReputationLabel, getReputationScore, getCategoryDisplayName } from '../utils';
+import { formatKoreanNumber, getReputationLabel, getReputationScore, getCategoryDisplayName, calculateLevel } from '../utils';
 import { sanitizeHtml, extractFirstImage } from '../sanitize';
 
 interface Props {
@@ -39,13 +39,13 @@ const RelatedPostsSidebar = ({
         {relatedPosts.map((topic) => {
           const topicImage = topic.imageUrl || extractFirstImage(topic.content);
           const topicAuthorData = (topic.author_id && allUsers[topic.author_id]) || allUsers[`nickname_${topic.author}`];
-          const topicLevel = topicAuthorData ? topicAuthorData.level : (topic.authorInfo?.level || 1);
+          const topicLevel = calculateLevel(topicAuthorData?.exp || 0);
           const topicLikes = topicAuthorData ? (topicAuthorData.likes || 0) : (topic.authorInfo?.totalLikes || 0);
           const topicFollowers = followerCounts[topic.author] || 0;
           const isLiked = currentNickname && topic.likedBy?.includes(currentNickname);
           const goldStarCount = (topic.likedBy || []).filter(nick => {
             const ud = allUsers[`nickname_${nick}`];
-            return ud && (ud.level || 1) >= 5;
+            return ud && calculateLevel(ud.exp || 0) >= 5;
           }).length;
 
           return (

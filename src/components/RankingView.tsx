@@ -3,7 +3,7 @@
 // viewMode: top20(Hero 1-3 + compact 4-20) | all(전체 compact)
 import { useState } from 'react';
 import type { Post, UserData } from '../types';
-import { getCategoryDisplayName, formatKoreanNumber } from '../utils';
+import { getCategoryDisplayName, formatKoreanNumber, calculateLevel } from '../utils';
 
 interface Props {
   allRootPosts: Post[];
@@ -67,8 +67,8 @@ const RankingView = ({ allRootPosts, allUsers, onPostClick }: Props) => {
   type UserEntry = { nickname: string; avatarUrl: string; level: number; value: number };
   const getCurrentUserList = (): UserEntry[] => {
     const avatarOf = (nick: string) => allUsers[`nickname_${nick}`]?.avatarUrl || `https://api.dicebear.com/7.x/adventurer/svg?seed=${nick}`;
-    const levelOf = (nick: string) => allUsers[`nickname_${nick}`]?.level || 1;
-    if (mainTab === 'likes') return likeUserRanking.map(u => ({ nickname: u.nickname || '', avatarUrl: u.avatarUrl || `https://api.dicebear.com/7.x/adventurer/svg?seed=${u.nickname}`, level: u.level || 1, value: u.likes || 0 }));
+    const levelOf = (nick: string) => calculateLevel(allUsers[`nickname_${nick}`]?.exp || 0);
+    if (mainTab === 'likes') return likeUserRanking.map(u => ({ nickname: u.nickname || '', avatarUrl: u.avatarUrl || `https://api.dicebear.com/7.x/adventurer/svg?seed=${u.nickname}`, level: calculateLevel(u.exp || 0), value: u.likes || 0 }));
     if (mainTab === 'thanksball') return thanksballUserRanking.map(([n, v]) => ({ nickname: n, avatarUrl: avatarOf(n), level: levelOf(n), value: v }));
     if (mainTab === 'views')  return viewUserRanking.map(([n, v]) => ({ nickname: n, avatarUrl: avatarOf(n), level: levelOf(n), value: v }));
     return shareUserRanking.map(([n, v]) => ({ nickname: n, avatarUrl: avatarOf(n), level: levelOf(n), value: v }));

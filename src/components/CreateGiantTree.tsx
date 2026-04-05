@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { db } from '../firebase';
 import { collection, doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import type { UserData } from '../types';
-import { getReputationLabel, getReputationScore } from '../utils';
+import { getReputationLabel, getReputationScore, calculateLevel } from '../utils';
 import { MAX_SPREAD_BY_REPUTATION } from './GiantTreeView';
 
 interface Props {
@@ -35,7 +35,7 @@ const CreateGiantTree = ({ currentNickname, currentUserData, onBack, onCreated }
         content: content.trim(),
         author: currentNickname,
         author_id: currentUserData.uid || '',
-        authorLevel: currentUserData.level || 1,
+        authorLevel: calculateLevel(currentUserData?.exp || 0),
         authorReputation: reputation,
         maxSpread,
         totalNodes: 0,

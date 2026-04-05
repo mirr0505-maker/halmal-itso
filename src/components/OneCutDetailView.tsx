@@ -1,7 +1,7 @@
 // src/components/OneCutDetailView.tsx — 한컷 상세 뷰 (마법 수정 구슬 레이아웃 기반)
 import { useState, useEffect, useRef } from 'react';
 import type { Post, UserData } from '../types';
-import { formatKoreanNumber, getReputationLabel, getReputationScore } from '../utils';
+import { formatKoreanNumber, getReputationLabel, getReputationScore, calculateLevel } from '../utils';
 import OneCutListSidebar from './OneCutListSidebar';
 import ThanksballModal from './ThanksballModal';
 import { db } from '../firebase';
@@ -53,7 +53,7 @@ const OneCutDetailView = ({
 
   const authorData = (rootPost.author_id && allUsers[rootPost.author_id]) || allUsers[`nickname_${rootPost.author}`];
   const realFollowers = followerCounts[rootPost.author] || 0;
-  const displayLevel = authorData ? authorData.level : (rootPost.authorInfo?.level || 1);
+  const displayLevel = calculateLevel(authorData?.exp || 0);
   const displayLikes = authorData ? authorData.likes : (rootPost.authorInfo?.totalLikes || 0);
   const isLikedByMe = currentNickname && rootPost.likedBy?.includes(currentNickname);
   const isMyPost = !!currentNickname && rootPost.author === currentNickname;
@@ -349,7 +349,7 @@ const OneCutDetailView = ({
                   const isPinned = comment.id === pinnedCommentId;
                   const isLiked = !!(currentNickname && (comment.likedBy || []).includes(currentNickname));
                   const commentAuthorData = (comment.author_id && allUsers[comment.author_id]) || allUsers[`nickname_${comment.author}`];
-                  const commentLevel = commentAuthorData ? commentAuthorData.level : (comment.authorInfo?.level || 1);
+                  const commentLevel = calculateLevel(commentAuthorData?.exp || 0);
                   const commentLikes = commentAuthorData ? commentAuthorData.likes : (comment.authorInfo?.totalLikes || 0);
                   const commentFollowers = followerCounts[comment.author] || 0;
                   const isMyComment = comment.author === currentNickname;

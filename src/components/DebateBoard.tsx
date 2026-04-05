@@ -6,7 +6,7 @@ import type { Post, UserData } from '../types';
 import { CATEGORY_RULES } from './DiscussionView';
 import { db } from '../firebase';
 import { doc, updateDoc, deleteDoc, increment, collection, query, where, onSnapshot } from 'firebase/firestore';
-import { formatKoreanNumber, getReputationLabel, getReputationScore } from '../utils';
+import { formatKoreanNumber, getReputationLabel, getReputationScore, calculateLevel } from '../utils';
 import { uploadToR2 } from '../uploadToR2';
 
 interface Props {
@@ -264,7 +264,7 @@ const DebateBoard = ({
             const isPinned = post.id === pinnedCommentId;
             const isLiked = currentNickname && (post.likedBy || []).includes(currentNickname);
             const authorData = (post.author_id && allUsers[post.author_id]) || allUsers[`nickname_${post.author}`];
-            const displayLevel = authorData ? authorData.level : (post.authorInfo?.level || 1);
+            const displayLevel = calculateLevel(authorData?.exp || 0);
             const displayLikes = authorData ? authorData.likes : (post.authorInfo?.totalLikes || 0);
             const realFollowers = followerCounts[post.author] || 0;
             return (

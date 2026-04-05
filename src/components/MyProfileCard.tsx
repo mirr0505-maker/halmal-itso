@@ -1,12 +1,14 @@
 // src/components/MyProfileCard.tsx — 마이페이지 프로필 카드 (아바타·닉네임·레벨·통계)
 import React, { useState, useRef, useEffect } from 'react';
 import ProfileEditForm from './ProfileEditForm';
-import { db } from '../firebase'; // storage 임포트 제거
+import { db } from '../firebase';
 import { uploadToR2 } from '../uploadToR2';
 import { doc, updateDoc } from 'firebase/firestore';
+import { calculateLevel } from '../utils';
 
 interface UserData {
   level: number;
+  exp?: number;
   likes: number;
   bio: string;
   nickname: string;
@@ -31,7 +33,8 @@ const MyProfileCard = ({ userData, uid, friendCount }: Props) => {
     avatarUrl: userData.avatarUrl
   });
 
-  const calculatedLevel = Math.max(1, Math.min(friendCount, 10));
+  // 🚀 레벨: EXP 기반 프론트 계산 (DB에 level 저장 안 함)
+  const calculatedLevel = calculateLevel(userData.exp || 0);
 
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
@@ -86,7 +89,6 @@ const MyProfileCard = ({ userData, uid, friendCount }: Props) => {
         nickname: editData.nickname,
         bio: editData.bio,
         avatarUrl: editData.avatarUrl,
-        level: calculatedLevel
       });
       setIsEditing(false);
     } catch (e) { 

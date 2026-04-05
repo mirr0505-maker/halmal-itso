@@ -8,7 +8,7 @@ import ThanksballModal from './ThanksballModal';
 import type { Post, UserData } from '../types';
 import { db } from '../firebase';
 import { doc, updateDoc, deleteDoc, increment } from 'firebase/firestore';
-import { formatKoreanNumber, getReputationLabel, getReputationScore } from '../utils';
+import { formatKoreanNumber, getReputationLabel, getReputationScore, calculateLevel } from '../utils';
 
 interface Props {
   allChildPosts: Post[];
@@ -145,7 +145,7 @@ const OneCutCommentBoard = ({
           const isLiked = !!(currentNickname && (post.likedBy || []).includes(currentNickname));
           const replies = getReplies(post.id);
           const postAuthorData = (post.author_id && allUsers[post.author_id]) || allUsers[`nickname_${post.author}`];
-          const displayLevel = postAuthorData ? postAuthorData.level : (post.authorInfo?.level || 1);
+          const displayLevel = calculateLevel(postAuthorData?.exp || 0);
           const displayLikes = postAuthorData ? (postAuthorData.likes || 0) : (post.authorInfo?.totalLikes || 0);
           const realFollowers = followerCounts?.[post.author] || 0;
 
@@ -301,7 +301,7 @@ const OneCutCommentBoard = ({
                   {replies.map(reply => {
                     const isReplyLiked = !!(currentNickname && (reply.likedBy || []).includes(currentNickname));
                     const replyAuthorData = (reply.author_id && allUsers[reply.author_id]) || allUsers[`nickname_${reply.author}`];
-                    const replyLevel = replyAuthorData ? replyAuthorData.level : (reply.authorInfo?.level || 1);
+                    const replyLevel = calculateLevel(replyAuthorData?.exp || 0);
                     return (
                       <div key={reply.id} className="bg-white rounded-xl border border-slate-200 px-3 py-2">
                         <div className="flex items-center justify-between mb-1">

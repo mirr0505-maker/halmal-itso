@@ -4,7 +4,7 @@ import { db } from '../firebase';
 import { collection, query, onSnapshot, doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { auth } from '../firebase';
 import type { Post, UserData } from '../types';
-import { getReputationLabel, getReputationScore, formatKoreanNumber } from '../utils';
+import { getReputationLabel, getReputationScore, formatKoreanNumber, calculateLevel } from '../utils';
 import { sanitizeHtml } from '../sanitize';
 
 interface Props {
@@ -28,7 +28,7 @@ const PostDetailModal = ({ post, onClose, currentNickname, onLikeClick, isFriend
   // 🚀 실시간 데이터 바인딩
   const authorData = (post.author_id && allUsers[post.author_id]) || allUsers[`nickname_${post.author}`];
   const realFollowers = followerCounts[post.author] || 0;
-  const displayLevel = authorData ? authorData.level : (post.authorInfo?.level || 1);
+  const displayLevel = calculateLevel(authorData?.exp || 0);
   const displayLikes = authorData ? authorData.likes : (post.authorInfo?.totalLikes || 0);
 
   useEffect(() => {

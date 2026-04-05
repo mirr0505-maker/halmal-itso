@@ -1,6 +1,6 @@
 // src/components/ActivityStats.tsx
 import type { UserData } from '../types';
-import { getReputationLabel, getReputationScore } from '../utils';
+import { getReputationLabel, getReputationScore, calculateLevel } from '../utils';
 
 // 통계 항목 내부 타입 — 선택적 플래그로 스타일 분기
 interface StatItem {
@@ -28,7 +28,7 @@ const ActivityStats = ({ userData, rootCount, totalThanksball = 0, joinedGloveCo
   const ballBalance = userData.ballBalance || 0;
 
   const statItems: StatItem[] = [
-    { label: '레벨', value: userData.level, emoji: '🐥' },
+    { label: '레벨', value: calculateLevel(userData?.exp || 0), emoji: '🐥' },
     { label: '평판', value: reputationLabel, isHighlight: true },
     { label: '게시글', value: rootCount, isUnderline: true },
     { label: '활동지수', value: userData.likes || 0, isUnderline: true },

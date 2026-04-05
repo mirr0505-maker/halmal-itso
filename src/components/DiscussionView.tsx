@@ -25,6 +25,7 @@ const CATEGORY_COMMENT_MAP = {
   '유배·귀양지':         CommentExile,
 } as unknown as Record<string, React.ComponentType<Record<string, unknown>>>;
 import RelatedPostsSidebar from './RelatedPostsSidebar';
+import { calculateLevel } from '../utils';
 
 interface Props {
   rootPost: Post;
@@ -112,7 +113,7 @@ const DiscussionView = ({
 
   const authorData = (rootPost.author_id && allUsers[rootPost.author_id]) || allUsers[`nickname_${rootPost.author}`];
   const realFollowers = followerCounts[rootPost.author] || 0;
-  const displayLevel = authorData ? authorData.level : (rootPost.authorInfo?.level || 1);
+  const displayLevel = calculateLevel(authorData?.exp || 0);
   const displayLikes = authorData ? authorData.likes : (rootPost.authorInfo?.totalLikes || 0);
 
   return (

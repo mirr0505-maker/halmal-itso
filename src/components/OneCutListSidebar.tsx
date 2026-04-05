@@ -1,6 +1,6 @@
 // src/components/OneCutListSidebar.tsx — 한컷 상세 화면 우측 사이드바: 다른 한컷 목록
 import type { Post, UserData } from '../types';
-import { formatKoreanNumber, getReputationLabel, getReputationScore } from '../utils';
+import { formatKoreanNumber, getReputationLabel, getReputationScore, calculateLevel } from '../utils';
 
 interface Props {
   oneCuts: Post[];
@@ -32,7 +32,7 @@ const OneCutListSidebar = ({ oneCuts, allPosts = [], onOneCutClick, commentCount
 
         {oneCuts.slice(0, 20).map((topic) => {
           const tAuthor = (topic.author_id && allUsers[topic.author_id]) || allUsers[`nickname_${topic.author}`];
-          const tLevel = tAuthor ? tAuthor.level : (topic.authorInfo?.level || 1);
+          const tLevel = calculateLevel(tAuthor?.exp || 0);
           const tLikes = tAuthor ? (tAuthor.likes || 0) : (topic.authorInfo?.totalLikes || 0);
           const tFollowers = followerCounts[topic.author] || 0;
           const tComments = commentCounts[topic.id] || 0;
