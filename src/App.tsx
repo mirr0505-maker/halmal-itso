@@ -48,6 +48,7 @@ import CategoryHeader from './components/CategoryHeader';
 import { TEST_ACCOUNTS, MENU_MESSAGES, POST_FILTER, FRIENDS_MENU_ALLOWED_NICKNAMES, EXTERNAL_URLS } from './constants';
 // 조건부 렌더링 컴포넌트 — lazy load (청크 분리)
 const MyPage = lazy(() => import('./components/MyPage'));
+const PublicProfile = lazy(() => import('./components/PublicProfile'));
 const PostDetailModal = lazy(() => import('./components/PostDetailModal'));
 const DiscussionView = lazy(() => import('./components/DiscussionView'));
 const OneCutDetailView = lazy(() => import('./components/OneCutDetailView'));
@@ -122,6 +123,8 @@ function App() {
   const [isCreateCommunityOpen, setIsCreateCommunityOpen] = useState(false);
   const [selectedFriend, setSelectedFriend] = useState<string | null>(null);
   const [viewingAuthor, setViewingAuthor] = useState<string | null>(null);
+  // 🚀 공개 프로필: 아바타 클릭 시 PublicProfile 표시
+  const [publicProfileNick, setPublicProfileNick] = useState<string | null>(null);
 
   // 🚀 URL 공유 링크 처리: ?post=글ID 로 직접 접근 시 해당 글 자동 오픈
   // - lazy 초기화로 앱 마운트 시 딱 한 번만 URL 파라미터를 읽음
@@ -178,7 +181,7 @@ function App() {
   }, [pendingTreeId]);
 
   useEffect(() => { if (replyTarget) { setSelectedType('comment'); setNewTitle(""); } }, [replyTarget]);
-  useEffect(() => { setSelectedFriend(null); setViewingAuthor(null); }, [activeMenu, activeTab]);
+  useEffect(() => { setSelectedFriend(null); setViewingAuthor(null); setPublicProfileNick(null); }, [activeMenu, activeTab]);
   // 🚀 장갑 메뉴 이탈 시 커뮤니티 선택 초기화
   useEffect(() => { if (activeMenu !== 'glove') { setSelectedCommunity(null); } }, [activeMenu]);
 
@@ -328,6 +331,22 @@ function App() {
       return <CreatePostBox userData={userData!} editingPost={editingPost} activeMenu={resolvedKey} menuMessages={MENU_MESSAGES} onSubmit={handlePostSubmit} onClose={() => { setIsCreateOpen(false); setEditingPost(null); setCreateMenuKey(null); }} />;
     }
     
+    // 🚀 공개 프로필 — 아바타 클릭 시 표시
+    if (publicProfileNick) {
+      return <PublicProfile
+        targetNickname={publicProfileNick}
+        allUsers={allUsers}
+        allRootPosts={allRootPosts}
+        commentCounts={commentCounts}
+        followerCounts={followerCounts}
+        currentNickname={userData?.nickname}
+        friends={friends}
+        onToggleFriend={toggleFriend}
+        onPostClick={(post) => { setPublicProfileNick(null); handleViewPost(post); }}
+        onClose={() => setPublicProfileNick(null)}
+      />;
+    }
+
     if (activeMenu === 'mypage') {
       if (userData) {
         const userPosts = allRootPosts.filter(p => p.author_id === userData.uid || p.author === userData.nickname);
@@ -638,7 +657,7 @@ function App() {
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
             </button>
           </div>
-          <AnyTalkList posts={authorPosts} onTopicClick={handleViewPost} onLikeClick={handleLike} commentCounts={commentCounts} currentNickname={userData?.nickname} currentUserData={userData} allUsers={allUsers} followerCounts={followerCounts} tab={activeTab} onAuthorClick={setViewingAuthor} onShareCount={handleShareCount} />
+          <AnyTalkList posts={authorPosts} onTopicClick={handleViewPost} onLikeClick={handleLike} commentCounts={commentCounts} currentNickname={userData?.nickname} currentUserData={userData} allUsers={allUsers} followerCounts={followerCounts} tab={activeTab} onAuthorClick={setPublicProfileNick} onShareCount={handleShareCount} />
         </div>
       );
     }
@@ -666,7 +685,7 @@ function App() {
             ))}
           </div>
         )}
-        <AnyTalkList posts={searchedPosts} onTopicClick={handleViewPost} onLikeClick={handleLike} commentCounts={commentCounts} currentNickname={userData?.nickname} currentUserData={userData} allUsers={allUsers} followerCounts={followerCounts} tab={activeTab} onAuthorClick={setViewingAuthor} onShareCount={handleShareCount} oneCutPosts={onecutTabPosts} onOneCutMoreClick={() => setActiveMenu('onecut')} />
+        <AnyTalkList posts={searchedPosts} onTopicClick={handleViewPost} onLikeClick={handleLike} commentCounts={commentCounts} currentNickname={userData?.nickname} currentUserData={userData} allUsers={allUsers} followerCounts={followerCounts} tab={activeTab} onAuthorClick={setPublicProfileNick} onShareCount={handleShareCount} oneCutPosts={onecutTabPosts} onOneCutMoreClick={() => setActiveMenu('onecut')} />
       </div>
     );
   };
@@ -699,7 +718,7 @@ function App() {
         </div>
         <div className="hidden md:flex flex-1 justify-center h-full items-center px-4"><div className="relative flex items-center bg-slate-50/80 rounded-full px-4 h-[42px] border border-slate-100 focus-within:border-violet-500 focus-within:bg-white transition-all w-full max-w-sm"><svg className="w-4 h-4 text-slate-400 mr-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg><input type="text" placeholder="검색어를 입력해 주세요." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="bg-transparent outline-none w-full text-[13px] font-bold text-slate-700" /></div></div>
         {/* 🚀 데스크톱 우측 액션 — 모바일에서 숨김 */}
-        <div className="hidden md:flex items-center gap-4 ml-auto shrink-0">{isLoading ? <div className="w-8 h-8 border-2 border-violet-600 border-t-transparent rounded-full animate-spin"></div> : userData ? <>{!['giant_tree', 'glove', 'ranking'].includes(activeMenu) && <button onClick={() => setIsCreateOpen(true)} className="bg-violet-600 hover:bg-violet-700 text-white px-5 h-[40px] rounded-xl text-[13px] font-black shadow-sm">+ 새 글</button>}<NotificationBell currentUid={userData.uid} currentNickname={userData.nickname} onNavigate={(postId) => { const post = allRootPosts.find(p => p.id === postId); if (post) { setSelectedTopic(post); setActiveMenu('home'); } }} /><div className="flex items-center gap-3"><div className="w-[42px] h-[42px] rounded-full border-2 border-slate-100 overflow-hidden cursor-pointer bg-slate-50" onClick={() => setActiveMenu('mypage')}><img src={userData.avatarUrl || `https://api.dicebear.com/7.x/adventurer/svg?seed=${userData.nickname}`} alt="avatar" /></div><button onClick={handleLogout} className="text-[11px] font-black text-slate-300 hover:text-rose-500 transition-colors uppercase tracking-widest">Logout</button></div></> : <button onClick={handleLogin} className="flex items-center gap-2 bg-white border border-slate-200 hover:border-slate-900 px-5 h-[42px] rounded-xl text-[13px] font-black transition-all shadow-sm group"><svg className="w-4 h-4 group-hover:scale-110 transition-transform" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>구글 계정으로 시작하기</button>}</div>
+        <div className="hidden md:flex items-center gap-4 ml-auto shrink-0">{isLoading ? <div className="w-8 h-8 border-2 border-violet-600 border-t-transparent rounded-full animate-spin"></div> : userData ? <>{!['giant_tree', 'glove', 'ranking'].includes(activeMenu) && <button onClick={() => setIsCreateOpen(true)} className="bg-violet-600 hover:bg-violet-700 text-white px-5 h-[40px] rounded-xl text-[13px] font-black shadow-sm">+ 새 글</button>}<NotificationBell currentUid={userData.uid} currentNickname={userData.nickname} onNavigate={(postId) => { const post = allRootPosts.find(p => p.id === postId); if (post) { setSelectedTopic(post); setActiveMenu('home'); } }} /><div className="flex items-center gap-3"><div className="w-[42px] h-[42px] rounded-full border-2 border-slate-100 overflow-hidden cursor-pointer bg-slate-50" onClick={() => { setPublicProfileNick(userData.nickname); setSelectedTopic(null); setIsCreateOpen(false); }}><img src={userData.avatarUrl || `https://api.dicebear.com/7.x/adventurer/svg?seed=${userData.nickname}`} alt="avatar" /></div><button onClick={handleLogout} className="text-[11px] font-black text-slate-300 hover:text-rose-500 transition-colors uppercase tracking-widest">Logout</button></div></> : <button onClick={handleLogin} className="flex items-center gap-2 bg-white border border-slate-200 hover:border-slate-900 px-5 h-[42px] rounded-xl text-[13px] font-black transition-all shadow-sm group"><svg className="w-4 h-4 group-hover:scale-110 transition-transform" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>구글 계정으로 시작하기</button>}</div>
         {/* 🚀 모바일 우측 — 알림 + 내정보/로그인 버튼 */}
         <div className="flex md:hidden items-center gap-1.5 ml-auto shrink-0">
           {userData ? (
@@ -709,8 +728,8 @@ function App() {
                 currentNickname={userData.nickname}
                 onNavigate={(postId) => { const post = allRootPosts.find(p => p.id === postId); if (post) { setSelectedTopic(post); setActiveMenu('home'); } }}
               />
-              <button onClick={() => { setActiveMenu('mypage'); setSelectedTopic(null); setIsCreateOpen(false); }} className={`w-9 h-9 rounded-full overflow-hidden border-2 transition-all ${activeMenu === 'mypage' ? 'border-violet-400' : 'border-slate-200'}`}>
-                <img src={userData.avatarUrl || `https://api.dicebear.com/7.x/adventurer/svg?seed=${userData.nickname}`} alt="내정보" className="w-full h-full object-cover" />
+              <button onClick={() => { setPublicProfileNick(userData.nickname); setSelectedTopic(null); setIsCreateOpen(false); }} className={`w-9 h-9 rounded-full overflow-hidden border-2 transition-all ${publicProfileNick ? 'border-violet-400' : 'border-slate-200'}`}>
+                <img src={userData.avatarUrl || `https://api.dicebear.com/7.x/adventurer/svg?seed=${userData.nickname}`} alt="프로필" className="w-full h-full object-cover" />
               </button>
             </>
           ) : (

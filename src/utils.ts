@@ -69,6 +69,26 @@ export const getLevelProgress = (exp: number): number => {
 };
 
 /**
+ * 🚀 다음 레벨 필요 EXP 값 반환
+ */
+export const getNextLevelExp = (exp: number): number => {
+  const level = calculateLevel(exp);
+  if (level >= 10) return LEVEL_TABLE[9];
+  return LEVEL_TABLE[level];
+};
+
+/**
+ * 🚀 다음 평판 등급 임계값 반환
+ */
+const REPUTATION_THRESHOLDS = [300, 1000, 2000];
+export const getNextReputationThreshold = (score: number): number => {
+  for (const t of REPUTATION_THRESHOLDS) {
+    if (score < t) return t;
+  }
+  return REPUTATION_THRESHOLDS[REPUTATION_THRESHOLDS.length - 1];
+};
+
+/**
  * 🚀 EXP 지급 조건 — 본문 10자 미만이면 EXP 미지급 (등록은 허용)
  * HTML 태그 제거 후 순수 텍스트 길이 판정
  */
