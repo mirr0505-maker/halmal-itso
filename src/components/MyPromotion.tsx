@@ -79,7 +79,7 @@ const MyPromotion = ({ userData, currentLevel }: Props) => {
                 /* 잠금 상태 */
                 <div className="w-full h-full flex flex-col items-center justify-center bg-slate-50/50">
                   <svg className="w-3 h-3 text-slate-300 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
-                  <span className="text-[8px] font-black text-slate-400">Lv.{slot.lockLevel}</span>
+                  <span className="text-[8px] font-black text-slate-400">Lv{slot.lockLevel}</span>
                 </div>
               ) : imageUrl ? (
                 /* 이미지 있음 */
@@ -135,7 +135,7 @@ const MyPromotion = ({ userData, currentLevel }: Props) => {
               </div>
             )}
             {!showBottom && (
-              <p className="text-[9px] font-bold text-slate-300 text-center py-1">Lv.6 달성 시 3칸 추가 해금</p>
+              <p className="text-[9px] font-bold text-slate-300 text-center py-1">Lv6 달성시 아래 라인이 열립니다</p>
             )}
           </div>
         );

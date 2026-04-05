@@ -114,7 +114,7 @@ const MyProfileCard = ({ userData, uid, friendCount }: Props) => {
             )}
           </div>
           <div className="absolute -bottom-2 -right-2 bg-emerald-500 text-white w-10 h-10 rounded-full border-[3px] border-slate-900 flex items-center justify-center font-black text-sm shadow-md">
-            Lv.{calculatedLevel}
+            Lv{calculatedLevel}
           </div>
         </div>
 
