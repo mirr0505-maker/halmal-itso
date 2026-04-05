@@ -94,15 +94,23 @@ export function useAuthActions({ userData, setUserData, setActiveMenu }: AuthAct
       if (userData) await signOut(auth);
       await setPersistence(auth, browserLocalPersistence);
       try {
-        await signInWithEmailAndPassword(auth, testUser.email, '123456');
+        const cred = await signInWithEmailAndPassword(auth, testUser.email, '123456');
+        // 🚀 기존 테스트 계정 exp/likes 강제 세팅 — 레벨·평판 초기값 적용
+        const testExp = (testUser as { exp?: number }).exp || 0;
+        const testLikes = (testUser as { likes?: number }).likes || 0;
+        if (testExp > 0 || testLikes > 0) {
+          await setDoc(doc(db, 'users', cred.user.uid), { exp: testExp, likes: testLikes }, { merge: true });
+        }
       } catch (loginError: unknown) {
         const code = (loginError as { code: string }).code;
         if (code === 'auth/user-not-found' || code === 'auth/invalid-credential') {
           const res = await createUserWithEmailAndPassword(auth, testUser.email, '123456');
           const initialData = {
             nickname: testUser.nickname, email: testUser.email, bio: testUser.bio,
-            level: testUser.level || 1, exp: 0, likes: 0, points: 0,
-            subscriberCount: 0, isPhoneVerified: true,
+            level: testUser.level || 1,
+            exp: (testUser as { exp?: number }).exp || 0,
+            likes: (testUser as { likes?: number }).likes || 0,
+            points: 0, subscriberCount: 0, isPhoneVerified: true,
             friendList: [], blockList: [], avatarUrl: '', createdAt: serverTimestamp(),
           };
           await setDoc(doc(db, 'users', res.user.uid), initialData);

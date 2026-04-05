@@ -23,13 +23,17 @@ export const EXTERNAL_URLS = {
 
 // 🚀 깐부맺기 메뉴 — 현재 테스트/개발 단계라 허용 닉네임만 표시
 // TODO: 실 서비스 전환 시 이 배열 제거 후 전체 유저 표시로 변경
-export const FRIENDS_MENU_ALLOWED_NICKNAMES = ["깐부1호", "깐부2호", "깐부3호", "깐부4호", "흑무영"];
+export const FRIENDS_MENU_ALLOWED_NICKNAMES = ["깐부1호", "깐부2호", "깐부3호", "깐부4호", "깐부5호", "흑무영"];
 
+// 🚀 테스트 계정 — exp/likes로 레벨·평판 초기값 설정
+// 레벨: exp 기반 (LEVEL_TABLE: 0,30,100,250,500)
+// 평판: (likes×2) + (totalShares×3) + (ballReceived×5) — likes만으로 설정
 export const TEST_ACCOUNTS = [
-  { nickname: "깐부1호", email: "test1@halmal.com", bio: "1번 테스트 계정이오.", level: 1 },
-  { nickname: "깐부2호", email: "test2@halmal.com", bio: "2번 테스트 계정이오.", level: 1 },
-  { nickname: "깐부3호", email: "test3@halmal.com", bio: "3번 테스트 계정이오.", level: 1 },
-  { nickname: "깐부4호", email: "test4@halmal.com", bio: "4번 테스트 계정이오. (Lv5)", level: 5 }
+  { nickname: "깐부1호", email: "test1@halmal.com", bio: "1번 테스트 계정이오.", level: 1, exp: 0, likes: 0 },
+  { nickname: "깐부2호", email: "test2@halmal.com", bio: "2번 테스트 계정이오.", level: 2, exp: 30, likes: 150 },
+  { nickname: "깐부3호", email: "test3@halmal.com", bio: "3번 테스트 계정이오.", level: 3, exp: 100, likes: 500 },
+  { nickname: "깐부4호", email: "test4@halmal.com", bio: "4번 테스트 계정이오.", level: 4, exp: 250, likes: 1000 },
+  { nickname: "깐부5호", email: "test5@halmal.com", bio: "5번 테스트 계정이오.", level: 5, exp: 500, likes: 1000 },
 ];
 
 export const MENU_MESSAGES: Record<string, { title: string, description: string, emoji: string, categoryKey?: string, tags?: string[] }> = {
