@@ -250,7 +250,7 @@ function App() {
         <h1 className="text-[36px] font-[1000] italic tracking-tighter animate-logo-pulse">
           <span className="text-red-500">G</span><span className="text-blue-600">L</span><span className="text-slate-900">ove</span>
         </h1>
-        <p className="text-[11px] font-black text-slate-300 tracking-tight">집단지성의 힘</p>
+        <p className="text-[11px] font-black text-violet-300 tracking-tight">집단지성의 힘</p>
       </div>
     );
     
@@ -677,10 +677,10 @@ function App() {
         <div className="flex items-center gap-4">
           {/* 데스크톱: ≡+GLove 함께 클릭 → 홈 */}
           <div className="hidden md:flex items-center gap-1.5 cursor-pointer hover:opacity-80 transition-opacity shrink-0" onClick={goHome}>
-            <svg className="w-3 h-5 text-slate-500 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" viewBox="0 4 12 16">
-              <line x1="1" y1="6"  x2="11" y2="6"  />
-              <line x1="1" y1="12" x2="11" y2="12" />
-              <line x1="1" y1="18" x2="11" y2="18" />
+            <svg className="w-3 h-5 shrink-0" fill="none" strokeWidth="2" strokeLinecap="round" viewBox="0 4 12 16">
+              <line x1="1" y1="6"  x2="11" y2="6"  stroke="#7c3aed" />
+              <line x1="1" y1="12" x2="11" y2="12" stroke="#ef4444" />
+              <line x1="1" y1="18" x2="11" y2="18" stroke="#3b82f6" />
             </svg>
             <h1 className="text-[26px] font-[1000] italic tracking-tighter shrink-0">
               <span className="text-red-500">G</span><span className="text-blue-600">L</span><span className="text-slate-900">ove</span>
