@@ -229,7 +229,7 @@ function App() {
 
   const goHome = () => {
     setActiveMenu('home'); setSelectedTopic(null); setIsCreateOpen(false); setReplyTarget(null); setEditingPost(null); setCreateMenuKey(null);
-    setSelectedRoom(null); setIsCreateRoomOpen(false);
+    setSelectedRoom(null); setIsCreateRoomOpen(false); setPublicProfileNick(null);
     setActiveTab('any');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
