@@ -8,7 +8,7 @@ import MyContentTabs from './MyContentTabs';
 import ProfileHeader from './ProfileHeader';
 import ProfileEditForm from './ProfileEditForm';
 import ActivityMilestones from './ActivityMilestones';
-import AvatarCollection from './AvatarCollection';
+import MyPromotion from './MyPromotion';
 import OneCutList from './OneCutList';
 import { uploadToR2 } from '../uploadToR2';
 import { calculateLevel } from '../utils';
@@ -49,7 +49,7 @@ const MyPage = ({
   userData, allUserRootPosts, allUserChildPosts, friends, friendCount, followerCount = 0, onPostClick, onEditPost, onToggleFriend, allUsers, followerCounts,
   communities = [], joinedCommunityIds = [], onGloveClick, onLeaveGlove, onLogout
 }: Props) => {
-  const [activeTab, setActiveTab] = useState<'posts' | 'onecuts' | 'comments' | 'avatars' | 'friends' | 'thanksball' | 'sentball' | 'glove'>('posts');
+  const [activeTab, setActiveTab] = useState<'posts' | 'onecuts' | 'comments' | 'friends' | 'thanksball' | 'sentball' | 'glove'>('posts');
   // 🚀 깐부 목록 서브탭: 내가 맺은 깐부(팔로잉) vs 나를 맺은 깐부수(팔로워)
   const [friendSubTab, setFriendSubTab] = useState<'following' | 'followers'>('following');
   const [isEditingProfile, setIsEditingProfile] = useState(false);
@@ -285,6 +285,9 @@ const MyPage = ({
           </div>
         )}
 
+        {/* 🚀 내 홍보: 나를 PR하는 이미지 6칸, 레벨별 해금 */}
+        <MyPromotion userData={userData} currentLevel={calculateLevel(userData?.exp || 0)} />
+
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* 🚀 좌측: 활동 통계 및 마일스톤 */}
           <div className="lg:col-span-1 flex flex-col gap-6">
@@ -357,7 +360,7 @@ const MyPage = ({
               <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-blue-600 to-indigo-500" />
               
               <div className="flex items-center gap-6 mb-10 border-b border-slate-50 pb-2 overflow-x-auto no-scrollbar">
-                {(['posts', 'onecuts', 'comments', 'avatars', 'friends', 'thanksball', 'sentball', 'glove'] as const).map(tab => (
+                {(['posts', 'onecuts', 'comments', 'friends', 'thanksball', 'sentball', 'glove'] as const).map(tab => (
                   <button key={tab} onClick={() => setActiveTab(tab)} className={`pb-4 px-2 text-[15px] font-[1000] tracking-tight transition-all relative whitespace-nowrap ${activeTab === tab ? 'text-blue-600' : 'text-slate-300 hover:text-slate-500'}`}>
                     {tab === 'posts' && (
                       <span className="flex items-center gap-1">
@@ -380,7 +383,6 @@ const MyPage = ({
                         )}
                       </span>
                     )}
-                    {tab === 'avatars' && '아바타 수집'}
                     {tab === 'friends' && '깐부 목록'}
                     {tab === 'thanksball' && (
                       <span className="flex items-center gap-1">
@@ -425,7 +427,6 @@ const MyPage = ({
                   </div>
                 )}
                 {activeTab === 'comments' && <MyContentTabs posts={allMyComments} onPostClick={onPostClick} onGloveClick={onGloveClick} type="comments" />}
-                {activeTab === 'avatars' && <AvatarCollection currentLevel={calculateLevel(userData?.exp || 0)} />}
                 {activeTab === 'thanksball' && (
                   <div className="flex flex-col gap-4">
                     <div className="flex items-center justify-between mb-2">
