@@ -686,19 +686,10 @@ function App() {
               <span className="text-violet-600">G</span><span className="text-violet-400">L</span><span className="text-slate-900">ove</span>
             </h1>
           </div>
-          {/* 모바일: ≡ 버튼(드로어) + GLove 텍스트(홈) 분리 */}
-          <div className="flex md:hidden items-center gap-1">
-            <button onClick={() => setIsMobileMenuOpen(true)} className="w-9 h-9 flex items-center justify-center rounded-xl text-slate-500 hover:bg-slate-50 transition-colors" aria-label="전체 메뉴">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" viewBox="0 0 24 24">
-                <line x1="3" y1="6"  x2="21" y2="6"  />
-                <line x1="3" y1="12" x2="21" y2="12" />
-                <line x1="3" y1="18" x2="21" y2="18" />
-              </svg>
-            </button>
-            <h1 className="text-[26px] font-[1000] italic tracking-tighter cursor-pointer shrink-0" onClick={goHome}>
-              <span className="text-violet-600">G</span><span className="text-violet-400">L</span><span className="text-slate-900">ove</span>
-            </h1>
-          </div>
+          {/* 모바일: GLove 로고만 (터치 시 홈 이동, ≡ 버튼은 하단 탭바로 이동) */}
+          <h1 className="flex md:hidden text-[26px] font-[1000] italic tracking-tighter cursor-pointer shrink-0" onClick={goHome}>
+            <span className="text-violet-600">G</span><span className="text-violet-400">L</span><span className="text-slate-900">ove</span>
+          </h1>
           <div className="hidden md:flex gap-1.5 items-center px-4 border-l border-slate-100" onClick={(e) => e.stopPropagation()}>
             <span className="text-[9px] font-black text-slate-300 uppercase tracking-tighter mr-1">Dev:</span>
             {TEST_ACCOUNTS.map((acc, i) => (
@@ -784,13 +775,13 @@ function App() {
 
       {/* 🚀 모바일 하단 탭바 — 텍스트 없음, 5탭, 중앙 새글 버튼 돌출 */}
       <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-white/95 backdrop-blur-md border-t border-slate-100 flex items-end h-16 pb-1 safe-area-inset-bottom">
-        {/* 홈 */}
-        <button onClick={goHome} className={`flex-1 flex flex-col items-center justify-center h-full transition-colors ${activeMenu === 'home' && !selectedTopic && !isCreateOpen ? 'text-violet-600' : 'text-slate-400'}`}>
-          {activeMenu === 'home' && !selectedTopic && !isCreateOpen ? (
-            <svg className="w-[24px] h-[24px]" fill="currentColor" viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
-          ) : (
-            <svg className="w-[24px] h-[24px]" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
-          )}
+        {/* ≡ 메뉴 (드로어 열기) — 왼손 접근 최적 */}
+        <button onClick={() => setIsMobileMenuOpen(true)} className="flex-1 flex flex-col items-center justify-center h-full text-slate-400 active:text-violet-600 transition-colors">
+          <svg className="w-[24px] h-[24px]" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" viewBox="0 0 24 24">
+            <line x1="4" y1="7" x2="20" y2="7" />
+            <line x1="4" y1="12" x2="20" y2="12" />
+            <line x1="4" y1="17" x2="20" y2="17" />
+          </svg>
         </button>
         {/* 한컷 */}
         <button onClick={() => { setActiveMenu('onecut'); setSelectedTopic(null); setIsCreateOpen(false); }} className={`flex-1 flex flex-col items-center justify-center h-full transition-colors ${activeMenu === 'onecut' && !selectedTopic && !isCreateOpen ? 'text-violet-600' : 'text-slate-400'}`}>
