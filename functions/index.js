@@ -81,7 +81,7 @@ function extractTitle(raw) {
   if (typeof raw === "object") {
     return String(raw.__cdata ?? raw["#text"] ?? raw["_"] ?? "").trim();
   }
-  return String(raw).replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'").trim();
+  return String(raw).replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&#(\d+);/g, (_, c) => String.fromCharCode(Number(c))).replace(/&#x([0-9a-fA-F]+);/g, (_, h) => String.fromCharCode(parseInt(h, 16))).trim();
 }
 
 /**
@@ -109,15 +109,17 @@ function isBreaking(title) {
 function stripHtml(html = "") {
   return String(html)
     .replace(/<[^>]+>/g, "")
-    // 🚀 HTML 엔티티 디코딩 — RSS 본문에 &amp; &quot; &lt; &gt; 등이 그대로 남는 문제 해결
+    // 🚀 HTML 엔티티 디코딩 — 이름형 + 숫자형(&#034; &#039; 등) 모두 처리
     .replace(/&amp;/g, "&")
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
     .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
     .replace(/&apos;/g, "'")
-    .replace(/&#x27;/g, "'")
     .replace(/&nbsp;/g, " ")
+    // 숫자형 엔티티: &#034; → ", &#039; → ' 등
+    .replace(/&#(\d+);/g, (_, code) => String.fromCharCode(Number(code)))
+    // 16진수 엔티티: &#x27; → ' 등
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)))
     .trim();
 }
 
