@@ -99,3 +99,47 @@ export const MENU_MESSAGES: Record<string, { title: string, description: string,
     description: "본문이나 댓글에서, '욕설, 생명경시, 차별적표현, 비윤리, 반국가, 음란물, 불법정보, 광고글, 사기 등' 해당 작성자 격리 공간"
   }
 };
+
+// ════════════════════════════════════════════════════════════
+// 🚀 ADSMARKET — 광고 경매 시장 상수
+// ════════════════════════════════════════════════════════════
+
+// 레벨별 광고 수익 배분율 (Revenue Share)
+// key = 최소 레벨, value = { slots: 슬롯 수, positions: 슬롯 위치, creatorRate: 작성자 배분율 }
+export const AD_REVENUE_SHARE: Record<number, { slots: number; positions: ('top' | 'middle' | 'bottom')[]; creatorRate: number }> = {
+  1: { slots: 0, positions: [], creatorRate: 0 },         // Lv1~4: 광고 없음
+  5: { slots: 1, positions: ['bottom'], creatorRate: 0.3 }, // Lv5~6: 1슬롯, 30%
+  7: { slots: 2, positions: ['top', 'bottom'], creatorRate: 0.5 }, // Lv7~8: 2슬롯, 50%
+  9: { slots: 3, positions: ['top', 'middle', 'bottom'], creatorRate: 0.7 }, // Lv9~10: 3슬롯, 70%
+};
+
+// 유저 레벨에 맞는 RS 설정 반환
+export const getAdRevenueShare = (level: number) => {
+  if (level >= 9) return AD_REVENUE_SHARE[9];
+  if (level >= 7) return AD_REVENUE_SHARE[7];
+  if (level >= 5) return AD_REVENUE_SHARE[5];
+  return AD_REVENUE_SHARE[1];
+};
+
+// 광고 카테고리 (광고주 타겟팅용)
+export const AD_CATEGORIES = [
+  '음식점', 'IT/테크', '교육', '패션', '뷰티', '금융', '부동산', '여행', '건강', '기타'
+] as const;
+
+// 정산 최소 출금액 (원)
+export const SETTLEMENT_MIN_AMOUNT = 30_000;
+
+// 세율
+export const TAX_RATES = {
+  BUSINESS: 0.033,  // 사업소득 3.3%
+  OTHER: 0.088,     // 기타소득 8.8%
+} as const;
+
+// 은행 코드
+export const BANK_CODES: Record<string, string> = {
+  '004': 'KB국민', '011': 'NH농협', '020': '우리', '023': 'SC제일',
+  '027': '한국씨티', '032': '대구', '034': '광주', '035': '제주',
+  '037': '전북', '039': '경남', '045': '새마을금고', '048': '신협',
+  '071': '우체국', '081': '하나', '088': '신한', '089': 'K뱅크',
+  '090': '카카오뱅크', '092': '토스뱅크',
+};

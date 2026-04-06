@@ -9,6 +9,7 @@ import ProfileHeader from './ProfileHeader';
 import ProfileEditForm from './ProfileEditForm';
 import ActivityMilestones from './ActivityMilestones';
 import MyPromotion from './MyPromotion';
+import RevenueDashboard from './revenue/RevenueDashboard';
 import OneCutList from './OneCutList';
 import { uploadToR2 } from '../uploadToR2';
 import { calculateLevel } from '../utils';
@@ -49,7 +50,7 @@ const MyPage = ({
   userData, allUserRootPosts, allUserChildPosts, friends, friendCount, followerCount = 0, onPostClick, onEditPost, onToggleFriend, allUsers, followerCounts,
   communities = [], joinedCommunityIds = [], onGloveClick, onLeaveGlove, onLogout
 }: Props) => {
-  const [activeTab, setActiveTab] = useState<'posts' | 'onecuts' | 'comments' | 'friends' | 'thanksball' | 'sentball' | 'glove'>('posts');
+  const [activeTab, setActiveTab] = useState<'posts' | 'onecuts' | 'comments' | 'friends' | 'thanksball' | 'sentball' | 'glove' | 'revenue'>('posts');
   // 🚀 깐부 목록 서브탭: 내가 맺은 깐부(팔로잉) vs 나를 맺은 깐부수(팔로워)
   const [friendSubTab, setFriendSubTab] = useState<'following' | 'followers'>('following');
   const [isEditingProfile, setIsEditingProfile] = useState(false);
@@ -360,7 +361,7 @@ const MyPage = ({
               <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-blue-600 to-indigo-500" />
               
               <div className="flex items-center gap-6 mb-10 border-b border-slate-50 pb-2 overflow-x-auto no-scrollbar">
-                {(['posts', 'onecuts', 'comments', 'friends', 'thanksball', 'sentball', 'glove'] as const).map(tab => (
+                {(['posts', 'onecuts', 'comments', 'friends', 'thanksball', 'sentball', 'glove', 'revenue'] as const).map(tab => (
                   <button key={tab} onClick={() => setActiveTab(tab)} className={`pb-4 px-2 text-[15px] font-[1000] tracking-tight transition-all relative whitespace-nowrap ${activeTab === tab ? 'text-blue-600' : 'text-slate-300 hover:text-slate-500'}`}>
                     {tab === 'posts' && (
                       <span className="flex items-center gap-1">
@@ -414,6 +415,7 @@ const MyPage = ({
                         )}
                       </span>
                     )}
+                    {tab === 'revenue' && '💰 수익'}
                     {activeTab === tab && <div className="absolute bottom-0 left-0 w-full h-1 bg-blue-600 rounded-full" />}
                   </button>
                 ))}
@@ -705,6 +707,16 @@ const MyPage = ({
                     </div>
                   );
                 })()}
+
+                {/* 🚀 ADSMARKET: 수익 대시보드 탭 */}
+                {activeTab === 'revenue' && (
+                  <RevenueDashboard
+                    pendingRevenue={(userData as unknown as { pendingRevenue?: number }).pendingRevenue || 0}
+                    pendingThanksBall={(userData as unknown as { pendingThanksBall?: number }).pendingThanksBall || 0}
+                    totalSettled={(userData as unknown as { totalSettled?: number }).totalSettled || 0}
+                    userLevel={calculateLevel(userData?.exp || 0)}
+                  />
+                )}
 
               </div>
             </div>

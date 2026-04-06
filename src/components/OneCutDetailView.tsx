@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from 'react';
 import type { Post, UserData } from '../types';
 import { formatKoreanNumber, getReputationLabel, getReputationScore, calculateLevel } from '../utils';
 import OneCutListSidebar from './OneCutListSidebar';
+import AdSlot from './ads/AdSlot';
 import ThanksballModal from './ThanksballModal';
 import { db } from '../firebase';
 import { doc, deleteDoc, updateDoc, increment } from 'firebase/firestore';
@@ -246,6 +247,11 @@ const OneCutDetailView = ({
                 ))}
               </div>
             )}
+          </div>
+
+          {/* 🚀 ADSMARKET: 이미지 아래 광고 슬롯 */}
+          <div className="px-4 md:px-8">
+            <AdSlot position="bottom" postCategory="한컷" postAuthorLevel={displayLevel} />
           </div>
 
           {/* 🚀 작성자 정보 + 인터랙션 바 — RootPostCard 박스 스타일 */}

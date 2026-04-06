@@ -233,3 +233,118 @@ export interface GiantTreeLeaf {
   comment: string;                   // 선택, 최대 50자
   createdAt: FirestoreTimestamp;
 }
+
+// ════════════════════════════════════════════════════════════
+// 🚀 ADSMARKET — 광고 경매 시장 시스템
+// ════════════════════════════════════════════════════════════
+
+// 광고 소재 (광고주가 등록한 광고 단위)
+export interface Ad {
+  id: string;
+  advertiserId: string;
+  advertiserName: string;
+  title: string;                     // 관리용 제목
+  headline: string;                  // 배너 헤드라인 (최대 30자)
+  description: string;               // 설명 문구 (최대 60자)
+  imageUrl: string;                  // 배너 이미지 URL
+  landingUrl: string;                // 클릭 시 이동 URL
+  ctaText: string;                   // CTA 버튼 텍스트
+  targetCategories: string[];        // 노출 대상 카테고리 (빈 배열 = 전체)
+  targetRegions: string[];           // 노출 대상 지역 (빈 배열 = 전국)
+  targetSlots: ('top' | 'middle' | 'bottom')[];
+  bidType: 'cpm' | 'cpc';
+  bidAmount: number;                 // 입찰가 (원)
+  dailyBudget: number;
+  totalBudget: number;
+  startDate: FirestoreTimestamp;
+  endDate: FirestoreTimestamp;
+  status: 'draft' | 'pending_review' | 'active' | 'paused' | 'rejected' | 'completed' | 'exhausted';
+  rejectionReason?: string;
+  totalImpressions: number;
+  totalClicks: number;
+  totalSpent: number;
+  ctr: number;
+  createdAt: FirestoreTimestamp;
+  updatedAt: FirestoreTimestamp;
+}
+
+// 광고 이벤트 로그 (노출/클릭)
+export interface AdEvent {
+  id: string;
+  adId: string;
+  advertiserId: string;
+  postId: string;
+  postAuthorId: string;
+  postCategory: string;
+  slotPosition: 'top' | 'middle' | 'bottom';
+  eventType: 'impression' | 'click';
+  bidType: 'cpm' | 'cpc';
+  bidAmount: number;
+  viewerUid: string;
+  sessionId: string;
+  isSuspicious: boolean;
+  createdAt: FirestoreTimestamp;
+}
+
+// 일일 광고 수익 집계
+export interface DailyAdRevenue {
+  id: string;
+  date: string;                      // 'YYYY-MM-DD'
+  postAuthorId: string;
+  postAuthorNickname: string;
+  postBreakdown: {
+    postId: string;
+    postTitle: string;
+    category: string;
+    impressions: number;
+    clicks: number;
+    grossRevenue: number;
+  }[];
+  totalImpressions: number;
+  totalClicks: number;
+  grossRevenue: number;
+  creatorShare: number;
+  platformShare: number;
+  revenueShareRate: number;
+  creatorLevel: number;
+  status: 'provisional' | 'confirmed' | 'adjusted';
+  createdAt: FirestoreTimestamp;
+}
+
+// 광고주 계정
+export interface AdvertiserAccount {
+  id: string;
+  uid: string;
+  businessName: string;
+  businessNumber: string;
+  representativeName: string;
+  businessAddress: string;
+  email: string;
+  phone: string;
+  balance: number;
+  totalCharged: number;
+  totalSpent: number;
+  status: 'active' | 'suspended' | 'dormant';
+  isVerified: boolean;
+  createdAt: FirestoreTimestamp;
+}
+
+// 글 작성자 정산 내역
+export interface Settlement {
+  id: string;
+  creatorId: string;
+  creatorNickname: string;
+  periodStart: string;
+  periodEnd: string;
+  adRevenue: number;
+  thanksBallRevenue: number;
+  grossTotal: number;
+  incomeType: 'business' | 'other';
+  taxRate: number;
+  taxAmount: number;
+  netAmount: number;
+  status: 'pending' | 'processing' | 'completed' | 'rejected' | 'cancelled';
+  rejectionReason?: string;
+  completedAt?: FirestoreTimestamp;
+  createdAt: FirestoreTimestamp;
+}

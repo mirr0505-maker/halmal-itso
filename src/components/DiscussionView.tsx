@@ -3,6 +3,7 @@ import React, { useEffect } from 'react';
 import type { Post, UserData } from '../types';
 import RootPostCard from './RootPostCard';
 import DebateBoard from './DebateBoard';
+import AdSlot from './ads/AdSlot';
 import OneCutCommentBoard from './OneCutCommentBoard'; // 🚀 황금알을 낳는 거위 작성자(좌)↔독자(우) 지그재그 보드
 import CommentMyStory from './CommentMyStory';
 import CommentNakedKing from './CommentNakedKing';
@@ -142,6 +143,9 @@ const DiscussionView = ({
             onAuthorClick={onAuthorClick}
           />
         )}
+
+        {/* 🚀 ADSMARKET: 본문과 댓글 사이 광고 슬롯 */}
+        <AdSlot position="bottom" postCategory={rootPost.category} postAuthorLevel={displayLevel} />
 
         {rootPost.category && !['너와 나의 이야기', '신포도와 여우', '황금알을 낳는 거위'].includes(rootPost.category) && rule.boardType !== 'pandora' && (
           !currentNickname ? (
