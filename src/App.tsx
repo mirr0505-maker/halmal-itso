@@ -698,8 +698,8 @@ function App() {
           <div className="hidden md:flex items-center gap-1.5 cursor-pointer hover:opacity-80 transition-opacity shrink-0" onClick={goHome}>
             <svg className="w-3 h-5 shrink-0" fill="none" strokeWidth="2" strokeLinecap="round" viewBox="0 4 12 16">
               <line x1="1" y1="6"  x2="11" y2="6"  stroke="#7c3aed" />
-              <line x1="1" y1="12" x2="11" y2="12" stroke="#8b5cf6" />
-              <line x1="1" y1="18" x2="11" y2="18" stroke="#a78bfa" />
+              <line x1="1" y1="12" x2="11" y2="12" stroke="#a78bfa" />
+              <line x1="1" y1="18" x2="11" y2="18" stroke="#7c3aed" />
             </svg>
             <h1 className="text-[26px] font-[1000] italic tracking-tighter shrink-0">
               <span className="text-red-500">G</span><span className="text-blue-600">L</span><span className="text-slate-900">ove</span>
@@ -798,8 +798,8 @@ function App() {
         <button onClick={() => setIsMobileMenuOpen(true)} className="flex-1 flex flex-col items-center justify-center h-full active:opacity-70 transition-opacity">
           <svg className="w-[24px] h-[24px]" fill="none" strokeWidth="2.5" strokeLinecap="round" viewBox="0 0 24 24">
             <line x1="4" y1="7" x2="20" y2="7" stroke="#7c3aed" />
-            <line x1="4" y1="12" x2="20" y2="12" stroke="#8b5cf6" />
-            <line x1="4" y1="17" x2="20" y2="17" stroke="#a78bfa" />
+            <line x1="4" y1="12" x2="20" y2="12" stroke="#a78bfa" />
+            <line x1="4" y1="17" x2="20" y2="17" stroke="#7c3aed" />
           </svg>
         </button>
         {/* 한컷 */}
