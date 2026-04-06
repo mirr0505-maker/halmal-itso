@@ -61,6 +61,9 @@ const CreateKanbuRoomModal = lazy(() => import('./components/CreateKanbuRoomModa
 const RankingView = lazy(() => import('./components/RankingView'));
 const GiantTreeView = lazy(() => import('./components/GiantTreeView'));
 const CreateDebate = lazy(() => import('./components/CreateDebate')); // 연계글 팝업 전용
+// 🚀 ADSMARKET: 광고주 센터
+const AdvertiserCenter = lazy(() => import('./components/advertiser/AdvertiserCenter'));
+const AdvertiserRegister = lazy(() => import('./components/advertiser/AdvertiserRegister'));
 // 🚀 우리들의 따뜻한 장갑: 커뮤니티 컴포넌트
 const CommunityList = lazy(() => import('./components/CommunityList'));
 const MyCommunityList = lazy(() => import('./components/MyCommunityList'));
@@ -345,6 +348,16 @@ function App() {
         onPostClick={(post) => { setPublicProfileNick(null); handleViewPost(post); }}
         onClose={() => setPublicProfileNick(null)}
       />;
+    }
+
+    // 🚀 ADSMARKET: 광고주 센터
+    if (activeMenu === 'adsmarket') {
+      if (!userData) return null;
+      const isAdvertiser = !!(userData as unknown as { isAdvertiser?: boolean }).isAdvertiser;
+      if (!isAdvertiser) {
+        return <AdvertiserRegister onComplete={() => setActiveMenu('adsmarket')} onCancel={() => setActiveMenu('home')} />;
+      }
+      return <AdvertiserCenter onBack={() => setActiveMenu('home')} />;
     }
 
     if (activeMenu === 'mypage') {
