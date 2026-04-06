@@ -980,68 +980,87 @@ Admin 페이지 → [세무 데이터 다운로드]
 
 ## 10. 구현 로드맵
 
-### Phase 1: 기반 구축 (2~3주)
+> 최종 갱신: 2026-04-06 | Phase 1, 3, 4, CF 완료. Phase 2는 애드센스 승인 대기.
+
+### Phase 1: 기반 구축 — ✅ 완료 (2026-04-06)
 
 ```
-목표: 데이터 모델 & 기본 UI 스켈레톤
-
-작업:
-□ types.ts에 모든 인터페이스 추가
-□ constants.ts에 AD_CATEGORIES, BANK_CODES, TAX_RATES, RS_TABLE 추가
-□ firebase.ts에 컬렉션 레퍼런스 추가
-□ Firestore Security Rules 작성 (읽기/쓰기 권한 세분화)
-□ AdSlot 컴포넌트 기본 구현 (Waterfall 3순위 = 자체 프로모션만)
-□ PostDetailModal, DiscussionView, OneCutDetailView에 AdSlot 삽입
-□ MyPage에 수익 대시보드 스켈레톤 (pendingRevenue 표시)
-□ Cloud Function: aggregateDailyRevenue 스켈레톤
+✅ types.ts에 Ad, AdEvent, DailyAdRevenue, AdvertiserAccount, Settlement 인터페이스 추가
+✅ constants.ts에 AD_REVENUE_SHARE, AD_CATEGORIES, BANK_CODES, TAX_RATES, SETTLEMENT_MIN_AMOUNT 추가
+✅ Firestore Security Rules 작성 (ads, adEvents, dailyAdRevenue, settlements 등 6개 컬렉션)
+✅ AdSlot + AdBanner + AdFallback 컴포넌트 (ads/ 디렉토리)
+✅ DiscussionView, OneCutDetailView에 AdSlot 삽입
+✅ MyPage에 💰 수익 탭 + RevenueDashboard 스켈레톤
 ```
 
-### Phase 2: 구글 애드센스 연동 (1~2주)
+### Phase 2: 구글 애드센스 연동 — ⏳ 대기 중
 
 ```
-목표: Waterfall 2순위 구현 — 실제 광고 수익 발생 시작
+선행 조건: 구글 애드센스 승인 필요 (https://www.google.com/adsense)
+- 게시글 20~30개 + 양질의 콘텐츠 + 개인정보처리방침 페이지 필요
+- 승인 후 ads.txt 파일 추가 + AdFallback에 애드센스 스니펫 삽입
 
-선행 조건: 구글 애드센스 승인 (게시글 20~30개 필요)
-
-작업:
+작업 (승인 후):
 □ AdFallback 컴포넌트에 애드센스 스니펫 삽입
-□ AdSlot에 Waterfall 로직 구현 (1순위 없으면 → 애드센스)
-□ adEvents 로깅 (애드센스 노출/클릭은 별도 추적 어려움 → CPM만 추정 기록)
-□ aggregateDailyRevenue에 애드센스 수익 반영 로직 추가
+□ AdSlot에 Waterfall 로직 강화 (1순위 경매 없으면 → 애드센스)
 □ RevenueDashboard에 실제 수익 데이터 바인딩
 ```
 
-### Phase 3: 직거래 경매 시스템 (3~4주)
+### Phase 3: 직거래 경매 시스템 — ✅ 완료 (2026-04-06)
 
 ```
-목표: Waterfall 1순위 구현 — 할말있소 자체 광고 경매
+✅ 광고주 등록 플로우 (AdvertiserRegister.tsx)
+✅ 광고주 센터 전체 UI (AdvertiserCenter.tsx — 대시보드·내 광고·충전·설정 4탭)
+✅ 광고 등록/수정 폼 (AdCampaignForm.tsx — 소재·타겟팅·입찰·기간)
+✅ 광고 목록 (AdCampaignList.tsx — 상태 배지·성과 지표)
+✅ 광고 배너 이미지 R2 업로드 (ad-banners/ 경로, Worker UID 검증)
+✅ Sidebar 광고주 센터 메뉴 + App.tsx adsmarket 라우팅
+✅ Cloud Function: adAuction (HTTP 경매 엔진, Second-Price)
+✅ Cloud Function: detectFraud (매일 자정 부정행위 탐지)
+✅ AdSlot에서 adAuction 호출 연동 (낙찰 광고 or 프로모션 Waterfall)
 
-작업:
-□ 광고주 등록 플로우 구현
-□ 광고주 센터 전체 UI (AdvertiserLayout ~ AdCampaignForm)
-□ 광고 소재 업로드 (R2 ad-banners/ 경로 추가)
-□ Cloud Function: adAuction (경매 엔진)
-□ Cloud Function: syncAdBids (입찰 동기화)
-□ Cloud Function: updateAdMetrics (지표 업데이트)
-□ AdSlot에 경매 결과 렌더링 연동
-□ 충전 시스템 (PG사 연동 — 포트원 권장)
-□ 관리자: AdReviewQueue (광고 검수)
-□ Cloud Function: detectFraud (부정행위 탐지)
+미구현 (향후):
+□ Cloud Function: syncAdBids (ads 변경 시 adBids 동기화 — Firestore Trigger)
+□ Cloud Function: updateAdMetrics (adEvents 생성 시 누적 지표 업데이트 — Firestore Trigger)
+□ 충전 시스템 PG사 연동 (포트원 권장) — 현재 충전 UI는 준비 중 표시
+□ 관리자: AdReviewQueue (광고 검수 대기열)
+□ 품질 점수(Quality Score) 자동 산정 (CTR 기반)
 ```
 
-### Phase 4: 정산 & 세무 자동화 (2~3주)
+### Phase 4: 정산 & 세무 자동화 — ✅ 완료 (2026-04-06)
 
 ```
-목표: 수익 → 현금 전환 파이프라인 완성
+✅ 출금 신청 모달 (WithdrawModal.tsx — 소득 유형·실명·은행·계좌·원천세 자동 계산)
+✅ utils.ts: calculateWithholdingTax 함수 (사업소득 3.3% / 기타소득 8.8%)
+✅ RevenueDashboard에서 출금 모달 연동 (₩30,000 이상 시 활성화)
+✅ Cloud Function: processSettlements (매주 월 09:00 KST 자동 처리)
+✅ Cloud Function: aggregateDailyRevenue (매일 00:05 KST 일일 수익 집계)
 
-작업:
-□ 출금 신청 플로우 (WithdrawModal, SettlementInfo)
-□ Cloud Function: processSettlements
-□ 관리자: SettlementQueue (정산 승인)
-□ 원천세 자동 계산 (utils.ts)
-□ 세무 데이터 CSV Export (TaxReportExport)
+미구현 (향후):
+□ 관리자: SettlementQueue (정산 검수 승인 UI)
+□ 세무 데이터 CSV Export (TaxReportExport — 국세청 양식)
 □ 광고주 세금계산서 관리 (InvoiceList)
-□ 이체 API 연동 (수동 → 자동 전환)
+□ 이체 API 연동 (수동 승인 → 은행 API 자동 이체)
+□ 정산 정보 AES-256 암호화 (현재는 평문 저장 → 실서비스 전 암호화 필수)
+```
+
+### 앞으로 해야 할 일 (수동 작업)
+
+```
+1. 애드센스 승인 신청 — https://www.google.com/adsense
+   → 승인 후 ads.txt + 스니펫 삽입 (Claude에 요청)
+
+2. PG사 계약 — 포트원(PortOne) 또는 나이스페이
+   → 광고주 잔액 충전 기능 활성화
+
+3. R2 Worker 재배포 — cd upload-worker && npx wrangler deploy
+   → ad-banners/ 경로 UID 검증 적용
+
+4. 사업자등록 — 세금계산서 발행을 위해 필요
+
+5. 개인정보처리방침 페이지 — 애드센스 승인 + 정산 정보 수집에 필요
+
+6. 관리자 페이지 — 광고 검수·정산 승인·부정행위 알림 UI (별도 세션)
 ```
 
 ---
