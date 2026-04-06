@@ -352,7 +352,9 @@ function App() {
 
     // 🚀 ADSMARKET: 광고주 센터
     if (activeMenu === 'adsmarket') {
-      if (!userData) return null;
+      if (!userData) return (
+        <div className="py-20 text-center text-slate-300 font-bold">로그인 후 이용할 수 있습니다.</div>
+      );
       const isAdvertiser = !!(userData as unknown as { isAdvertiser?: boolean }).isAdvertiser;
       if (!isAdvertiser) {
         return <AdvertiserRegister onComplete={() => setActiveMenu('adsmarket')} onCancel={() => setActiveMenu('home')} />;
