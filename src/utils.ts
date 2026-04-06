@@ -158,3 +158,21 @@ export const getReputationProgress = (score: number): number => {
   if (score >= 300) return ((score - 300) / 700) * 100;
   return (score / 300) * 100;
 };
+
+// ════════════════════════════════════════════════════════════
+// 🚀 ADSMARKET — 세금·정산 유틸리티
+// ════════════════════════════════════════════════════════════
+
+/**
+ * 원천세 계산
+ * @param grossAmount 세전 총액
+ * @param incomeType 소득 유형 (business=3.3%, other=8.8%)
+ */
+export const calculateWithholdingTax = (
+  grossAmount: number,
+  incomeType: 'business' | 'other'
+): { taxAmount: number; netAmount: number; taxRate: number } => {
+  const taxRate = incomeType === 'business' ? 0.033 : 0.088;
+  const taxAmount = Math.floor(grossAmount * taxRate);
+  return { taxAmount, netAmount: grossAmount - taxAmount, taxRate };
+};

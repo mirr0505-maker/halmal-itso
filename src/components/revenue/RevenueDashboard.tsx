@@ -1,8 +1,10 @@
 // src/components/revenue/RevenueDashboard.tsx — 수익 종합 대시보드 (MyPage 내 탭)
 // 🚀 Phase 1: 스켈레톤 UI (pendingRevenue 표시)
 // Phase 2+: 실제 수익 데이터 바인딩, 차트, 글별 상세
+import { useState } from 'react';
 import { formatKoreanNumber } from '../../utils';
 import { SETTLEMENT_MIN_AMOUNT } from '../../constants';
+import WithdrawModal from './WithdrawModal';
 
 interface Props {
   pendingRevenue: number;       // 미정산 광고 수익
@@ -14,6 +16,7 @@ interface Props {
 const RevenueDashboard = ({ pendingRevenue, pendingThanksBall, totalSettled, userLevel }: Props) => {
   const total = pendingRevenue + pendingThanksBall;
   const canWithdraw = total >= SETTLEMENT_MIN_AMOUNT;
+  const [showWithdraw, setShowWithdraw] = useState(false);
 
   return (
     <div className="flex flex-col gap-4">
@@ -62,6 +65,7 @@ const RevenueDashboard = ({ pendingRevenue, pendingThanksBall, totalSettled, use
         </div>
         <button
           disabled={!canWithdraw}
+          onClick={() => canWithdraw && setShowWithdraw(true)}
           className={`px-5 py-2.5 rounded-xl text-[12px] font-[1000] transition-all ${
             canWithdraw
               ? 'bg-violet-600 text-white hover:bg-violet-700'
@@ -87,6 +91,15 @@ const RevenueDashboard = ({ pendingRevenue, pendingThanksBall, totalSettled, use
           광고가 게재되면 글별 수익이 표시됩니다.
         </div>
       </div>
+
+      {/* 출금 신청 모달 */}
+      {showWithdraw && (
+        <WithdrawModal
+          pendingRevenue={pendingRevenue}
+          pendingThanksBall={pendingThanksBall}
+          onClose={() => setShowWithdraw(false)}
+        />
+      )}
     </div>
   );
 };
