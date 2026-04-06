@@ -81,7 +81,7 @@ function extractTitle(raw) {
   if (typeof raw === "object") {
     return String(raw.__cdata ?? raw["#text"] ?? raw["_"] ?? "").trim();
   }
-  return String(raw).trim();
+  return String(raw).replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'").trim();
 }
 
 /**
@@ -107,7 +107,18 @@ function isBreaking(title) {
  * HTML 태그 제거
  */
 function stripHtml(html = "") {
-  return String(html).replace(/<[^>]+>/g, "").trim();
+  return String(html)
+    .replace(/<[^>]+>/g, "")
+    // 🚀 HTML 엔티티 디코딩 — RSS 본문에 &amp; &quot; &lt; &gt; 등이 그대로 남는 문제 해결
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&apos;/g, "'")
+    .replace(/&#x27;/g, "'")
+    .replace(/&nbsp;/g, " ")
+    .trim();
 }
 
 /**

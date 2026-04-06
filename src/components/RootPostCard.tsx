@@ -215,23 +215,24 @@ const RootPostCard = ({
           </div>
         )}
 
-        {/* 🚀 OG 미리보기: 본문보다 위에 위치 — URL 주소 바로 아래 미리보기 노출 */}
-        {(post.linkUrl || contentLinkUrl) && showLinkPreview && (ogLoading || ogData) && (
-          <LinkPreviewCard data={ogData} loading={ogLoading} onClose={() => setShowLinkPreview(false)} />
-        )}
-        {post.linkUrl && !(showLinkPreview && (ogLoading || ogData)) && (
-          // OG fetch 실패 또는 미리보기 닫은 경우 — linkUrl 텍스트 fallback
-          <a href={post.linkUrl} target="_blank" rel="noopener noreferrer" className="text-[13px] font-bold text-blue-500 hover:text-blue-600 hover:underline transition-all">
-            {post.linkUrl}
-          </a>
-        )}
-
         <div className={`text-[15px] mb-6 leading-[1.8] font-medium max-w-none flex-1 [&_p]:mb-4 [&_p:last-child]:mb-0 [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:mb-4 [&_ol]:list-decimal [&_ol]:pl-5 [&_ol]:mb-4 [&_li]:mb-1 [&_strong]:font-bold [&_em]:italic [&_a]:text-blue-400 [&_a]:underline [&_blockquote]:border-l-4 [&_blockquote]:border-slate-200 [&_blockquote]:pl-4 [&_blockquote]:text-slate-500 [&_h1]:text-2xl [&_h1]:font-black [&_h2]:text-xl [&_h2]:font-black [&_h3]:text-lg [&_h3]:font-black ${isDark ? 'text-slate-200' : 'text-slate-700'}`} dangerouslySetInnerHTML={{ __html: sanitizeHtml(post.content) }} />
 
         {post.imageUrl && !hasImageInContent && (
           <div className="w-full md:w-2/3 mb-6 rounded-2xl overflow-hidden border border-slate-100 bg-slate-50">
             <img src={post.imageUrl} alt="Post Content" className="w-full h-auto object-contain max-h-[500px]" />
           </div>
+        )}
+
+        {/* 🚀 OG 미리보기: 본문 아래 — URL 링크 미리보기 카드 */}
+        {(post.linkUrl || contentLinkUrl) && showLinkPreview && (ogLoading || ogData) && (
+          <div className="mb-6">
+            <LinkPreviewCard data={ogData} loading={ogLoading} onClose={() => setShowLinkPreview(false)} />
+          </div>
+        )}
+        {post.linkUrl && !(showLinkPreview && (ogLoading || ogData)) && (
+          <a href={post.linkUrl} target="_blank" rel="noopener noreferrer" className="text-[13px] font-bold text-blue-500 hover:text-blue-600 hover:underline transition-all mb-6 block">
+            {post.linkUrl}
+          </a>
         )}
 
         <div className="flex flex-wrap gap-2 mb-6">
