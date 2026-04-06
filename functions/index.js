@@ -127,12 +127,19 @@ function stripHtml(html = "") {
  * RSS item에서 이미지 URL 추출
  */
 function extractImageUrl(item) {
-  return (
-    item.enclosure?.["@_url"] ||
-    item["media:thumbnail"]?.["@_url"] ||
-    item["media:content"]?.["@_url"] ||
-    null
-  );
+  // 🚀 RSS 이미지 추출 강화 — 다양한 피드 형식 대응
+  if (item.enclosure?.["@_url"]) return item.enclosure["@_url"];
+  if (item["media:thumbnail"]?.["@_url"]) return item["media:thumbnail"]["@_url"];
+  if (item["media:content"]?.["@_url"]) return item["media:content"]["@_url"];
+  // 배열 형태의 media:content (일부 피드)
+  if (Array.isArray(item["media:content"]) && item["media:content"][0]?.["@_url"]) return item["media:content"][0]["@_url"];
+  // enclosure 배열 형태
+  if (Array.isArray(item.enclosure) && item.enclosure[0]?.["@_url"]) return item.enclosure[0]["@_url"];
+  // description/content 내 <img> 태그에서 추출
+  const htmlContent = String(item.description ?? item["content:encoded"] ?? item.summary ?? "");
+  const imgMatch = htmlContent.match(/<img[^>]+src=["']([^"']+)["']/i);
+  if (imgMatch) return imgMatch[1];
+  return null;
 }
 
 /**
@@ -316,7 +323,24 @@ exports.ogRenderer = onRequest(
         const rawText = (post.content || "").replace(/<[^>]+>/g, "").trim();
         description = rawText.slice(0, 120) + (rawText.length > 120 ? "..." : "") || description;
 
-        if (post.imageUrl) image = post.imageUrl;
+        if (post.imageUrl) {
+          image = post.imageUrl;
+        } else if (post.linkUrl) {
+          // 🚀 이미지 없을 때 원본 기사 linkUrl의 OG 이미지를 폴백으로 사용
+          try {
+            const ogRes = await fetch(post.linkUrl, {
+              headers: { "User-Agent": "Mozilla/5.0 (compatible; GLoveBot/1.0)" },
+              signal: AbortSignal.timeout(5000),
+              redirect: "follow",
+            });
+            if (ogRes.ok) {
+              const ogHtml = await ogRes.text();
+              const ogImgMatch = ogHtml.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i)
+                || ogHtml.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i);
+              if (ogImgMatch) image = ogImgMatch[1];
+            }
+          } catch { /* 폴백 실패 시 기본 이미지 유지 */ }
+        }
       }
     } catch (e) {
       console.error("[ogRenderer] Firestore 조회 실패:", e);
