@@ -251,7 +251,10 @@ const OneCutDetailView = ({
 
           {/* 🚀 ADSMARKET: 이미지 아래 광고 슬롯 */}
           <div className="px-4 md:px-8">
-            <AdSlot position="bottom" postCategory="한컷" postAuthorLevel={displayLevel} />
+            {/* 🚀 플랫폼 광고 (Lv2+) */}
+            <AdSlot position="bottom" postCategory="한컷" postAuthorLevel={displayLevel} type="platform" />
+            {/* 🚀 작성자 광고 (Lv5+) */}
+            <AdSlot position="bottom" postCategory="한컷" postId={rootPost.id} postAuthorId={rootPost.author_id} postAuthorLevel={displayLevel} type="creator" adSlotEnabled={!!(rootPost as unknown as { adSlotEnabled?: boolean }).adSlotEnabled} />
           </div>
 
           {/* 🚀 작성자 정보 + 인터랙션 바 — RootPostCard 박스 스타일 */}

@@ -104,22 +104,27 @@ export const MENU_MESSAGES: Record<string, { title: string, description: string,
 // 🚀 ADSMARKET — 광고 경매 시장 상수
 // ════════════════════════════════════════════════════════════
 
-// 레벨별 광고 수익 배분율 (Revenue Share)
-// key = 최소 레벨, value = { slots: 슬롯 수, positions: 슬롯 위치, creatorRate: 작성자 배분율 }
-export const AD_REVENUE_SHARE: Record<number, { slots: number; positions: ('top' | 'middle' | 'bottom')[]; creatorRate: number }> = {
-  1: { slots: 0, positions: [], creatorRate: 0 },         // Lv1~4: 광고 없음
+// 🚀 작성자 광고 슬롯 — 레벨별 수익 배분율 (Revenue Share)
+export const CREATOR_AD_SLOTS: Record<number, { slots: number; positions: ('top' | 'middle' | 'bottom')[]; creatorRate: number }> = {
+  1: { slots: 0, positions: [], creatorRate: 0 },         // Lv1~4: 작성자 광고 없음
   5: { slots: 1, positions: ['bottom'], creatorRate: 0.3 }, // Lv5~6: 1슬롯, 30%
   7: { slots: 2, positions: ['top', 'bottom'], creatorRate: 0.5 }, // Lv7~8: 2슬롯, 50%
   9: { slots: 3, positions: ['top', 'middle', 'bottom'], creatorRate: 0.7 }, // Lv9~10: 3슬롯, 70%
 };
 
-// 유저 레벨에 맞는 RS 설정 반환
-export const getAdRevenueShare = (level: number) => {
-  if (level >= 9) return AD_REVENUE_SHARE[9];
-  if (level >= 7) return AD_REVENUE_SHARE[7];
-  if (level >= 5) return AD_REVENUE_SHARE[5];
-  return AD_REVENUE_SHARE[1];
+export const getCreatorAdSlots = (level: number) => {
+  if (level >= 9) return CREATOR_AD_SLOTS[9];
+  if (level >= 7) return CREATOR_AD_SLOTS[7];
+  if (level >= 5) return CREATOR_AD_SLOTS[5];
+  return CREATOR_AD_SLOTS[1];
 };
+
+// 🚀 플랫폼 광고 — Lv2+ 모든 글에 bottom 1개 (글러브팀 자체 프로모션, 수익 0%)
+export const PLATFORM_AD_MIN_LEVEL = 2;
+
+// 하위 호환용 alias
+export const AD_REVENUE_SHARE = CREATOR_AD_SLOTS;
+export const getAdRevenueShare = getCreatorAdSlots;
 
 // 광고 카테고리 (광고주 타겟팅용)
 export const AD_CATEGORIES = [

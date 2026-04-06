@@ -145,7 +145,10 @@ const DiscussionView = ({
         )}
 
         {/* 🚀 ADSMARKET: 본문과 댓글 사이 광고 슬롯 */}
-        <AdSlot position="bottom" postCategory={rootPost.category} postAuthorLevel={displayLevel} />
+        {/* 🚀 플랫폼 광고 (Lv2+, 자체 프로모션) */}
+        <AdSlot position="bottom" postCategory={rootPost.category} postAuthorLevel={displayLevel} type="platform" />
+        {/* 🚀 작성자 광고 (Lv5+, 경매/애드센스) */}
+        <AdSlot position="bottom" postCategory={rootPost.category} postId={rootPost.id} postAuthorId={rootPost.author_id} postAuthorLevel={displayLevel} type="creator" adSlotEnabled={!!(rootPost as unknown as { adSlotEnabled?: boolean }).adSlotEnabled} />
 
         {rootPost.category && !['너와 나의 이야기', '신포도와 여우', '황금알을 낳는 거위'].includes(rootPost.category) && rule.boardType !== 'pandora' && (
           !currentNickname ? (
