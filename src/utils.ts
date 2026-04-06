@@ -10,21 +10,14 @@
  */
 export const formatKoreanNumber = (num: number): string => {
   if (!num || num < 0) return "0";
-  if (num < 1000) return num.toLocaleString();
-  
-  if (num < 10000) {
-    const thousands = Math.floor(num / 1000);
-    const remainder = Math.floor((num % 1000) / 100);
-    return remainder > 0 ? `${thousands}.${remainder}천` : `${thousands}천`;
+  if (num < 1000) return String(num);
+  if (num < 1000000) {
+    const k = num / 1000;
+    // 1K, 1.5K, 10K, 100K — 소수점 1자리까지, .0이면 제거
+    return k % 1 === 0 ? `${k}K` : `${k.toFixed(1)}K`;
   }
-  
-  const tenThousands = Math.floor(num / 10000);
-  const thousands = Math.floor((num % 10000) / 1000);
-  
-  if (thousands > 0) {
-    return `${tenThousands}만 ${thousands}천`;
-  }
-  return `${tenThousands}만`;
+  const m = num / 1000000;
+  return m % 1 === 0 ? `${m}M` : `${m.toFixed(1)}M`;
 };
 
 /**
