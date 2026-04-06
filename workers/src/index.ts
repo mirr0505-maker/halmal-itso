@@ -143,15 +143,23 @@ export default {
         reader.cancel();
       }
 
+      // 🚀 HTML 엔티티 디코딩 — OG 태그에 &#034; &#039; &amp; 등이 포함된 경우 처리
+      const decodeEntities = (str: string): string =>
+        str.replace(/&amp;/g, '&')
+          .replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+          .replace(/&quot;/g, '"').replace(/&apos;/g, "'")
+          .replace(/&#(\d+);/g, (_, c) => String.fromCharCode(Number(c)))
+          .replace(/&#x([0-9a-fA-F]+);/g, (_, h) => String.fromCharCode(parseInt(h, 16)));
+
       const data: OgData = {
-        title:
+        title: decodeEntities(
           getMeta(html, 'og:title') ||
           getMeta(html, 'twitter:title') ||
-          getTitle(html),
-        description:
+          getTitle(html)),
+        description: decodeEntities(
           getMeta(html, 'og:description') ||
           getMeta(html, 'twitter:description') ||
-          getMeta(html, 'description'),
+          getMeta(html, 'description')),
         image:
           getMeta(html, 'og:image') ||
           getMeta(html, 'twitter:image'),
