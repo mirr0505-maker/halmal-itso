@@ -164,8 +164,8 @@ const RootPostCard = ({
               {showPostMenu && (
                 <div className="absolute right-0 top-7 z-50 bg-white border border-slate-200 rounded-lg shadow-md py-0.5 w-28 animate-in fade-in duration-150" onMouseLeave={() => setShowPostMenu(false)}>
                   <button onClick={() => { setShowPostMenu(false); onAuthorClick?.(post.author); }}
-                    className="w-full text-left px-2.5 py-1 text-[10px] font-bold text-slate-700 hover:bg-slate-50 transition-colors">공개프로필 보기</button>
-                  <button disabled className="w-full text-left px-2.5 py-1 text-[10px] font-bold text-slate-300 cursor-not-allowed">신고하기</button>
+                    className="w-full text-left px-2.5 py-0.5 text-[11px] font-bold text-slate-700 hover:bg-slate-50 transition-colors">공개프로필 보기</button>
+                  <button disabled className="w-full text-left px-2.5 py-0.5 text-[11px] font-bold text-slate-300 cursor-not-allowed">신고하기</button>
                 </div>
               )}
             </div>
