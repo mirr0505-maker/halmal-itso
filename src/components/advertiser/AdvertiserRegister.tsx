@@ -64,7 +64,10 @@ const AdvertiserRegister = ({ onComplete, onCancel }: Props) => {
   return (
     <div className="max-w-lg mx-auto py-8 px-4 animate-in fade-in">
       <h2 className="text-[20px] font-[1000] text-slate-900 mb-1">📢 광고주 등록</h2>
-      <p className="text-[12px] font-bold text-slate-400 mb-6">사업자 정보를 입력하고 광고를 시작하세요.</p>
+      <p className="text-[12px] font-bold text-slate-400 mb-2">사업자 정보를 입력하고 광고를 시작하세요.</p>
+      <p className="text-[10px] font-bold text-amber-500 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-6">
+        현재 개발 기간 중이므로 자유롭게 등록 가능합니다. 정식 출시 시에는 개인/법인 사업자등록번호 인증이 필수로 적용됩니다.
+      </p>
 
       <div className="flex flex-col gap-4">
         <div>
