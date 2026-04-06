@@ -90,13 +90,6 @@ const CreateBoneHitting = ({ userData, editingPost, onSubmit, onClose }: Props) 
           </div>
         </div>
 
-        {/* 🚀 신규 글 제한 안내 */}
-        {!editingPost && (
-          <div className="px-5 py-2 bg-amber-50 border-b border-amber-100">
-            <p className="text-[11px] font-bold text-amber-600">새 글은 글자수 100자 또는 이미지 1개로 제한됩니다!</p>
-          </div>
-        )}
-
         {/* 제목 */}
         <div className="flex items-center px-5 py-3 border-b border-slate-100 shrink-0">
           <input type="text" placeholder="제목을 입력하세요 (선택)" value={postData.title || ''} onChange={(e) => setPostData({ ...postData, title: e.target.value })} className="w-full bg-transparent text-[18px] font-bold text-slate-900 outline-none placeholder:text-slate-200 placeholder:font-normal" />
@@ -114,7 +107,8 @@ const CreateBoneHitting = ({ userData, editingPost, onSubmit, onClose }: Props) 
 
         {/* 에디터 */}
         <div className="flex-1 overflow-y-auto min-h-0">
-          <TiptapEditor content={postData.content || ''} onChange={(html) => setPostData(prev => ({ ...prev, content: html }))} onImageUpload={uploadFile} />
+          <TiptapEditor content={postData.content || ''} onChange={(html) => setPostData(prev => ({ ...prev, content: html }))} onImageUpload={uploadFile}
+            placeholder={editingPost ? undefined : '나누고 싶은 글을 자유롭게 작성하세요.\n새 글은 글자수 100자 또는 이미지 1개로 제한됩니다!'} />
         </div>
 
         {/* 태그 */}
