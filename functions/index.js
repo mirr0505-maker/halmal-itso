@@ -1,4 +1,4 @@
-// functions/index.js — 마라톤의 전령 뉴스 자동화 봇
+// functions/index.js — 마라톤의 전령 뉴스 자동화 봇 (v2)
 // Firebase Cloud Functions v2 (Blaze 플랜 필수)
 // 스케줄: 매 10분마다 실행, 분대(0~5)별 6개 언론사 1개씩 순차 수집
 
