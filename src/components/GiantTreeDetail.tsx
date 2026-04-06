@@ -784,7 +784,7 @@ const GiantTreeDetail = ({ tree: treeProp, currentNickname, currentUserData, all
 
         {/* 참여자 목록 탭 */}
         {bottomTab === 'list' && (nodes.length === 0 ? (
-          <p className="text-center text-slate-300 font-bold text-xs py-6">아직 참여자가 없습니다.</p>
+          <p className="text-center text-slate-300 font-bold text-xs py-6">첫 번째 참여자를 기다리고 있어요!</p>
         ) : (
           <div className="flex flex-col gap-2">
             {nodes.map(node => {

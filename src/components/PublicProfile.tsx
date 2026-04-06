@@ -125,7 +125,7 @@ const PublicProfile = ({
 
         {/* 3. Intro */}
         <p className="text-[13px] font-medium text-slate-500 italic leading-relaxed">
-          "{userData.bio || '아직 소개글이 없습니다'}"
+          "{userData.bio || '소개글을 기다리고 있어요'}"
         </p>
       </div>
 
@@ -203,7 +203,7 @@ const PublicProfile = ({
           작성 글 ({userPosts.length})
         </h3>
         {userPosts.length === 0 ? (
-          <p className="text-center text-slate-300 font-bold text-[12px] py-8">아직 작성한 글이 없습니다.</p>
+          <p className="text-center text-slate-300 font-bold text-[12px] py-8">곧 멋진 글이 올라올 거예요!</p>
         ) : (
           <div className="flex flex-col gap-2">
             {userPosts.map(post => (

@@ -263,11 +263,11 @@ const GiantTreeView = ({ currentNickname, currentUserData, allUsers = {}, initia
               {/* 자라는 나무 목록 */}
               {growingTrees.length === 0 && giantTrees.length === 0 ? (
                 <div className="py-16 text-center text-slate-300 font-bold text-sm">
-                  아직 심어진 나무가 없습니다.<br />첫 번째 주장을 전파해보세요.
+                  첫 번째 나무를 심어보세요!<br />당신의 주장이 거대 나무로 자랄 수 있어요.
                 </div>
               ) : growingTrees.length === 0 ? (
                 <div className="py-10 text-center text-slate-300 font-bold text-sm">
-                  현재 자라는 나무가 없습니다.
+                  새로운 나무를 심어보세요!
                 </div>
               ) : (
                 <div className="flex flex-col gap-3">
@@ -286,7 +286,7 @@ const GiantTreeView = ({ currentNickname, currentUserData, allUsers = {}, initia
               </div>
               {giantTrees.length === 0 ? (
                 <div className="py-10 text-center text-slate-300 font-bold text-[11px]">
-                  아직 전파 완료된 거대 나무가 없어요.
+                  곧 거대 나무가 탄생할 거예요!
                 </div>
               ) : (
                 <div className="flex flex-col">

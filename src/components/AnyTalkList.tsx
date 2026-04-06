@@ -75,7 +75,7 @@ const AnyTalkList = ({
           <React.Fragment key={ci}>
             <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-2 w-full">
             {chunk.length === 0 && ci === 0 ? (
-              <div className={`col-span-full text-center text-slate-400 font-bold text-sm italic ${oneCutPosts && oneCutPosts.length > 0 ? 'py-10' : 'py-40'}`}>기록된 글이 없어요.</div>
+              <div className={`col-span-full text-center text-slate-400 font-bold text-sm italic ${oneCutPosts && oneCutPosts.length > 0 ? 'py-10' : 'py-40'}`}>첫 번째 이야기를 기다리고 있어요!</div>
             ) : (
               chunk.map((post) => {
           const promoLevel = Math.min(post.likes || 0, 3);

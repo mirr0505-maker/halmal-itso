@@ -195,7 +195,7 @@ const GiantTreeMap = ({ tree, nodes, allUsers = {}, myNodeId }: Props) => {
         >
           {nodes.length === 0 ? (
             <div className="py-8 text-center text-slate-300 font-bold text-xs">
-              아직 전파된 노드가 없습니다.
+              첫 번째 전파를 시작해보세요!
             </div>
           ) : (
             <div className="flex flex-col items-center">
