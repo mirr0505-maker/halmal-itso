@@ -54,6 +54,19 @@ const CreateBoneHitting = ({ userData, editingPost, onSubmit, onClose }: Props) 
 
   const handleSubmit = async () => {
     if (!userData || !postData.content?.trim() || isSubmitting) return;
+    // 🚀 신규 글만 제한 (수정은 제외) — 글자수 100자 이내 OR 이미지 1개 이내
+    if (!editingPost) {
+      const plainText = (postData.content || '').replace(/<[^>]*>/g, '').trim();
+      const imgCount = ((postData.content || '').match(/<img /gi) || []).length;
+      if (plainText.length > 100 && imgCount === 0) {
+        alert('신포도와 여우는 글자수 100자 이내 또는 이미지 1개로 작성해주세요.');
+        return;
+      }
+      if (imgCount > 1) {
+        alert('신포도와 여우는 이미지 1개까지만 가능합니다.');
+        return;
+      }
+    }
     setIsSubmitting(true);
     try {
       const filteredTags = (postData.tags || []).filter(t => t.trim() !== '');
@@ -76,6 +89,13 @@ const CreateBoneHitting = ({ userData, editingPost, onSubmit, onClose }: Props) 
             <button onClick={handleSubmit} disabled={isSubmitting || isUploading} className={`px-4 h-7 rounded-md text-[12px] font-bold transition-all ${isSubmitting || isUploading ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-slate-900 text-white hover:bg-blue-600'}`}>{isSubmitting ? '업로드 중...' : '새글 올리기'}</button>
           </div>
         </div>
+
+        {/* 🚀 신규 글 제한 안내 */}
+        {!editingPost && (
+          <div className="px-5 py-2 bg-amber-50 border-b border-amber-100">
+            <p className="text-[11px] font-bold text-amber-600">새 글은 글자수 100자 또는 이미지 1개로 제한됩니다!</p>
+          </div>
+        )}
 
         {/* 제목 */}
         <div className="flex items-center px-5 py-3 border-b border-slate-100 shrink-0">
