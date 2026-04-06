@@ -58,6 +58,11 @@ const OneCutDetailView = ({
   const realFollowers = followerCounts[rootPost.author] || 0;
   const displayLevel = calculateLevel(authorData?.exp || 0);
   const displayLikes = authorData ? authorData.likes : (rootPost.authorInfo?.totalLikes || 0);
+  // 🚀 골드스타: Lv5 이상 유저가 좋아요한 수
+  const goldStarCount = (rootPost.likedBy || []).filter(nickname => {
+    const ud = allUsers[`nickname_${nickname}`];
+    return ud && calculateLevel(ud.exp || 0) >= 5;
+  }).length;
   const isLikedByMe = currentNickname && rootPost.likedBy?.includes(currentNickname);
   const isMyPost = !!currentNickname && rootPost.author === currentNickname;
   const pinnedCommentId = rootPost.pinnedCommentId;
@@ -276,6 +281,15 @@ const OneCutDetailView = ({
                     <><svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/></svg>공유</>
                   )}
                 </button>
+                {/* 🚀 골드스타 */}
+                {goldStarCount > 0 && (
+                  <div className="flex items-center gap-0.5 px-2 py-1.5 rounded-xl bg-amber-50 border border-amber-200 shrink-0">
+                    <svg className="w-3.5 h-3.5 text-amber-400 fill-current" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                    </svg>
+                    <span className="text-[11px] font-[1000] text-amber-500">{goldStarCount}</span>
+                  </div>
+                )}
                 <button
                   onClick={() => onLikeClick?.(null, rootPost.id)}
                   className={`flex-1 md:flex-none flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl transition-all duration-300 font-[1000] text-[12px] whitespace-nowrap ${isLikedByMe ? 'bg-[#FF2E56] text-white ring-2 ring-rose-300 scale-105' : 'bg-white text-rose-400 border border-rose-200 hover:bg-rose-50'}`}

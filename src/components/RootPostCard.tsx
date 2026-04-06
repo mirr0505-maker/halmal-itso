@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { db } from '../firebase';
 import { doc, deleteDoc, updateDoc, increment } from 'firebase/firestore';
 import type { Post, UserData } from '../types';
-import { getReputationLabel, getReputationScore, formatKoreanNumber, getCategoryDisplayName } from '../utils';
+import { getReputationLabel, getReputationScore, formatKoreanNumber, getCategoryDisplayName, calculateLevel } from '../utils';
 import { CATEGORY_RULES } from './DiscussionView';
 import LinkPreviewCard from './LinkPreviewCard';
 import type { OgData } from './LinkPreviewCard';
@@ -45,6 +45,11 @@ const RootPostCard = ({
   const isMyPost = post.author === currentNickname;
   const isLikedByMe = currentNickname && post.likedBy?.includes(currentNickname);
   const authorData = (post.author_id && allUsers[post.author_id]) || allUsers[`nickname_${post.author}`];
+  // 🚀 골드스타: Lv5 이상 유저가 좋아요한 수
+  const goldStarCount = (post.likedBy || []).filter(nickname => {
+    const ud = allUsers[`nickname_${nickname}`];
+    return ud && calculateLevel(ud.exp || 0) >= 5;
+  }).length;
   const [showSelfMsg, setShowSelfMsg] = useState(false);
 
   // 🚀 linkUrl OG 미리보기: post.linkUrl 우선, 없으면 content HTML의 첫 번째 <a href> 추출
@@ -263,6 +268,15 @@ const RootPostCard = ({
           </div>
 
           <div className="flex items-center gap-2 w-full md:w-auto">
+            {/* 🚀 골드스타: Lv5 이상 유저가 좋아요한 수 표시 */}
+            {goldStarCount > 0 && (
+              <div className="flex items-center gap-0.5 px-2 py-1.5 rounded-xl bg-amber-50 border border-amber-200 shrink-0">
+                <svg className="w-3.5 h-3.5 text-amber-400 fill-current" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                </svg>
+                <span className="text-[11px] font-[1000] text-amber-500">{goldStarCount}</span>
+              </div>
+            )}
             <button
               onClick={() => onLikeClick?.(null, post.id)}
               className={`flex-1 md:flex-none flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl transition-all duration-300 font-[1000] text-[12px] whitespace-nowrap ${isLikedByMe ? 'bg-[#FF2E56] text-white ring-2 ring-rose-300 scale-105' : 'bg-white text-rose-400 border border-rose-200 hover:bg-rose-50'}`}
