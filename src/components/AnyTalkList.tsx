@@ -175,10 +175,10 @@ const AnyTalkList = ({
 
                 <div className="flex items-center justify-between">
                   <div
-                    className="flex items-center gap-2.5 min-w-0 cursor-pointer hover:opacity-70 transition-opacity"
+                    className="flex items-center gap-1.5 min-w-0 cursor-pointer hover:opacity-70 transition-opacity"
                     onClick={(e) => { e.stopPropagation(); onAuthorClick?.(post.author); }}
                   >
-                    <div className="w-7 h-7 rounded-full bg-slate-50 overflow-hidden shrink-0 border-2 border-white shadow-sm ring-1 ring-slate-100">
+                    <div className="w-6 h-6 rounded-full bg-slate-50 overflow-hidden shrink-0 border border-white shadow-sm ring-1 ring-slate-100">
                       <img src={authorData?.avatarUrl || `https://api.dicebear.com/7.x/adventurer/svg?seed=${post.author}`} alt="" className="w-full h-full object-cover" />
                     </div>
                     <div className="flex flex-col min-w-0">
@@ -189,7 +189,7 @@ const AnyTalkList = ({
                     </div>
                   </div>
 
-                  <div className={`flex items-center gap-3 text-[10px] font-black shrink-0 ${isDark ? 'text-slate-400' : 'text-slate-300'}`}>
+                  <div className={`flex items-center gap-2 text-[10px] font-black shrink-0 ${isDark ? 'text-slate-400' : 'text-slate-300'}`}>
                     <span className="flex items-center gap-1">
                       <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
                       {formatKoreanNumber(commentCount)}
