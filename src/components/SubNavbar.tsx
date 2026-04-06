@@ -53,7 +53,7 @@ const SubNavbar = ({ activeTab, onTabClick, showTabs }: Props) => {
 
   return (
     <div className="sticky top-0 z-30 bg-[#F8FAFC]/80 backdrop-blur-md pt-2">
-      <div className="flex items-center border-b border-slate-200 h-[36px] px-2">
+      <div className="flex items-center border-b border-slate-200 h-[36px] px-4">
         <div className="flex items-center h-full">
           {/* 단계별 게시글 탭 그룹 */}
           <div className="flex items-center h-full gap-1">
