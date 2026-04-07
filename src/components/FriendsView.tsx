@@ -15,9 +15,11 @@ interface Props {
   friends: string[];
   followerCounts: Record<string, number>;
   onToggleFriend: (author: string) => void;
+  onViewProfile: (nickname: string) => void;
 }
 
-const FriendsView = ({ currentNickname, currentUserData, allUsers, allRootPosts, friends, followerCounts, onToggleFriend }: Props) => {
+const FriendsView = ({ currentNickname, currentUserData, allUsers, allRootPosts: _allRootPosts, friends, followerCounts: _followerCounts, onToggleFriend, onViewProfile }: Props) => {
+  void _allRootPosts; void _followerCounts; // Props 유지 (향후 사용)
   const [selectedUser, setSelectedUser] = useState<(UserData & { promoImageUrl?: string; promoKeywords?: string[]; promoMessage?: string }) | null>(null);
   const [showPromoForm, setShowPromoForm] = useState(false);
 
@@ -145,9 +147,8 @@ const FriendsView = ({ currentNickname, currentUserData, allUsers, allRootPosts,
           userData={selectedUser}
           isFriend={friends.includes(selectedUser.nickname)}
           isMutual={friends.includes(selectedUser.nickname) && !!(selectedUser.friendList && selectedUser.friendList.includes(currentNickname))}
-          followerCount={followerCounts[selectedUser.nickname] || 0}
-          postCount={allRootPosts.filter(p => p.author === selectedUser.nickname).length}
           onToggleFriend={() => { onToggleFriend(selectedUser.nickname); setSelectedUser(null); }}
+          onViewProfile={() => { setSelectedUser(null); onViewProfile(selectedUser.nickname); }}
           onClose={() => setSelectedUser(null)}
         />
       )}

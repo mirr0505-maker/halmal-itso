@@ -402,7 +402,7 @@ function App() {
     }
 
     if (activeMenu === 'friends') {
-      return <FriendsView currentNickname={userData?.nickname} currentUserData={userData} allUsers={allUsers} allRootPosts={allRootPosts} friends={friends} followerCounts={followerCounts} onToggleFriend={toggleFriend} />;
+      return <FriendsView currentNickname={userData?.nickname} currentUserData={userData} allUsers={allUsers} allRootPosts={allRootPosts} friends={friends} followerCounts={followerCounts} onToggleFriend={toggleFriend} onViewProfile={setPublicProfileNick} />;
     }
 
     if (activeMenu === 'market') {

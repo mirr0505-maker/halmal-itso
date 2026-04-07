@@ -1,7 +1,7 @@
 // src/components/KanbuPromoModal.tsx — 깐부 홍보 팝업 상세
 // 🚀 메인 이미지 + 키워드 + 공약 + 공개프로필 요약 + 깐부맺기 버튼
 import type { UserData } from '../types';
-import { calculateLevel, getReputationLabel, getReputationScore, formatKoreanNumber, getLevelProgress, getReputationProgress, getNextLevelExp, getNextReputationThreshold } from '../utils';
+import { calculateLevel, getReputationLabel, getReputationScore, getLevelProgress, getReputationProgress, getNextLevelExp, getNextReputationThreshold } from '../utils';
 
 interface KanbuPromo {
   promoImageUrl?: string;
@@ -13,13 +13,12 @@ interface Props {
   userData: UserData & KanbuPromo;
   isFriend: boolean;
   isMutual: boolean;
-  followerCount: number;
-  postCount: number;
   onToggleFriend: () => void;
+  onViewProfile: () => void;
   onClose: () => void;
 }
 
-const KanbuPromoModal = ({ userData, isFriend, isMutual, followerCount, postCount, onToggleFriend, onClose }: Props) => {
+const KanbuPromoModal = ({ userData, isFriend, isMutual, onToggleFriend, onViewProfile, onClose }: Props) => {
   const level = calculateLevel(userData.exp || 0);
   const repScore = getReputationScore(userData);
   const repLabel = getReputationLabel(repScore);
@@ -88,37 +87,10 @@ const KanbuPromoModal = ({ userData, isFriend, isMutual, followerCount, postCoun
             </div>
           )}
 
-          {/* 소개글 */}
-          {userData.bio && (
-            <p className="text-[12px] font-medium text-slate-400 italic mb-3">"{userData.bio}"</p>
-          )}
-
-          {/* 활동 지표 */}
-          <div className="flex items-center justify-around text-center mb-4 bg-slate-50 rounded-xl py-3 border border-slate-100">
-            <div>
-              <span className="text-[14px] font-[1000] text-slate-800">{postCount}</span>
-              <p className="text-[9px] font-bold text-slate-400">작성글</p>
-            </div>
-            <div className="w-px h-6 bg-slate-200" />
-            <div>
-              <span className="text-[14px] font-[1000] text-slate-800">{userData.friendList?.length || 0}</span>
-              <p className="text-[9px] font-bold text-slate-400">깐부</p>
-            </div>
-            <div className="w-px h-6 bg-slate-200" />
-            <div>
-              <span className="text-[14px] font-[1000] text-slate-800">{followerCount}</span>
-              <p className="text-[9px] font-bold text-slate-400">깐부수</p>
-            </div>
-            <div className="w-px h-6 bg-slate-200" />
-            <div>
-              <span className="text-[14px] font-[1000] text-amber-500">⚾ {formatKoreanNumber(userData.ballReceived || 0)}</span>
-              <p className="text-[9px] font-bold text-slate-400">받은볼</p>
-            </div>
-          </div>
-
-          {/* 깐부맺기 버튼 */}
+          {/* 액션 버튼: 닫기 + 공개프로필 + 깐부맺기 */}
           <div className="flex gap-2">
-            <button onClick={onClose} className="flex-1 py-2.5 rounded-xl text-[12px] font-[1000] text-slate-400 bg-slate-50 hover:bg-slate-100 transition-colors">닫기</button>
+            <button onClick={onClose} className="px-3 py-2.5 rounded-xl text-[12px] font-[1000] text-slate-400 bg-slate-50 hover:bg-slate-100 transition-colors">닫기</button>
+            <button onClick={onViewProfile} className="flex-1 py-2.5 rounded-xl text-[12px] font-[1000] text-slate-600 bg-white border border-slate-200 hover:bg-slate-50 transition-colors">공개프로필 보기</button>
             {isMutual ? (
               <span className="flex-1 text-center py-2.5 rounded-xl text-[12px] font-[1000] text-emerald-600 bg-emerald-50 border border-emerald-200">서로 깐부 ✓</span>
             ) : isFriend ? (
