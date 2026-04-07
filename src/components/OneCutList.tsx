@@ -82,22 +82,21 @@ const OneCutList = ({ posts, allPosts, onTopicClick, onLikeClick, currentNicknam
               </h3>
 
               {/* 원본글 링크 — 있을 때만 렌더링 */}
-              {linkedPost ? (
-                <div className="pt-1">
+              {/* 원본글 링크 — 없어도 높이 확보 (카드 세로 사이즈 통일) */}
+              <div className="pt-1 min-h-[22px]">
+                {linkedPost ? (
                   <div className="flex items-center gap-1 text-blue-600 bg-blue-50/50 px-2 py-0.5 rounded-[2px] border border-blue-100/20">
                     <span className="text-[8px]">🔗</span>
                     <span className="text-[8px] font-black truncate tracking-tighter">{linkedPost.title}</span>
                   </div>
-                </div>
-              ) : post.linkUrl ? (
-                <div className="pt-1">
+                ) : post.linkUrl ? (
                   <a href={post.linkUrl} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()}
                     className="flex items-center gap-1 text-blue-600 bg-blue-50/50 px-2 py-0.5 rounded-[2px] border border-blue-100/20 hover:bg-blue-50 transition-colors">
                     <span className="text-[8px]">🔗</span>
                     <span className="text-[8px] font-black truncate tracking-tighter">{new URL(post.linkUrl).hostname}</span>
                   </a>
-                </div>
-              ) : null}
+                ) : null}
+              </div>
 
               {/* 🚀 하단: 일반 글카드(AnyTalkList)와 완전 동일 구조 */}
               <div className="flex-1" />

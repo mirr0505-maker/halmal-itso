@@ -269,23 +269,21 @@ const AnyTalkList = ({
                           <h3 className="text-[13px] font-[1000] text-slate-900 line-clamp-1 tracking-tighter leading-tight group-hover:text-blue-600 transition-colors">
                             {post.title}
                           </h3>
-                          {/* 원본글 링크 — linkedPostId 우선, linkUrl 폴백 (OneCutList와 동일) */}
-                          {linkedPost ? (
-                            <div className="pt-1">
+                          {/* 원본글 링크 — 없어도 높이 확보 (카드 세로 사이즈 통일) */}
+                          <div className="pt-1 min-h-[22px]">
+                            {linkedPost ? (
                               <div className="flex items-center gap-1 text-blue-600 bg-blue-50/50 px-2 py-0.5 rounded-[2px] border border-blue-100/20">
                                 <span className="text-[8px]">🔗</span>
                                 <span className="text-[8px] font-black truncate tracking-tighter">{linkedPost.title}</span>
                               </div>
-                            </div>
-                          ) : post.linkUrl ? (
-                            <div className="pt-1">
+                            ) : post.linkUrl ? (
                               <a href={post.linkUrl} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()}
                                 className="flex items-center gap-1 text-blue-600 bg-blue-50/50 px-2 py-0.5 rounded-[2px] border border-blue-100/20 hover:bg-blue-50 transition-colors">
                                 <span className="text-[8px]">🔗</span>
                                 <span className="text-[8px] font-black truncate tracking-tighter">{(() => { try { return new URL(post.linkUrl!).hostname; } catch { return '원본글'; } })()}</span>
                               </a>
-                            </div>
-                          ) : null}
+                            ) : null}
+                          </div>
                           {/* 하단: 일반 글카드와 완전 동일 구조 */}
                           <div className="flex-1" />
                           <div className="pt-1 border-t border-slate-50 flex items-center justify-between">
