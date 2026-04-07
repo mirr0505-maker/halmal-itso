@@ -234,13 +234,16 @@ const MyPage = ({
   const [charging, setCharging] = useState(false);
 
   const handleTestCharge = async (amount: number) => {
-    const uid = auth.currentUser?.uid;
-    if (!uid || charging) return;
+    if (!auth.currentUser || charging) return;
     setCharging(true);
     try {
-      await updateDoc(doc(db, 'users', uid), {
-        ballBalance: increment(amount),
-      });
+      // 🚀 Cloud Function 호출 — Firestore Rules에서 ballBalance 직접 수정 차단됨
+      const { httpsCallable } = await import('firebase/functions');
+      const { functions } = await import('../firebase');
+      const chargeFn = httpsCallable(functions, 'testChargeBall');
+      await chargeFn({ amount });
+    } catch (err) {
+      alert('충전 실패: ' + ((err as Error).message || ''));
     } finally {
       setCharging(false);
     }
