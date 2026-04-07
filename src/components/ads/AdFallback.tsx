@@ -23,8 +23,10 @@ const AdFallback = ({ position }: Props) => {
   return (
     <div
       onClick={handleClick}
-      className="w-full rounded-xl border border-dashed border-slate-200 bg-slate-50/50 px-4 py-3 flex items-center gap-3 cursor-pointer hover:bg-slate-100 transition-colors"
+      className="w-full rounded-xl border border-dashed border-slate-200 bg-slate-50/50 px-4 py-3 flex items-center gap-3 cursor-pointer hover:bg-slate-100 transition-colors relative"
     >
+      {/* 광고 라벨 */}
+      <span className="absolute top-1.5 right-2 text-[7px] font-black text-slate-300 bg-white px-1.5 py-0.5 rounded border border-slate-200">광고</span>
       <span className="text-[20px] shrink-0">{promo.emoji}</span>
       <div className="flex-1 min-w-0">
         <p className="text-[11px] font-[1000] text-slate-600 truncate">{promo.headline}</p>
