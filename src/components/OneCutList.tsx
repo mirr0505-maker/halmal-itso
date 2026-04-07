@@ -80,20 +80,23 @@ const OneCutList = ({ posts, allPosts, onTopicClick, onLikeClick, currentNicknam
                 {post.title}
               </h3>
 
-              <div className="pt-1">
-                {linkedPost ? (
+              {/* 원본글 링크 — 있을 때만 렌더링 */}
+              {linkedPost ? (
+                <div className="pt-1">
                   <div className="flex items-center gap-1 text-blue-600 bg-blue-50/50 px-2 py-0.5 rounded-[2px] border border-blue-100/20">
                     <span className="text-[8px]">🔗</span>
                     <span className="text-[8px] font-black truncate tracking-tighter">{linkedPost.title}</span>
                   </div>
-                ) : post.linkUrl ? (
+                </div>
+              ) : post.linkUrl ? (
+                <div className="pt-1">
                   <a href={post.linkUrl} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()}
                     className="flex items-center gap-1 text-blue-600 bg-blue-50/50 px-2 py-0.5 rounded-[2px] border border-blue-100/20 hover:bg-blue-50 transition-colors">
                     <span className="text-[8px]">🔗</span>
                     <span className="text-[8px] font-black truncate tracking-tighter">{new URL(post.linkUrl).hostname}</span>
                   </a>
-                ) : null}
-              </div>
+                </div>
+              ) : null}
 
               {/* 🚀 작성자 정보 */}
               <div className="mt-auto pt-1.5 border-t border-slate-50 flex items-center gap-1.5">
