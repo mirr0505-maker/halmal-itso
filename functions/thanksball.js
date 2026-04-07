@@ -26,18 +26,17 @@ exports.sendThanksball = onCall(
     const senderSnapForName = await senderRef.get();
     const senderNickname = senderSnapForName.data()?.nickname || request.auth.token?.name || "익명";
 
-    // 🚀 수신자 UID 확보 — 클라이언트에서 보낸 값이 없으면 postAuthor 닉네임으로 DB 조회
-    let resolvedRecipientUid = recipientUid;
-    if (!resolvedRecipientUid && postAuthor) {
-      // nickname_ 접두사 문서에서 UID 조회
-      const nickSnap = await db.collection("users").doc(`nickname_${postAuthor}`).get();
-      if (nickSnap.exists) resolvedRecipientUid = nickSnap.data().uid;
-    }
-    if (!resolvedRecipientUid && postId) {
-      // posts 문서에서 author_id 조회
-      const postSnap = await db.collection("posts").doc(postId).get();
+    // 🚀 수신자 UID 확보 — posts 문서의 author_id를 최우선 사용 (가장 정확)
+    // Why: nickname_ 문서의 uid가 잘못된 값일 수 있음 (구글 로그인 유저의 실제 UID와 불일치)
+    let resolvedRecipientUid = null;
+    // 1순위: posts 문서에서 author_id 직접 조회 (가장 신뢰)
+    if (postId) {
+      const col = commentId ? (targetCollection || "comments") : "posts";
+      const postSnap = await db.collection(col).doc(commentId || postId).get();
       if (postSnap.exists) resolvedRecipientUid = postSnap.data().author_id;
     }
+    // 2순위: 클라이언트에서 보낸 recipientUid (posts 조회 실패 시 폴백)
+    if (!resolvedRecipientUid) resolvedRecipientUid = recipientUid;
     console.log(`[sendThanksball] resolvedRecipientUid=${resolvedRecipientUid}`);
 
     // 🔒 트랜잭션: 잔액 확인 + 차감 + 수신자 누적
