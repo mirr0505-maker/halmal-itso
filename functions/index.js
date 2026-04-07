@@ -399,9 +399,11 @@ const { adAuction } = require("./auction");
 const { aggregateDailyRevenue } = require("./revenue");
 const { detectFraud } = require("./fraud");
 const { processSettlements } = require("./settlement");
+const { recalcContentTextLength } = require("./contentLength");
 
 exports.registerKanbuPromo = registerKanbuPromo;
 exports.adAuction = adAuction;
 exports.aggregateDailyRevenue = aggregateDailyRevenue;
 exports.detectFraud = detectFraud;
 exports.processSettlements = processSettlements;
+exports.recalcContentTextLength = recalcContentTextLength;

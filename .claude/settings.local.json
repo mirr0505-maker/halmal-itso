@@ -71,7 +71,8 @@
       "Bash(grep -E \"\\\\.\\(tsx|css\\)$\")",
       "Bash(grep -n \"h-1\\\\|h-\\\\[1px\\\\]\\\\|h-\\\\[2px\\\\]\\\\|h-0.5\" /e/halmal-itso/src/components/*.tsx)",
       "Bash(grep:*)",
-      "Bash(find /e/halmal-itso/src -type f -name \"*.tsx\" -exec grep -l \"flex.*\\\\[\" {} \\\\;)"
+      "Bash(find /e/halmal-itso/src -type f -name \"*.tsx\" -exec grep -l \"flex.*\\\\[\" {} \\\\;)",
+      "Bash(find . -type f \\\\\\( -name \"*.js\" -o -name \"*.ts\" -o -name \"*.tsx\" \\\\\\) -exec grep -l \"ballBalance\\\\|planIndex\\\\|registerKanbuPromo\" {} \\\\;)"
     ]
   }
 }
