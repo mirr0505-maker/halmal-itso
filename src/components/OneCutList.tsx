@@ -29,6 +29,12 @@ const OneCutList = ({ posts, allPosts, onTopicClick, onLikeClick, currentNicknam
     });
   };
 
+  if (posts.length === 0) return (
+    <div className="py-20 text-center text-slate-300 font-[1000] text-[16px]">
+      첫 번째 한컷을 기다리고 있어요!
+    </div>
+  );
+
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 pb-40">
       {posts.map((post) => {
