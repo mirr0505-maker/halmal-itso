@@ -3,6 +3,8 @@ import { useState } from 'react';
 import { uploadToR2 } from '../uploadToR2';
 import type { Post, UserData } from '../types';
 import TiptapEditor from './TiptapEditor';
+import AdSlotSetting from './ads/AdSlotSetting';
+import { calculateLevel } from '../utils';
 
 interface Props {
   userData: UserData;
@@ -27,6 +29,9 @@ const CreateLocalNews = ({ userData, editingPost, onSubmit, onClose }: Props) =>
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  // 🚀 ADSMARKET: 광고 슬롯 설정
+  const [adSlotEnabled, setAdSlotEnabled] = useState(false);
+  const [adSlotType, setAdSlotType] = useState<'auction' | 'adsense'>('auction');
 
   // 🚀 국내 입력 시: 해외 잠금, location + tags[3] 자동 업데이트
   // Array.from으로 5칸 보장 — tags가 5개 미만이면 중간에 undefined 구멍이 생겨 .trim() 에러 발생
@@ -74,7 +79,7 @@ const CreateLocalNews = ({ userData, editingPost, onSubmit, onClose }: Props) =>
       const filteredTags = (postData.tags || []).filter(t => t?.trim() !== '');
       // undefined 필드 제거 — Firestore updateDoc는 undefined 값을 거부함
       const cleanData = Object.fromEntries(
-        Object.entries({ ...postData, tags: filteredTags }).filter(([, v]) => v !== undefined)
+        Object.entries({ ...postData, tags: filteredTags, ...(adSlotEnabled ? { adSlotEnabled: true, adSlotType } : {}) }).filter(([, v]) => v !== undefined)
       ) as Partial<Post>;
       await onSubmit(cleanData, editingPost?.id);
     } catch (e: unknown) {
@@ -144,6 +149,10 @@ const CreateLocalNews = ({ userData, editingPost, onSubmit, onClose }: Props) =>
             </div>
           ))}
         </div>
+
+        {/* 🚀 ADSMARKET: 광고 슬롯 설정 (Lv5+) */}
+        <AdSlotSetting userLevel={calculateLevel(userData?.exp || 0)} adSlotEnabled={adSlotEnabled} adSlotType={adSlotType}
+          onChange={(enabled, type) => { setAdSlotEnabled(enabled); setAdSlotType(type); }} />
       </div>
     </div>
   );

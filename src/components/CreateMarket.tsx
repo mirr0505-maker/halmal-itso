@@ -3,6 +3,8 @@ import { useState } from 'react';
 import { uploadToR2 } from '../uploadToR2';
 import type { Post, UserData } from '../types';
 import TiptapEditor from './TiptapEditor';
+import AdSlotSetting from './ads/AdSlotSetting';
+import { calculateLevel } from '../utils';
 
 interface Props {
   userData: UserData;
@@ -21,6 +23,9 @@ const CreateMarket = ({ userData, editingPost, onSubmit, onClose }: Props) => {
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  // 🚀 ADSMARKET: 광고 슬롯 설정
+  const [adSlotEnabled, setAdSlotEnabled] = useState(false);
+  const [adSlotType, setAdSlotType] = useState<'auction' | 'adsense'>('auction');
 
   const uploadFile = async (file: File): Promise<string | null> => {
     if (!userData) return null;
@@ -45,7 +50,7 @@ const CreateMarket = ({ userData, editingPost, onSubmit, onClose }: Props) => {
     setIsSubmitting(true);
     try {
       const filteredTags = (postData.tags || []).filter(t => t.trim() !== '');
-      await onSubmit({ ...postData, tags: filteredTags }, editingPost?.id);
+      await onSubmit({ ...postData, tags: filteredTags, ...(adSlotEnabled ? { adSlotEnabled: true, adSlotType } : {}) }, editingPost?.id);
     } finally { setIsSubmitting(false); }
   };
 
@@ -86,6 +91,10 @@ const CreateMarket = ({ userData, editingPost, onSubmit, onClose }: Props) => {
             </div>
           ))}
         </div>
+
+        {/* 🚀 ADSMARKET: 광고 슬롯 설정 (Lv5+) */}
+        <AdSlotSetting userLevel={calculateLevel(userData?.exp || 0)} adSlotEnabled={adSlotEnabled} adSlotType={adSlotType}
+          onChange={(enabled, type) => { setAdSlotEnabled(enabled); setAdSlotType(type); }} />
       </div>
     </div>
   );

@@ -3,6 +3,8 @@ import { useState } from 'react';
 import { uploadToR2 } from '../uploadToR2';
 import type { Post, UserData } from '../types';
 import TiptapEditor from './TiptapEditor';
+import AdSlotSetting from './ads/AdSlotSetting';
+import { calculateLevel } from '../utils';
 
 interface Props {
   userData: UserData;
@@ -23,6 +25,9 @@ const CreatePostBox = ({ userData, editingPost, activeMenu, menuMessages, onSubm
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  // 🚀 ADSMARKET: 광고 슬롯 설정
+  const [adSlotEnabled, setAdSlotEnabled] = useState(false);
+  const [adSlotType, setAdSlotType] = useState<'auction' | 'adsense'>('auction');
 
   const menuOptions = Object.keys(menuMessages)
     .filter(key => !['onecut', 'market', 'exile_place'].includes(key))
@@ -64,7 +69,7 @@ const CreatePostBox = ({ userData, editingPost, activeMenu, menuMessages, onSubm
     setIsSubmitting(true);
     try {
       const filteredTags = (postData.tags || []).filter(tag => tag.trim() !== '');
-      await onSubmit({ ...postData, tags: filteredTags }, editingPost?.id);
+      await onSubmit({ ...postData, tags: filteredTags, ...(adSlotEnabled ? { adSlotEnabled: true, adSlotType } : {}) }, editingPost?.id);
     } finally {
       setIsSubmitting(false);
     }
@@ -176,6 +181,10 @@ const CreatePostBox = ({ userData, editingPost, activeMenu, menuMessages, onSubm
             </div>
           ))}
         </div>
+
+        {/* 🚀 ADSMARKET: 광고 슬롯 설정 (Lv5+) */}
+        <AdSlotSetting userLevel={calculateLevel(userData?.exp || 0)} adSlotEnabled={adSlotEnabled} adSlotType={adSlotType}
+          onChange={(enabled, type) => { setAdSlotEnabled(enabled); setAdSlotType(type); }} />
       </div>
     </div>
   );

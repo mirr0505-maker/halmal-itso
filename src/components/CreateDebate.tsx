@@ -3,6 +3,8 @@ import { useState } from 'react';
 import { uploadToR2 } from '../uploadToR2';
 import type { Post, UserData } from '../types';
 import TiptapEditor from './TiptapEditor';
+import AdSlotSetting from './ads/AdSlotSetting';
+import { calculateLevel } from '../utils';
 
 const POSITIONS: { value: 'pro' | 'con' | 'neutral'; label: string; cls: string }[] = [
   { value: 'pro',     label: '👍 찬성', cls: 'bg-blue-50 text-blue-700 border-blue-300' },
@@ -36,6 +38,9 @@ const CreateDebate = ({ userData, editingPost, onSubmit, onClose, linkedTitle, l
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  // 🚀 ADSMARKET: 광고 슬롯 설정
+  const [adSlotEnabled, setAdSlotEnabled] = useState(false);
+  const [adSlotType, setAdSlotType] = useState<'auction' | 'adsense'>('auction');
 
   const uploadFile = async (file: File): Promise<string | null> => {
     if (!userData) return null;
@@ -62,7 +67,7 @@ const CreateDebate = ({ userData, editingPost, onSubmit, onClose, linkedTitle, l
       const filteredTags = (postData.tags || []).filter(t => t.trim() !== '');
       // 연계글 모드: '[연계글] ' + 사용자 입력 제목으로 최종 title 조합
       const finalTitle = linkedTitle ? `[연계글] ${postData.title || ''}`.trim() : postData.title;
-      await onSubmit({ ...postData, title: finalTitle, tags: filteredTags }, editingPost?.id);
+      await onSubmit({ ...postData, title: finalTitle, tags: filteredTags, ...(adSlotEnabled ? { adSlotEnabled: true, adSlotType } : {}) }, editingPost?.id);
     } finally { setIsSubmitting(false); }
   };
 
@@ -130,6 +135,10 @@ const CreateDebate = ({ userData, editingPost, onSubmit, onClose, linkedTitle, l
             </div>
           ))}
         </div>
+
+        {/* 🚀 ADSMARKET: 광고 슬롯 설정 (Lv5+) */}
+        <AdSlotSetting userLevel={calculateLevel(userData?.exp || 0)} adSlotEnabled={adSlotEnabled} adSlotType={adSlotType}
+          onChange={(enabled, type) => { setAdSlotEnabled(enabled); setAdSlotType(type); }} />
       </div>
     </div>
   );

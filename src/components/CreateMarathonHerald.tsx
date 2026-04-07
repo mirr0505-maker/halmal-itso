@@ -4,6 +4,8 @@ import { useState } from 'react';
 import { uploadToR2 } from '../uploadToR2';
 import type { Post, UserData } from '../types';
 import TiptapEditor from './TiptapEditor';
+import AdSlotSetting from './ads/AdSlotSetting';
+import { calculateLevel } from '../utils';
 
 const HERALD_TAGS = ['속보', '단독', '지진', '폭발', '테러', '비상계엄'];
 
@@ -25,6 +27,9 @@ const CreateMarathonHerald = ({ userData, editingPost, onSubmit, onClose }: Prop
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  // 🚀 ADSMARKET: 광고 슬롯 설정
+  const [adSlotEnabled, setAdSlotEnabled] = useState(false);
+  const [adSlotType, setAdSlotType] = useState<'auction' | 'adsense'>('auction');
 
   const uploadFile = async (file: File): Promise<string | null> => {
     if (!userData) return null;
@@ -61,7 +66,7 @@ const CreateMarathonHerald = ({ userData, editingPost, onSubmit, onClose }: Prop
     setIsSubmitting(true);
     try {
       const filteredTags = (postData.tags || []).filter(t => t.trim() !== '');
-      await onSubmit({ ...postData, tags: filteredTags }, editingPost?.id);
+      await onSubmit({ ...postData, tags: filteredTags, ...(adSlotEnabled ? { adSlotEnabled: true, adSlotType } : {}) }, editingPost?.id);
     } finally { setIsSubmitting(false); }
   };
 
@@ -110,6 +115,10 @@ const CreateMarathonHerald = ({ userData, editingPost, onSubmit, onClose }: Prop
             </div>
           ))}
         </div>
+
+        {/* 🚀 ADSMARKET: 광고 슬롯 설정 (Lv5+) */}
+        <AdSlotSetting userLevel={calculateLevel(userData?.exp || 0)} adSlotEnabled={adSlotEnabled} adSlotType={adSlotType}
+          onChange={(enabled, type) => { setAdSlotEnabled(enabled); setAdSlotType(type); }} />
       </div>
     </div>
   );
