@@ -17,14 +17,15 @@ const BOT_UID = "marathon-herald-bot";
 const BOT_AVATAR_URL = "https://api.dicebear.com/7.x/adventurer/svg?seed=marathon-herald";
 
 // 📰 RSS 피드 목록 — 매 10분마다 실행, 분대(0~5)에 따라 1개씩 순차 수집
-// 0분대(0~9분)=MBC, 10분대=연합, 20분대=KBS, 30분대=경향, 40분대=동아, 50분대=뉴스1
+// 0분대(0~9분)=MBC, 10분대=연합뉴스TV, 20분대=연합뉴스, 30분대=경향, 40분대=동아, 50분대=JTBC
+// Why: KBS·뉴스1은 RSS 서비스 종료 → 연합뉴스·JTBC로 대체 (2026-04-07)
 const RSS_FEEDS = [
-  { url: "https://imnews.imbc.com/rss/news/news_00.xml",             source: "MBC뉴스" },
+  { url: "https://imnews.imbc.com/rss/google_news/narrativeNews.rss", source: "MBC뉴스" },
   { url: "https://www.yonhapnewstv.co.kr/browse/feed/",              source: "연합뉴스TV" },
-  { url: "https://news.kbs.co.kr/rss/rss.do?source=news",            source: "KBS뉴스" },
+  { url: "https://www.yna.co.kr/rss/news.xml",                       source: "연합뉴스" },
   { url: "https://www.khan.co.kr/rss/rssdata/total_news.xml",        source: "경향신문" },
-  { url: "https://www.donga.com/news/rss",                           source: "동아일보" },
-  { url: "https://www.news1.kr/rss/main.xml",                       source: "뉴스1" },
+  { url: "https://rss.donga.com/total.xml",                          source: "동아일보" },
+  { url: "https://fs.jtbc.co.kr/RSS/newsflash.xml",                  source: "JTBC" },
 ];
 
 // 🚨 속보 판정 키워드 — 기사 제목에 하나라도 포함되면 등록, 없으면 스킵
@@ -167,7 +168,7 @@ exports.fetchMarathonNews = onSchedule(
   },
   async () => {
     // 🚀 현재 시각의 분대(0~5)에 해당하는 언론사 1개만 처리
-    // 0분대(0~9분)=MBC, 10분대=연합, 20분대=KBS, 30분대=경향, 40분대=동아, 50분대=뉴스1
+    // 0분대(0~9분)=MBC, 10분대=연합뉴스TV, 20분대=연합뉴스, 30분대=경향, 40분대=동아, 50분대=JTBC
     const nowMinute = new Date().getMinutes();
     const slotIndex = Math.floor(nowMinute / 10);  // 0~5
     const feed = RSS_FEEDS[slotIndex];
