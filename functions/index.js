@@ -17,15 +17,16 @@ const BOT_UID = "marathon-herald-bot";
 const BOT_AVATAR_URL = "https://api.dicebear.com/7.x/adventurer/svg?seed=marathon-herald";
 
 // 📰 RSS 피드 목록 — 매 10분마다 실행, 분대(0~5)에 따라 1개씩 순차 수집
-// 0분대(0~9분)=MBC, 10분대=연합뉴스TV, 20분대=연합뉴스, 30분대=경향, 40분대=동아, 50분대=JTBC
-// Why: KBS·뉴스1은 RSS 서비스 종료 → 연합뉴스·JTBC로 대체 (2026-04-07)
+// 0분대(0~9분)=MBC, 10분대=연합뉴스TV, 20분대=연합뉴스, 30분대=경향, 40분대=동아, 50분대=뉴시스
+// Why: KBS·뉴스1은 RSS 서비스 종료 → 연합뉴스·뉴시스로 대체 (2026-04-07)
 const RSS_FEEDS = [
   { url: "https://imnews.imbc.com/rss/google_news/narrativeNews.rss", source: "MBC뉴스" },
   { url: "https://www.yonhapnewstv.co.kr/browse/feed/",              source: "연합뉴스TV" },
   { url: "https://www.yna.co.kr/rss/news.xml",                       source: "연합뉴스" },
   { url: "https://www.khan.co.kr/rss/rssdata/total_news.xml",        source: "경향신문" },
   { url: "https://rss.donga.com/total.xml",                          source: "동아일보" },
-  { url: "https://fs.jtbc.co.kr/RSS/newsflash.xml",                  source: "JTBC" },
+  // 🚀 뉴시스: 사회/정치/국제/문화 4개 피드를 한 슬롯에서 순차 수집 (뉴스1 RSS 폐지 대체)
+  { urls: ["https://newsis.com/RSS/society.xml", "https://newsis.com/RSS/politics.xml", "https://newsis.com/RSS/international.xml", "https://newsis.com/RSS/culture.xml"], source: "뉴시스" },
 ];
 
 // 🚨 속보 판정 키워드 — 기사 제목에 하나라도 포함되면 등록, 없으면 스킵
@@ -186,9 +187,10 @@ exports.fetchMarathonNews = onSchedule(
     let totalAdded = 0;
     let totalSkipped = 0;
 
-    // 2️⃣ 해당 슬롯의 피드 1개만 처리
-    for (const feed of [RSS_FEEDS[slotIndex]]) {
-      const items = await fetchRSS(feed.url);
+    // 2️⃣ 해당 슬롯의 피드 처리 — urls 배열이면 여러 피드를 순차 수집
+    const feedUrls = feed.urls ? feed.urls : [feed.url];
+    for (const feedUrl of feedUrls) {
+      const items = await fetchRSS(feedUrl);
       let feedAdded = 0;
 
       for (const item of items.slice(0, MAX_ITEMS_PER_FEED)) {
@@ -255,7 +257,8 @@ exports.fetchMarathonNews = onSchedule(
       }
 
       if (feedAdded > 0) {
-        console.log(`[${feed.source}] ${feedAdded}건 등록`);
+        const urlLabel = feed.urls ? feedUrl.split('/').pop() : feed.source;
+        console.log(`[${feed.source}/${urlLabel}] ${feedAdded}건 등록`);
       }
     }
 
