@@ -29,7 +29,7 @@ const KanbuPromoModal = ({ userData, isFriend, isMutual, onToggleFriend, onViewP
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={onClose}>
-      <div className="bg-white rounded-2xl w-[420px] max-h-[85vh] overflow-y-auto shadow-2xl" onClick={e => e.stopPropagation()}>
+      <div className="bg-white rounded-2xl w-[520px] max-h-[90vh] overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] shadow-2xl" onClick={e => e.stopPropagation()}>
 
         {/* 메인 이미지 */}
         {userData.promoImageUrl && (

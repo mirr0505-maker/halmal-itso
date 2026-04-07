@@ -88,8 +88,11 @@ const KanbuPromoForm = ({ currentPromo, ballBalance, onClose }: Props) => {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={onClose}>
-      <div className="bg-white rounded-2xl p-6 w-[420px] shadow-2xl max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-        <h3 className="text-[16px] font-[1000] text-slate-900 mb-4">🤝 깐부 홍보 등록</h3>
+      <div className="bg-white rounded-2xl p-6 w-[520px] shadow-2xl max-h-[90vh] overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]" onClick={e => e.stopPropagation()}>
+        <h3 className="text-[16px] font-[1000] text-slate-900 mb-2">🤝 깐부 홍보 등록</h3>
+        <p className="text-[10px] font-bold text-slate-400 bg-slate-50 border border-slate-100 rounded-lg px-3 py-2 mb-4">
+          홍보 등록 후 환불은 불가합니다. 홍보 기간 내 일시 중지·재개는 가능합니다.
+        </p>
 
         {/* 메인 이미지 */}
         <div className="mb-4">
@@ -154,14 +157,14 @@ const KanbuPromoForm = ({ currentPromo, ballBalance, onClose }: Props) => {
         </div>
 
         {/* 액션 */}
-        <div className="flex gap-2 pt-2 clear-both">
+        <div className="flex gap-2 pt-2 clear-both items-center">
           {currentPromo.promoEnabled && (
-            <button onClick={handleDisable} className="px-3 py-2.5 rounded-xl text-[11px] font-bold text-rose-400 hover:text-rose-600 transition-colors">홍보 중지</button>
+            <button onClick={handleDisable} className="px-3 py-2.5 rounded-xl text-[11px] font-bold text-rose-400 hover:text-rose-600 transition-colors whitespace-nowrap shrink-0">홍보 중지</button>
           )}
           <div className="flex-1" />
-          <button onClick={onClose} className="px-4 py-2.5 rounded-xl text-[12px] font-[1000] text-slate-400 bg-slate-50 hover:bg-slate-100">취소</button>
+          <button onClick={onClose} className="px-4 py-2.5 rounded-xl text-[12px] font-[1000] text-slate-400 bg-slate-50 hover:bg-slate-100 whitespace-nowrap shrink-0">취소</button>
           <button onClick={handleSave} disabled={isSaving || !canAfford}
-            className={`px-5 py-2.5 rounded-xl text-[12px] font-[1000] transition-all disabled:opacity-50 ${canAfford ? 'text-white bg-violet-600 hover:bg-violet-700' : 'text-slate-300 bg-slate-100 cursor-not-allowed'}`}>
+            className={`px-5 py-2.5 rounded-xl text-[12px] font-[1000] transition-all disabled:opacity-50 whitespace-nowrap shrink-0 ${canAfford ? 'text-white bg-violet-600 hover:bg-violet-700' : 'text-slate-300 bg-slate-100 cursor-not-allowed'}`}>
             {isSaving ? '저장 중...' : `홍보 시작 (${plan.cost}볼)`}
           </button>
         </div>
