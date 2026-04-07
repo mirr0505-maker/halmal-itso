@@ -1,5 +1,5 @@
 // src/components/OneCutList.tsx
-import React from 'react';
+import React, { useState } from 'react';
 import type { Post, UserData } from '../types';
 import { formatKoreanNumber, getReputationLabel, getReputationScore, calculateLevel } from '../utils';
 
@@ -14,9 +14,21 @@ interface Props {
   commentCounts?: Record<string, number>;
   onShareCount?: (postId: string, authorId?: string) => void;
   onEditClick?: (post: Post) => void;
+  onAuthorClick?: (nickname: string) => void;
 }
 
-const OneCutList = ({ posts, allPosts, onTopicClick, onLikeClick, currentNickname, allUsers = {}, followerCounts = {}, commentCounts = {}, onShareCount: _onShareCount, onEditClick }: Props) => {
+const OneCutList = ({ posts, allPosts, onTopicClick, onLikeClick, currentNickname, allUsers = {}, followerCounts = {}, commentCounts = {}, onShareCount, onEditClick, onAuthorClick }: Props) => {
+  // 🚀 공유 URL 복사 피드백 — 어떤 카드가 복사되었는지 추적
+  const [copiedPostId, setCopiedPostId] = useState<string | null>(null);
+  const handleCopyUrl = (e: React.MouseEvent, postId: string, authorId?: string) => {
+    e.stopPropagation();
+    const shareToken = postId.split('_').slice(0, 2).join('_');
+    navigator.clipboard.writeText(`${window.location.origin}/p/${shareToken}`).then(() => {
+      setCopiedPostId(postId);
+      setTimeout(() => setCopiedPostId(null), 2000);
+      onShareCount?.(postId, authorId);
+    });
+  };
 
   if (posts.length === 0) return (
     <div className="py-20 text-center text-slate-300 font-[1000] text-[16px]">
@@ -90,8 +102,11 @@ const OneCutList = ({ posts, allPosts, onTopicClick, onLikeClick, currentNicknam
               {/* 🚀 하단: 일반 글카드(AnyTalkList)와 완전 동일 구조 */}
               <div className="flex-1" />
               <div className="pt-1 border-t border-slate-50 flex items-center justify-between">
-                <div className="flex items-center gap-1.5 min-w-0">
-                  <div className="w-7 h-7 rounded-full bg-slate-50 overflow-hidden shrink-0 border border-white shadow-sm ring-1 ring-slate-100">
+                <div
+                  className="flex items-center gap-1.5 min-w-0 cursor-pointer hover:opacity-70 transition-opacity"
+                  onClick={(e) => { e.stopPropagation(); onAuthorClick?.(post.author); }}
+                >
+                  <div className="w-6 h-6 rounded-full bg-slate-50 overflow-hidden shrink-0 border border-white shadow-sm ring-1 ring-slate-100">
                     <img src={authorData?.avatarUrl || `https://api.dicebear.com/7.x/adventurer/svg?seed=${post.author}`} alt="" className="w-full h-full object-cover" />
                   </div>
                   <div className="flex flex-col min-w-0">
@@ -116,6 +131,17 @@ const OneCutList = ({ posts, allPosts, onTopicClick, onLikeClick, currentNicknam
                     <svg className={`w-3.5 h-3.5 ${isLikedByMe ? 'fill-current' : 'fill-none'}`} stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" /></svg>
                     {formatKoreanNumber(post.likes || 0)}
                   </span>
+                  {/* 공유 버튼 — hover 시 노출, 클릭 시 URL 복사 */}
+                  <button
+                    onClick={(e) => handleCopyUrl(e, post.id, post.author_id)}
+                    className={`flex items-center gap-0.5 transition-all ${copiedPostId === post.id ? 'opacity-100 text-emerald-500' : 'opacity-0 group-hover:opacity-100 text-slate-300 hover:text-blue-400'}`}
+                    title="글 링크 복사"
+                  >
+                    {copiedPostId === post.id
+                      ? <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7"/></svg>
+                      : <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/></svg>
+                    }
+                  </button>
                 </div>
               </div>
             </div>

@@ -420,7 +420,7 @@ function App() {
       return (
         <div className="w-full animate-in fade-in">
           {marketPosts.length > 0
-            ? <OneCutList posts={marketPosts} allPosts={allRootPosts} onTopicClick={handleViewPost} onLikeClick={handleLike} currentNickname={userData?.nickname} allUsers={allUsers} followerCounts={followerCounts} commentCounts={commentCounts} onShareCount={handleShareCount} onEditClick={(post) => { setEditingPost(post); setIsCreateOpen(true); }} />
+            ? <OneCutList posts={marketPosts} allPosts={allRootPosts} onTopicClick={handleViewPost} onLikeClick={handleLike} currentNickname={userData?.nickname} allUsers={allUsers} followerCounts={followerCounts} commentCounts={commentCounts} onShareCount={handleShareCount} onEditClick={(post) => { setEditingPost(post); setIsCreateOpen(true); }} onAuthorClick={setPublicProfileNick} />
             : <div className="py-40 text-center text-slate-300 font-black text-sm">기록된 글이 없어요</div>
           }
         </div>
@@ -576,7 +576,7 @@ function App() {
       } else {
         onecutPosts = onecutAll;
       }
-      return <div className="w-full animate-in fade-in"><OneCutList posts={onecutPosts} allPosts={allRootPosts} onTopicClick={handleViewPost} onLikeClick={handleLike} currentNickname={userData?.nickname} allUsers={allUsers} followerCounts={followerCounts} commentCounts={commentCounts} onShareCount={handleShareCount} onEditClick={(post) => { setEditingPost(post); setIsCreateOpen(true); }} /></div>;
+      return <div className="w-full animate-in fade-in"><OneCutList posts={onecutPosts} allPosts={allRootPosts} onTopicClick={handleViewPost} onLikeClick={handleLike} currentNickname={userData?.nickname} allUsers={allUsers} followerCounts={followerCounts} commentCounts={commentCounts} onShareCount={handleShareCount} onEditClick={(post) => { setEditingPost(post); setIsCreateOpen(true); }} onAuthorClick={setPublicProfileNick} /></div>;
     }
 
     // 🚀 포스트 필터링 및 탭 처리
