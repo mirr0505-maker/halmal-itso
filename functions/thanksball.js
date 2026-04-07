@@ -20,9 +20,22 @@ exports.sendThanksball = onCall(
     const docCollection = targetCollection || "posts";
     const docId = commentId || postId;
 
-    // 🚀 발신자 닉네임 조회 (auth.token.name이 없을 수 있음 — 테스트 계정 등)
-    const senderSnap = await senderRef.get();
-    const senderNickname = senderSnap.data()?.nickname || request.auth.token?.name || "익명";
+    // 🚀 발신자 닉네임 조회
+    const senderSnapForName = await senderRef.get();
+    const senderNickname = senderSnapForName.data()?.nickname || request.auth.token?.name || "익명";
+
+    // 🚀 수신자 UID 확보 — 클라이언트에서 보낸 값이 없으면 postAuthor 닉네임으로 DB 조회
+    let resolvedRecipientUid = recipientUid;
+    if (!resolvedRecipientUid && postAuthor) {
+      // nickname_ 접두사 문서에서 UID 조회
+      const nickSnap = await db.collection("users").doc(`nickname_${postAuthor}`).get();
+      if (nickSnap.exists) resolvedRecipientUid = nickSnap.data().uid;
+    }
+    if (!resolvedRecipientUid && postId) {
+      // posts 문서에서 author_id 조회
+      const postSnap = await db.collection("posts").doc(postId).get();
+      if (postSnap.exists) resolvedRecipientUid = postSnap.data().author_id;
+    }
 
     // 🔒 트랜잭션: 잔액 확인 + 차감 + 수신자 누적
     await db.runTransaction(async (tx) => {
@@ -39,8 +52,8 @@ exports.sendThanksball = onCall(
         exp: FieldValue.increment(1),
       });
 
-      if (recipientUid) {
-        tx.set(db.collection("users").doc(recipientUid), {
+      if (resolvedRecipientUid) {
+        tx.set(db.collection("users").doc(resolvedRecipientUid), {
           ballReceived: FieldValue.increment(amount),
         }, { merge: true });
       }
@@ -67,8 +80,8 @@ exports.sendThanksball = onCall(
     });
 
     // 수신자 알림
-    if (recipientUid) {
-      await db.collection("notifications").doc(recipientUid).collection("items").add({
+    if (resolvedRecipientUid) {
+      await db.collection("notifications").doc(resolvedRecipientUid).collection("items").add({
         type: "thanksball", fromNickname: senderNickname,
         amount, message: message || null,
         postId, postTitle: postTitle || null,
