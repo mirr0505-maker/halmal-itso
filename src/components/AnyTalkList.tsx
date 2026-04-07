@@ -16,6 +16,7 @@ interface Props {
   tab?: string;
   onAuthorClick?: (author: string) => void;
   // 🚀 한컷 인라인 섹션: 탭별 필터된 한컷 목록 + 더보기 콜백
+  allPosts?: Post[];
   oneCutPosts?: Post[];
   onOneCutMoreClick?: () => void;
   // 🚀 공유수 카운트: URL 복사 버튼 클릭 시 호출 → posts.shareCount + users.totalShares +1
@@ -24,7 +25,7 @@ interface Props {
 
 const AnyTalkList = ({
   posts, onTopicClick, onLikeClick, commentCounts = {}, currentNickname, allUsers = {}, followerCounts = {}, tab, onAuthorClick, onShareCount,
-  oneCutPosts, onOneCutMoreClick,
+  allPosts = [], oneCutPosts, onOneCutMoreClick,
 }: Props) => {
   const isNewTab = tab === 'any';
 
@@ -245,6 +246,8 @@ const AnyTalkList = ({
                     const realFollowers = followerCounts[post.author] || 0;
                     const displayLevel = calculateLevel(authorData?.exp || 0);
                     const displayLikes = authorData ? authorData.likes : (post.authorInfo?.totalLikes || 0);
+                    // 연결된 원본글 찾기 (OneCutList와 동일)
+                    const linkedPost = post.linkedPostId ? allPosts.find(p => p.id === post.linkedPostId) : null;
                     return (
                       <div
                         key={post.id}
@@ -266,14 +269,23 @@ const AnyTalkList = ({
                           <h3 className="text-[13px] font-[1000] text-slate-900 line-clamp-1 tracking-tighter leading-tight group-hover:text-blue-600 transition-colors">
                             {post.title}
                           </h3>
-                          {/* 원본글 링크 */}
-                          {post.linkUrl && (
-                            <a href={post.linkUrl} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()}
-                              className="flex items-center gap-1 text-blue-600 bg-blue-50/50 px-2 py-0.5 rounded-[2px] border border-blue-100/20 hover:bg-blue-50 transition-colors">
-                              <span className="text-[8px]">🔗</span>
-                              <span className="text-[8px] font-black truncate tracking-tighter">{(() => { try { return new URL(post.linkUrl!).hostname; } catch { return '원본글'; } })()}</span>
-                            </a>
-                          )}
+                          {/* 원본글 링크 — linkedPostId 우선, linkUrl 폴백 (OneCutList와 동일) */}
+                          {linkedPost ? (
+                            <div className="pt-1">
+                              <div className="flex items-center gap-1 text-blue-600 bg-blue-50/50 px-2 py-0.5 rounded-[2px] border border-blue-100/20">
+                                <span className="text-[8px]">🔗</span>
+                                <span className="text-[8px] font-black truncate tracking-tighter">{linkedPost.title}</span>
+                              </div>
+                            </div>
+                          ) : post.linkUrl ? (
+                            <div className="pt-1">
+                              <a href={post.linkUrl} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()}
+                                className="flex items-center gap-1 text-blue-600 bg-blue-50/50 px-2 py-0.5 rounded-[2px] border border-blue-100/20 hover:bg-blue-50 transition-colors">
+                                <span className="text-[8px]">🔗</span>
+                                <span className="text-[8px] font-black truncate tracking-tighter">{(() => { try { return new URL(post.linkUrl!).hostname; } catch { return '원본글'; } })()}</span>
+                              </a>
+                            </div>
+                          ) : null}
                           {/* 하단: 일반 글카드와 완전 동일 구조 */}
                           <div className="flex-1" />
                           <div className="pt-1 border-t border-slate-50 flex items-center justify-between">

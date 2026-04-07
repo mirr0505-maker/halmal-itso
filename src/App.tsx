@@ -699,7 +699,7 @@ function App() {
             ))}
           </div>
         )}
-        <AnyTalkList posts={searchedPosts} onTopicClick={handleViewPost} onLikeClick={handleLike} commentCounts={commentCounts} currentNickname={userData?.nickname} currentUserData={userData} allUsers={allUsers} followerCounts={followerCounts} tab={activeTab} onAuthorClick={setPublicProfileNick} onShareCount={handleShareCount} oneCutPosts={onecutTabPosts} onOneCutMoreClick={() => setActiveMenu('onecut')} />
+        <AnyTalkList posts={searchedPosts} onTopicClick={handleViewPost} onLikeClick={handleLike} commentCounts={commentCounts} currentNickname={userData?.nickname} currentUserData={userData} allUsers={allUsers} followerCounts={followerCounts} tab={activeTab} onAuthorClick={setPublicProfileNick} onShareCount={handleShareCount} allPosts={allRootPosts} oneCutPosts={onecutTabPosts} onOneCutMoreClick={() => setActiveMenu('onecut')} />
       </div>
     );
   };
