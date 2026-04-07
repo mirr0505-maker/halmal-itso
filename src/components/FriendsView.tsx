@@ -19,7 +19,7 @@ interface Props {
 }
 
 const FriendsView = ({ currentNickname, currentUserData, allUsers, allRootPosts: _allRootPosts, friends, followerCounts: _followerCounts, onToggleFriend, onViewProfile }: Props) => {
-  void _allRootPosts; void _followerCounts; // Props 유지 (향후 사용)
+  void _allRootPosts; // Props 유지 (향후 사용)
   const [selectedUser, setSelectedUser] = useState<(UserData & { promoImageUrl?: string; promoKeywords?: string[]; promoMessage?: string }) | null>(null);
   const [showPromoForm, setShowPromoForm] = useState(false);
 
@@ -82,11 +82,12 @@ const FriendsView = ({ currentNickname, currentUserData, allUsers, allRootPosts:
                 <p className="text-slate-300 font-bold text-[12px]">나를 홍보하고 깐부수를 늘려보세요.</p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {promoUsers.map(user => (
                   <KanbuPromoCard
                     key={user.uid}
-                    userData={user as UserData & { promoImageUrl?: string; promoKeywords?: string[]; promoMessage?: string }}
+                    userData={user as UserData & { promoImageUrl?: string; promoKeywords?: string[]; promoMessage?: string; promoExpireAt?: { seconds: number } }}
+                    followerCount={_followerCounts[user.nickname] || 0}
                     onClick={() => setSelectedUser(user as UserData & { promoImageUrl?: string; promoKeywords?: string[]; promoMessage?: string })}
                   />
                 ))}
@@ -101,7 +102,8 @@ const FriendsView = ({ currentNickname, currentUserData, allUsers, allRootPosts:
                 <h4 className="text-[11px] font-black text-violet-500 uppercase tracking-widest mb-3">📌 나의 홍보</h4>
                 {myPromo?.promoEnabled ? (
                   <KanbuPromoCard
-                    userData={currentUserData as UserData & { promoImageUrl?: string; promoKeywords?: string[]; promoMessage?: string }}
+                    userData={currentUserData as UserData & { promoImageUrl?: string; promoKeywords?: string[]; promoMessage?: string; promoExpireAt?: { seconds: number } }}
+                    followerCount={_followerCounts[currentNickname!] || 0}
                     onClick={() => setShowPromoForm(true)}
                   />
                 ) : (

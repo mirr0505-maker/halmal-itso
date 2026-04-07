@@ -11,10 +11,11 @@ interface KanbuPromo {
 
 interface Props {
   userData: UserData & KanbuPromo;
+  followerCount?: number;
   onClick: () => void;
 }
 
-const KanbuPromoCard = ({ userData, onClick }: Props) => {
+const KanbuPromoCard = ({ userData, followerCount = 0, onClick }: Props) => {
   const level = calculateLevel(userData.exp || 0);
   const repLabel = getReputationLabel(getReputationScore(userData));
 
@@ -42,14 +43,13 @@ const KanbuPromoCard = ({ userData, onClick }: Props) => {
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5">
             <span className="text-[13px] font-[1000] text-slate-900 truncate">{userData.nickname}</span>
-            <span className="text-[9px] font-black text-violet-600 bg-violet-50 px-1 py-0.5 rounded border border-violet-100">Lv{level}</span>
-            <span className="text-[9px] font-bold text-slate-400">{repLabel}</span>
             {remaining && (
               <span className={`text-[8px] font-bold px-1 py-0.5 rounded border ml-auto shrink-0 ${remaining.expired ? 'text-slate-400 bg-slate-50 border-slate-200' : 'text-amber-500 bg-amber-50 border-amber-100'}`}>
                 {remaining.text}
               </span>
             )}
           </div>
+          <span className="text-[9px] font-bold text-slate-400">Lv{level} · {repLabel} · 깐부수 {followerCount}</span>
         </div>
       </div>
 
