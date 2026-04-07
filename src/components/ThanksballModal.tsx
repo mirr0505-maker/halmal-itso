@@ -2,8 +2,8 @@
 import { useState } from 'react';
 import type { UserData } from '../types';
 import { THANKSBALL } from '../constants';
-import { db, auth } from '../firebase';
-import { collection, addDoc, doc, runTransaction, updateDoc, increment, serverTimestamp } from 'firebase/firestore';
+import { auth, functions } from '../firebase';
+import { httpsCallable } from 'firebase/functions';
 
 interface Props {
   postId: string;
@@ -28,7 +28,8 @@ const getTier = (amount: number) => {
   return              { bg: 'bg-slate-200',   text: 'text-slate-700', border: 'border-slate-300', label: '베이직', btnHover: 'hover:bg-slate-300' };
 };
 
-const ThanksballModal = ({ postId, postAuthor, postTitle, currentNickname, allUsers = {}, onClose, recipientNickname, targetDocId, targetCollection }: Props) => {
+const ThanksballModal = ({ postId, postAuthor, postTitle, currentNickname: _currentNickname, allUsers = {}, onClose, recipientNickname, targetDocId, targetCollection }: Props) => {
+  void _currentNickname; // Cloud Function에서 auth.token.name 사용
   const recipient = recipientNickname || postAuthor;
   const docId = targetDocId || postId;
   const docCollection = targetCollection || 'posts';
@@ -57,54 +58,18 @@ const ThanksballModal = ({ postId, postAuthor, postTitle, currentNickname, allUs
       const recipientData = allUsers[`nickname_${recipient}`];
       const recipientUid = recipientData?.uid;
 
-      // 원자적 트랜잭션: 잔액 차감 + 수신자 누적
-      await runTransaction(db, async (tx) => {
-        const senderRef = doc(db, 'users', senderUid);
-        const senderSnap = await tx.get(senderRef);
-        const currentBalance = senderSnap.data()?.ballBalance || 0;
-        if (currentBalance < finalAmount) throw new Error('잔액 부족');
-
-        tx.update(senderRef, {
-          ballBalance: increment(-finalAmount),
-          ballSpent: increment(finalAmount),
-          exp: increment(1), // 🚀 EXP: 준 땡스볼 +1
-        });
-        if (recipientUid) {
-          tx.set(doc(db, 'users', recipientUid), {
-            ballReceived: increment(finalAmount),
-          }, { merge: true });
-        }
+      // 🚀 Cloud Function 호출 — ballBalance 직접 수정 Rules 차단 대응
+      const sendFn = httpsCallable(functions, 'sendThanksball');
+      await sendFn({
+        recipientUid,
+        amount: finalAmount,
+        message: message.trim() || null,
+        postId,
+        postTitle: postTitle || null,
+        postAuthor: recipient,
+        commentId: isCommentMode ? docId : null,
+        targetCollection: isCommentMode ? docCollection : null,
       });
-
-      // 트랜잭션 외: 땡스볼 카운터 업데이트 (onSnapshot 반영용)
-      await updateDoc(doc(db, docCollection, docId), {
-        thanksballTotal: increment(finalAmount),
-      });
-
-      // 비금융 기록 (트랜잭션 외)
-      await addDoc(collection(db, docCollection, docId, 'thanksBalls'), {
-        sender: currentNickname, senderId: senderUid,
-        amount: finalAmount, message: message.trim() || null,
-        createdAt: serverTimestamp(), isPaid: false,
-      });
-      // 🚀 sentBalls 경로: 닉네임 → UID (닉네임 변경에도 이력 유지)
-      await addDoc(collection(db, 'sentBalls', senderUid, 'items'), {
-        postId, postTitle: postTitle || null, postAuthor: recipient,
-        ...(isCommentMode ? { commentId: docId } : {}),
-        amount: finalAmount, message: message.trim() || null,
-        createdAt: serverTimestamp(),
-      });
-      // 🚀 notifications 경로: 수신자 닉네임 → 수신자 UID (닉네임 변경에도 알림 수신 유지)
-      const recipientUidForNotif = allUsers[`nickname_${recipient}`]?.uid || recipientUid;
-      if (recipientUidForNotif) {
-        await addDoc(collection(db, 'notifications', recipientUidForNotif, 'items'), {
-          type: 'thanksball', fromNickname: currentNickname,
-          amount: finalAmount, message: message.trim() || null,
-          postId, postTitle: postTitle || null,
-          ...(isCommentMode ? { commentId: docId } : {}),
-          createdAt: serverTimestamp(), read: false,
-        });
-      }
 
       setDone(true);
       setTimeout(onClose, 1800);

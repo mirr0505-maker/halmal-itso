@@ -401,6 +401,7 @@ const { detectFraud } = require("./fraud");
 const { processSettlements } = require("./settlement");
 const { recalcContentTextLength } = require("./contentLength");
 const { testChargeBall } = require("./testCharge");
+const { sendThanksball } = require("./thanksball");
 
 exports.registerKanbuPromo = registerKanbuPromo;
 exports.adAuction = adAuction;
@@ -409,3 +410,4 @@ exports.detectFraud = detectFraud;
 exports.processSettlements = processSettlements;
 exports.recalcContentTextLength = recalcContentTextLength;
 exports.testChargeBall = testChargeBall;
+exports.sendThanksball = sendThanksball;
