@@ -1,7 +1,7 @@
 // src/components/MyPage.tsx
 import React, { useState, useEffect } from 'react';
 import { db, auth } from '../firebase';
-import { collection, query, where, orderBy, limit, onSnapshot, doc, updateDoc, increment, getDocs, writeBatch, arrayUnion, arrayRemove } from 'firebase/firestore';
+import { collection, query, where, orderBy, limit, onSnapshot, doc, updateDoc, getDocs, writeBatch, arrayUnion, arrayRemove } from 'firebase/firestore';
 import type { Post, Community, CommunityPost, CommunityMember, UserData, FirestoreTimestamp } from '../types';
 import ActivityStats from './ActivityStats';
 import MyContentTabs from './MyContentTabs';
