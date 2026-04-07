@@ -151,6 +151,16 @@ function App() {
   const [pendingTreeId] = useState<string | null>(() => getDeepLinkParams().params.get('tree'));
   const [pendingParentNodeId] = useState<string | null>(() => getDeepLinkParams().params.get('node'));
 
+  // 🚀 광고 딥링크: ?menu=friends 등 → 해당 메뉴 자동 이동
+  useEffect(() => {
+    const menuParam = new URLSearchParams(window.location.search).get('menu');
+    if (menuParam) {
+      setActiveMenu(menuParam as MenuId);
+      // URL에서 ?menu= 파라미터 제거 (뒤로가기 시 반복 방지)
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, []);
+
   const accessibleRooms = kanbuRooms.filter(r =>
     r.creatorNickname === userData?.nickname || friends.includes(r.creatorNickname)
   );
