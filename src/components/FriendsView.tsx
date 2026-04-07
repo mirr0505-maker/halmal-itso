@@ -74,7 +74,7 @@ const FriendsView = ({ currentNickname, currentUserData, allUsers, allRootPosts,
             {promoUsers.length === 0 ? (
               <div className="py-16 text-center">
                 <p className="text-slate-300 font-[1000] text-[16px] mb-2">깐부를 기다리고 있어요!</p>
-                <p className="text-slate-300 font-bold text-[12px]">나를 홍보하고 깐부를 맺어보세요.</p>
+                <p className="text-slate-300 font-bold text-[12px]">나를 홍보하고 깐부수를 늘려보세요.</p>
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -101,7 +101,7 @@ const FriendsView = ({ currentNickname, currentUserData, allUsers, allRootPosts,
                   />
                 ) : (
                   <div className="py-6 text-center">
-                    <p className="text-slate-300 font-bold text-[12px] mb-2">나를 홍보하고 깐부를 맺어보세요</p>
+                    <p className="text-slate-300 font-bold text-[12px] mb-2">나를 홍보하고 깐부수를 늘려보세요</p>
                     {myLevel >= 2 ? (
                       <button onClick={() => setShowPromoForm(true)}
                         className="text-[11px] font-[1000] text-violet-500 hover:text-violet-700 transition-colors">+ 홍보 등록하기</button>
@@ -125,7 +125,7 @@ const FriendsView = ({ currentNickname, currentUserData, allUsers, allRootPosts,
                 />
               ) : (
                 <div className="py-6 text-center bg-slate-50 rounded-2xl border border-dashed border-slate-200">
-                  <p className="text-slate-300 font-bold text-[12px] mb-1">나를 홍보하고 깐부를 맺어보세요</p>
+                  <p className="text-slate-300 font-bold text-[12px] mb-1">나를 홍보하고 깐부수를 늘려보세요</p>
                   {myLevel >= 2 ? (
                     <button onClick={() => setShowPromoForm(true)}
                       className="text-[11px] font-[1000] text-violet-500 hover:text-violet-700 transition-colors">+ 홍보 등록하기</button>
