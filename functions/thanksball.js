@@ -20,8 +20,6 @@ exports.sendThanksball = onCall(
     const docCollection = targetCollection || "posts";
     const docId = commentId || postId;
 
-    console.log(`[sendThanksball] sender=${senderUid}, recipientUid=${recipientUid}, postAuthor=${postAuthor}, postId=${postId}, amount=${amount}, docCollection=${docCollection}, docId=${docId}`);
-
     // 🚀 발신자 닉네임 조회
     const senderSnapForName = await senderRef.get();
     const senderNickname = senderSnapForName.data()?.nickname || request.auth.token?.name || "익명";
@@ -37,7 +35,6 @@ exports.sendThanksball = onCall(
     }
     // 2순위: 클라이언트에서 보낸 recipientUid (posts 조회 실패 시 폴백)
     if (!resolvedRecipientUid) resolvedRecipientUid = recipientUid;
-    console.log(`[sendThanksball] resolvedRecipientUid=${resolvedRecipientUid}`);
 
     // 🔒 트랜잭션: 잔액 확인 + 차감 + 수신자 누적
     await db.runTransaction(async (tx) => {
