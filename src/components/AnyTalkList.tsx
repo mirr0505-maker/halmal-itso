@@ -275,7 +275,8 @@ const AnyTalkList = ({
                             </a>
                           )}
                           {/* 작성자 */}
-                          <div className="mt-auto pt-1.5 border-t border-slate-50 flex items-center gap-1.5">
+                          <div className="flex-1" />
+                          <div className="pt-1.5 border-t border-slate-50 flex items-center gap-1.5">
                             <div className="w-6 h-6 rounded-full overflow-hidden border border-slate-100 bg-slate-50 shrink-0">
                               <img src={authorData?.avatarUrl || `https://api.dicebear.com/7.x/adventurer/svg?seed=${post.author}`} alt="" className="w-full h-full object-cover" />
                             </div>
