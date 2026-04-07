@@ -81,8 +81,11 @@ const KanbuPromoForm = ({ currentPromo, onClose }: Props) => {
             </div>
           ) : null}
           <input type="file" accept="image/*,image/gif" onChange={handleImageUpload} disabled={isUploading}
-            className="text-[12px] text-slate-500" />
-          {isUploading && <span className="text-[11px] font-bold text-violet-500 animate-pulse ml-2">업로드 중...</span>}
+            id="kanbu-promo-upload" className="hidden" />
+          <label htmlFor="kanbu-promo-upload"
+            className={`inline-flex items-center gap-1.5 px-4 py-2 bg-violet-50 border border-dashed border-violet-200 rounded-xl text-[12px] font-bold text-violet-600 cursor-pointer hover:bg-violet-100 transition-colors ${isUploading ? 'opacity-50 cursor-not-allowed animate-pulse' : ''}`}>
+            {isUploading ? '업로드 중...' : '📸 이미지 파일 선택'}
+          </label>
         </div>
 
         {/* 핵심 키워드 */}
