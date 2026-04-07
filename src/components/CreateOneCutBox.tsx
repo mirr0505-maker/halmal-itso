@@ -4,6 +4,7 @@ import type { Post, UserData } from '../types';
 import { uploadToR2 } from '../uploadToR2';
 import LinkSearchModal from './LinkSearchModal';
 import AdSlotSetting from './ads/AdSlotSetting';
+import { useAdSlotSetting } from './ads/useAdSlotSetting';
 import { calculateLevel } from '../utils';
 
 interface Props {
@@ -29,8 +30,7 @@ const CreateOneCutBox = ({ userData, editingPost, allPosts, onSubmit, onClose }:
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isImageUploading, setIsImageUploading] = useState(false);
   // 🚀 ADSMARKET: 광고 슬롯 설정
-  const [adSlotEnabled, setAdSlotEnabled] = useState(false);
-  const [adSlotType, setAdSlotType] = useState<'auction' | 'adsense'>('auction');
+  const { adSlotFields, adSlotEnabled, adSlotType, onAdSlotChange } = useAdSlotSetting();
   const [imageError, setImageError] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -73,7 +73,7 @@ const CreateOneCutBox = ({ userData, editingPost, allPosts, onSubmit, onClose }:
     setIsSubmitting(true);
     try {
       const filteredTags = (postData.tags || []).filter(tag => tag.trim() !== '');
-      await onSubmit({ ...postData, tags: filteredTags, ...(adSlotEnabled ? { adSlotEnabled: true, adSlotType } : {}) }, editingPost?.id);
+      await onSubmit({ ...postData, tags: filteredTags, ...adSlotFields }, editingPost?.id);
     } finally {
       setIsSubmitting(false);
     }
@@ -179,7 +179,7 @@ const CreateOneCutBox = ({ userData, editingPost, allPosts, onSubmit, onClose }:
 
               {/* 🚀 ADSMARKET: 광고 슬롯 설정 (Lv5+) */}
               <AdSlotSetting userLevel={calculateLevel(userData?.exp || 0)} adSlotEnabled={adSlotEnabled} adSlotType={adSlotType}
-                onChange={(enabled, type) => { setAdSlotEnabled(enabled); setAdSlotType(type); }} />
+                onChange={onAdSlotChange} />
             </div>
 
             {/* Right Section: Mobile Preview */}

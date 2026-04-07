@@ -4,6 +4,7 @@ import { uploadToR2 } from '../uploadToR2';
 import type { Post, UserData } from '../types';
 import TiptapEditor from './TiptapEditor';
 import AdSlotSetting from './ads/AdSlotSetting';
+import { useAdSlotSetting } from './ads/useAdSlotSetting';
 import { calculateLevel } from '../utils';
 
 interface Props {
@@ -37,8 +38,7 @@ const CreateKnowledge = ({ userData, editingPost, onSubmit, onClose }: Props) =>
   const [isUploading, setIsUploading] = useState(false);
   const [activeGroupIdx, setActiveGroupIdx] = useState(0);
   // 🚀 ADSMARKET: 광고 슬롯 설정
-  const [adSlotEnabled, setAdSlotEnabled] = useState(false);
-  const [adSlotType, setAdSlotType] = useState<'auction' | 'adsense'>('auction');
+  const { adSlotFields, adSlotEnabled, adSlotType, onAdSlotChange } = useAdSlotSetting();
 
   // 🚀 분야 칩 토글 — 최대 2개, 선택 시 tags[0]/[1]에 자동 반영 (tags[2]~[4]는 유저 직접 입력용 유지)
   const toggleField = (field: string) => {
@@ -79,7 +79,7 @@ const CreateKnowledge = ({ userData, editingPost, onSubmit, onClose }: Props) =>
     setIsSubmitting(true);
     try {
       const filteredTags = (postData.tags || []).filter(t => t.trim() !== '');
-      await onSubmit({ ...postData, tags: filteredTags, ...(adSlotEnabled ? { adSlotEnabled: true, adSlotType } : {}) }, editingPost?.id);
+      await onSubmit({ ...postData, tags: filteredTags, ...adSlotFields }, editingPost?.id);
     } finally { setIsSubmitting(false); }
   };
 
@@ -189,7 +189,7 @@ const CreateKnowledge = ({ userData, editingPost, onSubmit, onClose }: Props) =>
 
         {/* 🚀 ADSMARKET: 광고 슬롯 설정 (Lv5+) */}
         <AdSlotSetting userLevel={calculateLevel(userData?.exp || 0)} adSlotEnabled={adSlotEnabled} adSlotType={adSlotType}
-          onChange={(enabled, type) => { setAdSlotEnabled(enabled); setAdSlotType(type); }} />
+          onChange={onAdSlotChange} />
       </div>
     </div>
   );
