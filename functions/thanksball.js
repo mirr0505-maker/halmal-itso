@@ -20,6 +20,10 @@ exports.sendThanksball = onCall(
     const docCollection = targetCollection || "posts";
     const docId = commentId || postId;
 
+    // 🚀 발신자 닉네임 조회 (auth.token.name이 없을 수 있음 — 테스트 계정 등)
+    const senderSnap = await senderRef.get();
+    const senderNickname = senderSnap.data()?.nickname || request.auth.token?.name || "익명";
+
     // 🔒 트랜잭션: 잔액 확인 + 차감 + 수신자 누적
     await db.runTransaction(async (tx) => {
       const senderSnap = await tx.get(senderRef);
@@ -49,7 +53,7 @@ exports.sendThanksball = onCall(
       });
 
       await db.collection(docCollection).doc(docId).collection("thanksBalls").add({
-        sender: request.auth.token.name || "", senderId: senderUid,
+        sender: senderNickname, senderId: senderUid,
         amount, message: message || null,
         createdAt: Timestamp.now(), isPaid: false,
       });
@@ -65,7 +69,7 @@ exports.sendThanksball = onCall(
     // 수신자 알림
     if (recipientUid) {
       await db.collection("notifications").doc(recipientUid).collection("items").add({
-        type: "thanksball", fromNickname: request.auth.token.name || "",
+        type: "thanksball", fromNickname: senderNickname,
         amount, message: message || null,
         postId, postTitle: postTitle || null,
         ...(commentId ? { commentId } : {}),

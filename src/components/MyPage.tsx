@@ -14,6 +14,40 @@ import OneCutList from './OneCutList';
 import { uploadToR2 } from '../uploadToR2';
 import { calculateLevel } from '../utils';
 
+// 🚀 받은볼 카드 — 글별 땡스볼 서브컬렉션에서 발신자 목록 로드
+const ReceivedBallCard = ({ post, onPostClick }: { post: Post; onPostClick: (p: Post) => void }) => {
+  const [senders, setSenders] = useState<{ sender: string; amount: number }[]>([]);
+  useEffect(() => {
+    getDocs(collection(db, 'posts', post.id, 'thanksBalls')).then(snap => {
+      setSenders(snap.docs.map(d => ({ sender: d.data().sender, amount: d.data().amount })));
+    }).catch(() => {});
+  }, [post.id]);
+
+  return (
+    <div onClick={() => onPostClick(post)}
+      className="flex flex-col gap-2 p-4 bg-slate-50 rounded-2xl border border-slate-100 cursor-pointer hover:border-amber-200 hover:bg-amber-50/30 transition-all group">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex-1 min-w-0">
+          <p className="text-[13px] font-[1000] text-slate-800 truncate group-hover:text-amber-600 transition-colors">{post.title || post.content.replace(/<[^>]+>/g, '').slice(0, 40)}</p>
+          <p className="text-[10px] font-bold text-slate-400 mt-0.5">{post.category}</p>
+        </div>
+        <div className="flex items-center gap-1 shrink-0 bg-amber-100 text-amber-600 px-3 py-1.5 rounded-xl font-[1000] text-[13px]">
+          ⚾ {post.thanksballTotal}볼
+        </div>
+      </div>
+      {senders.length > 0 && (
+        <div className="flex flex-wrap gap-1">
+          {senders.map((s, i) => (
+            <span key={i} className="text-[9px] font-bold text-violet-600 bg-violet-50 px-1.5 py-0.5 rounded-md border border-violet-100">
+              {s.sender} {s.amount}볼
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 interface SentBall {
   id: string;
   postId: string;
@@ -442,19 +476,7 @@ const MyPage = ({
                       <div className="py-20 text-center text-slate-300 font-bold italic">아직 받은 땡스볼이 없어요.</div>
                     ) : (
                       thanksballPosts.map(post => (
-                        <div
-                          key={post.id}
-                          onClick={() => onPostClick(post)}
-                          className="flex items-center justify-between gap-3 p-4 bg-slate-50 rounded-2xl border border-slate-100 cursor-pointer hover:border-amber-200 hover:bg-amber-50/30 transition-all group"
-                        >
-                          <div className="flex-1 min-w-0">
-                            <p className="text-[13px] font-[1000] text-slate-800 truncate group-hover:text-amber-600 transition-colors">{post.title || post.content.replace(/<[^>]+>/g, '').slice(0, 40)}</p>
-                            <p className="text-[10px] font-bold text-slate-400 mt-0.5">{post.category}</p>
-                          </div>
-                          <div className="flex items-center gap-1 shrink-0 bg-amber-100 text-amber-600 px-3 py-1.5 rounded-xl font-[1000] text-[13px]">
-                            ⚾ {post.thanksballTotal}볼
-                          </div>
-                        </div>
+                        <ReceivedBallCard key={post.id} post={post} onPostClick={onPostClick} />
                       ))
                     )}
                   </div>
