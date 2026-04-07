@@ -1,7 +1,7 @@
 // src/components/KanbuPromoModal.tsx — 깐부 홍보 팝업 상세
 // 🚀 메인 이미지 + 키워드 + 공약 + 공개프로필 요약 + 깐부맺기 버튼
 import type { UserData } from '../types';
-import { calculateLevel, getReputationLabel, getReputationScore, getLevelProgress, getReputationProgress, getNextLevelExp, getNextReputationThreshold } from '../utils';
+import { calculateLevel, getReputationLabel, getReputationScore, getLevelProgress, getReputationProgress } from '../utils';
 
 interface KanbuPromo {
   promoImageUrl?: string;
@@ -24,8 +24,6 @@ const KanbuPromoModal = ({ userData, isFriend, isMutual, onToggleFriend, onViewP
   const repLabel = getReputationLabel(repScore);
   const levelPct = getLevelProgress(userData.exp || 0);
   const repPct = getReputationProgress(repScore);
-  const nextLevelExp = getNextLevelExp(userData.exp || 0);
-  const nextRepThreshold = getNextReputationThreshold(repScore);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={onClose}>
