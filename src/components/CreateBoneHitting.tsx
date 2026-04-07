@@ -61,10 +61,11 @@ const CreateBoneHitting = ({ userData, editingPost, onSubmit, onClose }: Props) 
     if (!userData || !postData.content?.trim() || isSubmitting) return;
     // 🚀 신규 글만 제한 (수정은 제외) — 글자수 100자 이내 OR 이미지 1개 이내
     if (!editingPost) {
-      const plainText = (postData.content || '').replace(/<[^>]*>/g, '').trim();
+      // 공백 제거 후 순수 글자 수만 카운트 (한글 1글자 = 1)
+      const plainText = (postData.content || '').replace(/<[^>]*>/g, '').replace(/\s/g, '');
       const imgCount = ((postData.content || '').match(/<img /gi) || []).length;
       if (plainText.length > 100 && imgCount === 0) {
-        alert('신포도와 여우는 글자수 100자 이내 또는 이미지 1개로 작성해주세요.');
+        alert(`신포도와 여우는 공백 제외 100자 이내 또는 이미지 1개로 작성해주세요. (현재 ${plainText.length}자)`);
         return;
       }
       if (imgCount > 1) {
@@ -113,7 +114,7 @@ const CreateBoneHitting = ({ userData, editingPost, onSubmit, onClose }: Props) 
         {/* 에디터 */}
         <div className="flex-1 overflow-y-auto min-h-0">
           <TiptapEditor content={postData.content || ''} onChange={(html) => setPostData(prev => ({ ...prev, content: html }))} onImageUpload={uploadFile}
-            placeholder={editingPost ? undefined : '나누고 싶은 글을 자유롭게 작성하세요.\n새 글은 글자수 100자 또는 이미지 1개로 제한됩니다!'} />
+            placeholder={editingPost ? undefined : '나누고 싶은 글을 자유롭게 작성하세요.\n새 글은 공백 제외 100자 이내 또는 이미지 1개로 제한됩니다!'} />
         </div>
 
         {/* 태그 */}
