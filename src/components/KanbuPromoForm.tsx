@@ -1,8 +1,15 @@
 // src/components/KanbuPromoForm.tsx — 깐부 홍보 등록/수정 폼
 import React, { useState } from 'react';
 import { db, auth } from '../firebase';
-import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, updateDoc, increment, serverTimestamp } from 'firebase/firestore';
 import { uploadToR2 } from '../uploadToR2';
+
+// 🚀 홍보 기간별 땡스볼 비용
+const PROMO_PLANS = [
+  { label: '1일', days: 1, cost: 1 },
+  { label: '1주일', days: 7, cost: 6 },
+  { label: '1달', days: 30, cost: 25 },
+] as const;
 
 interface Props {
   currentPromo: {
@@ -11,17 +18,22 @@ interface Props {
     promoMessage?: string;
     promoEnabled?: boolean;
   };
+  ballBalance: number;
   onClose: () => void;
 }
 
-const KanbuPromoForm = ({ currentPromo, onClose }: Props) => {
+const KanbuPromoForm = ({ currentPromo, ballBalance, onClose }: Props) => {
   const [imageUrl, setImageUrl] = useState(currentPromo.promoImageUrl || '');
   const [keywords, setKeywords] = useState<string[]>(
     currentPromo.promoKeywords?.length ? currentPromo.promoKeywords : ['', '', '']
   );
   const [message, setMessage] = useState(currentPromo.promoMessage || '');
+  const [selectedPlan, setSelectedPlan] = useState(0); // PROMO_PLANS 인덱스
   const [isUploading, setIsUploading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+
+  const plan = PROMO_PLANS[selectedPlan];
+  const canAfford = ballBalance >= plan.cost;
 
   const uid = auth.currentUser?.uid;
 
@@ -43,14 +55,22 @@ const KanbuPromoForm = ({ currentPromo, onClose }: Props) => {
 
   const handleSave = async () => {
     if (!uid) return;
+    if (!canAfford) { alert(`볼이 부족합니다. (필요: ${plan.cost}볼, 보유: ${ballBalance}볼)\n내정보에서 충전해주세요.`); return; }
     setIsSaving(true);
     try {
+      // 🚀 만료일 계산 + 볼 차감
+      const expireAt = new Date();
+      expireAt.setDate(expireAt.getDate() + plan.days);
+
       await updateDoc(doc(db, 'users', uid), {
         promoImageUrl: imageUrl,
         promoKeywords: keywords.filter(k => k.trim()),
         promoMessage: message.trim(),
         promoEnabled: true,
+        promoExpireAt: { seconds: Math.floor(expireAt.getTime() / 1000), nanoseconds: 0 },
+        promoPlan: plan.label,
         promoUpdatedAt: serverTimestamp(),
+        ballBalance: increment(-plan.cost),
       });
       onClose();
     } catch (err) {
@@ -112,6 +132,27 @@ const KanbuPromoForm = ({ currentPromo, onClose }: Props) => {
           <span className="text-[10px] font-bold text-slate-300 float-right">{message.length}/100</span>
         </div>
 
+        {/* 🚀 홍보 기간 선택 + 땡스볼 비용 */}
+        <div className="mb-4 bg-violet-50 rounded-xl p-4 border border-violet-100">
+          <div className="flex items-center justify-between mb-2">
+            <label className="text-[10px] font-black text-violet-500 uppercase tracking-widest">홍보 기간</label>
+            <span className={`text-[11px] font-[1000] ${canAfford ? 'text-amber-500' : 'text-rose-500'}`}>⚾ 보유 {ballBalance}볼</span>
+          </div>
+          <div className="flex gap-2 mb-2">
+            {PROMO_PLANS.map((p, i) => (
+              <button key={i} onClick={() => setSelectedPlan(i)}
+                className={`flex-1 py-2 rounded-xl text-[11px] font-[1000] transition-all ${selectedPlan === i ? 'bg-violet-600 text-white' : 'bg-white text-slate-500 border border-slate-200 hover:bg-slate-50'}`}>
+                {p.label} · {p.cost}볼
+              </button>
+            ))}
+          </div>
+          {!canAfford && (
+            <p className="text-[10px] font-bold text-rose-500 bg-rose-50 border border-rose-200 rounded-lg px-3 py-1.5 text-center">
+              볼이 부족합니다. 내정보에서 충전해주세요.
+            </p>
+          )}
+        </div>
+
         {/* 액션 */}
         <div className="flex gap-2 pt-2 clear-both">
           {currentPromo.promoEnabled && (
@@ -119,9 +160,9 @@ const KanbuPromoForm = ({ currentPromo, onClose }: Props) => {
           )}
           <div className="flex-1" />
           <button onClick={onClose} className="px-4 py-2.5 rounded-xl text-[12px] font-[1000] text-slate-400 bg-slate-50 hover:bg-slate-100">취소</button>
-          <button onClick={handleSave} disabled={isSaving}
-            className="px-5 py-2.5 rounded-xl text-[12px] font-[1000] text-white bg-violet-600 hover:bg-violet-700 disabled:opacity-50">
-            {isSaving ? '저장 중...' : '홍보 시작'}
+          <button onClick={handleSave} disabled={isSaving || !canAfford}
+            className={`px-5 py-2.5 rounded-xl text-[12px] font-[1000] transition-all disabled:opacity-50 ${canAfford ? 'text-white bg-violet-600 hover:bg-violet-700' : 'text-slate-300 bg-slate-100 cursor-not-allowed'}`}>
+            {isSaving ? '저장 중...' : `홍보 시작 (${plan.cost}볼)`}
           </button>
         </div>
       </div>

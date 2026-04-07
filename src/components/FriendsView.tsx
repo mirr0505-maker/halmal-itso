@@ -23,10 +23,17 @@ const FriendsView = ({ currentNickname, currentUserData, allUsers, allRootPosts:
   const [selectedUser, setSelectedUser] = useState<(UserData & { promoImageUrl?: string; promoKeywords?: string[]; promoMessage?: string }) | null>(null);
   const [showPromoForm, setShowPromoForm] = useState(false);
 
-  // 홍보 활성화된 유저 목록 (promoEnabled === true)
+  // 홍보 활성화 + 만료 미도래 유저만 표시
+  const nowSeconds = Math.floor(Date.now() / 1000);
   const promoUsers = Object.values(allUsers)
-    .filter(u => u.uid && u.nickname && (u as unknown as { promoEnabled?: boolean }).promoEnabled && u.nickname !== currentNickname)
-    // 중복 제거 (uid 키 + nickname 키 양쪽 등록)
+    .filter(u => {
+      if (!u.uid || !u.nickname || u.nickname === currentNickname) return false;
+      const promo = u as unknown as { promoEnabled?: boolean; promoExpireAt?: { seconds: number } };
+      if (!promo.promoEnabled) return false;
+      // 만료 체크: promoExpireAt가 있고 현재 시간 이후면 유효
+      if (promo.promoExpireAt && promo.promoExpireAt.seconds < nowSeconds) return false;
+      return true;
+    })
     .reduce((acc, u) => { if (!acc.find(x => x.uid === u.uid)) acc.push(u); return acc; }, [] as UserData[]);
 
   const myLevel = calculateLevel(currentUserData?.exp || 0);
@@ -162,6 +169,7 @@ const FriendsView = ({ currentNickname, currentUserData, allUsers, allRootPosts:
             promoMessage: myPromo?.promoMessage,
             promoEnabled: myPromo?.promoEnabled,
           }}
+          ballBalance={(currentUserData as unknown as { ballBalance?: number }).ballBalance || 0}
           onClose={() => setShowPromoForm(false)}
         />
       )}
