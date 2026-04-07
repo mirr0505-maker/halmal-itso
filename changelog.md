@@ -567,6 +567,28 @@
 - [x] **황금알 분야 업데이트 (2026-04-06 v36)**:
   - 지식·학문: 교육외국어 → 교육·외국어 분리 + 역사 추가. 총 10개.
 
+- [x] **깐부맺기 화면 리뉴얼 — 홍보 카드 시스템 (2026-04-07 v37)**:
+  - FriendsView: `#깐부 맺기` 헤더 + 홍보 카드 그리드 (promoEnabled 유저 동적 목록).
+  - KanbuPromoCard: 메인 이미지(16:9) + 아바타 + 키워드 태그 + 공약 컴팩트 카드.
+  - KanbuPromoModal: 팝업 상세 (레벨/평판 프로그레스 바 + 키워드 + 공약 + 활동 지표 + 깐부맺기 버튼).
+  - KanbuPromoForm: 이미지/GIF 업로드 + 키워드 3개(10자) + 공약(100자). Lv2+ 등록 가능.
+  - Firestore: `users/{uid}` — `promoEnabled, promoImageUrl, promoKeywords, promoMessage, promoUpdatedAt` 필드.
+  - 기존 `FRIENDS_MENU_ALLOWED_NICKNAMES` 하드코딩 제거 → promoEnabled 동적 필터.
+
+- [x] **ADSMARKET 2종 광고 슬롯 + 작성 폼 전체 적용 (2026-04-07 v37)**:
+  - 플랫폼 광고(Lv2+): bottom 1개, 자체 프로모션, 클릭 시 새 창.
+  - 작성자 광고(Lv5+): 새글 작성 시 ON/OFF 선택 (광고마켓/애드센스).
+  - AdSlotSetting 컴포넌트 — 10개 작성 폼 전체 적용.
+  - Cloud Functions 4개 배포: adAuction, aggregateDailyRevenue, detectFraud, processSettlements.
+
+- [x] **신포도와 여우 새글 100자 제한 (2026-04-07 v37)**:
+  - 공백 제외 순수 글자 수 100자 이내 OR 이미지 1개. 수정은 제한 없음.
+
+- [x] **기타 개선 (2026-04-07 v37)**:
+  - 홈/한컷 탭바 좌측 패딩 px-2→px-4 (글카드 라인 정렬).
+  - 한컷 빈 상태 메시지 추가.
+  - 화이트스크린 방지 ErrorBoundary + Firestore 끊김 자동 복구.
+
 ### 🛠️ 진행 중 / 개선 필요 사항
 - [ ] **에디터 보완**: `bubble-menu` 활성화 (텍스트 선택 시 서식 도구 노출).
 - [ ] **검색 엔진**: Firestore 텍스트 검색 한계 보완 (현재는 클라이언트 사이드 필터링).

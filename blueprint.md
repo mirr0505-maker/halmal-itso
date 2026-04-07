@@ -2,7 +2,7 @@
 
 이 문서는 **할말있소(HALMAL-ITSO)** 프로젝트의 설계 원칙, 현재 구현 상태, 그리고 AI 개발자의 **절대적 행동 지침**을 담은 단일 진실 소스(Single Source of Truth)입니다.
 
-> 최종 갱신: 2026-04-06 v36 (코드 실측 기준)  |  현재 브랜치: `main`
+> 최종 갱신: 2026-04-07 v37 (코드 실측 기준)  |  현재 브랜치: `main`
 
 ---
 
@@ -283,7 +283,7 @@ interface KanbuChat {
 | `knowledge_seller` | 황금알을 낳는 거위 | 황금알을 낳는 거위 | Q&A 보드 (구: 지식 소매상 → migrate 완료) |
 | `bone_hitting` | 신포도와 여우 | 신포도와 여우 | 명언, 짧은 글 (구: 뼈때리는 글 → migrate 완료) |
 | `local_news` | 마법 수정 구슬 | 마법 수정 구슬 | 정보 공유 보드 (구: 현지 소식 → migrate 완료) |
-| `friends` | 깐부 맺기 | (UI 전용) | 팔로우 추천 목록 (허용 닉네임 필터 적용) |
+| `friends` | 깐부 맺기 | (UI 전용) | 홍보 카드 기반 깐부 매칭. Lv2+ 유저가 이미지·키워드·공약을 등록하면 카드 노출. 클릭 시 팝업 상세(공개프로필+깐부맺기). `users/{uid}.promoEnabled/promoImageUrl/promoKeywords/promoMessage` |
 | `kanbu_room` | 깐부방 | (subcollection) | 깐부가 개설한 방 목록, 방별 게시판+실시간 채팅. Lv3 이상 개설. Firestore: `kanbu_rooms/{roomId}/chats` |
 | `glove` | 우리들의 장갑 | (커뮤니티) | 다섯 손가락 운영 체제 (thumb·index·middle·ring·pinky). 가입방식 3종(open·approval·password), minLevel 제한, 공지 고정, 알림 opt-in, 중지 자동 산정. 자세한 내용 → `GLOVE.md` |
 | `marathon_herald` | 마라톤의 전령 | 마라톤의 전령 | 뉴스 속보 봇 전용 채널. 속보 키워드(속보·긴급·단독·사망·화재·폭발·지진 등 29개) 포함 기사만 Firestore 저장. `newsType: 'breaking'`→🚨 속보(빨간 pulse 배지). 좋아요 임계값 없이 즉시 노출. 홈 새글 피드에도 포함. 댓글: pandora 공감/의심 2컬럼. 원본 기사 `linkUrl` → RootPostCard [🔗 바로가기] 버튼. Cloud Functions 매 30분 자동 등록. |
@@ -344,7 +344,7 @@ interface KanbuChat {
 ## 8. 구현 이력 (Changelog)
 
 > 📋 완료된 기능 전체 이력은 **[changelog.md](./changelog.md)** 를 참조하세요.
-> 최신 버전: v36 (2026-04-06)
+> 최신 버전: v37 (2026-04-07)
 
 ## 9. 외부 서비스 규칙
 
