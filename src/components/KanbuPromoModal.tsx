@@ -47,24 +47,23 @@ const KanbuPromoModal = ({ userData, isFriend, isMutual, onToggleFriend, onViewP
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-1">
                 <h3 className="text-[16px] font-[1000] text-slate-900 truncate">{userData.nickname}</h3>
-                <span className="text-[10px] font-black text-violet-600 bg-violet-50 px-1.5 py-0.5 rounded-md border border-violet-100">Lv{level}</span>
                 <span className="text-[10px] font-bold text-slate-400">{repLabel}</span>
               </div>
-              {/* EXP 바 */}
+              {/* Lv 바 (%) */}
               <div className="flex items-center gap-2 mb-0.5">
-                <span className="text-[8px] font-bold text-slate-400 w-6">EXP</span>
+                <span className="text-[8px] font-bold text-violet-500 w-6">Lv{level}</span>
                 <div className="flex-1 bg-slate-100 rounded-full h-1 overflow-hidden">
                   <div className="h-full bg-violet-400 rounded-full" style={{ width: `${levelPct}%` }} />
                 </div>
-                <span className="text-[8px] font-bold text-slate-300">{userData.exp || 0}/{nextLevelExp}</span>
+                <span className="text-[8px] font-bold text-slate-300">{levelPct}%</span>
               </div>
-              {/* 평판 바 */}
+              {/* 평판 바 (%) */}
               <div className="flex items-center gap-2">
-                <span className="text-[8px] font-bold text-slate-400 w-6">평판</span>
+                <span className="text-[8px] font-bold text-emerald-500 w-6">평판</span>
                 <div className="flex-1 bg-slate-100 rounded-full h-1 overflow-hidden">
                   <div className="h-full bg-emerald-400 rounded-full" style={{ width: `${repPct}%` }} />
                 </div>
-                <span className="text-[8px] font-bold text-slate-300">{repScore}/{nextRepThreshold}</span>
+                <span className="text-[8px] font-bold text-slate-300">{Math.round(repPct)}%</span>
               </div>
             </div>
           </div>
