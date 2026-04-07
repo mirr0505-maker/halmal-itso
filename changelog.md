@@ -589,6 +589,23 @@
   - 한컷 빈 상태 메시지 추가.
   - 화이트스크린 방지 ErrorBoundary + Firestore 끊김 자동 복구.
 
+- [x] **한컷 카드 레이아웃 통일 (2026-04-07 v38)**:
+  - 한컷 카드(OneCutList + AnyTalkList 인라인 스트립) 하단을 일반 글카드와 완전 동일 구조로 통일.
+  - 아바타 w-7→w-6, 아바타 클릭 → 공개 프로필(onAuthorClick) 추가, 공유 버튼(URL 복사) 복원.
+  - 원본글 영역 min-h-[22px] 확보 — 원본글 유무와 무관하게 카드 세로 사이즈 동일.
+  - AnyTalkList 인라인 스트립에 linkedPostId→원본글 제목 표시 로직 추가 (allPosts prop 전달).
+
+- [x] **Cloud Functions 분리 + 땡스볼 서버 전환 (2026-04-07 v38)**:
+  - functions/index.js(766줄) → 8개 모듈로 분리: thanksball, auction, revenue, fraud, settlement, kanbuPromo, testCharge, contentLength.
+  - sendThanksball: ballBalance 직접 수정 Rules 차단 → Admin SDK 트랜잭션으로 전환.
+  - 수신자 UID: posts.author_id 최우선 조회 (nickname_ 문서 UID 불일치 대응).
+  - 발신자 닉네임: Firestore users/{uid}.nickname 조회 (auth.token.name 부정확 대응).
+  - testChargeBall: 테스트용 볼 충전도 Cloud Function 전환.
+
+- [x] **광고 딥링크 + 플랫폼 광고 개선 (2026-04-07 v38)**:
+  - AdFallback에 '광고' 라벨 배지 추가.
+  - /?menu= URL 파라미터로 메뉴 자동 이동 (광고 클릭 → 해당 기능 화면).
+
 ### 🛠️ 진행 중 / 개선 필요 사항
 - [ ] **에디터 보완**: `bubble-menu` 활성화 (텍스트 선택 시 서식 도구 노출).
 - [ ] **검색 엔진**: Firestore 텍스트 검색 한계 보완 (현재는 클라이언트 사이드 필터링).

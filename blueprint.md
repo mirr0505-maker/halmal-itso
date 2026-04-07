@@ -67,7 +67,15 @@
 └── wrangler.toml            # Workers 설정 (name: halmal-link-preview)
 
 /functions                   # Firebase Cloud Functions (Blaze 플랜, Node.js 20, 서울 리전)
-├── index.js                 # 마라톤의 전령 뉴스 봇 — 매 30분 스케줄 실행
+├── index.js                 # 진입점 — 모든 함수 re-export (fetchMarathonNews + 분리 모듈)
+├── thanksball.js            # sendThanksball — 땡스볼 전송 (잔액 차감·수신자 누적·알림, posts.author_id 우선 조회)
+├── auction.js               # adAuction — 광고 슬롯 입찰 처리
+├── revenue.js               # aggregateDailyRevenue — 일별 광고 수익 집계
+├── fraud.js                 # detectFraud — 부정 클릭 감지
+├── settlement.js            # processSettlements — 정산 처리
+├── kanbuPromo.js            # registerKanbuPromo — 깐부 홍보 카드 등록 (Lv2+, 기간제 과금)
+├── testCharge.js            # testChargeBall — 테스트용 땡스볼 충전
+├── contentLength.js         # validateContentLength — 신포도와 여우 100자 제한 검증
 └── package.json             # 의존성: firebase-admin, firebase-functions, fast-xml-parser
 
 /src
@@ -338,13 +346,14 @@ interface KanbuChat {
 - **연결**: 일반 게시글과 한컷을 `linkedPostId`로 상호 연결하여 이동 지원.
 - **상세 설명 없음**: 이미지 + 제목만으로 의미 전달. CreateOneCutBox에서 상세 설명 textarea 제거.
 - **홈 피드 인라인 섹션**: 새글/등록글/인기글/최고글/깐부글 탭 하단에 탭 기준과 동일한 필터의 한컷 최신 4개를 가로 그리드로 표시. 더보기 → 한컷 메뉴로 이동.
+- **카드 하단 구조**: 일반 글카드(AnyTalkList)와 완전 동일 — 아바타(w-6)+닉네임+Lv/평판/깐부수(좌) | 댓글·땡스볼·좋아요·공유(우). 아바타 클릭 → 공개 프로필. 원본글 영역은 없어도 `min-h-[22px]`로 높이 확보 (카드 세로 사이즈 통일).
 
 ---
 
 ## 8. 구현 이력 (Changelog)
 
 > 📋 완료된 기능 전체 이력은 **[changelog.md](./changelog.md)** 를 참조하세요.
-> 최신 버전: v37 (2026-04-07)
+> 최신 버전: v38 (2026-04-07)
 
 ## 9. 외부 서비스 규칙
 
@@ -363,10 +372,15 @@ interface KanbuChat {
 
 ### Firebase
 - `post_timestamp_nickname` ID 규칙 준수.
-- **현재 Blaze 플랜** — Cloud Functions 사용 중.
-  - `fetchMarathonNews`: 매 30분 스케줄, 서울 리전(`asia-northeast3`), Node.js 20
+- **현재 Blaze 플랜** — Cloud Functions 사용 중 (서울 리전 `asia-northeast3`, Node.js 20).
+  - `fetchMarathonNews`: 매 30분 스케줄 뉴스 봇
+  - `sendThanksball`: 땡스볼 전송 (ballBalance 직접 수정 차단 → Admin SDK 트랜잭션)
+  - `testChargeBall`: 테스트용 볼 충전
+  - `registerKanbuPromo`: 깐부 홍보 카드 등록 (promoEnabled 직접 수정 차단)
+  - `adAuction` / `aggregateDailyRevenue` / `detectFraud` / `processSettlements`: ADSMARKET 광고 시스템
+  - `validateContentLength`: 신포도와 여우 100자 제한
   - 배포: `firebase deploy --only functions`
-  - 로그: `firebase functions:log --only fetchMarathonNews`
+  - 로그: `firebase functions:log`
 - **향후 구현 가능 (Blaze)**:
   - 글별 동적 OG 태그 (카카오톡 공유 시 글 제목·내용 미리보기)
   - 구현 방식: Cloud Function이 `?post=topic_타임스탬프` 요청을 가로채 Firestore에서 글 조회 후 OG 태그가 담긴 HTML 반환
