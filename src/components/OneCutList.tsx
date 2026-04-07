@@ -98,21 +98,21 @@ const OneCutList = ({ posts, allPosts, onTopicClick, onLikeClick, currentNicknam
                 </div>
               ) : null}
 
-              {/* 🚀 작성자 정보 — mt-auto로 항상 하단 고정 */}
+              {/* 🚀 작성자 정보 + 통계 바 — 한 줄 좌우 배치 */}
               <div className="flex-1" />
-              <div className="pt-1.5 border-t border-slate-50 flex items-center gap-1.5">
-                <div className="w-6 h-6 rounded-full overflow-hidden border border-slate-100 bg-slate-50 shrink-0">
-                  <img src={authorData?.avatarUrl || `https://api.dicebear.com/7.x/adventurer/svg?seed=${post.author}`} alt="" className="w-full h-full object-cover" />
+              <div className="pt-1.5 border-t border-slate-50 flex items-center justify-between">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <div className="w-6 h-6 rounded-full overflow-hidden border border-slate-100 bg-slate-50 shrink-0">
+                    <img src={authorData?.avatarUrl || `https://api.dicebear.com/7.x/adventurer/svg?seed=${post.author}`} alt="" className="w-full h-full object-cover" />
+                  </div>
+                  <div className="flex flex-col min-w-0 leading-tight">
+                    <span className="text-slate-900 text-[10px] font-black truncate">{post.author}</span>
+                    <span className="text-slate-400 text-[8px] font-bold truncate">
+                      Lv {displayLevel} · {getReputationLabel(authorData ? getReputationScore(authorData) : displayLikes)} · 깐부수 {formatKoreanNumber(realFollowers)}
+                    </span>
+                  </div>
                 </div>
-                <div className="flex flex-col min-w-0 leading-tight">
-                  <span className="text-slate-900 text-[10px] font-black truncate">{post.author}</span>
-                  <span className="text-slate-400 text-[8px] font-bold truncate">
-                    Lv {displayLevel} · {getReputationLabel(authorData ? getReputationScore(authorData) : displayLikes)} · 깐부수 {formatKoreanNumber(realFollowers)}
-                  </span>
-                </div>
-              </div>
-              {/* 🚀 통계 바: 댓글 | 땡스볼 | 좋아요 | 공유 — 일반 글 카드와 동일 */}
-              <div className="flex items-center justify-end gap-3 pt-1 text-[10px] font-black text-slate-300">
+                <div className="flex items-center gap-2 shrink-0 text-[10px] font-black text-slate-300">
                 <span className="flex items-center gap-1">
                   <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
                   {formatKoreanNumber(commentCounts[post.id] || 0)}
@@ -139,6 +139,7 @@ const OneCutList = ({ posts, allPosts, onTopicClick, onLikeClick, currentNicknam
                     : <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/></svg>
                   }
                 </button>
+                </div>
               </div>
             </div>
           </div>
