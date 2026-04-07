@@ -69,11 +69,14 @@ export function useFirestoreActions({
       } else {
         const customId = `topic_${Date.now()}_${userData.uid}`;
         const shareToken = customId.split('_').slice(0, 2).join('_'); // "topic_타임스탬프" — ogRenderer 조회용
+        // 🚀 contentTextLength: 서버사이드 글자수 검증용 (Firestore Rules에서 신포도와 여우 100자 제한 검증)
+        const contentPlainText = (postData.content || '').replace(/<[^>]*>/g, '').replace(/\s/g, '');
         await setDoc(doc(db, 'posts', customId), {
           ...postData, author: userData.nickname, author_id: userData.uid,
           authorInfo: { level: userData.level, friendCount: friends.length, totalLikes: userData.likes },
           parentId: null, rootId: null, side: 'left', type: 'formal',
           createdAt: serverTimestamp(), likes: 0, dislikes: 0, shareToken,
+          contentTextLength: contentPlainText.length,
         });
         // 🚀 EXP: 새글 작성 +2 (10자 이상일 때만)
         if (isEligibleForExp(postData.content || '')) {
@@ -98,11 +101,14 @@ export function useFirestoreActions({
     try {
       const customId = `topic_${Date.now()}_${userData.uid}`;
       const shareToken = customId.split('_').slice(0, 2).join('_'); // "topic_타임스탬프" — ogRenderer 조회용
+      // 🚀 contentTextLength: 서버사이드 글자수 검증용
+      const contentPlainText = (postData.content || '').replace(/<[^>]*>/g, '').replace(/\s/g, '');
       await setDoc(doc(db, 'posts', customId), {
         ...postData, author: userData.nickname, author_id: userData.uid,
         authorInfo: { level: userData.level, friendCount: friends.length, totalLikes: userData.likes },
         parentId: null, rootId: null, side: 'left', type: 'formal',
         createdAt: serverTimestamp(), likes: 0, dislikes: 0, shareToken,
+        contentTextLength: contentPlainText.length,
       });
       // 🚀 EXP: 연계글 작성 +2 (10자 이상일 때만)
       if (isEligibleForExp(postData.content || '')) {

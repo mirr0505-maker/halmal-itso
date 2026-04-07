@@ -1,7 +1,8 @@
 // src/components/KanbuPromoForm.tsx — 깐부 홍보 등록/수정 폼
 import React, { useState } from 'react';
-import { db, auth } from '../firebase';
-import { doc, updateDoc, increment, serverTimestamp } from 'firebase/firestore';
+import { db, auth, functions } from '../firebase';
+import { httpsCallable } from 'firebase/functions';
+import { doc, updateDoc } from 'firebase/firestore';
 import { uploadToR2 } from '../uploadToR2';
 
 // 🚀 홍보 기간별 땡스볼 비용
@@ -58,23 +59,19 @@ const KanbuPromoForm = ({ currentPromo, ballBalance, onClose }: Props) => {
     if (!canAfford) { alert(`볼이 부족합니다. (필요: ${plan.cost}볼, 보유: ${ballBalance}볼)\n내정보에서 충전해주세요.`); return; }
     setIsSaving(true);
     try {
-      // 🚀 만료일 계산 + 볼 차감
-      const expireAt = new Date();
-      expireAt.setDate(expireAt.getDate() + plan.days);
-
-      await updateDoc(doc(db, 'users', uid), {
-        promoImageUrl: imageUrl,
-        promoKeywords: keywords.filter(k => k.trim()),
-        promoMessage: message.trim(),
-        promoEnabled: true,
-        promoExpireAt: { seconds: Math.floor(expireAt.getTime() / 1000), nanoseconds: 0 },
-        promoPlan: plan.label,
-        promoUpdatedAt: serverTimestamp(),
-        ballBalance: increment(-plan.cost),
+      // 🚀 Cloud Function 호출 — 서버에서 잔액 검증 + 트랜잭션으로 원자적 처리
+      const registerPromo = httpsCallable(functions, 'registerKanbuPromo');
+      await registerPromo({
+        planIndex: selectedPlan,
+        imageUrl,
+        keywords: keywords.filter(k => k.trim()),
+        message: message.trim(),
       });
       onClose();
-    } catch (err) {
-      alert('저장 실패: ' + ((err as Error).message || ''));
+    } catch (err: unknown) {
+      // Cloud Function HttpsError의 message 추출
+      const errorMessage = (err as { message?: string })?.message || '알 수 없는 오류';
+      alert('저장 실패: ' + errorMessage);
     } finally {
       setIsSaving(false);
     }

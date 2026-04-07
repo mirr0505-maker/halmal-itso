@@ -6,7 +6,14 @@ service cloud.firestore {
     // 🔒 보안: update/delete는 작성자 본인만 허용 (클라이언트 우회 공격 방지)
     match /posts/{id} {
       allow read: if true;
-      allow create: if request.auth != null;
+      // 🔒 보안: 신포도와 여우 카테고리 — 100자 초과 + 이미지 없음 시 서버에서 거부
+      // Why: 프론트 우회로 글자수 제한을 무시하는 공격 방지
+      // contentTextLength 필드는 클라이언트가 HTML 태그·공백 제거 후 계산한 순수 글자 수
+      // content에 '<img ' 포함 시 이미지 첨부로 간주하여 글자수 제한 면제
+      allow create: if request.auth != null
+        && (request.resource.data.category != '신포도와 여우'
+          || request.resource.data.contentTextLength <= 100
+          || request.resource.data.content.matches('.*<img .*'));
       // 본문 수정·삭제: 작성자 본인만
       allow delete: if request.auth != null
         && resource.data.author_id == request.auth.uid;

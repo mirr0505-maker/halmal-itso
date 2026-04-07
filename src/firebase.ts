@@ -3,6 +3,7 @@ import { initializeApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 import { getAuth, GoogleAuthProvider } from "firebase/auth"; // 🚀 인증(Auth) 추가
+import { getFunctions } from "firebase/functions"; // 🚀 Cloud Functions 추가
 
 // 환경 변수에서 설정값 가져오기
 const firebaseConfig = {
@@ -30,5 +31,6 @@ export const db = getFirestore(app);
 export const storage = getStorage(app); 
 export const auth = getAuth(app); // 🚀 인증 객체 추가
 export const googleProvider = new GoogleAuthProvider(); // 🚀 구글 로그인 프로바이더 추가
+export const functions = getFunctions(app, "asia-northeast3"); // 🚀 Cloud Functions (서울 리전)
 
 export default app;
