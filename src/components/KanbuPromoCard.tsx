@@ -22,14 +22,7 @@ const KanbuPromoCard = ({ userData, onClick }: Props) => {
       onClick={onClick}
       className="bg-white rounded-2xl border border-slate-100 p-4 cursor-pointer hover:shadow-md hover:border-violet-200 transition-all group"
     >
-      {/* 이미지 */}
-      {userData.promoImageUrl && (
-        <div className="aspect-[16/9] rounded-xl overflow-hidden mb-3 bg-slate-100">
-          <img src={userData.promoImageUrl} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-        </div>
-      )}
-
-      {/* 아바타 + 닉네임 + 레벨 */}
+      {/* 1. 아바타 + 닉네임 + 레벨 */}
       <div className="flex items-center gap-2.5 mb-2">
         <div className="w-10 h-10 rounded-full overflow-hidden border border-slate-200 bg-slate-50 shrink-0">
           <img src={userData.avatarUrl || `https://api.dicebear.com/7.x/adventurer/svg?seed=${userData.nickname}`} alt="" className="w-full h-full object-cover" />
@@ -40,22 +33,30 @@ const KanbuPromoCard = ({ userData, onClick }: Props) => {
             <span className="text-[9px] font-black text-violet-600 bg-violet-50 px-1 py-0.5 rounded border border-violet-100">Lv{level}</span>
             <span className="text-[9px] font-bold text-slate-400">{repLabel}</span>
           </div>
-          {/* 키워드 태그 */}
-          {(userData.promoKeywords || []).length > 0 && (
-            <div className="flex items-center gap-1 mt-0.5">
-              {userData.promoKeywords!.slice(0, 3).map((kw, i) => (
-                <span key={i} className="text-[9px] font-bold text-violet-500 bg-violet-50 px-1.5 py-0.5 rounded-md">#{kw}</span>
-              ))}
-            </div>
-          )}
         </div>
       </div>
 
-      {/* 공약 */}
+      {/* 2. 키워드 태그 */}
+      {(userData.promoKeywords || []).length > 0 && (
+        <div className="flex items-center gap-1 mb-2 flex-wrap">
+          {userData.promoKeywords!.slice(0, 3).map((kw, i) => (
+            <span key={i} className="text-[9px] font-bold text-violet-500 bg-violet-50 px-1.5 py-0.5 rounded-md">#{kw}</span>
+          ))}
+        </div>
+      )}
+
+      {/* 3. 공약 */}
       {userData.promoMessage && (
-        <p className="text-[11px] font-bold text-slate-500 line-clamp-2 leading-relaxed">
+        <p className="text-[11px] font-bold text-slate-500 line-clamp-2 leading-relaxed mb-2">
           "{userData.promoMessage}"
         </p>
+      )}
+
+      {/* 4. 이미지 — 원본 비율 그대로 (세로든 가로든 자연스럽게) */}
+      {userData.promoImageUrl && (
+        <div className="rounded-xl overflow-hidden bg-slate-100 max-h-[200px]">
+          <img src={userData.promoImageUrl} alt="" className="w-full h-auto object-contain max-h-[200px] group-hover:scale-105 transition-transform duration-500" />
+        </div>
       )}
     </div>
   );
