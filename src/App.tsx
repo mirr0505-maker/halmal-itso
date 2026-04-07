@@ -45,7 +45,7 @@ import Sidebar from './components/Sidebar';
 import type { MenuId } from './components/Sidebar';
 import SubNavbar from './components/SubNavbar';
 import CategoryHeader from './components/CategoryHeader';
-import { TEST_ACCOUNTS, MENU_MESSAGES, POST_FILTER, FRIENDS_MENU_ALLOWED_NICKNAMES, EXTERNAL_URLS } from './constants';
+import { TEST_ACCOUNTS, MENU_MESSAGES, POST_FILTER, EXTERNAL_URLS } from './constants';
 // 조건부 렌더링 컴포넌트 — lazy load (청크 분리)
 const MyPage = lazy(() => import('./components/MyPage'));
 const PublicProfile = lazy(() => import('./components/PublicProfile'));
@@ -63,6 +63,7 @@ const GiantTreeView = lazy(() => import('./components/GiantTreeView'));
 const CreateDebate = lazy(() => import('./components/CreateDebate')); // 연계글 팝업 전용
 // 🚀 ADSMARKET: 광고주 센터
 const AdvertiserCenter = lazy(() => import('./components/advertiser/AdvertiserCenter'));
+const FriendsView = lazy(() => import('./components/FriendsView'));
 const AdvertiserRegister = lazy(() => import('./components/advertiser/AdvertiserRegister'));
 // 🚀 우리들의 따뜻한 장갑: 커뮤니티 컴포넌트
 const CommunityList = lazy(() => import('./components/CommunityList'));
@@ -401,19 +402,7 @@ function App() {
     }
 
     if (activeMenu === 'friends') {
-      // 개발 단계: FRIENDS_MENU_ALLOWED_NICKNAMES에 등록된 닉네임만 표시 (실 서비스 시 전체 유저로 변경)
-      const others = Object.values(allUsers).filter(u => u.nickname && u.nickname !== userData?.nickname && !u.uid.startsWith('nickname_') && FRIENDS_MENU_ALLOWED_NICKNAMES.includes(u.nickname));
-      return (
-        <div className="w-full max-w-4xl mx-auto py-10 px-4 animate-in fade-in">
-          <div className="text-center mb-12"><h2 className="text-3xl font-[1000] text-slate-900 mb-2">🤝 깐부 맺기 홍보</h2><p className="text-slate-500 font-bold">새로운 인연을 맺고 깊은 토론을 나눠보세요.</p></div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">{others.map(u => (
-            <div key={u.uid} className="bg-white border border-slate-100 p-6 rounded-2xl flex items-center justify-between shadow-sm">
-              <div className="flex items-center gap-4"><div className="w-14 h-14 rounded-full overflow-hidden bg-slate-50 shrink-0"><img src={u.avatarUrl || `${EXTERNAL_URLS.AVATAR_BASE}${u.nickname}`} alt="" className="w-full h-full object-cover" /></div><div><h3 className="font-[1000] text-slate-900">{u.nickname}</h3><p className="text-xs text-slate-400 font-bold">깐부수 {followerCounts[u.nickname] || 0} · 좋아요 {u.likes?.toLocaleString() || 0}</p></div></div>
-              <button onClick={() => toggleFriend(u.nickname)} className={`px-5 py-2 rounded-xl text-xs font-black transition-all ${friends.includes(u.nickname) ? 'bg-slate-100 text-slate-400' : 'bg-violet-600 text-white hover:bg-violet-700 shadow-md'}`}>{friends.includes(u.nickname) ? '깐부해제' : '+ 깐부맺기'}</button>
-            </div>
-          ))}</div>
-        </div>
-      );
+      return <FriendsView currentNickname={userData?.nickname} currentUserData={userData} allUsers={allUsers} allRootPosts={allRootPosts} friends={friends} followerCounts={followerCounts} onToggleFriend={toggleFriend} />;
     }
 
     if (activeMenu === 'market') {
@@ -759,7 +748,7 @@ function App() {
         {!(selectedTopic || isCreateOpen) && (
           (activeMenu === 'home' || activeMenu === 'onecut') ? (
             <SubNavbar activeTab={activeTab} onTabClick={setActiveTab} showTabs={true} />
-          ) : (MENU_MESSAGES[activeMenu] && activeMenu !== 'giant_tree' && activeMenu !== 'kanbu_room') ? (
+          ) : (MENU_MESSAGES[activeMenu] && activeMenu !== 'giant_tree' && activeMenu !== 'kanbu_room' && activeMenu !== 'friends') ? (
             <CategoryHeader menuInfo={MENU_MESSAGES[activeMenu]} />
           ) : null
         )}
