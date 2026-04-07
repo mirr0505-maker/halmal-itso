@@ -67,11 +67,37 @@ const FriendsView = ({ currentNickname, currentUserData, allUsers, allRootPosts,
           </div>
         )}
 
-        {/* 홍보 카드 그리드 */}
+        {/* 🚀 상단: 나의 홍보 미리보기 */}
+        {currentNickname && (
+          <div className="mb-4">
+            <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-3">📌 나의 홍보</h3>
+            {myPromo?.promoEnabled ? (
+              <KanbuPromoCard
+                userData={currentUserData as UserData & { promoImageUrl?: string; promoKeywords?: string[]; promoMessage?: string }}
+                onClick={() => setShowPromoForm(true)}
+              />
+            ) : (
+              <div className="py-8 text-center bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                <p className="text-slate-300 font-bold text-[13px] mb-1">나를 홍보하고 깐부를 맺어보세요</p>
+                {myLevel >= 2 ? (
+                  <button onClick={() => setShowPromoForm(true)}
+                    className="text-[11px] font-[1000] text-violet-500 hover:text-violet-700 transition-colors">+ 홍보 등록하기</button>
+                ) : (
+                  <p className="text-[10px] font-bold text-slate-300">Lv2 이상이면 홍보할 수 있어요</p>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* 구분선 */}
+        <div className="border-t border-slate-200 my-4" />
+
+        {/* 🚀 하단: 다른 깐부들 홍보 목록 */}
+        <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-3">🤝 깐부 홍보 목록</h3>
         {promoUsers.length === 0 ? (
-          <div className="py-16 text-center">
-            <p className="text-slate-300 font-[1000] text-[16px] mb-2">깐부를 기다리고 있어요!</p>
-            <p className="text-slate-300 font-bold text-[12px]">나를 홍보하고 깐부를 맺어보세요.</p>
+          <div className="py-10 text-center">
+            <p className="text-slate-300 font-bold text-[13px]">깐부를 기다리고 있어요!</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
