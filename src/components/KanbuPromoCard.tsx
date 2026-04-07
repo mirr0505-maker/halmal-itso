@@ -6,6 +6,7 @@ interface KanbuPromo {
   promoImageUrl?: string;
   promoKeywords?: string[];
   promoMessage?: string;
+  promoExpireAt?: { seconds: number };
 }
 
 interface Props {
@@ -16,6 +17,17 @@ interface Props {
 const KanbuPromoCard = ({ userData, onClick }: Props) => {
   const level = calculateLevel(userData.exp || 0);
   const repLabel = getReputationLabel(getReputationScore(userData));
+
+  // 🚀 남은 기간 표시
+  const getRemaining = () => {
+    if (!userData.promoExpireAt) return null;
+    const diffMs = userData.promoExpireAt.seconds * 1000 - Date.now();
+    if (diffMs <= 0) return null;
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    if (diffHours < 24) return `게시 종료 ${diffHours}시간`;
+    return `게시 종료 ${Math.floor(diffHours / 24)}일`;
+  };
+  const remaining = getRemaining();
 
   return (
     <div
@@ -32,6 +44,7 @@ const KanbuPromoCard = ({ userData, onClick }: Props) => {
             <span className="text-[13px] font-[1000] text-slate-900 truncate">{userData.nickname}</span>
             <span className="text-[9px] font-black text-violet-600 bg-violet-50 px-1 py-0.5 rounded border border-violet-100">Lv{level}</span>
             <span className="text-[9px] font-bold text-slate-400">{repLabel}</span>
+            {remaining && <span className="text-[8px] font-bold text-amber-500 bg-amber-50 px-1 py-0.5 rounded border border-amber-100 ml-auto shrink-0">{remaining}</span>}
           </div>
         </div>
       </div>
