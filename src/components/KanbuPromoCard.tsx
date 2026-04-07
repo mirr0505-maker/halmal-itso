@@ -22,17 +22,17 @@ const KanbuPromoCard = ({ userData, onClick }: Props) => {
   const getRemaining = () => {
     if (!userData.promoExpireAt) return null;
     const diffMs = userData.promoExpireAt.seconds * 1000 - Date.now();
-    if (diffMs <= 0) return null;
+    if (diffMs <= 0) return { text: '게시 만료된 홍보입니다', expired: true };
     const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-    if (diffHours < 24) return `게시 종료 ${diffHours}시간`;
-    return `게시 종료 ${Math.floor(diffHours / 24)}일`;
+    if (diffHours < 24) return { text: `게시 종료 ${diffHours}시간`, expired: false };
+    return { text: `게시 종료 ${Math.floor(diffHours / 24)}일`, expired: false };
   };
   const remaining = getRemaining();
 
   return (
     <div
       onClick={onClick}
-      className="bg-white rounded-2xl border border-slate-100 p-4 cursor-pointer hover:shadow-md hover:border-violet-200 transition-all group"
+      className={`bg-white rounded-2xl border p-4 cursor-pointer hover:shadow-md transition-all group ${remaining?.expired ? 'border-slate-200 opacity-60' : 'border-slate-100 hover:border-violet-200'}`}
     >
       {/* 1. 아바타 + 닉네임 + 레벨 */}
       <div className="flex items-center gap-2.5 mb-2">
@@ -44,7 +44,11 @@ const KanbuPromoCard = ({ userData, onClick }: Props) => {
             <span className="text-[13px] font-[1000] text-slate-900 truncate">{userData.nickname}</span>
             <span className="text-[9px] font-black text-violet-600 bg-violet-50 px-1 py-0.5 rounded border border-violet-100">Lv{level}</span>
             <span className="text-[9px] font-bold text-slate-400">{repLabel}</span>
-            {remaining && <span className="text-[8px] font-bold text-amber-500 bg-amber-50 px-1 py-0.5 rounded border border-amber-100 ml-auto shrink-0">{remaining}</span>}
+            {remaining && (
+              <span className={`text-[8px] font-bold px-1 py-0.5 rounded border ml-auto shrink-0 ${remaining.expired ? 'text-slate-400 bg-slate-50 border-slate-200' : 'text-amber-500 bg-amber-50 border-amber-100'}`}>
+                {remaining.text}
+              </span>
+            )}
           </div>
         </div>
       </div>

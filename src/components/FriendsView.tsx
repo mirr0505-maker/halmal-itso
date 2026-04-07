@@ -23,16 +23,12 @@ const FriendsView = ({ currentNickname, currentUserData, allUsers, allRootPosts:
   const [selectedUser, setSelectedUser] = useState<(UserData & { promoImageUrl?: string; promoKeywords?: string[]; promoMessage?: string }) | null>(null);
   const [showPromoForm, setShowPromoForm] = useState(false);
 
-  // 홍보 활성화 + 만료 미도래 유저만 표시
-  const nowSeconds = Math.floor(Date.now() / 1000);
+  // 홍보 활성화된 유저 (만료 포함 — 만료 시 카드에 만료 표시)
   const promoUsers = Object.values(allUsers)
     .filter(u => {
       if (!u.uid || !u.nickname || u.nickname === currentNickname) return false;
-      const promo = u as unknown as { promoEnabled?: boolean; promoExpireAt?: { seconds: number } };
-      if (!promo.promoEnabled) return false;
-      // 만료 체크: promoExpireAt가 있고 현재 시간 이후면 유효
-      if (promo.promoExpireAt && promo.promoExpireAt.seconds < nowSeconds) return false;
-      return true;
+      const promo = u as unknown as { promoEnabled?: boolean };
+      return !!promo.promoEnabled;
     })
     .reduce((acc, u) => { if (!acc.find(x => x.uid === u.uid)) acc.push(u); return acc; }, [] as UserData[]);
 
