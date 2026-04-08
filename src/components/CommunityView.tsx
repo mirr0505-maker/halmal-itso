@@ -179,9 +179,13 @@ const CommunityView = ({ community, currentUserData, allUsers, onBack, onClosed 
   const [verifyingMember, setVerifyingMember] = useState<CommunityMember | null>(null);
   const [viewingAnswersMember, setViewingAnswersMember] = useState<CommunityMember | null>(null);
 
-  // 🚀 인증 부여
+  // 🚀 인증 부여 — active 멤버에게만 가능 (이중 안전 가드)
   const handleVerifyMember = async (member: CommunityMember, label: string) => {
     if (!currentUserData) return;
+    if (member.joinStatus && member.joinStatus !== 'active') {
+      alert('승인된 멤버에게만 인증을 부여할 수 있습니다.');
+      return;
+    }
     const membershipId = `${community.id}_${member.userId}`;
     await updateDoc(doc(db, 'community_memberships', membershipId), {
       verified: {

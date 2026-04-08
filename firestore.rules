@@ -49,26 +49,40 @@ service cloud.firestore {
       match /{sub=**} { allow read: if true; allow write: if request.auth != null; }
     }
     // 커뮤니티 멤버십 — 로그인 사용자만 읽기
+    // 🔒 Phase 6 보강: verified·joinAnswers 권한 분리, 본인 민감 필드 차단
     // 쓰기 규칙:
-    //   create: 로그인한 사용자 누구나 (가입 신청)
-    //   update/delete 본인 문서: 본인만 (탈퇴, 닉네임 변경)
-    //   update/delete 타인 문서: 해당 커뮤니티의 thumb/index만 (강퇴·역할변경)
-    // Why: 프론트 레이어 우회 공격에 대한 서버 사이드 권한 검증 추가
+    //   create: 본인 명의만 (타인 가입 위조 방지)
+    //   update 본인: 탈퇴·닉네임 동기화 허용, 단 verified·finger·joinStatus·banReason 변경 차단
+    //   update 타인: thumb/index만, 허용 키(finger·joinStatus·banReason·role·verified)만
+    //   delete: 본인 탈퇴 또는 관리자 강퇴
     match /community_memberships/{membershipId} {
       allow read: if request.auth != null;
-      allow create: if request.auth != null;
 
-      // 본인 멤버십 수정·삭제 (탈퇴, 닉네임 동기화)
-      allow update, delete: if request.auth != null
+      // 🔒 create: 본인 명의로만 생성 (타인 가입 위조 방지)
+      allow create: if request.auth != null
+        && request.resource.data.userId == request.auth.uid;
+
+      // 본인 멤버십 수정 (탈퇴, 닉네임 동기화)
+      // 🔒 차단: verified·finger·joinStatus·banReason은 본인이 못 바꿈
+      allow update: if request.auth != null
+        && resource.data.userId == request.auth.uid
+        && !request.resource.data.diff(resource.data).affectedKeys()
+            .hasAny(['verified', 'finger', 'joinStatus', 'banReason']);
+
+      // 본인 멤버십 삭제 (탈퇴)
+      allow delete: if request.auth != null
         && resource.data.userId == request.auth.uid;
 
-      // 관리자(thumb/index)에 의한 타인 멤버십 수정 (강퇴·역할변경·승인)
-      // 문서 ID 패턴: {communityId}_{userId} — communityId를 추출해 본인 멤버십 조회
+      // 관리자(thumb/index)에 의한 타인 멤버십 수정 (강퇴·역할변경·승인·인증 부여/해제)
+      // 🔒 hasOnly: 허용된 키(finger·joinStatus·banReason·role·verified)만 변경 가능
+      // joinAnswers는 관리자도 수정 불가 (영구 보존)
       allow update: if request.auth != null
         && resource.data.userId != request.auth.uid
-        && request.resource.data.keys().hasAny(['finger', 'joinStatus', 'banReason', 'role'])
+        && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['finger', 'joinStatus', 'banReason', 'role', 'verified'])
         && get(/databases/$(database)/documents/community_memberships/$(resource.data.communityId + '_' + request.auth.uid)).data.finger in ['thumb', 'index'];
 
+      // 관리자에 의한 타인 멤버십 삭제 (강퇴·거절)
       allow delete: if request.auth != null
         && resource.data.userId != request.auth.uid
         && get(/databases/$(database)/documents/community_memberships/$(resource.data.communityId + '_' + request.auth.uid)).data.finger in ['thumb', 'index'];
