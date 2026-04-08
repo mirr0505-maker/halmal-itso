@@ -294,7 +294,7 @@ interface KanbuChat {
 | `friends` | 깐부 맺기 | (UI 전용) | 홍보 카드 기반 깐부 매칭. Lv2+ 유저가 이미지·키워드·공약을 등록하면 카드 노출. 클릭 시 팝업 상세(공개프로필+깐부맺기). `users/{uid}.promoEnabled/promoImageUrl/promoKeywords/promoMessage` |
 | `kanbu_room` | 깐부방 | (subcollection) | 깐부가 개설한 방 목록, 방별 게시판+실시간 채팅. Lv3 이상 개설. Firestore: `kanbu_rooms/{roomId}/chats` |
 | `glove` | 우리들의 장갑 | (커뮤니티) | 다섯 손가락 운영 체제 (thumb·index·middle·ring·pinky). 가입방식 3종(open·approval·password), minLevel 제한, 공지 고정, 알림 opt-in, 중지 자동 산정. 자세한 내용 → `GLOVE.md` |
-| `marathon_herald` | 마라톤의 전령 | 마라톤의 전령 | 뉴스 속보 봇 전용 채널. 속보 키워드(속보·긴급·단독·사망·화재·폭발·지진 등 29개) 포함 기사만 Firestore 저장. `newsType: 'breaking'`→🚨 속보(빨간 pulse 배지). 좋아요 임계값 없이 즉시 노출. 홈 새글 피드에도 포함. 댓글: pandora 공감/의심 2컬럼. 원본 기사 `linkUrl` → RootPostCard [🔗 바로가기] 버튼. Cloud Functions 매 30분 자동 등록. |
+| `marathon_herald` | 마라톤의 전령 | 마라톤의 전령 | 뉴스 속보 봇 전용 채널. 속보 키워드(속보·단독·지진·폭발·테러·비상계엄 6개) 포함 기사만 Firestore 저장. `newsType: 'breaking'`→🚨 속보(빨간 pulse 배지). 좋아요 임계값 없이 즉시 노출. 홈 새글 피드에도 포함. 댓글: pandora 공감/의심 2컬럼. 원본 기사 `linkUrl` → RootPostCard [🔗 바로가기] 버튼. Cloud Functions 매 10분 자동 등록, 분대별 1개 언론사 순차 수집(MBC·연합뉴스TV·연합뉴스·경향신문·동아일보·뉴시스). |
 | `market` | 마켓 | 마켓 | OneCutList 그리드 레이아웃, 게시글 없을 시 "기록된 글이 없어요" |
 | `exile_place` | 유배·귀양지 | 유배·귀양지 | 제재 유저 전용 소통 공간, 주제 없음 |
 | `ranking` | 랭킹 | (UI 전용) | 좋아요·땡스볼·조회수 × 유저·글 6개 뷰. `RankingView.tsx`. 사이드바 내정보 위 배치. |
@@ -309,6 +309,13 @@ interface KanbuChat {
 - **인기글 (best)**: 좋아요 10개 이상.
 - **최고글 (rank)**: 좋아요 30개 이상.
 - **깐부글 (friend)**: 좋아요 3개 이상 + 팔로우 유저 작성 (시간 제한 없음 — 친구들의 좋은 글 모아보기).
+- **미등록**: 2시간 경과 + 좋아요 3 미만. 홈 피드 어디에도 노출되지 않음. 내정보 나의 기록·나의 한컷에서만 접근 가능.
+
+### 6.1.1 재등록 시스템
+- **대상**: 미등록 글 (2시간 경과 + 좋아요 3 미만 + `repostedAt` 필드 없음)
+- **동작**: 제목 앞 `[재등록]` 추가 + `createdAt` 리셋(새글 복귀) + `repostedAt` 타임스탬프 기록
+- **제한**: 1회만 가능. 재등록 후 다시 2시간 내 좋아요 3개 미달 시 영구 미등록.
+- **UI**: 내정보 나의 기록·나의 한컷 탭에서 미등록 글 옆에 [재등록] 버튼 표시. 상단 안내 메시지.
 
 ### 6.2 카테고리 뷰
 - 해당 카테고리 내에서 **좋아요 3개 이상**을 획득한 글만 노출 (품질 필터).
@@ -353,7 +360,7 @@ interface KanbuChat {
 ## 8. 구현 이력 (Changelog)
 
 > 📋 완료된 기능 전체 이력은 **[changelog.md](./changelog.md)** 를 참조하세요.
-> 최신 버전: v38 (2026-04-07)
+> 최신 버전: v39 (2026-04-08)
 
 ## 9. 외부 서비스 규칙
 

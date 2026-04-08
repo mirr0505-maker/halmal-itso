@@ -96,6 +96,7 @@
 | `NotificationBell.tsx` | `notifications/{uid}/items` 실시간 구독. `writeBatch`로 일괄 읽음 처리. 타입: `thanksball·community_post·finger_promoted·giant_tree_spread·giant_tree_wilt`. `isUnread()` 헬퍼로 `read`/`isRead` 두 필드 통합 판단. |
 | `EditorToolbar.tsx` | 링크 삽입 후 Workers 호출 → `LinkPreviewCard` 표시. `fetchPreview` 내부 상태 보호. |
 | `LinkPreviewCard.tsx` | OgData 타입 export — EditorToolbar에서 import해 사용. |
+| `MyContentTabs.tsx` | 나의 기록·한컷 리스트. 상태 배지(새글/미등록/등록글/인기글/최고글) + 재등록 버튼(1회 한정). `canRepost()` / `getPostStatus()` 로직 보호. |
 
 ---
 
