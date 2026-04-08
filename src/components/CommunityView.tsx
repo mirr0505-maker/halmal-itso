@@ -645,6 +645,7 @@ const CommunityView = ({ community, currentUserData, allUsers, onBack, onClosed 
           post={selectedPost}
           currentUserData={currentUserData}
           allUsers={allUsers}
+          members={members}
           onClose={() => setSelectedPost(null)}
           onLike={handleLike}
         />
@@ -658,12 +659,13 @@ interface DetailProps {
   post: CommunityPost;
   currentUserData: UserData | null;
   allUsers: Record<string, UserData>;
+  members: CommunityMember[];
   onClose: () => void;
   onLike: (e: React.MouseEvent, post: CommunityPost) => void;
 }
 
-const CommunityPostDetail = ({ post, currentUserData, allUsers: _allUsers, onClose, onLike }: DetailProps) => {
-  const [comments, setComments] = useState<{id: string; author: string; content: string; createdAt?: FirestoreTimestamp}[]>([]);
+const CommunityPostDetail = ({ post, currentUserData, allUsers: _allUsers, members, onClose, onLike }: DetailProps) => {
+  const [comments, setComments] = useState<{id: string; author: string; author_id?: string; content: string; createdAt?: FirestoreTimestamp}[]>([]);
   const [newComment, setNewComment] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -673,7 +675,7 @@ const CommunityPostDetail = ({ post, currentUserData, allUsers: _allUsers, onClo
       where('postId', '==', post.id),
       orderBy('createdAt', 'asc')
     );
-    const unsub = onSnapshot(q, snap => setComments(snap.docs.map(d => ({ id: d.id, ...d.data() } as { id: string; author: string; content: string; createdAt?: FirestoreTimestamp }))));
+    const unsub = onSnapshot(q, snap => setComments(snap.docs.map(d => ({ id: d.id, ...d.data() } as { id: string; author: string; author_id?: string; content: string; createdAt?: FirestoreTimestamp }))));
     return () => unsub();
   }, [post.id]);
 
@@ -724,6 +726,8 @@ const CommunityPostDetail = ({ post, currentUserData, allUsers: _allUsers, onClo
           <div className="flex items-center gap-2 mb-4">
             <img src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${post.author}`} className="w-6 h-6 rounded-full bg-slate-50" alt="" />
             <span className="text-[12px] font-bold text-slate-600">{post.author}</span>
+            {/* 🚀 Phase 6: 글 상세 작성자 인증 배지 */}
+            <VerifiedBadgeComponent verified={members.find(m => m.userId === post.author_id)?.verified} size="sm" showDate={false} />
             <span className="text-[11px] font-bold text-slate-300">{formatTime(post.createdAt)}</span>
           </div>
           <div
@@ -748,6 +752,8 @@ const CommunityPostDetail = ({ post, currentUserData, allUsers: _allUsers, onClo
               <div className="flex items-center gap-2 mb-1">
                 <img src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${c.author}`} className="w-5 h-5 rounded-full bg-slate-50" alt="" />
                 <span className="text-[12px] font-bold text-slate-700">{c.author}</span>
+                {/* 🚀 Phase 6 Step 6: 댓글 작성자 인증 배지 */}
+                <VerifiedBadgeComponent verified={members.find(m => m.userId === c.author_id)?.verified} size="sm" showDate={false} />
                 <span className="text-[10px] font-bold text-slate-300">{formatTime(c.createdAt)}</span>
               </div>
               <p className="text-[13px] font-medium text-slate-600 pl-7">{c.content}</p>

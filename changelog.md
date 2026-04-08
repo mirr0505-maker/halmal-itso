@@ -633,6 +633,7 @@
   - **Step 4A**: JoinAnswersDisplay 신규 — 관리 탭 승인 대기 구조화 답변 표시
   - **Step 4B**: VerifiedBadge + VerifyMemberModal — 멤버 탭 인증 부여/해제, 글 작성자 배지, 라벨 추천칩+미리보기
   - **Step 5**: Firestore Rules 보강 (create 본인 명의, 본인 민감필드 차단, 관리자 hasOnly+verified, joinAnswers 보호)
+  - **Step 6**: 댓글·글 상세 작성자 인증 배지, 비가입자 접근 제한(승인제 차단/open 읽기전용), GLOVE.md 전면 업데이트
 
 ### 🛠️ 진행 중 / 개선 필요 사항
 - [ ] **에디터 보완**: `bubble-menu` 활성화 (텍스트 선택 시 서식 도구 노출).

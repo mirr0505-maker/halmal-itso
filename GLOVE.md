@@ -92,6 +92,19 @@ export interface CommunityPost {
   isPinned?: boolean;            // 공지 고정 여부 (thumb/index만 설정 가능)
   isBlinded?: boolean;           // 관리자 블라인드 처리
 }
+
+// Phase 6 — 가입 폼 빌더 + 인증 시스템
+export type StandardFieldKey = 'name' | 'region' | 'phone' | 'email' | 'shares';
+export type SharesUnit = '1' | '10' | '100' | '1000';
+export interface Region { sido: string; sigungu: string; }
+export interface StandardField { key: StandardFieldKey; enabled: boolean; required: boolean; sharesUnit?: SharesUnit; sharesLabel?: string; }
+export interface CustomQuestion { id: string; label: string; placeholder?: string; required: boolean; maxLength?: number; }
+export interface JoinForm { standardFields: StandardField[]; customQuestions: CustomQuestion[]; }
+export interface JoinAnswers {
+  standard?: { name?: string; region?: Region; phone?: string; email?: string; shares?: { value: number; unit: SharesUnit; label?: string }; };
+  custom?: Array<{ questionId: string; question: string; answer: string; }>;
+}
+export interface VerifiedBadge { verifiedAt: any; verifiedBy: string; verifiedByNickname: string; label: string; }
 ```
 
 ---
@@ -290,13 +303,16 @@ match /community_posts/{id} {
 | 2026-04-08 | Phase 6 Step 4A | JoinAnswersDisplay 신규 (구조화 답변 표시), CommunityAdminPanel 승인 대기 답변 렌더링 |
 | 2026-04-08 | Phase 6 Step 4B | VerifiedBadge + VerifyMemberModal 신규, 멤버 탭 인증 부여/해제/가입답변 보기, 글 작성자 인증 배지 |
 | 2026-04-08 | Phase 6 Step 5 | Firestore Rules 보강 (create 본인 명의, 본인 민감필드 차단, 관리자 hasOnly, joinAnswers 보호), 클라이언트 가드 |
+| 2026-04-08 | Phase 6 Step 6 | 댓글 작성자 인증 배지, 글 상세 작성자 인증 배지, 비가입자 접근 제한(승인제 차단/open 읽기전용), GLOVE.md 전면 업데이트 |
 
 ---
 
 ## 11. 미구현 / 향후 과제
 
-- [ ] **커뮤니티 댓글 인증 배지**: community_post_comments 작성자 옆에도 VerifiedBadge 표시 (Step 4B에서 미뤄둠)
+- [x] ~~커뮤니티 댓글 인증 배지~~: Step 6에서 완료
 - [ ] **인증 멤버 필터링**: 멤버 탭에서 "인증된 멤버만 보기" 필터 (선택적 편의 기능)
+- [ ] **인증 만료 정책**: 1년 후 자동 만료 또는 재인증 요구 (장기 과제)
+- [ ] **인증 라벨 통계**: 같은 라벨끼리 묶어 카운트 표시 ("주주 12명 / 거주민 5명")
 - [ ] **커뮤니티 내 검색**: 가입 커뮤니티 피드 내 키워드 검색 (Firestore 텍스트 검색 한계 → Algolia 연동 필요)
 - [ ] **알림 51명+ 장갑 대응**: Cloud Functions(Blaze 플랜 업그레이드 후) 또는 알림 배치 처리
 - [ ] **성향 제한**: 특정 칭호(블루 기여자 이상 등) 보유자만 가입 가능 설정
