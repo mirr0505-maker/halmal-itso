@@ -87,6 +87,10 @@
 ├── uploadToR2.ts            # R2 업로드 프록시 (Worker 경유, Firebase Auth 토큰 인증)
 ├── utils.ts                 # 유틸리티 (포맷팅, 라벨링 등)
 ├── index.css                # 전역 스타일 & 애니메이션
+├── data/
+│   └── regions.ts               # 한국 17개 시/도 + 248개 시/군/구 정적 데이터 (행정안전부 2024 기준)
+├── utils/
+│   └── joinForm.ts              # 가입 폼 빌더 유틸 (기본값·검증·포맷·슬롯 카운트)
 ├── hooks/
 │   ├── useFirebaseListeners.ts  # Firestore onSnapshot 리스너 전담 custom hook
 │   ├── useAuthActions.ts    # 로그인·로그아웃·테스트 계정 전환 핸들러
@@ -146,7 +150,11 @@
     ├── CommunityList.tsx    # 장갑 찾기: 전체 커뮤니티 목록 (카테고리 필터 13종, 가입 버튼)
     ├── MyCommunityList.tsx  # 나의 아늑한 장갑: 가입한 커뮤니티 목록 (탈퇴 버튼) / compact=true 시 사이드바용 소형 리스트
     ├── CommunityFeed.tsx    # 소곤소곤: 가입 커뮤니티 통합 최신글 피드
-    ├── CommunityView.tsx    # 개별 커뮤니티 상세 (소곤소곤·멤버·관리 3탭, 공지 고정, 블라인드, 알림 토글) + CommunityPostDetail 인라인 컴포넌트
+    ├── CommunityView.tsx    # 개별 커뮤니티 상세 (소곤소곤·멤버·관리 3탭, 공지 고정, 블라인드, 알림 토글, 인증 부여/해제) + CommunityPostDetail 인라인 컴포넌트
+    ├── JoinCommunityModal.tsx # 장갑 가입 신청 폼 (폼 빌더 모드 + 레거시 모드)
+    ├── JoinAnswersDisplay.tsx # 가입 답변 구조화 표시 (승인 패널·멤버 탭 재사용)
+    ├── VerifiedBadge.tsx    # 🛡️ 인증 배지 컴포넌트 (멤버 탭·글 작성자 옆)
+    ├── VerifyMemberModal.tsx # 인증 부여 모달 (라벨 입력·추천칩·미리보기)
     ├── CommunityAdminPanel.tsx # 관리 탭 패널 (설정 수정·공지 고정 해제·장갑 폐쇄, thumb/index 전용)
     └── CreateCommunityModal.tsx # 장갑 만들기: 커뮤니티 개설 폼 (Lv3 이상, 가입방식 3종, minLevel, 분야 13종, 색상)
 ```
@@ -360,7 +368,7 @@ interface KanbuChat {
 ## 8. 구현 이력 (Changelog)
 
 > 📋 완료된 기능 전체 이력은 **[changelog.md](./changelog.md)** 를 참조하세요.
-> 최신 버전: v39 (2026-04-08)
+> 최신 버전: v40 (2026-04-08)
 
 ## 9. 외부 서비스 규칙
 

@@ -626,6 +626,14 @@
   - 나의 기록·한컷 리스트의 "게시글" 일괄 배지 → 새글/미등록/등록글/인기글/최고글 상태별 배지.
   - 미등록 상태 옆에 [재등록] 버튼이 자연스럽게 연결.
 
+- [x] **장갑 Phase 6: 가입 폼 빌더 + 인증 마킹 시스템 (2026-04-08 v40)**:
+  - **Step 1**: 스키마 — JoinForm, JoinAnswers, VerifiedBadge 등 10개 타입, regions.ts (17시/도 248시/군/구), joinForm.ts 유틸
+  - **Step 2**: CreateCommunityModal — 가입 폼 빌더 UI (표준 필드 5개 enabled/required 토글, shares 종목명+단위, 커스텀 질문, 5개 슬롯 제한)
+  - **Step 3**: JoinCommunityModal 신규 — 폼 빌더 모드(지역 2단 셀렉트, 주식수 곱셈 미리보기) + 레거시 모드. CommunityList 승인제 모달 분기
+  - **Step 4A**: JoinAnswersDisplay 신규 — 관리 탭 승인 대기 구조화 답변 표시
+  - **Step 4B**: VerifiedBadge + VerifyMemberModal — 멤버 탭 인증 부여/해제, 글 작성자 배지, 라벨 추천칩+미리보기
+  - **Step 5**: Firestore Rules 보강 (create 본인 명의, 본인 민감필드 차단, 관리자 hasOnly+verified, joinAnswers 보호)
+
 ### 🛠️ 진행 중 / 개선 필요 사항
 - [ ] **에디터 보완**: `bubble-menu` 활성화 (텍스트 선택 시 서식 도구 노출).
 - [ ] **검색 엔진**: Firestore 텍스트 검색 한계 보완 (현재는 클라이언트 사이드 필터링).

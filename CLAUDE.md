@@ -97,6 +97,9 @@
 | `EditorToolbar.tsx` | 링크 삽입 후 Workers 호출 → `LinkPreviewCard` 표시. `fetchPreview` 내부 상태 보호. |
 | `LinkPreviewCard.tsx` | OgData 타입 export — EditorToolbar에서 import해 사용. |
 | `MyContentTabs.tsx` | 나의 기록·한컷 리스트. 상태 배지(새글/미등록/등록글/인기글/최고글) + 재등록 버튼(1회 한정). `canRepost()` / `getPostStatus()` 로직 보호. |
+| `CommunityView.tsx` | 멤버 탭: 인증 부여/해제 + 가입 답변 보기 + 글 작성자 인증 배지. `handleVerifyMember`에 active 가드 있음. |
+| `CreateCommunityModal.tsx` | 승인제(approval) 선택 시 가입 폼 빌더 표시. `joinForm` state + 표준 필드 토글 + 커스텀 질문 5개 슬롯 제한. |
+| `JoinCommunityModal.tsx` | joinForm 있으면 폼 빌더 모드, 없으면 레거시 모드. `validateJoinAnswers`로 필수 항목 검증. |
 
 ---
 

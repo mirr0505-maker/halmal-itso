@@ -1,6 +1,6 @@
 # 🧤 우리들의 장갑 — 설계 및 구현 문서 (GLOVE.md)
 
-> 최종 갱신: 2026-03-28 v1.1  |  연계 파일: `blueprint.md` §8
+> 최종 갱신: 2026-04-08 v1.2 (Phase 6 가입 폼 빌더·인증 마킹)  |  연계 파일: `blueprint.md` §8
 
 ---
 
@@ -56,6 +56,8 @@ export interface Community {
   // 운영
   pinnedPostId?: string;         // 공지 고정 글 ID
   notifyMembers?: string[];      // 새 글 알림 opt-in userId 목록
+  // Phase 6 — 가입 폼 빌더 (approval 전용)
+  joinForm?: JoinForm;           // 표준 필드 5개 + 커스텀 질문 (최대 5개 합산)
 }
 
 export interface CommunityMember {
@@ -69,6 +71,9 @@ export interface CommunityMember {
   joinStatus?: JoinStatus;       // 가입 상태 (미설정 시 'active')
   joinMessage?: string;          // 승인제 가입 신청 메시지
   banReason?: string;            // 강퇴/차단 사유
+  // Phase 6 — 가입 답변 + 인증 마킹
+  joinAnswers?: JoinAnswers;     // 신청자가 제출한 구조화된 답변 (영구 보존)
+  verified?: VerifiedBadge;      // 🛡️ 인증 마킹 (thumb/index가 부여)
 }
 
 export interface CommunityPost {
@@ -120,6 +125,30 @@ finger 없음 + role='member' → ring으로 취급
 ### 최소 레벨 체크
 `handleJoinCommunity` 진입 시 `community.minLevel > userData.level` 이면 가입 차단.
 
+### Phase 6: 가입 폼 빌더 + 인증 마킹
+
+**가입 폼 빌더** (`CreateCommunityModal`, approval 전용):
+- 표준 필드 5개: 이름/지역/연락처/이메일/보유수량 — enabled/required 토글
+- 보유수량: 종목명(sharesLabel) + 단위(1/10/100/1000주) 설정
+- 커스텀 질문: 자유 텍스트, 표준 + 커스텀 합산 최대 5개
+- Firestore: `community.joinForm` 필드에 저장
+
+**신청자 가입 폼** (`JoinCommunityModal`):
+- joinForm 있으면 폼 빌더 모드 (이름/지역 2단 셀렉트/연락처/보유수량 곱셈 미리보기/커스텀 질문)
+- 없으면 레거시 모드 (단순 메시지 textarea)
+- 답변은 `community_memberships.joinAnswers`에 영구 보존
+
+**인증 마킹 시스템** (멤버 탭, thumb/index 전용):
+- 승인과 인증은 2단계 분리: 승인(pinky→ring) → 인증(verified 부여)
+- `VerifyMemberModal`: 라벨 입력 + 추천칩 + 가입 답변 확인 + 미리보기
+- `VerifiedBadge`: `🛡️ {label} 인증 ({YY.M.D})` 형태, 멤버 탭 + 글 작성자 옆에 표시
+- 인증 해제: `deleteField()`로 verified 제거
+
+**Firestore Rules** (Step 5 보강):
+- create: 본인 명의만 (`userId == auth.uid`)
+- 본인 update: verified/finger/joinStatus/banReason 변경 차단
+- 관리자 update: `hasOnly` 검증, joinAnswers 수정 불가
+
 ---
 
 ## 6. UI 구조
@@ -150,11 +179,11 @@ finger 없음 + role='member' → ring으로 취급
 - 헤더 우측: 🔔 알림 ON/OFF 토글 (가입 멤버만) + + 글 쓰기 버튼
 
 **멤버 탭**
-- 활성 멤버 목록 + 손가락 배지
-- thumb/index에게 역할 변경 드롭다운(index~pinky) + 강퇴 버튼 (본인·thumb 제외)
+- 활성 멤버 목록 + 손가락 배지 + 🛡️ 인증 배지
+- thumb/index에게: 📋 가입 답변 보기 + 🛡️ 인증 부여/해제 + 역할 변경 + 강퇴 (본인·thumb 제외)
 
 **관리 탭** (`CommunityAdminPanel`)
-- 승인 대기 섹션: 신청 메시지 표시 + 승인/거절 버튼
+- 승인 대기 섹션: joinAnswers 구조화 표시(JoinAnswersDisplay) 또는 레거시 joinMessage + 승인/거절 버튼
 - 장갑 설정 수정: 이름·설명·분야·색상 변경 저장
 - 공지 고정 현황: 현재 고정 글 안내 + 고정 해제 버튼
 - 장갑 폐쇄 (thumb 전용): 2단계 confirm → writeBatch로 멤버십 전체 삭제 + communities 문서 삭제
@@ -201,25 +230,30 @@ match /communities/{id} {
   match /{sub=**} { allow read: if true; allow write: if request.auth != null; }
 }
 
-// community_memberships — 서버사이드 권한 검증 (2026-03-28 강화)
+// community_memberships — Phase 6 보강 (2026-04-08)
 match /community_memberships/{membershipId} {
   allow read: if request.auth != null;
-  allow create: if request.auth != null;
+  allow create: if request.auth != null
+    && request.resource.data.userId == request.auth.uid;  // 본인 명의만
 
-  // 본인 멤버십 수정·삭제 (탈퇴, 닉네임 동기화)
-  allow update, delete: if request.auth != null
+  // 본인: verified/finger/joinStatus/banReason 변경 차단
+  allow update: if request.auth != null
+    && resource.data.userId == request.auth.uid
+    && !request.resource.data.diff(resource.data).affectedKeys()
+        .hasAny(['verified', 'finger', 'joinStatus', 'banReason']);
+  allow delete: if request.auth != null
     && resource.data.userId == request.auth.uid;
 
-  // 관리자(thumb/index)에 의한 타인 멤버십 수정 (강퇴·역할변경·승인)
-  // 서버사이드 get()으로 관리자 여부 검증
+  // 관리자: hasOnly 검증 (finger/joinStatus/banReason/role/verified만)
+  // joinAnswers는 관리자도 수정 불가 (영구 보존)
   allow update: if request.auth != null
     && resource.data.userId != request.auth.uid
-    && request.resource.data.keys().hasAny(['finger', 'joinStatus', 'banReason', 'role'])
-    && get(/databases/$(database)/documents/community_memberships/$(resource.data.communityId + '_' + request.auth.uid)).data.finger in ['thumb', 'index'];
-
+    && request.resource.data.diff(resource.data).affectedKeys()
+        .hasOnly(['finger', 'joinStatus', 'banReason', 'role', 'verified'])
+    && get(...).data.finger in ['thumb', 'index'];
   allow delete: if request.auth != null
     && resource.data.userId != request.auth.uid
-    && get(/databases/$(database)/documents/community_memberships/$(resource.data.communityId + '_' + request.auth.uid)).data.finger in ['thumb', 'index'];
+    && get(...).data.finger in ['thumb', 'index'];
 }
 
 // community_posts — delete 권한 서버사이드 검증 (2026-03-28 강화)
@@ -250,11 +284,19 @@ match /community_posts/{id} {
 | 2026-03-28 | Phase 4 | 커뮤니티 알림 Opt-in (notifyMembers + 글 작성 시 push) |
 | 2026-03-28 | Phase 5 | 중지 자동 산정 (기여도 임계값 → finger: 'middle' 자동 승격) |
 | 2026-03-28 | 보안·안정성 강화 | 알림 경로 UID 마이그레이션, 닉네임 변경 30일 쿨다운+배치 동기화, 강퇴 재가입 차단, 알림 writeBatch 원자성, Firestore Rules 서버사이드 권한 검증, 글 삭제 기능, 유저 전체 통계 합산, MyPage 활동 기록 통합, 내 장갑 탭 신규 |
+| 2026-04-08 | Phase 6 Step 1 | 가입 폼 빌더 스키마 (JoinForm, JoinAnswers, VerifiedBadge 등 타입), regions.ts (17개 시/도 248개 시/군/구), joinForm.ts 유틸 |
+| 2026-04-08 | Phase 6 Step 2 | CreateCommunityModal 가입 폼 빌더 UI (표준 필드 토글 + shares 확장 + 커스텀 질문 + 5개 슬롯 제한) |
+| 2026-04-08 | Phase 6 Step 3 | JoinCommunityModal 신규 (폼 빌더 모드 + 레거시 모드), CommunityList 승인제 모달 분기, handleJoinCommunity joinAnswers 파라미터 |
+| 2026-04-08 | Phase 6 Step 4A | JoinAnswersDisplay 신규 (구조화 답변 표시), CommunityAdminPanel 승인 대기 답변 렌더링 |
+| 2026-04-08 | Phase 6 Step 4B | VerifiedBadge + VerifyMemberModal 신규, 멤버 탭 인증 부여/해제/가입답변 보기, 글 작성자 인증 배지 |
+| 2026-04-08 | Phase 6 Step 5 | Firestore Rules 보강 (create 본인 명의, 본인 민감필드 차단, 관리자 hasOnly, joinAnswers 보호), 클라이언트 가드 |
 
 ---
 
 ## 11. 미구현 / 향후 과제
 
+- [ ] **커뮤니티 댓글 인증 배지**: community_post_comments 작성자 옆에도 VerifiedBadge 표시 (Step 4B에서 미뤄둠)
+- [ ] **인증 멤버 필터링**: 멤버 탭에서 "인증된 멤버만 보기" 필터 (선택적 편의 기능)
 - [ ] **커뮤니티 내 검색**: 가입 커뮤니티 피드 내 키워드 검색 (Firestore 텍스트 검색 한계 → Algolia 연동 필요)
 - [ ] **알림 51명+ 장갑 대응**: Cloud Functions(Blaze 플랜 업그레이드 후) 또는 알림 배치 처리
 - [ ] **성향 제한**: 특정 칭호(블루 기여자 이상 등) 보유자만 가입 가능 설정
