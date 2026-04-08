@@ -43,6 +43,7 @@ export function useGloveActions({
     name: string; description: string; category: string;
     isPrivate: boolean; coverColor?: string;
     joinType?: string; minLevel?: number; password?: string; joinQuestion?: string;
+    joinForm?: import('../types').JoinForm;
   }) => {
     if (!userData) return;
     if ((userData.level || 1) < GLOVE_CREATE_MIN_LEVEL) {
@@ -67,6 +68,8 @@ export function useGloveActions({
       minLevel: data.minLevel || 1,
       ...(data.password ? { password: data.password } : {}),
       ...(data.joinQuestion ? { joinQuestion: data.joinQuestion } : {}),
+      // 🚀 Phase 6 — 가입 폼 (승인제일 때만 저장)
+      ...(data.joinForm ? { joinForm: data.joinForm } : {}),
     });
     // 개설자를 community_memberships에 엄지(thumb)로 등록
     const membershipId = `${communityId}_${userData.uid}`;

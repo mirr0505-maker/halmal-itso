@@ -1,7 +1,8 @@
-import type { UserData } from '../types';
 // src/components/CreateCommunityModal.tsx — 장갑 나누기: 커뮤니티 개설 폼
 // 🚀 개설 조건: Lv3 이상 (GLOVE_CREATE_MIN_LEVEL, App.tsx에서 검증)
+import type { UserData, JoinForm, StandardFieldKey, SharesUnit, CustomQuestion } from '../types';
 import { useState } from 'react';
+import { getDefaultJoinForm, getRemainingSlots, STANDARD_FIELD_LABELS, generateCustomQuestionId } from '../utils/joinForm';
 
 const CATEGORIES = ['주식', '부동산', '코인', '취미', '스포츠', '게임', '독서', '요리', '반려동물', '여행', '음악', '개발', '기타'];
 
@@ -32,6 +33,7 @@ interface Props {
     isPrivate: boolean; coverColor?: string;
     joinType?: string; minLevel?: number;
     password?: string; joinQuestion?: string;
+    joinForm?: JoinForm;
   }) => Promise<void>;
   onClose: () => void;
 }
@@ -47,19 +49,66 @@ const CreateCommunityModal = ({ userData: _userData, onSubmit, onClose }: Props)
   const [minLevel, setMinLevel] = useState(1);
   const [password, setPassword] = useState('');
   const [joinQuestion, setJoinQuestion] = useState('');
+  // 🚀 Phase 6 — 가입 폼 빌더 상태
+  const [joinForm, setJoinForm] = useState<JoinForm>(getDefaultJoinForm());
+
+  // 🚀 표준 필드 업데이트 헬퍼
+  const updateStandardField = (key: StandardFieldKey, patch: Partial<import('../types').StandardField>) => {
+    setJoinForm(prev => ({
+      ...prev,
+      standardFields: prev.standardFields.map(f => f.key === key ? { ...f, ...patch } : f),
+    }));
+  };
+
+  // 🚀 커스텀 질문 관리
+  const remainingSlots = getRemainingSlots(joinForm);
+  const canAddQuestion = remainingSlots > 0;
+
+  const addCustomQuestion = () => {
+    if (!canAddQuestion) return;
+    const newQ: CustomQuestion = { id: generateCustomQuestionId(), label: '', placeholder: '', required: false, maxLength: 200 };
+    setJoinForm(prev => ({ ...prev, customQuestions: [...prev.customQuestions, newQ] }));
+  };
+
+  const updateCustomQuestion = (id: string, patch: Partial<CustomQuestion>) => {
+    setJoinForm(prev => ({ ...prev, customQuestions: prev.customQuestions.map(q => q.id === id ? { ...q, ...patch } : q) }));
+  };
+
+  const removeCustomQuestion = (id: string) => {
+    setJoinForm(prev => ({ ...prev, customQuestions: prev.customQuestions.filter(q => q.id !== id) }));
+  };
 
   const handleSubmit = async () => {
     if (!name.trim()) { alert('커뮤니티 이름을 입력해주세요.'); return; }
     if (joinType === 'password' && !password.trim()) { alert('초대 코드를 입력해주세요.'); return; }
+    // 🚀 Phase 6 — 승인제 가입 폼 유효성 검사
+    if (joinType === 'approval') {
+      const enabledCount = joinForm.standardFields.filter(f => f.enabled).length;
+      const customCount = joinForm.customQuestions.length;
+      if (enabledCount === 0 && customCount === 0) {
+        alert('가입 폼에 최소 1개 항목을 설정해주세요.'); return;
+      }
+      // 빈 질문 제거
+      const validCustom = joinForm.customQuestions.filter(q => q.label.trim());
+      if (validCustom.length < joinForm.customQuestions.length) {
+        setJoinForm(prev => ({ ...prev, customQuestions: validCustom }));
+      }
+    }
     if (isSubmitting) return;
     setIsSubmitting(true);
     try {
+      // 🚀 승인제일 때만 joinForm 저장 (Firestore 문서 깨끗하게 유지)
+      const cleanedJoinForm = joinType === 'approval' ? {
+        ...joinForm,
+        customQuestions: joinForm.customQuestions.filter(q => q.label.trim()),
+      } : undefined;
       await onSubmit({
         name: name.trim(), description: description.trim(), category,
         isPrivate: joinType !== 'open', coverColor,
         joinType, minLevel,
         password: joinType === 'password' ? password.trim() : undefined,
         joinQuestion: joinType === 'approval' ? joinQuestion.trim() : undefined,
+        joinForm: cleanedJoinForm,
       });
     } finally {
       setIsSubmitting(false);
@@ -69,7 +118,7 @@ const CreateCommunityModal = ({ userData: _userData, onSubmit, onClose }: Props)
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
       <div
-        className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden"
+        className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden max-h-[90vh] flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         {/* 헤더 */}
@@ -81,7 +130,7 @@ const CreateCommunityModal = ({ userData: _userData, onSubmit, onClose }: Props)
           <button onClick={onClose} className="text-slate-300 hover:text-slate-500 transition-colors text-[20px] leading-none">×</button>
         </div>
 
-        <div className="px-6 py-5 flex flex-col gap-4">
+        <div className="px-6 py-5 flex flex-col gap-4 overflow-y-auto flex-1">
           {/* 커뮤니티 이름 */}
           <div>
             <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest block mb-1.5">커뮤니티 이름 *</label>
@@ -199,6 +248,147 @@ const CreateCommunityModal = ({ userData: _userData, onSubmit, onClose }: Props)
                 maxLength={50}
                 className="w-full border border-slate-200 rounded-lg px-3 py-2 text-[14px] font-bold text-slate-900 outline-none focus:border-blue-400 transition-colors placeholder:text-slate-200 placeholder:font-normal"
               />
+            </div>
+          )}
+
+          {/* 🚀 Phase 6 — 가입 폼 빌더 (승인제일 때만 노출) */}
+          {joinType === 'approval' && (
+            <div className="border border-blue-100 rounded-xl p-4 bg-blue-50/30">
+              <div className="flex items-center justify-between mb-3">
+                <div>
+                  <p className="text-[12px] font-[1000] text-slate-700">📋 가입 폼 빌더</p>
+                  <p className="text-[10px] font-bold text-slate-400 mt-0.5">신청자에게 받을 정보를 선택하세요 (최대 5개)</p>
+                </div>
+                <span className="text-[10px] font-[1000] text-slate-400 bg-white px-2 py-0.5 rounded border border-slate-100">
+                  {5 - remainingSlots}/5 사용
+                </span>
+              </div>
+
+              {/* ━━━ 표준 필드 ━━━ */}
+              <p className="text-[9px] font-[1000] text-slate-400 uppercase tracking-widest mb-2">표준 필드</p>
+              <div className="flex flex-col gap-2 mb-4">
+                {joinForm.standardFields.map((field) => {
+                  const isShares = field.key === 'shares';
+                  return (
+                    <div key={field.key} className={`rounded-lg border p-3 transition-all ${field.enabled ? 'bg-white border-slate-200' : 'bg-slate-50 border-slate-100 opacity-50'}`}>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => updateStandardField(field.key, { enabled: !field.enabled })}
+                            className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all text-[11px] ${field.enabled ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white border-slate-300'}`}
+                          >
+                            {field.enabled && '✓'}
+                          </button>
+                          <span className="text-[12px] font-[1000] text-slate-700">{STANDARD_FIELD_LABELS[field.key]}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {field.enabled && (
+                            <select
+                              value={field.required ? 'required' : 'optional'}
+                              onChange={(e) => updateStandardField(field.key, { required: e.target.value === 'required' })}
+                              className="text-[10px] font-bold border border-slate-200 rounded px-1.5 py-0.5 bg-white text-slate-600 outline-none"
+                            >
+                              <option value="required">필수</option>
+                              <option value="optional">선택</option>
+                            </select>
+                          )}
+                        </div>
+                      </div>
+                      {/* shares 전용 확장 UI */}
+                      {isShares && field.enabled && (
+                        <div className="mt-2 ml-7 pl-3 border-l-2 border-blue-200 flex flex-col gap-1.5">
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] font-bold text-slate-400 w-12 shrink-0">종목명</span>
+                            <input
+                              type="text"
+                              placeholder="예: 삼성전자, 비트코인"
+                              value={field.sharesLabel || ''}
+                              onChange={(e) => updateStandardField('shares', { sharesLabel: e.target.value })}
+                              maxLength={30}
+                              className="flex-1 border border-slate-200 rounded px-2 py-1 text-[11px] font-bold text-slate-700 outline-none focus:border-blue-400 placeholder:text-slate-300"
+                            />
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] font-bold text-slate-400 w-12 shrink-0">단위</span>
+                            <select
+                              value={field.sharesUnit ?? '100'}
+                              onChange={(e) => updateStandardField('shares', { sharesUnit: e.target.value as SharesUnit })}
+                              className="border border-slate-200 rounded px-2 py-1 text-[11px] font-bold text-slate-700 outline-none bg-white"
+                            >
+                              <option value="1">1주 단위</option>
+                              <option value="10">10주 단위</option>
+                              <option value="100">100주 단위</option>
+                              <option value="1000">1,000주 단위</option>
+                            </select>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* ━━━ 커스텀 질문 ━━━ */}
+              <p className="text-[9px] font-[1000] text-slate-400 uppercase tracking-widest mb-2">
+                추가 질문 (잔여 {remainingSlots}개)
+              </p>
+              <div className="flex flex-col gap-2 mb-3">
+                {joinForm.customQuestions.map((q, idx) => (
+                  <div key={q.id} className="rounded-lg border border-slate-200 bg-white p-3">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-[10px] font-[1000] text-slate-400">Q{idx + 1}</span>
+                      <button
+                        type="button"
+                        onClick={() => removeCustomQuestion(q.id)}
+                        className="text-[14px] text-slate-300 hover:text-rose-500 transition-colors leading-none"
+                      >×</button>
+                    </div>
+                    <input
+                      type="text"
+                      placeholder="질문을 입력하세요"
+                      value={q.label}
+                      onChange={(e) => updateCustomQuestion(q.id, { label: e.target.value })}
+                      maxLength={100}
+                      className="w-full border border-slate-200 rounded px-2 py-1 text-[11px] font-bold text-slate-700 outline-none focus:border-blue-400 mb-1.5 placeholder:text-slate-300"
+                    />
+                    <input
+                      type="text"
+                      placeholder="플레이스홀더 (선택)"
+                      value={q.placeholder || ''}
+                      onChange={(e) => updateCustomQuestion(q.id, { placeholder: e.target.value })}
+                      maxLength={100}
+                      className="w-full border border-slate-100 rounded px-2 py-1 text-[10px] text-slate-400 outline-none focus:border-blue-300 mb-1.5 placeholder:text-slate-200"
+                    />
+                    <label className="flex items-center gap-1.5 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={q.required}
+                        onChange={(e) => updateCustomQuestion(q.id, { required: e.target.checked })}
+                        className="w-3.5 h-3.5 rounded border-slate-300"
+                      />
+                      <span className="text-[10px] font-bold text-slate-500">필수 응답</span>
+                    </label>
+                  </div>
+                ))}
+              </div>
+              <button
+                type="button"
+                onClick={addCustomQuestion}
+                disabled={!canAddQuestion}
+                className={`w-full py-2 rounded-lg text-[11px] font-[1000] border-2 border-dashed transition-all ${
+                  canAddQuestion
+                    ? 'border-blue-300 text-blue-500 hover:bg-blue-50'
+                    : 'border-slate-200 text-slate-300 cursor-not-allowed'
+                }`}
+              >
+                + 질문 추가
+              </button>
+              {!canAddQuestion && (
+                <p className="text-[9px] font-bold text-slate-400 mt-1 text-center">
+                  표준 필드를 비활성화하면 추가 질문 슬롯이 생깁니다
+                </p>
+              )}
             </div>
           )}
 
