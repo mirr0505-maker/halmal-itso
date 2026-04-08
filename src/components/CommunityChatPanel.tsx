@@ -83,11 +83,11 @@ function ChatMessageItem({ message, currentUid, onReply, onToggleReaction, react
             {!message.deleted && (
               <div className="flex items-center gap-0.5">
                 {!isMine && (
-                  <button onClick={() => onReply(message)} className="text-[10px] text-slate-300 hover:text-emerald-500" title="답장">↩</button>
+                  <button onClick={() => onReply(message)} className="text-[14px] text-slate-300 hover:text-emerald-500 px-0.5" title="답장">↩</button>
                 )}
                 <div className="relative">
                   <button onClick={() => setReactionPickerFor(reactionPickerFor === message.id ? null : message.id)}
-                    className="text-[10px] text-slate-300 hover:text-amber-500" title="반응">+</button>
+                    className="text-[14px] text-slate-300 hover:text-amber-500 px-0.5" title="반응">😀</button>
                   {/* 🚀 이모지 picker 팝업 */}
                   {reactionPickerFor === message.id && (
                     <div
