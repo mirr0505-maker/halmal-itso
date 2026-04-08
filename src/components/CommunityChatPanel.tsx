@@ -87,7 +87,7 @@ function ChatMessageItem({ message, currentUid, onReply, onToggleReaction, react
                 )}
                 <div className="relative">
                   <button onClick={() => setReactionPickerFor(reactionPickerFor === message.id ? null : message.id)}
-                    className="text-[14px] text-slate-300 hover:text-amber-500 px-0.5" title="반응">😀</button>
+                    className="text-[18px] font-[1000] text-slate-300 hover:text-amber-500 px-0.5 leading-none" title="반응">+</button>
                   {/* 🚀 이모지 picker 팝업 */}
                   {reactionPickerFor === message.id && (
                     <div
