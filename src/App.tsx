@@ -177,7 +177,7 @@ function App() {
   const {
     handlePostSubmit, handleLinkedPostSubmit,
     handleInlineReply, handleCommentSubmit,
-    toggleFriend, toggleBlock, handleLike, handleViewPost, handleShareCount,
+    toggleFriend, toggleBlock, handleLike, handleViewPost, handleShareCount, handleRepost,
   } = useFirestoreActions({
     userData, friends, blocks, allRootPosts, allChildPosts, selectedTopic,
     replyTarget, setReplyTarget, newTitle, newContent, setNewTitle, setNewContent,
@@ -428,6 +428,7 @@ function App() {
             if (target) handleLeaveCommunity(target);
           }}
           onLogout={handleLogout}
+          onRepost={handleRepost}
         />;
       }
       return <div className="w-full py-40 text-center"><button onClick={handleLogin} className="bg-slate-900 text-white px-8 py-3 rounded-xl font-black shadow-lg">로그인하기</button></div>;

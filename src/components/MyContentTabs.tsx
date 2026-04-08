@@ -11,6 +11,10 @@ interface MixedPost {
   communityId?: string;
   communityName?: string;
   _source?: 'post' | 'glove';
+  // 🚀 재등록 관련 필드
+  likes?: number;
+  repostedAt?: { seconds: number };
+  isOneCut?: boolean;
 }
 
 interface Props {
@@ -18,12 +22,28 @@ interface Props {
   onPostClick: (post: Post) => void;
   // 🚀 장갑 출처 항목 클릭 시 해당 커뮤니티로 이동
   onGloveClick?: (communityId?: string) => void;
+  // 🚀 재등록 콜백: 2시간 경과 + 좋아요 3개 미만 + 1회 미사용 글에 표시
+  onRepost?: (postId: string) => void;
   type: 'posts' | 'comments';
 }
 
-const MyContentTabs = ({ posts = [], onPostClick, onGloveClick, type }: Props) => {
+// 🚀 재등록 가능 여부 판단: 2시간 경과 + 좋아요 3개 미만 + repostedAt 없음 + 일반 글/한컷만
+const TWO_HOURS_MS = 2 * 60 * 60 * 1000;
+function canRepost(post: MixedPost): boolean {
+  if (post._source === 'glove') return false;
+  if (post.repostedAt) return false;
+  if ((post.likes || 0) >= 3) return false;
+  if (!post.createdAt?.seconds) return false;
+  const ageMs = Date.now() - post.createdAt.seconds * 1000;
+  return ageMs > TWO_HOURS_MS;
+}
+
+const MyContentTabs = ({ posts = [], onPostClick, onGloveClick, onRepost, type }: Props) => {
   const itemsPerPage = 50;
   const displayList = posts.slice(0, itemsPerPage);
+
+  // 🚀 재등록 가능한 글이 1개라도 있으면 안내 메시지 표시
+  const hasRepostable = onRepost && type === 'posts' && displayList.some(canRepost);
 
   const formatDateTime = (timestamp: { seconds: number } | null | undefined) => {
     if (!timestamp) return "";
@@ -33,9 +53,16 @@ const MyContentTabs = ({ posts = [], onPostClick, onGloveClick, type }: Props) =
 
   return (
     <div className="w-full flex flex-col">
+      {/* 🚀 재등록 안내 메시지 */}
+      {hasRepostable && (
+        <div className="px-6 py-2.5 bg-amber-50/70 border-b border-amber-100 text-[10px] font-bold text-amber-600 tracking-tight">
+          💡 등록글 미달 글은 1회에 한해 [재등록] 가능합니다
+        </div>
+      )}
       {displayList.length > 0 ? (
         displayList.map((post) => {
           const isGlove = post._source === 'glove';
+          const repostable = onRepost && type === 'posts' && canRepost(post);
           // 장갑 출처: 커뮤니티로 이동 / 일반 출처: 원래 동작
           const handleClick = () => {
             if (isGlove && post.communityId) {
@@ -74,14 +101,31 @@ const MyContentTabs = ({ posts = [], onPostClick, onGloveClick, type }: Props) =
                       {post.category}
                     </span>
                   )}
+                  {/* 🚀 재등록 완료 표시 */}
+                  {post.repostedAt && (
+                    <span className="text-[9px] font-[1000] text-orange-500 bg-orange-50 px-1.5 py-0.5 rounded border border-orange-100">
+                      재등록됨
+                    </span>
+                  )}
                 </div>
               </div>
-              <div className={`text-[10px] font-black px-2 py-1 rounded shadow-sm shrink-0 ${
-                isGlove
-                  ? (type === 'comments' ? 'text-teal-600 bg-teal-50' : 'text-teal-600 bg-teal-50')
-                  : (type === 'comments' ? 'text-emerald-600 bg-emerald-50' : 'text-blue-600 bg-blue-50')
-              }`}>
-                {isGlove ? (type === 'comments' ? '장갑댓글' : '장갑글') : (type === 'comments' ? '댓글' : '게시글')}
+              <div className="flex items-center gap-2 shrink-0">
+                {/* 🚀 재등록 버튼: 조건 충족 시 표시 */}
+                {repostable && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); onRepost!(post.id); }}
+                    className="text-[10px] font-[1000] px-2.5 py-1 rounded-lg shadow-sm text-amber-600 bg-amber-50 border border-amber-200 hover:bg-amber-100 transition-colors"
+                  >
+                    재등록
+                  </button>
+                )}
+                <div className={`text-[10px] font-black px-2 py-1 rounded shadow-sm ${
+                  isGlove
+                    ? (type === 'comments' ? 'text-teal-600 bg-teal-50' : 'text-teal-600 bg-teal-50')
+                    : (type === 'comments' ? 'text-emerald-600 bg-emerald-50' : 'text-blue-600 bg-blue-50')
+                }`}>
+                  {isGlove ? (type === 'comments' ? '장갑댓글' : '장갑글') : (type === 'comments' ? '댓글' : '게시글')}
+                </div>
               </div>
             </div>
           );

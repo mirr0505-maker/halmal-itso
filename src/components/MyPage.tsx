@@ -77,11 +77,13 @@ interface Props {
   onGloveClick?: (communityId?: string) => void;
   onLeaveGlove?: (communityId: string) => void;
   onLogout?: () => void;
+  // 🚀 재등록: 등록글 미달 글을 새글로 다시 올리기 (1회 한정)
+  onRepost?: (postId: string) => void;
 }
 
 const MyPage = ({
   userData, allUserRootPosts, allUserChildPosts, friends, friendCount, followerCount = 0, onPostClick, onEditPost, onToggleFriend, allUsers, followerCounts,
-  communities = [], joinedCommunityIds = [], onGloveClick, onLeaveGlove, onLogout
+  communities = [], joinedCommunityIds = [], onGloveClick, onLeaveGlove, onLogout, onRepost
 }: Props) => {
   const [activeTab, setActiveTab] = useState<'posts' | 'onecuts' | 'comments' | 'friends' | 'thanksball' | 'sentball' | 'glove' | 'revenue'>('posts');
   // 🚀 깐부 목록 서브탭: 내가 맺은 깐부(팔로잉) vs 나를 맺은 깐부수(팔로워)
@@ -458,8 +460,8 @@ const MyPage = ({
               </div>
 
               <div className="flex-1">
-                {activeTab === 'posts' && <MyContentTabs posts={allMyPosts} onPostClick={onEditPost || onPostClick} onGloveClick={onGloveClick} type="posts" />}
-                {activeTab === 'onecuts' && <MyContentTabs posts={onecutPosts.map(p => ({ ...p, _source: 'post' as const }))} onPostClick={onEditPost || onPostClick} type="posts" />}
+                {activeTab === 'posts' && <MyContentTabs posts={allMyPosts} onPostClick={onEditPost || onPostClick} onGloveClick={onGloveClick} onRepost={onRepost} type="posts" />}
+                {activeTab === 'onecuts' && <MyContentTabs posts={onecutPosts.map(p => ({ ...p, _source: 'post' as const }))} onPostClick={onEditPost || onPostClick} onRepost={onRepost} type="posts" />}
                 {activeTab === 'comments' && <MyContentTabs posts={allMyComments} onPostClick={onPostClick} onGloveClick={onGloveClick} type="comments" />}
                 {activeTab === 'thanksball' && (
                   <div className="flex flex-col gap-4">

@@ -274,6 +274,30 @@ export function useFirestoreActions({
     }
   };
 
+  // 🚀 재등록: 등록글 미달 글을 새글로 다시 올리기 (1회 한정)
+  // Why: 2시간 경과 + 좋아요 3개 미만 글이 영원히 묻히는 것 방지. 1회만 허용.
+  const handleRepost = async (postId: string) => {
+    const post = allRootPosts.find(p => p.id === postId);
+    if (!post) return;
+    // 이미 재등록된 글이면 차단
+    if ((post as Post & { repostedAt?: unknown }).repostedAt) {
+      alert('이미 재등록된 글입니다. 재등록은 1회만 가능합니다.');
+      return;
+    }
+    if (!confirm('[재등록] 하시겠습니까?\n제목 앞에 [재등록] 표시가 추가되며, 새글로 다시 올라갑니다.')) return;
+    try {
+      const newTitle = post.title?.startsWith('[재등록]') ? post.title : `[재등록] ${post.title || ''}`;
+      await updateDoc(doc(db, 'posts', postId), {
+        title: newTitle,
+        createdAt: serverTimestamp(),
+        repostedAt: serverTimestamp(),
+      });
+    } catch (err) {
+      console.error('[재등록 실패]', err);
+      alert('재등록에 실패했습니다. 다시 시도해주세요.');
+    }
+  };
+
   return {
     handlePostSubmit,
     handleLinkedPostSubmit,
@@ -284,5 +308,6 @@ export function useFirestoreActions({
     handleLike,
     handleViewPost,
     handleShareCount,
+    handleRepost,
   };
 }
