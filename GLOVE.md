@@ -1,6 +1,6 @@
 # 🧤 우리들의 장갑 — 설계 및 구현 문서 (GLOVE.md)
 
-> 최종 갱신: 2026-04-08 v1.2 (Phase 6 가입 폼 빌더·인증 마킹)  |  연계 파일: `blueprint.md` §8
+> 최종 갱신: 2026-04-08 v1.3 (Phase 7 실시간 채팅방)  |  연계 파일: `blueprint.md` §8
 
 ---
 
@@ -20,6 +20,7 @@
 | `community_memberships` | 멤버십 플랫 컬렉션 (userId 역조회) | `{communityId}_{userId}` |
 | `community_posts` | 커뮤니티 게시글 | `cpost_{timestamp}_{uid}` |
 | `community_post_comments` | 커뮤니티 글 댓글 | `cpcomment_{timestamp}_{uid}` |
+| `community_chats/{communityId}/messages` | 실시간 채팅 메시지 (서브컬렉션) | `chat_{timestamp}_{uid8자}` |
 
 ---
 
@@ -269,6 +270,18 @@ match /community_memberships/{membershipId} {
     && get(...).data.finger in ['thumb', 'index'];
 }
 
+// community_chats — Phase 7 (2026-04-08)
+// 읽기: 로그인 사용자, 생성: 본인 명의, 수정: 본인(soft delete) + 타인(이모지/땡스볼만), 삭제: 금지
+match /community_chats/{communityId}/messages/{messageId} {
+  allow read: if request.auth != null;
+  allow create: if request.auth != null && request.resource.data.author_id == request.auth.uid;
+  allow update: if request.auth != null
+    && (resource.data.author_id == request.auth.uid
+      || request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['reactions', 'thanksballTotal', 'thanksballSenders']));
+  allow delete: if false;
+}
+
 // community_posts — delete 권한 서버사이드 검증 (2026-03-28 강화)
 match /community_posts/{id} {
   allow read: if true;
@@ -304,6 +317,12 @@ match /community_posts/{id} {
 | 2026-04-08 | Phase 6 Step 4B | VerifiedBadge + VerifyMemberModal 신규, 멤버 탭 인증 부여/해제/가입답변 보기, 글 작성자 인증 배지 |
 | 2026-04-08 | Phase 6 Step 5 | Firestore Rules 보강 (create 본인 명의, 본인 민감필드 차단, 관리자 hasOnly, joinAnswers 보호), 클라이언트 가드 |
 | 2026-04-08 | Phase 6 Step 6 | 댓글 작성자 인증 배지, 글 상세 작성자 인증 배지, 비가입자 접근 제한(승인제 차단/open 읽기전용), GLOVE.md 전면 업데이트 |
+| 2026-04-08 | Phase 7 Step 1 | ChatMessage 타입 + CHAT_MEMBER_LIMIT(50) + CommunityChatPanel placeholder + 채팅 탭 추가 |
+| 2026-04-08 | Phase 7 Step 2 | 실시간 메시지 송수신 (onSnapshot limit 50 + cleanup), 카톡 스타일 좌/우 정렬, 작성자 스냅샷(Lv/finger/verified) |
+| 2026-04-08 | Phase 7 Step 3 | 답장(replyTo snippet 50자) + 이모지 반응 6종(arrayUnion/arrayRemove 원자적) |
+| 2026-04-08 | Phase 7 Step 4 | 이미지 업로드(R2 재사용, 📎+클립보드+드래그), 라이트박스 원본 보기 |
+| 2026-04-08 | Phase 7 Step 5 | 채팅 땡스볼(기존 Cloud Function 확장, ThanksballModal 재사용, thanksballSenders 5명 한도) |
+| 2026-04-08 | Phase 7 Step 6 | Firestore Rules 정식화, 페이징(스크롤 기반 30개씩), soft delete(본인+관리자), GLOVE.md Phase 7 반영 |
 
 ---
 

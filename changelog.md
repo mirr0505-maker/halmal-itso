@@ -635,6 +635,14 @@
   - **Step 5**: Firestore Rules 보강 (create 본인 명의, 본인 민감필드 차단, 관리자 hasOnly+verified, joinAnswers 보호)
   - **Step 6**: 댓글·글 상세 작성자 인증 배지, 비가입자 접근 제한(승인제 차단/open 읽기전용), GLOVE.md 전면 업데이트
 
+- [x] **장갑 Phase 7: 실시간 채팅방 (2026-04-08 v41)**:
+  - **Step 1**: ChatMessage 타입, CHAT_MEMBER_LIMIT(50), CommunityChatPanel placeholder, 채팅 탭
+  - **Step 2**: onSnapshot 실시간 구독 + 메시지 전송 + 카톡 스타일 좌/우 정렬 + 작성자 스냅샷
+  - **Step 3**: 답장(replyTo) + 이모지 반응 6종(👍❤️😂🔥🤔💯)
+  - **Step 4**: 이미지 업로드(R2 📎+클립보드+드래그), 라이트박스 원본 보기
+  - **Step 5**: 채팅 땡스볼(Cloud Function 확장, ThanksballModal 재사용)
+  - **Step 6**: Firestore Rules 정식화, 페이징(스크롤 기반 30개씩), soft delete, GLOVE.md 반영
+
 ### 🛠️ 진행 중 / 개선 필요 사항
 - [ ] **에디터 보완**: `bubble-menu` 활성화 (텍스트 선택 시 서식 도구 노출).
 - [ ] **검색 엔진**: Firestore 텍스트 검색 한계 보완 (현재는 클라이언트 사이드 필터링).

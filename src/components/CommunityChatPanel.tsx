@@ -1,7 +1,8 @@
-// src/components/CommunityChatPanel.tsx — 🚀 Phase 7 Step 4: 채팅 + 답장 + 이모지 + 이미지
-import { useState, useEffect, useRef } from 'react';
+// src/components/CommunityChatPanel.tsx — 🚀 Phase 7 Step 6: 채팅 완성 (삭제 + 페이징 + Rules)
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { db } from '../firebase';
-import { collection, doc, setDoc, updateDoc, arrayUnion, arrayRemove, query, orderBy, limit, onSnapshot, serverTimestamp } from 'firebase/firestore';
+import { collection, doc, setDoc, updateDoc, arrayUnion, arrayRemove, query, orderBy, limit, startAfter, getDocs, onSnapshot, serverTimestamp } from 'firebase/firestore';
+import type { QueryDocumentSnapshot, DocumentData } from 'firebase/firestore';
 import type { Community, UserData, CommunityMember, ChatMessage } from '../types';
 import ThanksballModal from './ThanksballModal';
 import { CHAT_MEMBER_LIMIT } from '../types';
@@ -19,15 +20,17 @@ interface Props {
 const REACTION_EMOJIS = ['👍', '❤️', '😂', '🔥', '🤔', '💯'] as const;
 
 // 🚀 메시지 한 개 렌더링
-function ChatMessageItem({ message, currentUid, onReply, onToggleReaction, reactionPickerFor, setReactionPickerFor, onImageClick, onSendThanksball }: {
+function ChatMessageItem({ message, currentUid, isAdmin, onReply, onToggleReaction, reactionPickerFor, setReactionPickerFor, onImageClick, onSendThanksball, onDelete }: {
   message: ChatMessage;
   currentUid: string;
+  isAdmin: boolean;
   onReply: (msg: ChatMessage) => void;
   onToggleReaction: (msg: ChatMessage, emoji: string) => void;
   reactionPickerFor: string | null;
   setReactionPickerFor: (id: string | null) => void;
   onImageClick: (url: string) => void;
   onSendThanksball: (msg: ChatMessage) => void;
+  onDelete: (msg: ChatMessage) => void;
 }) {
   const isMine = message.author_id === currentUid;
 
@@ -121,6 +124,10 @@ function ChatMessageItem({ message, currentUid, onReply, onToggleReaction, react
                     </div>
                   )}
                 </div>
+                {/* 🚀 Step 6: 삭제 버튼 (본인 또는 대장/부대장) */}
+                {(isMine || isAdmin) && (
+                  <button onClick={() => onDelete(message)} className="text-[12px] text-slate-300 hover:text-rose-500 px-0.5" title="삭제">🗑</button>
+                )}
               </div>
             )}
           </div>
@@ -170,6 +177,8 @@ const CommunityChatPanel = ({ community, currentUser, members, allUsers = {} }: 
   const myMembership = currentUser ? members.find(m => m.userId === currentUser.uid) : null;
   const isMember = myMembership && (myMembership.joinStatus ?? 'active') === 'active';
 
+  const isAdmin = myMembership?.finger === 'thumb' || myMembership?.finger === 'index';
+
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(true);
   const [input, setInput] = useState('');
@@ -185,8 +194,13 @@ const CommunityChatPanel = ({ community, currentUser, members, allUsers = {} }: 
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
+  // 🚀 Step 6: 페이징 상태
+  const [oldestDoc, setOldestDoc] = useState<QueryDocumentSnapshot<DocumentData> | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
 
-  // 🚀 onSnapshot 실시간 구독
+  // 🚀 onSnapshot 실시간 구독 — 최근 50개
   useEffect(() => {
     if (!isAvailable || !isMember) { setLoading(false); return; }
     const messagesRef = collection(doc(db, 'community_chats', community.id), 'messages');
@@ -194,14 +208,56 @@ const CommunityChatPanel = ({ community, currentUser, members, allUsers = {} }: 
     const unsubscribe = onSnapshot(q, (snap) => {
       const msgs: ChatMessage[] = snap.docs.map(d => d.data() as ChatMessage);
       msgs.reverse();
-      setMessages(msgs);
+      setMessages(prev => {
+        // 페이징으로 이미 로드한 과거 메시지 유지 + 최신 50개 병합
+        const oldIds = new Set(msgs.map(m => m.id));
+        const olderMsgs = prev.filter(m => !oldIds.has(m.id));
+        return [...olderMsgs, ...msgs];
+      });
+      // 가장 오래된 문서 기록 (페이징 커서)
+      if (snap.docs.length > 0) setOldestDoc(snap.docs[snap.docs.length - 1]);
       setLoading(false);
     }, (err) => { console.error('[community_chats onSnapshot]', err); setLoading(false); });
     return () => unsubscribe();
   }, [community.id, isAvailable, isMember]);
 
-  // 🚀 새 메시지 시 자동 스크롤
-  useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
+  // 🚀 Step 6: 과거 메시지 더 불러오기 (스크롤 기반)
+  const loadMoreMessages = useCallback(async () => {
+    if (loadingMore || !hasMore || !oldestDoc) return;
+    setLoadingMore(true);
+    try {
+      const messagesRef = collection(doc(db, 'community_chats', community.id), 'messages');
+      const q = query(messagesRef, orderBy('createdAt', 'desc'), startAfter(oldestDoc), limit(30));
+      const snap = await getDocs(q);
+      if (snap.empty || snap.docs.length < 30) setHasMore(false);
+      if (!snap.empty) {
+        const olderMsgs: ChatMessage[] = snap.docs.map(d => d.data() as ChatMessage);
+        olderMsgs.reverse();
+        setMessages(prev => [...olderMsgs, ...prev]);
+        setOldestDoc(snap.docs[snap.docs.length - 1]);
+      }
+    } catch (e) { console.error('[loadMore]', e); }
+    finally { setLoadingMore(false); }
+  }, [community.id, loadingMore, hasMore, oldestDoc]);
+
+  // 🚀 스크롤 감지 — 맨 위 도달 시 과거 메시지 로드
+  const handleScroll = useCallback(() => {
+    const el = messagesContainerRef.current;
+    if (!el || loadingMore || !hasMore) return;
+    if (el.scrollTop < 80) loadMoreMessages();
+  }, [loadMoreMessages, loadingMore, hasMore]);
+
+  // 🚀 새 메시지 시 자동 스크롤 (맨 아래에 있을 때만)
+  const isNearBottom = useRef(true);
+  useEffect(() => {
+    if (isNearBottom.current) messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+  const trackScroll = useCallback(() => {
+    const el = messagesContainerRef.current;
+    if (!el) return;
+    isNearBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 100;
+    handleScroll();
+  }, [handleScroll]);
 
   // 🚀 이미지 파일 선택 공통 핸들러
   const handleFileSelect = (file: File) => {
@@ -300,6 +356,18 @@ const CommunityChatPanel = ({ community, currentUser, members, allUsers = {} }: 
     } catch (e) { console.error('[reaction toggle]', e); }
   };
 
+  // 🚀 Step 6: 메시지 삭제 (soft delete)
+  const handleDeleteMessage = async (message: ChatMessage) => {
+    if (!currentUser) return;
+    const canDelete = message.author_id === currentUser.uid || isAdmin;
+    if (!canDelete) return;
+    if (!window.confirm('이 메시지를 삭제하시겠습니까?')) return;
+    try {
+      const messageRef = doc(collection(doc(db, 'community_chats', community.id), 'messages'), message.id);
+      await updateDoc(messageRef, { deleted: true, content: '', imageUrl: null });
+    } catch (e) { console.error('[chat delete]', e); alert('삭제에 실패했습니다.'); }
+  };
+
   // Enter 전송, Shift+Enter 줄바꿈, IME 보호
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); handleSend(); }
@@ -332,11 +400,22 @@ const CommunityChatPanel = ({ community, currentUser, members, allUsers = {} }: 
     <div className="flex flex-col h-[600px] bg-slate-50 rounded-xl overflow-hidden border border-slate-100 mt-4">
       {/* 메시지 영역 (드래그&드롭 수신) */}
       <div
+        ref={messagesContainerRef}
         className={`flex-1 overflow-y-auto px-4 py-3 space-y-2.5 transition-colors ${isDragging ? 'bg-emerald-50/50' : ''}`}
+        onScroll={trackScroll}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
       >
+        {/* 🚀 Step 6: 과거 메시지 더보기 */}
+        {hasMore && !loading && messages.length >= 50 && (
+          <div className="text-center py-2">
+            {loadingMore
+              ? <span className="text-[11px] font-bold text-slate-300">불러오는 중...</span>
+              : <button onClick={loadMoreMessages} className="text-[11px] font-bold text-blue-400 hover:text-blue-600">↑ 이전 메시지 더보기</button>
+            }
+          </div>
+        )}
         {isDragging && (
           <div className="text-center py-8 text-emerald-500 font-[1000] text-[13px]">📎 여기에 이미지를 놓으세요</div>
         )}
@@ -355,12 +434,14 @@ const CommunityChatPanel = ({ community, currentUser, members, allUsers = {} }: 
             key={msg.id}
             message={msg}
             currentUid={currentUser!.uid}
+            isAdmin={!!isAdmin}
             onReply={(m) => setReplyTarget(m)}
             onToggleReaction={handleToggleReaction}
             reactionPickerFor={reactionPickerFor}
             setReactionPickerFor={setReactionPickerFor}
             onImageClick={setLightboxImage}
             onSendThanksball={(m) => setThanksballTarget(m)}
+            onDelete={handleDeleteMessage}
           />
         ))}
         <div ref={messagesEndRef} />

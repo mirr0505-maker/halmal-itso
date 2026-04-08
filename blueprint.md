@@ -368,7 +368,7 @@ interface KanbuChat {
 ## 8. 구현 이력 (Changelog)
 
 > 📋 완료된 기능 전체 이력은 **[changelog.md](./changelog.md)** 를 참조하세요.
-> 최신 버전: v40 (2026-04-08)
+> 최신 버전: v41 (2026-04-08)
 
 ## 9. 외부 서비스 규칙
 
