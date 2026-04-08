@@ -200,6 +200,52 @@ export interface VerifiedBadge {
   label: string;               // "주주", "홀더", "거주민" 등 (없으면 "인증")
 }
 
+// ════════════════════════════════════════════════════════════
+// 🚀 우리들의 장갑 Phase 7 — 실시간 채팅방
+// ════════════════════════════════════════════════════════════
+
+// 채팅 메시지 답장 참조
+export interface ChatReplyRef {
+  messageId: string;
+  author: string;
+  snippet: string;        // 원본 메시지 일부 (50자 컷)
+}
+
+// 채팅 메시지
+export interface ChatMessage {
+  id: string;                        // chat_{timestamp}_{uid}
+  communityId: string;
+
+  // 작성자 (스냅샷 방식 — 채팅에서 매 메시지마다 members.find는 비용 과다)
+  author: string;
+  author_id: string;
+  authorLevel: number;               // 작성 시점 레벨
+  authorFinger?: FingerRole;         // 작성 시점 손가락 역할
+  authorVerified?: VerifiedBadge;    // 작성 시점 인증 마킹
+
+  // 본문
+  content: string;                   // 최대 500자
+  imageUrl?: string;                 // R2 업로드 이미지 (Step 4)
+
+  // 답장 (Step 3)
+  replyTo?: ChatReplyRef;
+
+  // 이모지 반응 (Step 3) — emoji → userId 배열
+  reactions?: { [emoji: string]: string[] };
+
+  // 땡스볼 누적 (Step 5)
+  thanksballTotal?: number;
+  thanksballSenders?: string[];      // 최근 5명 닉네임
+
+  // 메타
+  createdAt: FirestoreTimestamp;
+  editedAt?: FirestoreTimestamp;
+  deleted?: boolean;                 // soft delete
+}
+
+// 채팅 활성화 한도 상수 (50명 이하 장갑만 채팅 사용 가능)
+export const CHAT_MEMBER_LIMIT = 50;
+
 export interface Community {
   id: string;                    // community_timestamp_uid 형식
   name: string;                  // 커뮤니티명

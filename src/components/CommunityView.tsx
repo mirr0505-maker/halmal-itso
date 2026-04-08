@@ -3,8 +3,10 @@ import { useState, useEffect } from 'react';
 import { db } from '../firebase';
 import { collection, onSnapshot, query, where, orderBy, doc, setDoc, updateDoc, deleteDoc, deleteField, increment, arrayUnion, arrayRemove, serverTimestamp } from 'firebase/firestore';
 import type { Community, CommunityPost, CommunityMember, FingerRole, UserData, FirestoreTimestamp } from '../types';
+import { CHAT_MEMBER_LIMIT } from '../types';
 import TiptapEditor from './TiptapEditor';
 import CommunityAdminPanel from './CommunityAdminPanel';
+import CommunityChatPanel from './CommunityChatPanel';
 import VerifiedBadgeComponent from './VerifiedBadge';
 import VerifyMemberModal from './VerifyMemberModal';
 import JoinAnswersDisplay from './JoinAnswersDisplay';
@@ -38,7 +40,7 @@ const CommunityView = ({ community, currentUserData, allUsers, onBack, onClosed 
   const [isUploading, setIsUploading] = useState(false);
   const [selectedPost, setSelectedPost] = useState<CommunityPost | null>(null);
   // 🚀 다섯 손가락 Phase 2 — 탭 + 멤버 상태
-  const [activeTab, setActiveTab] = useState<'posts' | 'members' | 'admin'>('posts');
+  const [activeTab, setActiveTab] = useState<'posts' | 'chat' | 'members' | 'admin'>('posts');
   const [members, setMembers] = useState<CommunityMember[]>([]);
   const [currentMembership, setCurrentMembership] = useState<CommunityMember | null>(null);
   // 🚀 Phase 4 — 현재 유저의 알림 구독 여부
@@ -77,6 +79,9 @@ const CommunityView = ({ community, currentUserData, allUsers, onBack, onClosed 
   const isAdmin = myFinger === 'thumb' || myFinger === 'index';
   const pendingMembers = members.filter(m => (m.joinStatus ?? 'active') === 'pending');
   const activeMembers  = members.filter(m => (m.joinStatus ?? 'active') === 'active');
+
+  // 🚀 Phase 7: 채팅 활성화 여부 (50명 이하)
+  const isChatAvailable = (community.memberCount ?? 0) <= CHAT_MEMBER_LIMIT;
 
   // 🚀 Phase 6: 비가입자 접근 제한
   // isMember: active 멤버 또는 pending(승인 대기)인 경우 true
@@ -405,8 +410,9 @@ const CommunityView = ({ community, currentUserData, allUsers, onBack, onClosed 
           )}
           {/* 🚀 다섯 손가락 Phase 2 — 탭 바 (멤버만 표시) */}
           {!isBlocked && !isPending && <div className="flex gap-0 mt-3 border-b border-slate-100">
-            {(['posts', 'members', ...(isAdmin ? ['admin'] : [])] as Array<'posts' | 'members' | 'admin'>).map((tab) => {
-              const labels: Record<string, string> = { posts: '💬 소곤소곤', members: `🤝 멤버 ${activeMembers.length}`, admin: `⚙️ 관리${pendingMembers.length > 0 ? ` (${pendingMembers.length})` : ''}` };
+            {(['posts', 'chat', 'members', ...(isAdmin ? ['admin'] : [])] as Array<'posts' | 'chat' | 'members' | 'admin'>).map((tab) => {
+              const chatLabel = isChatAvailable ? '💭 채팅' : '💭 채팅 (50명+)';
+              const labels: Record<string, string> = { posts: '💬 소곤소곤', chat: chatLabel, members: `🤝 멤버 ${activeMembers.length}`, admin: `⚙️ 관리${pendingMembers.length > 0 ? ` (${pendingMembers.length})` : ''}` };
               return (
                 <button
                   key={tab}
@@ -420,6 +426,11 @@ const CommunityView = ({ community, currentUserData, allUsers, onBack, onClosed 
           </div>}
         </div>
       </div>
+
+      {/* 🚀 Phase 7 — 채팅 탭 */}
+      {activeTab === 'chat' && (
+        <CommunityChatPanel community={community} currentUser={currentUserData} members={members} />
+      )}
 
       {/* 🚀 다섯 손가락 Phase 2 — 멤버 탭 (멤버만) */}
       {activeTab === 'members' && isMember && (
