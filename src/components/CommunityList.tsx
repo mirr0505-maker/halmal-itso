@@ -1,6 +1,7 @@
 // src/components/CommunityList.tsx — 장갑 속 친구들: 전체 커뮤니티 목록 (카테고리 필터)
 import { useState } from 'react';
-import type { Community, UserData } from '../types';
+import type { Community, UserData, JoinAnswers } from '../types';
+import JoinCommunityModal from './JoinCommunityModal';
 
 const ALL_CATEGORIES = ['전체', '주식', '부동산', '코인', '취미', '스포츠', '게임', '독서', '요리', '반려동물', '여행', '음악', '개발', '기타'];
 
@@ -9,20 +10,28 @@ interface Props {
   currentUserData: UserData | null;
   joinedCommunityIds: string[];
   onCommunityClick: (community: Community) => void;
-  onJoin: (community: Community) => Promise<void>;
+  // 🚀 Phase 6: options 파라미터 추가 (승인제 답변 전달)
+  onJoin: (community: Community, options?: { joinAnswers?: JoinAnswers; joinMessage?: string }) => Promise<void>;
 }
 
 const CommunityList = ({ communities, currentUserData, joinedCommunityIds, onCommunityClick, onJoin }: Props) => {
   const [selectedCategory, setSelectedCategory] = useState('전체');
   const [joiningId, setJoiningId] = useState<string | null>(null);
+  // 🚀 Phase 6: 승인제 가입 모달 상태
+  const [joinModalTarget, setJoinModalTarget] = useState<Community | null>(null);
 
   const filtered = selectedCategory === '전체'
     ? communities
     : communities.filter(c => c.category === selectedCategory);
 
   const handleJoin = async (e: React.MouseEvent, community: Community) => {
-    e.stopPropagation(); // 카드 클릭(커뮤니티 진입)과 분리
+    e.stopPropagation();
     if (joiningId) return;
+    // 🚀 Phase 6: 승인제면 모달 띄우기, 아니면 기존 즉시 가입
+    if ((community.joinType || 'open') === 'approval') {
+      setJoinModalTarget(community);
+      return;
+    }
     setJoiningId(community.id);
     try { await onJoin(community); }
     finally { setJoiningId(null); }
@@ -105,6 +114,21 @@ const CommunityList = ({ communities, currentUserData, joinedCommunityIds, onCom
             );
           })}
         </div>
+      )}
+      {/* 🚀 Phase 6: 승인제 가입 모달 */}
+      {joinModalTarget && currentUserData && (
+        <JoinCommunityModal
+          community={joinModalTarget}
+          currentUser={currentUserData}
+          onClose={() => setJoinModalTarget(null)}
+          onSubmit={async (answers, joinMessage) => {
+            setJoiningId(joinModalTarget.id);
+            try {
+              await onJoin(joinModalTarget, { joinAnswers: answers, joinMessage });
+              setJoinModalTarget(null);
+            } finally { setJoiningId(null); }
+          }}
+        />
       )}
     </div>
   );

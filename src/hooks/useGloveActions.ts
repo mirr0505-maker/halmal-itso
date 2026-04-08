@@ -88,11 +88,14 @@ export function useGloveActions({
   };
 
   // 🚀 커뮤니티 가입 핸들러 — joinType에 따라 즉시가입/대기 분기
-  const handleJoinCommunity = async (community: Community) => {
+  // Phase 6: 승인제일 때 joinAnswers/joinMessage를 CommunityList → JoinCommunityModal에서 받아 전달
+  const handleJoinCommunity = async (
+    community: Community,
+    options?: { joinAnswers?: import('../types').JoinAnswers; joinMessage?: string }
+  ) => {
     if (!userData) { alert('로그인이 필요합니다.'); return; }
 
     // 🚀 강퇴(banned) 유저 재가입 차단
-    // Why: 관리자가 강퇴한 유저가 재가입하면 강퇴 제재가 무력화됨
     const banCheckId = `${community.id}_${userData.uid}`;
     const existingSnap = await getDoc(doc(db, 'community_memberships', banCheckId));
     if (existingSnap.exists() && existingSnap.data()?.joinStatus === 'banned') {
@@ -119,15 +122,6 @@ export function useGloveActions({
       }
     }
 
-    // 승인제 방식: 가입 신청 메시지 입력
-    let joinMessage = '';
-    if (joinType === 'approval') {
-      const question = community.joinQuestion || '가입 인사말을 남겨주세요.';
-      const input = window.prompt(question);
-      if (!input) return;
-      joinMessage = input.trim();
-    }
-
     const isApprovalPending = joinType === 'approval';
     const membershipId = `${community.id}_${userData.uid}`;
     await setDoc(doc(db, 'community_memberships', membershipId), {
@@ -136,19 +130,19 @@ export function useGloveActions({
       userId: userData.uid,
       nickname: userData.nickname,
       role: 'member',
-      finger: isApprovalPending ? 'pinky' : 'ring',   // 🚀 대기=새끼, 승인=약지
+      finger: isApprovalPending ? 'pinky' : 'ring',
       joinStatus: isApprovalPending ? 'pending' : 'active',
-      ...(joinMessage ? { joinMessage } : {}),
+      // 🚀 Phase 6 — 가입 폼 답변 저장 (영구 보존)
+      ...(options?.joinAnswers ? { joinAnswers: options.joinAnswers } : {}),
+      ...(options?.joinMessage?.trim() ? { joinMessage: options.joinMessage.trim() } : {}),
       joinedAt: serverTimestamp(),
     });
 
     if (!isApprovalPending) {
-      // 즉시 가입(open/password): memberCount 증가 + 로컬 상태 반영
       await updateDoc(doc(db, 'communities', community.id), { memberCount: increment(1) });
       setJoinedCommunityIds(prev => [...prev, community.id]);
       alert(`'${community.name}' 장갑에 가입되었습니다!`);
     } else {
-      // 승인제: memberCount 증가 없음, 대기 안내
       alert(`가입 신청이 완료되었습니다.\n관리자 승인 후 활동할 수 있습니다.`);
     }
   };
