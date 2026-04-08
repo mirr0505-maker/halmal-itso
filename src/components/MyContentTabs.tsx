@@ -38,6 +38,19 @@ function canRepost(post: MixedPost): boolean {
   return ageMs > TWO_HOURS_MS;
 }
 
+// 🚀 글 상태 판정: 새글/미등록/등록글/인기글/최고글
+function getPostStatus(post: MixedPost): { label: string; color: string } {
+  if (post._source === 'glove') return { label: '장갑글', color: 'text-teal-600 bg-teal-50' };
+  const likes = post.likes || 0;
+  if (likes >= 30) return { label: '최고글', color: 'text-amber-600 bg-amber-50' };
+  if (likes >= 10) return { label: '인기글', color: 'text-rose-500 bg-rose-50' };
+  if (!post.createdAt?.seconds) return { label: '새글', color: 'text-emerald-600 bg-emerald-50' };
+  const ageMs = Date.now() - post.createdAt.seconds * 1000;
+  if (ageMs <= TWO_HOURS_MS) return { label: '새글', color: 'text-emerald-600 bg-emerald-50' };
+  if (likes >= 3) return { label: '등록글', color: 'text-blue-600 bg-blue-50' };
+  return { label: '미등록', color: 'text-slate-400 bg-slate-50' };
+}
+
 const MyContentTabs = ({ posts = [], onPostClick, onGloveClick, onRepost, type }: Props) => {
   const itemsPerPage = 50;
   const displayList = posts.slice(0, itemsPerPage);
@@ -119,13 +132,22 @@ const MyContentTabs = ({ posts = [], onPostClick, onGloveClick, onRepost, type }
                     재등록
                   </button>
                 )}
-                <div className={`text-[10px] font-black px-2 py-1 rounded shadow-sm ${
-                  isGlove
-                    ? (type === 'comments' ? 'text-teal-600 bg-teal-50' : 'text-teal-600 bg-teal-50')
-                    : (type === 'comments' ? 'text-emerald-600 bg-emerald-50' : 'text-blue-600 bg-blue-50')
-                }`}>
-                  {isGlove ? (type === 'comments' ? '장갑댓글' : '장갑글') : (type === 'comments' ? '댓글' : '게시글')}
-                </div>
+                {/* 🚀 상태 배지: 새글/미등록/등록글/인기글/최고글 (댓글은 별도) */}
+                {(() => {
+                  if (type === 'comments') {
+                    return (
+                      <div className={`text-[10px] font-black px-2 py-1 rounded shadow-sm ${isGlove ? 'text-teal-600 bg-teal-50' : 'text-emerald-600 bg-emerald-50'}`}>
+                        {isGlove ? '장갑댓글' : '댓글'}
+                      </div>
+                    );
+                  }
+                  const status = getPostStatus(post);
+                  return (
+                    <div className={`text-[10px] font-black px-2 py-1 rounded shadow-sm ${status.color}`}>
+                      {status.label}
+                    </div>
+                  );
+                })()}
               </div>
             </div>
           );
