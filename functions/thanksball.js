@@ -59,7 +59,18 @@ exports.sendThanksball = onCall(
     });
 
     // 트랜잭션 외: 땡스볼 카운터 + 기록 + 알림
-    if (docId) {
+    // 🚀 Phase 7: 채팅 메시지 땡스볼 — 서브컬렉션 경로 처리
+    const { chatCommunityId, chatMessageId } = request.data;
+    if (chatCommunityId && chatMessageId) {
+      // 채팅 메시지: community_chats/{communityId}/messages/{messageId}
+      const chatMsgRef = db.collection("community_chats").doc(chatCommunityId).collection("messages").doc(chatMessageId);
+      const currentSenders = (await chatMsgRef.get()).data()?.thanksballSenders ?? [];
+      const newSenders = [senderNickname, ...currentSenders.filter((n) => n !== senderNickname)].slice(0, 5);
+      await chatMsgRef.update({
+        thanksballTotal: FieldValue.increment(amount),
+        thanksballSenders: newSenders,
+      });
+    } else if (docId) {
       await db.collection(docCollection).doc(docId).update({
         thanksballTotal: FieldValue.increment(amount),
       });

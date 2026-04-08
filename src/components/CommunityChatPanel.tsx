@@ -17,7 +17,7 @@ interface Props {
 const REACTION_EMOJIS = ['👍', '❤️', '😂', '🔥', '🤔', '💯'] as const;
 
 // 🚀 메시지 한 개 렌더링
-function ChatMessageItem({ message, currentUid, onReply, onToggleReaction, reactionPickerFor, setReactionPickerFor, onImageClick }: {
+function ChatMessageItem({ message, currentUid, onReply, onToggleReaction, reactionPickerFor, setReactionPickerFor, onImageClick, onSendThanksball }: {
   message: ChatMessage;
   currentUid: string;
   onReply: (msg: ChatMessage) => void;
@@ -25,6 +25,7 @@ function ChatMessageItem({ message, currentUid, onReply, onToggleReaction, react
   reactionPickerFor: string | null;
   setReactionPickerFor: (id: string | null) => void;
   onImageClick: (url: string) => void;
+  onSendThanksball: (msg: ChatMessage) => void;
 }) {
   const isMine = message.author_id === currentUid;
 
@@ -98,6 +99,9 @@ function ChatMessageItem({ message, currentUid, onReply, onToggleReaction, react
                 {!isMine && (
                   <button onClick={() => onReply(message)} className="text-[14px] text-slate-300 hover:text-emerald-500 px-0.5" title="답장">↩</button>
                 )}
+                {!isMine && (
+                  <button onClick={() => onSendThanksball(message)} className="text-[13px] text-slate-300 hover:text-amber-500 px-0.5" title="땡스볼">🎁</button>
+                )}
                 <div className="relative">
                   <button onClick={() => setReactionPickerFor(reactionPickerFor === message.id ? null : message.id)}
                     className="text-[18px] font-[1000] text-slate-300 hover:text-amber-500 px-0.5 leading-none" title="반응">+</button>
@@ -121,7 +125,8 @@ function ChatMessageItem({ message, currentUid, onReply, onToggleReaction, react
         </div>
 
         {/* 🚀 이모지 반응 표시 */}
-        {activeReactions.length > 0 && (
+        {/* 이모지 반응 + 땡스볼 누적 */}
+        {(activeReactions.length > 0 || (message.thanksballTotal ?? 0) > 0) && (
           <div className={`flex flex-wrap items-center gap-1 mt-0.5 ${isMine ? 'justify-end' : 'justify-start'}`}>
             {activeReactions.map(([emoji, users]) => {
               const reacted = users.includes(currentUid);
@@ -138,8 +143,103 @@ function ChatMessageItem({ message, currentUid, onReply, onToggleReaction, react
                 </button>
               );
             })}
+            {/* 🚀 땡스볼 누적 표시 */}
+            {(message.thanksballTotal ?? 0) > 0 && (
+              <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[11px] bg-amber-50 border border-amber-200 text-amber-700">
+                <span>🎁</span>
+                <span className="font-[1000] text-[10px]">{message.thanksballTotal}볼</span>
+                {message.thanksballSenders && message.thanksballSenders.length > 0 && (
+                  <span className="text-[9px] text-amber-500">
+                    · {message.thanksballSenders.slice(0, 2).join(', ')}
+                    {message.thanksballSenders.length > 2 && ` 외 ${message.thanksballSenders.length - 2}명`}
+                  </span>
+                )}
+              </span>
+            )}
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+// 🚀 Step 5: 채팅 땡스볼 모달 — Cloud Function(sendThanksball) 경유
+function ChatThanksballModal({ message, sender, communityId, onClose }: {
+  message: ChatMessage; sender: UserData; communityId: string; onClose: () => void;
+}) {
+  const [amount, setAmount] = useState(1);
+  const [submitting, setSubmitting] = useState(false);
+  const balance = sender.ballBalance ?? 0;
+  const insufficient = balance < amount;
+
+  const handleConfirm = async () => {
+    if (insufficient || submitting) return;
+    setSubmitting(true);
+    try {
+      // 🚀 기존 sendThanksball Cloud Function 호출 — chatCommunityId/chatMessageId 파라미터 추가
+      const { httpsCallable } = await import('firebase/functions');
+      const { functions } = await import('../firebase');
+      const sendFn = httpsCallable(functions, 'sendThanksball');
+      await sendFn({
+        recipientUid: message.author_id,
+        amount,
+        message: '',
+        postId: null,
+        postTitle: message.content?.slice(0, 30) || '[채팅 메시지]',
+        postAuthor: message.author,
+        chatCommunityId: communityId,
+        chatMessageId: message.id,
+      });
+      onClose();
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : '땡스볼 전송 실패';
+      alert(msg);
+      console.error('[chat thanksball]', e);
+    } finally { setSubmitting(false); }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden" onClick={(e) => e.stopPropagation()}>
+        <div className="px-5 py-4 border-b border-slate-100">
+          <h3 className="text-[15px] font-[1000] text-slate-900">🎁 땡스볼 보내기</h3>
+          <p className="text-[11px] font-bold text-slate-400 mt-0.5"><strong>{message.author}</strong>님의 메시지에 보냅니다</p>
+        </div>
+        <div className="px-5 py-4 flex flex-col gap-3">
+          {/* 메시지 미리보기 */}
+          <div className="p-2 bg-slate-50 rounded-lg text-[11px] text-slate-600 border-l-2 border-slate-300 truncate">
+            {message.content?.slice(0, 60) || (message.imageUrl ? '[이미지]' : '')}
+          </div>
+          {/* 수량 선택 */}
+          <div>
+            <p className="text-[10px] font-[1000] text-slate-400 uppercase tracking-widest mb-1.5">수량</p>
+            <div className="flex gap-1.5">
+              {[1, 5, 10, 20, 50].map(n => (
+                <button key={n} onClick={() => setAmount(n)}
+                  className={`flex-1 py-2 rounded-lg text-[12px] font-[1000] border transition-all ${
+                    amount === n ? 'bg-amber-100 border-amber-400 text-amber-700' : 'bg-white border-slate-200 hover:bg-slate-50 text-slate-500'
+                  }`}
+                >{n}볼</button>
+              ))}
+            </div>
+          </div>
+          {/* 잔액 */}
+          <div className="flex justify-between text-[11px] font-bold">
+            <span className="text-slate-400">현재 잔액</span>
+            <span className={insufficient ? 'text-rose-500' : 'text-slate-600'}>
+              {balance}볼{insufficient && ' (부족)'}
+            </span>
+          </div>
+        </div>
+        <div className="px-5 py-3 flex gap-2 border-t border-slate-100">
+          <button onClick={onClose} disabled={submitting}
+            className="flex-1 py-2.5 rounded-xl text-[13px] font-bold text-slate-500 border border-slate-200 hover:bg-slate-50">취소</button>
+          <button onClick={handleConfirm} disabled={insufficient || submitting}
+            className={`flex-1 py-2.5 rounded-xl text-[13px] font-[1000] transition-all ${
+              insufficient || submitting ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-amber-500 text-white hover:bg-amber-600'
+            }`}
+          >{submitting ? '전송 중...' : `${amount}볼 보내기`}</button>
+        </div>
       </div>
     </div>
   );
@@ -156,6 +256,8 @@ const CommunityChatPanel = ({ community, currentUser, members }: Props) => {
   const [sending, setSending] = useState(false);
   const [replyTarget, setReplyTarget] = useState<ChatMessage | null>(null);
   const [reactionPickerFor, setReactionPickerFor] = useState<string | null>(null);
+  // 🚀 Step 5: 땡스볼 상태
+  const [thanksballTarget, setThanksballTarget] = useState<ChatMessage | null>(null);
   // 🚀 Step 4: 이미지 업로드 상태
   const [pendingImage, setPendingImage] = useState<{ file: File; previewUrl: string } | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -338,6 +440,7 @@ const CommunityChatPanel = ({ community, currentUser, members }: Props) => {
             reactionPickerFor={reactionPickerFor}
             setReactionPickerFor={setReactionPickerFor}
             onImageClick={setLightboxImage}
+            onSendThanksball={(m) => setThanksballTarget(m)}
           />
         ))}
         <div ref={messagesEndRef} />
@@ -402,6 +505,7 @@ const CommunityChatPanel = ({ community, currentUser, members }: Props) => {
       </div>
 
       {/* 🚀 라이트박스 (원본 이미지 보기) */}
+      {/* 🚀 라이트박스 */}
       {lightboxImage && (
         <div className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4 cursor-zoom-out"
           onClick={() => setLightboxImage(null)}
@@ -411,6 +515,16 @@ const CommunityChatPanel = ({ community, currentUser, members }: Props) => {
           <img src={lightboxImage} alt="원본" className="max-w-full max-h-full object-contain" />
           <button className="absolute top-4 right-4 text-white text-[24px] hover:text-slate-300" onClick={() => setLightboxImage(null)}>✕</button>
         </div>
+      )}
+
+      {/* 🚀 Step 5: 땡스볼 모달 (Cloud Function 경유) */}
+      {thanksballTarget && currentUser && (
+        <ChatThanksballModal
+          message={thanksballTarget}
+          sender={currentUser}
+          communityId={community.id}
+          onClose={() => setThanksballTarget(null)}
+        />
       )}
     </div>
   );
