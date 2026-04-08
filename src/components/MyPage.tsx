@@ -10,7 +10,6 @@ import ProfileEditForm from './ProfileEditForm';
 import ActivityMilestones from './ActivityMilestones';
 import MyPromotion from './MyPromotion';
 import RevenueDashboard from './revenue/RevenueDashboard';
-import OneCutList from './OneCutList';
 import { uploadToR2 } from '../uploadToR2';
 import { calculateLevel } from '../utils';
 
@@ -460,11 +459,7 @@ const MyPage = ({
 
               <div className="flex-1">
                 {activeTab === 'posts' && <MyContentTabs posts={allMyPosts} onPostClick={onEditPost || onPostClick} onGloveClick={onGloveClick} type="posts" />}
-                {activeTab === 'onecuts' && (
-                  <div className="pt-4">
-                    <OneCutList posts={onecutPosts} allPosts={allUserRootPosts} onTopicClick={onEditPost || onPostClick} allUsers={allUsers} followerCounts={followerCounts} />
-                  </div>
-                )}
+                {activeTab === 'onecuts' && <MyContentTabs posts={onecutPosts.map(p => ({ ...p, _source: 'post' as const }))} onPostClick={onEditPost || onPostClick} type="posts" />}
                 {activeTab === 'comments' && <MyContentTabs posts={allMyComments} onPostClick={onPostClick} onGloveClick={onGloveClick} type="comments" />}
                 {activeTab === 'thanksball' && (
                   <div className="flex flex-col gap-4">
