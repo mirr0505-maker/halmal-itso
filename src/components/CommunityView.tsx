@@ -653,7 +653,7 @@ const CommunityView = ({ community, currentUserData, allUsers, onBack, onClosed 
       {/* 글 상세 (선택된 경우 오버레이) */}
       {selectedPost && (
         <CommunityPostDetail
-          post={selectedPost}
+          post={posts.find(p => p.id === selectedPost.id) ?? selectedPost}
           currentUserData={currentUserData}
           allUsers={allUsers}
           members={members}
@@ -686,7 +686,9 @@ const CommunityPostDetail = ({ post, currentUserData, allUsers: _allUsers, membe
       where('postId', '==', post.id),
       orderBy('createdAt', 'asc')
     );
-    const unsub = onSnapshot(q, snap => setComments(snap.docs.map(d => ({ id: d.id, ...d.data() } as { id: string; author: string; author_id?: string; content: string; createdAt?: FirestoreTimestamp }))));
+    const unsub = onSnapshot(q, snap => {
+      setComments(snap.docs.map(d => ({ id: d.id, ...d.data() } as { id: string; author: string; author_id?: string; content: string; createdAt?: FirestoreTimestamp })));
+    }, (err) => console.error('[community_post_comments onSnapshot]', err));
     return () => unsub();
   }, [post.id]);
 
