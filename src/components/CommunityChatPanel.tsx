@@ -1,10 +1,11 @@
-// src/components/CommunityChatPanel.tsx — 🚀 Phase 7 Step 3: 채팅 + 답장 + 이모지 반응
+// src/components/CommunityChatPanel.tsx — 🚀 Phase 7 Step 4: 채팅 + 답장 + 이모지 + 이미지
 import { useState, useEffect, useRef } from 'react';
 import { db } from '../firebase';
 import { collection, doc, setDoc, updateDoc, arrayUnion, arrayRemove, query, orderBy, limit, onSnapshot, serverTimestamp } from 'firebase/firestore';
 import type { Community, UserData, CommunityMember, ChatMessage } from '../types';
 import { CHAT_MEMBER_LIMIT } from '../types';
 import { calculateLevel } from '../utils';
+import { uploadToR2 } from '../uploadToR2';
 import VerifiedBadgeComponent from './VerifiedBadge';
 
 interface Props {
@@ -16,13 +17,14 @@ interface Props {
 const REACTION_EMOJIS = ['👍', '❤️', '😂', '🔥', '🤔', '💯'] as const;
 
 // 🚀 메시지 한 개 렌더링
-function ChatMessageItem({ message, currentUid, onReply, onToggleReaction, reactionPickerFor, setReactionPickerFor }: {
+function ChatMessageItem({ message, currentUid, onReply, onToggleReaction, reactionPickerFor, setReactionPickerFor, onImageClick }: {
   message: ChatMessage;
   currentUid: string;
   onReply: (msg: ChatMessage) => void;
   onToggleReaction: (msg: ChatMessage, emoji: string) => void;
   reactionPickerFor: string | null;
   setReactionPickerFor: (id: string | null) => void;
+  onImageClick: (url: string) => void;
 }) {
   const isMine = message.author_id === currentUid;
 
@@ -37,7 +39,6 @@ function ChatMessageItem({ message, currentUid, onReply, onToggleReaction, react
     return `${ampm} ${h12}:${String(m).padStart(2, '0')}`;
   })();
 
-  // 이모지 반응 데이터 (빈 배열 필터링)
   const activeReactions = message.reactions
     ? Object.entries(message.reactions).filter(([, users]) => users.length > 0)
     : [];
@@ -66,20 +67,32 @@ function ChatMessageItem({ message, currentUid, onReply, onToggleReaction, react
           </div>
         )}
 
+        {/* 🚀 이미지 (본문 위) */}
+        {message.imageUrl && !message.deleted && (
+          <button
+            onClick={() => onImageClick(message.imageUrl!)}
+            className="block mb-1 max-w-[280px] rounded-xl overflow-hidden border border-slate-200 hover:opacity-90 transition-opacity"
+          >
+            <img src={message.imageUrl} alt="첨부 이미지" className="w-full h-auto max-h-[300px] object-contain bg-slate-100" loading="lazy" />
+          </button>
+        )}
+
         {/* 메시지 본문 + 시간 + 액션 버튼 */}
         <div className={`flex items-end gap-1 ${isMine ? 'flex-row-reverse' : 'flex-row'}`}>
-          <div className={`px-3 py-2 rounded-2xl text-[13px] font-medium whitespace-pre-wrap break-words leading-relaxed ${
-            isMine
-              ? 'bg-emerald-500 text-white rounded-br-sm'
-              : 'bg-white text-slate-800 rounded-bl-sm border border-slate-200'
-          }`}>
-            {message.deleted ? (
-              <span className="italic text-slate-400">삭제된 메시지입니다</span>
-            ) : message.content}
-          </div>
+          {/* 텍스트가 있을 때만 본문 박스 렌더링 */}
+          {(message.content || message.deleted) && (
+            <div className={`px-3 py-2 rounded-2xl text-[13px] font-medium whitespace-pre-wrap break-words leading-relaxed ${
+              isMine
+                ? 'bg-emerald-500 text-white rounded-br-sm'
+                : 'bg-white text-slate-800 rounded-bl-sm border border-slate-200'
+            }`}>
+              {message.deleted ? (
+                <span className="italic text-slate-400">삭제된 메시지입니다</span>
+              ) : message.content}
+            </div>
+          )}
           <div className="flex flex-col items-center gap-0.5 shrink-0">
             <span className="text-[9px] text-slate-300">{timeStr}</span>
-            {/* 액션 버튼 — hover 시 노출 */}
             {!message.deleted && (
               <div className="flex items-center gap-0.5">
                 {!isMine && (
@@ -88,7 +101,6 @@ function ChatMessageItem({ message, currentUid, onReply, onToggleReaction, react
                 <div className="relative">
                   <button onClick={() => setReactionPickerFor(reactionPickerFor === message.id ? null : message.id)}
                     className="text-[18px] font-[1000] text-slate-300 hover:text-amber-500 px-0.5 leading-none" title="반응">+</button>
-                  {/* 🚀 이모지 picker 팝업 */}
                   {reactionPickerFor === message.id && (
                     <div
                       className="absolute z-20 bg-white border border-slate-200 rounded-full shadow-lg px-1.5 py-1 flex gap-0.5 bottom-full mb-1 left-1/2 -translate-x-1/2"
@@ -144,9 +156,15 @@ const CommunityChatPanel = ({ community, currentUser, members }: Props) => {
   const [sending, setSending] = useState(false);
   const [replyTarget, setReplyTarget] = useState<ChatMessage | null>(null);
   const [reactionPickerFor, setReactionPickerFor] = useState<string | null>(null);
+  // 🚀 Step 4: 이미지 업로드 상태
+  const [pendingImage, setPendingImage] = useState<{ file: File; previewUrl: string } | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [lightboxImage, setLightboxImage] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // 🚀 onSnapshot 실시간 구독 — 최근 50개, cleanup 필수
+  // 🚀 onSnapshot 실시간 구독
   useEffect(() => {
     if (!isAvailable || !isMember) { setLoading(false); return; }
     const messagesRef = collection(doc(db, 'community_chats', community.id), 'messages');
@@ -163,14 +181,53 @@ const CommunityChatPanel = ({ community, currentUser, members }: Props) => {
   // 🚀 새 메시지 시 자동 스크롤
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
 
-  // 🚀 메시지 전송 (답장 포함)
+  // 🚀 이미지 파일 선택 공통 핸들러
+  const handleFileSelect = (file: File) => {
+    if (!file.type.startsWith('image/')) { alert('이미지 파일만 업로드할 수 있습니다.'); return; }
+    if (file.size > 5 * 1024 * 1024) { alert('이미지는 5MB 이하만 업로드 가능합니다.'); return; }
+    if (pendingImage) URL.revokeObjectURL(pendingImage.previewUrl);
+    setPendingImage({ file, previewUrl: URL.createObjectURL(file) });
+  };
+
+  // 🚀 클립보드 paste (Ctrl+V 이미지)
+  const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const items = e.clipboardData.items;
+    for (const item of items) {
+      if (item.type.startsWith('image/')) {
+        const file = item.getAsFile();
+        if (file) { e.preventDefault(); handleFileSelect(file); return; }
+      }
+    }
+  };
+
+  // 🚀 드래그&드롭
+  const handleDragOver = (e: React.DragEvent) => { e.preventDefault(); setIsDragging(true); };
+  const handleDragLeave = () => setIsDragging(false);
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault(); setIsDragging(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) handleFileSelect(file);
+  };
+
+  // 🚀 메시지 전송 (텍스트 + 이미지 + 답장)
   const handleSend = async () => {
-    if (!currentUser || !myMembership || !input.trim() || sending) return;
+    if (!currentUser || !myMembership || sending) return;
     const trimmed = input.trim();
+    if (!trimmed && !pendingImage) return;
     if (trimmed.length > 500) { alert('메시지는 500자 이내로 입력해주세요.'); return; }
 
     setSending(true);
+    if (pendingImage) setUploading(true);
+
     try {
+      // 이미지 업로드 (먼저)
+      let imageUrl: string | undefined;
+      if (pendingImage) {
+        const ext = pendingImage.file.name.split('.').pop() || 'jpg';
+        const filePath = `chats/${community.id}/${Date.now()}_${currentUser.uid.slice(0, 8)}.${ext}`;
+        imageUrl = await uploadToR2(pendingImage.file, filePath);
+      }
+
       const messageId = `chat_${Date.now()}_${currentUser.uid.slice(0, 8)}`;
       const messageRef = doc(collection(doc(db, 'community_chats', community.id), 'messages'), messageId);
 
@@ -183,28 +240,33 @@ const CommunityChatPanel = ({ community, currentUser, members }: Props) => {
         content: trimmed,
         createdAt: serverTimestamp(),
       };
+      if (imageUrl) messageData.imageUrl = imageUrl;
       if (myMembership.finger) messageData.authorFinger = myMembership.finger;
       if (myMembership.verified) messageData.authorVerified = myMembership.verified;
-      // 🚀 답장 정보
       if (replyTarget) {
         messageData.replyTo = {
           messageId: replyTarget.id,
           author: replyTarget.author,
-          snippet: replyTarget.content.length > 50 ? replyTarget.content.slice(0, 50) + '...' : replyTarget.content,
+          snippet: (replyTarget.content || '[이미지]').length > 50
+            ? (replyTarget.content || '[이미지]').slice(0, 50) + '...'
+            : (replyTarget.content || '[이미지]'),
         };
       }
 
       await setDoc(messageRef, messageData);
+
+      // 정리
       setInput('');
       setReplyTarget(null);
+      if (pendingImage) { URL.revokeObjectURL(pendingImage.previewUrl); setPendingImage(null); }
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : '메시지 전송 실패';
       alert(msg);
       console.error('[chat send]', e);
-    } finally { setSending(false); }
+    } finally { setSending(false); setUploading(false); }
   };
 
-  // 🚀 이모지 반응 토글 (arrayUnion/arrayRemove 원자적)
+  // 🚀 이모지 반응 토글
   const handleToggleReaction = async (message: ChatMessage, emoji: string) => {
     if (!currentUser) return;
     const messageRef = doc(collection(doc(db, 'community_chats', community.id), 'messages'), message.id);
@@ -212,30 +274,22 @@ const CommunityChatPanel = ({ community, currentUser, members }: Props) => {
     const alreadyReacted = currentReactors.includes(currentUser.uid);
     const fieldKey = `reactions.${emoji}`;
     try {
-      await updateDoc(messageRef, {
-        [fieldKey]: alreadyReacted ? arrayRemove(currentUser.uid) : arrayUnion(currentUser.uid),
-      });
+      await updateDoc(messageRef, { [fieldKey]: alreadyReacted ? arrayRemove(currentUser.uid) : arrayUnion(currentUser.uid) });
     } catch (e) { console.error('[reaction toggle]', e); }
   };
 
   // Enter 전송, Shift+Enter 줄바꿈, IME 보호
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
-      e.preventDefault();
-      handleSend();
-    }
+    if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); handleSend(); }
   };
 
-  // 🚀 50명 초과 — 비활성 안내
+  // 🚀 50명 초과
   if (!isAvailable) {
     return (
       <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
         <p className="text-[40px] mb-3">💭</p>
         <p className="text-[15px] font-[1000] text-slate-700 mb-1">채팅은 50명 이하 장갑에서만 사용할 수 있어요</p>
-        <p className="text-[12px] font-bold text-slate-400">
-          현재 멤버 <strong className="text-slate-600">{community.memberCount}명</strong> · 소규모 장갑의 깊이 있는 소통을 위해 인원 제한을 두고 있습니다.
-        </p>
-        <p className="text-[10px] font-bold text-slate-300 mt-4">💡 큰 장갑은 글(소곤소곤)을 활용해주세요</p>
+        <p className="text-[12px] font-bold text-slate-400">현재 멤버 <strong className="text-slate-600">{community.memberCount}명</strong></p>
       </div>
     );
   }
@@ -254,12 +308,20 @@ const CommunityChatPanel = ({ community, currentUser, members }: Props) => {
   // 🚀 채팅 UI
   return (
     <div className="flex flex-col h-[600px] bg-slate-50 rounded-xl overflow-hidden border border-slate-100 mt-4">
-      {/* 메시지 영역 */}
-      <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2.5">
+      {/* 메시지 영역 (드래그&드롭 수신) */}
+      <div
+        className={`flex-1 overflow-y-auto px-4 py-3 space-y-2.5 transition-colors ${isDragging ? 'bg-emerald-50/50' : ''}`}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+      >
+        {isDragging && (
+          <div className="text-center py-8 text-emerald-500 font-[1000] text-[13px]">📎 여기에 이미지를 놓으세요</div>
+        )}
         {loading && (
           <div className="text-center text-slate-300 text-[12px] font-bold py-8">채팅을 불러오는 중...</div>
         )}
-        {!loading && messages.length === 0 && (
+        {!loading && messages.length === 0 && !isDragging && (
           <div className="text-center text-slate-300 py-16">
             <p className="text-[40px] mb-2">💭</p>
             <p className="text-[13px] font-[1000]">아직 메시지가 없어요</p>
@@ -275,6 +337,7 @@ const CommunityChatPanel = ({ community, currentUser, members }: Props) => {
             onToggleReaction={handleToggleReaction}
             reactionPickerFor={reactionPickerFor}
             setReactionPickerFor={setReactionPickerFor}
+            onImageClick={setLightboxImage}
           />
         ))}
         <div ref={messagesEndRef} />
@@ -285,19 +348,38 @@ const CommunityChatPanel = ({ community, currentUser, members }: Props) => {
         <div className="px-4 py-2 bg-slate-100 border-t border-slate-200 flex items-start gap-2">
           <div className="flex-1 min-w-0">
             <p className="text-[10px] font-[1000] text-slate-500">↩ {replyTarget.author}님에게 답장</p>
-            <p className="text-[11px] text-slate-500 truncate">{replyTarget.content}</p>
+            <p className="text-[11px] text-slate-500 truncate">{replyTarget.content || '[이미지]'}</p>
           </div>
-          <button onClick={() => setReplyTarget(null)} className="text-slate-400 hover:text-slate-600 text-[14px] shrink-0 leading-none" title="답장 취소">✕</button>
+          <button onClick={() => setReplyTarget(null)} className="text-slate-400 hover:text-slate-600 text-[14px] shrink-0 leading-none">✕</button>
+        </div>
+      )}
+
+      {/* 🚀 이미지 미리보기 */}
+      {pendingImage && (
+        <div className="px-4 py-2 bg-slate-100 border-t border-slate-200 flex items-start gap-2">
+          <img src={pendingImage.previewUrl} alt="미리보기" className="w-14 h-14 object-cover rounded-lg border border-slate-300" />
+          <div className="flex-1 min-w-0">
+            <p className="text-[11px] text-slate-500 truncate">{pendingImage.file.name}</p>
+            <p className="text-[9px] text-slate-400">{(pendingImage.file.size / 1024).toFixed(0)} KB</p>
+          </div>
+          <button onClick={() => { URL.revokeObjectURL(pendingImage.previewUrl); setPendingImage(null); }}
+            className="text-slate-400 hover:text-slate-600 text-[14px] shrink-0 leading-none">✕</button>
         </div>
       )}
 
       {/* 입력 영역 */}
       <div className="border-t border-slate-200 bg-white px-3 py-2.5 shrink-0">
+        {/* 숨겨진 파일 input */}
+        <input ref={fileInputRef} type="file" accept="image/*" className="hidden"
+          onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFileSelect(f); e.target.value = ''; }} />
         <div className="flex gap-2 items-end">
+          <button onClick={() => fileInputRef.current?.click()} disabled={sending}
+            className="text-[18px] text-slate-400 hover:text-emerald-500 transition-colors px-1 shrink-0" title="이미지 첨부">📎</button>
           <textarea
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
+            onPaste={handlePaste}
             placeholder={replyTarget ? `${replyTarget.author}님에게 답장...` : '메시지를 입력하세요... (Enter 전송)'}
             maxLength={500}
             rows={2}
@@ -306,18 +388,30 @@ const CommunityChatPanel = ({ community, currentUser, members }: Props) => {
           />
           <button
             onClick={handleSend}
-            disabled={!input.trim() || sending}
+            disabled={(!input.trim() && !pendingImage) || sending}
             className={`px-4 py-2 rounded-lg text-[12px] font-[1000] transition-all shrink-0 ${
-              !input.trim() || sending
+              (!input.trim() && !pendingImage) || sending
                 ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
                 : 'bg-emerald-500 text-white hover:bg-emerald-600'
             }`}
           >
-            {sending ? '전송 중' : '전송'}
+            {uploading ? '업로드 중' : sending ? '전송 중' : '전송'}
           </button>
         </div>
         <p className="text-[9px] font-bold text-slate-300 mt-1 text-right">{input.length}/500</p>
       </div>
+
+      {/* 🚀 라이트박스 (원본 이미지 보기) */}
+      {lightboxImage && (
+        <div className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4 cursor-zoom-out"
+          onClick={() => setLightboxImage(null)}
+          onKeyDown={(e) => { if (e.key === 'Escape') setLightboxImage(null); }}
+          tabIndex={0}
+        >
+          <img src={lightboxImage} alt="원본" className="max-w-full max-h-full object-contain" />
+          <button className="absolute top-4 right-4 text-white text-[24px] hover:text-slate-300" onClick={() => setLightboxImage(null)}>✕</button>
+        </div>
+      )}
     </div>
   );
 };
