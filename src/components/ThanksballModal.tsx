@@ -16,6 +16,9 @@ interface Props {
   recipientNickname?: string;    // 미지정 시 postAuthor
   targetDocId?: string;          // 미지정 시 postId
   targetCollection?: string;     // 미지정 시 'posts' (댓글은 'comments')
+  // 🚀 Phase 7: 채팅 메시지 땡스볼
+  chatCommunityId?: string;
+  chatMessageId?: string;
 }
 
 const PRESETS = [1, 2, 3, 5, 10];
@@ -28,12 +31,13 @@ const getTier = (amount: number) => {
   return              { bg: 'bg-slate-200',   text: 'text-slate-700', border: 'border-slate-300', label: '베이직', btnHover: 'hover:bg-slate-300' };
 };
 
-const ThanksballModal = ({ postId, postAuthor, postTitle, currentNickname: _currentNickname, allUsers = {}, onClose, recipientNickname, targetDocId, targetCollection }: Props) => {
+const ThanksballModal = ({ postId, postAuthor, postTitle, currentNickname: _currentNickname, allUsers = {}, onClose, recipientNickname, targetDocId, targetCollection, chatCommunityId, chatMessageId }: Props) => {
   void _currentNickname; // Cloud Function에서 auth.token.name 사용
   const recipient = recipientNickname || postAuthor;
   const docId = targetDocId || postId;
   const docCollection = targetCollection || 'posts';
-  const isCommentMode = !!(targetDocId && targetDocId !== postId);
+  const isChatMode = !!(chatCommunityId && chatMessageId);
+  const isCommentMode = !isChatMode && !!(targetDocId && targetDocId !== postId);
   const [selected, setSelected] = useState(1);
   const [custom, setCustom] = useState('');
   const [message, setMessage] = useState('');
@@ -69,6 +73,9 @@ const ThanksballModal = ({ postId, postAuthor, postTitle, currentNickname: _curr
         postAuthor: recipient,
         commentId: isCommentMode ? docId : null,
         targetCollection: isCommentMode ? docCollection : null,
+        // 🚀 Phase 7: 채팅 메시지 땡스볼
+        chatCommunityId: chatCommunityId || null,
+        chatMessageId: chatMessageId || null,
       });
 
       setDone(true);
@@ -110,7 +117,7 @@ const ThanksballModal = ({ postId, postAuthor, postTitle, currentNickname: _curr
 
             <div className="flex items-center justify-between mb-4">
               <p className="text-[12px] font-bold text-slate-400">
-                <span className="text-slate-800 font-[1000]">{recipient}</span>님의 {isCommentMode ? '댓글' : '글'}이 도움이 되었나요?
+                <span className="text-slate-800 font-[1000]">{recipient}</span>님의 {isChatMode ? '메시지' : isCommentMode ? '댓글' : '글'}이 도움이 되었나요?
               </p>
               <span className={`text-[11px] font-[1000] px-2 py-0.5 rounded-full ${insufficient ? 'bg-rose-50 text-rose-500 border border-rose-100' : 'bg-amber-50 text-amber-500 border border-amber-100'}`}>
                 ⚾ {ballBalance}볼 보유

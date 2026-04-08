@@ -429,7 +429,7 @@ const CommunityView = ({ community, currentUserData, allUsers, onBack, onClosed 
 
       {/* 🚀 Phase 7 — 채팅 탭 */}
       {activeTab === 'chat' && (
-        <CommunityChatPanel community={community} currentUser={currentUserData} members={members} />
+        <CommunityChatPanel community={community} currentUser={currentUserData} members={members} allUsers={allUsers} />
       )}
 
       {/* 🚀 다섯 손가락 Phase 2 — 멤버 탭 (멤버만) */}

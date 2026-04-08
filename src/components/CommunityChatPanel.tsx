@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from 'react';
 import { db } from '../firebase';
 import { collection, doc, setDoc, updateDoc, arrayUnion, arrayRemove, query, orderBy, limit, onSnapshot, serverTimestamp } from 'firebase/firestore';
 import type { Community, UserData, CommunityMember, ChatMessage } from '../types';
+import ThanksballModal from './ThanksballModal';
 import { CHAT_MEMBER_LIMIT } from '../types';
 import { calculateLevel } from '../utils';
 import { uploadToR2 } from '../uploadToR2';
@@ -12,6 +13,7 @@ interface Props {
   community: Community;
   currentUser: UserData | null;
   members: CommunityMember[];
+  allUsers?: Record<string, UserData>;
 }
 
 const REACTION_EMOJIS = ['👍', '❤️', '😂', '🔥', '🤔', '💯'] as const;
@@ -163,89 +165,7 @@ function ChatMessageItem({ message, currentUid, onReply, onToggleReaction, react
   );
 }
 
-// 🚀 Step 5: 채팅 땡스볼 모달 — Cloud Function(sendThanksball) 경유
-function ChatThanksballModal({ message, sender, communityId, onClose }: {
-  message: ChatMessage; sender: UserData; communityId: string; onClose: () => void;
-}) {
-  const [amount, setAmount] = useState(1);
-  const [submitting, setSubmitting] = useState(false);
-  const balance = sender.ballBalance ?? 0;
-  const insufficient = balance < amount;
-
-  const handleConfirm = async () => {
-    if (insufficient || submitting) return;
-    setSubmitting(true);
-    try {
-      // 🚀 기존 sendThanksball Cloud Function 호출 — chatCommunityId/chatMessageId 파라미터 추가
-      const { httpsCallable } = await import('firebase/functions');
-      const { functions } = await import('../firebase');
-      const sendFn = httpsCallable(functions, 'sendThanksball');
-      await sendFn({
-        recipientUid: message.author_id,
-        amount,
-        message: '',
-        postId: null,
-        postTitle: message.content?.slice(0, 30) || '[채팅 메시지]',
-        postAuthor: message.author,
-        chatCommunityId: communityId,
-        chatMessageId: message.id,
-      });
-      onClose();
-    } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : '땡스볼 전송 실패';
-      alert(msg);
-      console.error('[chat thanksball]', e);
-    } finally { setSubmitting(false); }
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden" onClick={(e) => e.stopPropagation()}>
-        <div className="px-5 py-4 border-b border-slate-100">
-          <h3 className="text-[15px] font-[1000] text-slate-900">⚾ 땡스볼 보내기</h3>
-          <p className="text-[11px] font-bold text-slate-400 mt-0.5"><strong>{message.author}</strong>님의 메시지에 보냅니다</p>
-        </div>
-        <div className="px-5 py-4 flex flex-col gap-3">
-          {/* 메시지 미리보기 */}
-          <div className="p-2 bg-slate-50 rounded-lg text-[11px] text-slate-600 border-l-2 border-slate-300 truncate">
-            {message.content?.slice(0, 60) || (message.imageUrl ? '[이미지]' : '')}
-          </div>
-          {/* 수량 선택 */}
-          <div>
-            <p className="text-[10px] font-[1000] text-slate-400 uppercase tracking-widest mb-1.5">수량</p>
-            <div className="flex gap-1.5">
-              {[1, 5, 10, 20, 50].map(n => (
-                <button key={n} onClick={() => setAmount(n)}
-                  className={`flex-1 py-2 rounded-lg text-[12px] font-[1000] border transition-all ${
-                    amount === n ? 'bg-amber-100 border-amber-400 text-amber-700' : 'bg-white border-slate-200 hover:bg-slate-50 text-slate-500'
-                  }`}
-                >{n}볼</button>
-              ))}
-            </div>
-          </div>
-          {/* 잔액 */}
-          <div className="flex justify-between text-[11px] font-bold">
-            <span className="text-slate-400">현재 잔액</span>
-            <span className={insufficient ? 'text-rose-500' : 'text-slate-600'}>
-              {balance}볼{insufficient && ' (부족)'}
-            </span>
-          </div>
-        </div>
-        <div className="px-5 py-3 flex gap-2 border-t border-slate-100">
-          <button onClick={onClose} disabled={submitting}
-            className="flex-1 py-2.5 rounded-xl text-[13px] font-bold text-slate-500 border border-slate-200 hover:bg-slate-50">취소</button>
-          <button onClick={handleConfirm} disabled={insufficient || submitting}
-            className={`flex-1 py-2.5 rounded-xl text-[13px] font-[1000] transition-all ${
-              insufficient || submitting ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-amber-500 text-white hover:bg-amber-600'
-            }`}
-          >{submitting ? '전송 중...' : `${amount}볼 보내기`}</button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-const CommunityChatPanel = ({ community, currentUser, members }: Props) => {
+const CommunityChatPanel = ({ community, currentUser, members, allUsers = {} }: Props) => {
   const isAvailable = (community.memberCount ?? 0) <= CHAT_MEMBER_LIMIT;
   const myMembership = currentUser ? members.find(m => m.userId === currentUser.uid) : null;
   const isMember = myMembership && (myMembership.joinStatus ?? 'active') === 'active';
@@ -517,12 +437,19 @@ const CommunityChatPanel = ({ community, currentUser, members }: Props) => {
         </div>
       )}
 
-      {/* 🚀 Step 5: 땡스볼 모달 (Cloud Function 경유) */}
+      {/* 🚀 Step 5: 땡스볼 모달 — 기존 ThanksballModal 재사용 */}
       {thanksballTarget && currentUser && (
-        <ChatThanksballModal
-          message={thanksballTarget}
-          sender={currentUser}
-          communityId={community.id}
+        <ThanksballModal
+          postId={thanksballTarget.id}
+          postAuthor={thanksballTarget.author}
+          postTitle={thanksballTarget.content?.slice(0, 30) || '[채팅 메시지]'}
+          currentNickname={currentUser.nickname}
+          allUsers={allUsers}
+          recipientNickname={thanksballTarget.author}
+          targetDocId={thanksballTarget.id}
+          targetCollection="__chat__"
+          chatCommunityId={community.id}
+          chatMessageId={thanksballTarget.id}
           onClose={() => setThanksballTarget(null)}
         />
       )}
