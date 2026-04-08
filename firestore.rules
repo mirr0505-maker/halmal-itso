@@ -108,6 +108,11 @@ service cloud.firestore {
       match /{sub=**} { allow read: if true; allow write: if request.auth != null; }
     }
 
+    // 커뮤니티 채팅 — 임시 Rules (Phase 7 Step 6에서 정식 교체)
+    match /community_chats/{communityId}/messages/{messageId} {
+      allow read, write: if request.auth != null;
+    }
+
     // 커뮤니티 댓글 — 비로그인도 읽기 가능, 수정·삭제는 작성자 본인만
     match /community_post_comments/{id} {
       allow read: if true;
