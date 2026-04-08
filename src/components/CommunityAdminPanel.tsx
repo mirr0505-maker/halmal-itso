@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { db } from '../firebase';
 import { doc, updateDoc, collection, getDocs, query, where, writeBatch } from 'firebase/firestore';
 import type { Community, CommunityMember, FingerRole } from '../types';
+import JoinAnswersDisplay from './JoinAnswersDisplay';
 
 const COVER_COLORS = [
   { value: '#3b82f6', label: '블루' }, { value: '#10b981', label: '에메랄드' },
@@ -85,18 +86,25 @@ const CommunityAdminPanel = ({ community, myFinger, pendingMembers, onApprove, o
             <p className="text-[11px] font-black text-blue-600 uppercase tracking-widest">🔔 승인 대기 {pendingMembers.length}명</p>
           </div>
           {pendingMembers.map(m => (
-            <div key={m.userId} className="flex items-center justify-between px-5 py-4 border-b border-slate-50 last:border-0">
-              <div className="flex items-center gap-3">
-                <img src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${m.nickname}`} className="w-9 h-9 rounded-full bg-slate-50" alt="" />
-                <div>
-                  <p className="text-[13px] font-bold text-slate-800">{m.nickname}</p>
-                  {m.joinMessage && <p className="text-[11px] font-medium text-slate-400 mt-0.5">"{m.joinMessage}"</p>}
+            <div key={m.userId} className="px-5 py-4 border-b border-slate-50 last:border-0">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3 min-w-0">
+                  <img src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${m.nickname}`} className="w-9 h-9 rounded-full bg-slate-50 shrink-0" alt="" />
+                  <div className="min-w-0">
+                    <p className="text-[13px] font-bold text-slate-800">{m.nickname}</p>
+                    {/* 🚀 Phase 6: joinAnswers가 없는 구형 신청은 joinMessage만 표시 */}
+                    {!m.joinAnswers && m.joinMessage && (
+                      <p className="text-[11px] font-medium text-slate-400 mt-0.5">"{m.joinMessage}"</p>
+                    )}
+                  </div>
+                </div>
+                <div className="flex gap-2 shrink-0">
+                  <button onClick={() => onApprove(m)} className="px-3 py-1.5 rounded-lg text-[12px] font-black bg-blue-600 text-white hover:bg-blue-700 transition-colors">승인</button>
+                  <button onClick={() => onReject(m)} className="px-3 py-1.5 rounded-lg text-[12px] font-black bg-slate-100 text-slate-500 hover:bg-red-50 hover:text-red-500 transition-colors">거절</button>
                 </div>
               </div>
-              <div className="flex gap-2">
-                <button onClick={() => onApprove(m)} className="px-3 py-1.5 rounded-lg text-[12px] font-black bg-blue-600 text-white hover:bg-blue-700 transition-colors">승인</button>
-                <button onClick={() => onReject(m)} className="px-3 py-1.5 rounded-lg text-[12px] font-black bg-slate-100 text-slate-500 hover:bg-red-50 hover:text-red-500 transition-colors">거절</button>
-              </div>
+              {/* 🚀 Phase 6: 구조화된 가입 답변 표시 */}
+              {m.joinAnswers && <JoinAnswersDisplay answers={m.joinAnswers} />}
             </div>
           ))}
         </div>
