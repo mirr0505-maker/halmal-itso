@@ -81,7 +81,7 @@ function ChatMessageItem({ message, currentUid, onReply, onToggleReaction, react
             <span className="text-[9px] text-slate-300">{timeStr}</span>
             {/* 액션 버튼 — hover 시 노출 */}
             {!message.deleted && (
-              <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+              <div className="flex items-center gap-0.5">
                 {!isMine && (
                   <button onClick={() => onReply(message)} className="text-[10px] text-slate-300 hover:text-emerald-500" title="답장">↩</button>
                 )}
