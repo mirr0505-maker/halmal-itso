@@ -202,19 +202,32 @@ function App() {
   // 🚀 공유 링크로 접근 시: allRootPosts가 로드되면 해당 글을 찾아 자동으로 상세 뷰 오픈
   // - allRootPosts가 아직 빈 배열이면 대기, 로드 완료 후 실행
   // - 처리 완료 후 pendingSharedPostId를 null로 초기화해 재실행 방지
+  // - 10초 타임아웃: 글을 찾지 못하면 홈으로 이동 + 안내
   useEffect(() => {
-    if (!pendingSharedPostId || allRootPosts.length === 0) return;
-    // topic_타임스탬프 로 시작하는 글 검색 (URL에 UID 노출 방지를 위해 타임스탬프까지만 공유)
-    // 하위 호환: 구버전 전체 ID 직접 매칭도 지원
+    if (!pendingSharedPostId) return;
+    if (allRootPosts.length === 0) return;
     const sharedPost = allRootPosts.find(p =>
       p.id === pendingSharedPostId || p.id.startsWith(pendingSharedPostId + '_')
     );
     if (sharedPost) {
       setSelectedTopic(sharedPost);
       setPendingSharedPostId(null);
-      window.history.replaceState({}, '', window.location.pathname); // URL에서 ?post= 파라미터 제거
+      window.history.replaceState({}, '', window.location.pathname);
     }
   }, [allRootPosts, pendingSharedPostId]);
+
+  // 🚀 공유 링크 타임아웃: 10초 내 글을 못 찾으면 홈으로 이동
+  useEffect(() => {
+    if (!pendingSharedPostId) return;
+    const timer = setTimeout(() => {
+      if (pendingSharedPostId) {
+        setPendingSharedPostId(null);
+        window.history.replaceState({}, '', window.location.pathname);
+        alert('공유된 글을 찾을 수 없습니다. 삭제되었거나 접근이 제한된 글일 수 있어요.');
+      }
+    }, 10_000);
+    return () => clearTimeout(timer);
+  }, [pendingSharedPostId]);
 
   // 댓글 컬렉션 분리 — per-topic 실시간 구독
   useEffect(() => {
@@ -262,6 +275,15 @@ function App() {
   }, {} as Record<string, number>);
 
   const renderContent = () => {
+    // 🚀 공유 링크 로딩 중: 글을 찾는 동안 로딩 스피너 표시 (10초 타임아웃)
+    if (pendingSharedPostId) return (
+      <div className="w-full flex flex-col items-center justify-center py-40 gap-3">
+        <h1 className="text-[36px] font-[1000] italic tracking-tighter animate-logo-pulse">
+          <span className="text-red-500">G</span><span className="text-blue-600">L</span><span className="text-slate-900">ove</span>
+        </h1>
+        <p className="text-[11px] font-black text-slate-400 tracking-tight">공유된 글을 불러오는 중...</p>
+      </div>
+    );
     if (isLoading) return (
       <div className="w-full flex flex-col items-center justify-center py-40 gap-3">
         <h1 className="text-[36px] font-[1000] italic tracking-tighter animate-logo-pulse">
