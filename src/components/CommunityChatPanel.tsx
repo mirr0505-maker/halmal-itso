@@ -100,7 +100,7 @@ function ChatMessageItem({ message, currentUid, onReply, onToggleReaction, react
                   <button onClick={() => onReply(message)} className="text-[14px] text-slate-300 hover:text-emerald-500 px-0.5" title="답장">↩</button>
                 )}
                 {!isMine && (
-                  <button onClick={() => onSendThanksball(message)} className="text-[13px] text-slate-300 hover:text-amber-500 px-0.5" title="땡스볼">🎁</button>
+                  <button onClick={() => onSendThanksball(message)} className="text-[13px] text-slate-300 hover:text-amber-500 px-0.5" title="땡스볼">⚾</button>
                 )}
                 <div className="relative">
                   <button onClick={() => setReactionPickerFor(reactionPickerFor === message.id ? null : message.id)}
@@ -146,7 +146,7 @@ function ChatMessageItem({ message, currentUid, onReply, onToggleReaction, react
             {/* 🚀 땡스볼 누적 표시 */}
             {(message.thanksballTotal ?? 0) > 0 && (
               <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[11px] bg-amber-50 border border-amber-200 text-amber-700">
-                <span>🎁</span>
+                <span>⚾</span>
                 <span className="font-[1000] text-[10px]">{message.thanksballTotal}볼</span>
                 {message.thanksballSenders && message.thanksballSenders.length > 0 && (
                   <span className="text-[9px] text-amber-500">
@@ -202,7 +202,7 @@ function ChatThanksballModal({ message, sender, communityId, onClose }: {
     <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={onClose}>
       <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden" onClick={(e) => e.stopPropagation()}>
         <div className="px-5 py-4 border-b border-slate-100">
-          <h3 className="text-[15px] font-[1000] text-slate-900">🎁 땡스볼 보내기</h3>
+          <h3 className="text-[15px] font-[1000] text-slate-900">⚾ 땡스볼 보내기</h3>
           <p className="text-[11px] font-bold text-slate-400 mt-0.5"><strong>{message.author}</strong>님의 메시지에 보냅니다</p>
         </div>
         <div className="px-5 py-4 flex flex-col gap-3">
