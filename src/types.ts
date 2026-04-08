@@ -139,6 +139,67 @@ export type JoinType = 'open' | 'approval' | 'password';
 // 🚀 멤버 가입 상태: active=활성, pending=승인대기, banned=강퇴/차단
 export type JoinStatus = 'active' | 'pending' | 'banned';
 
+// 🚀 Phase 6 — 가입 폼 빌더 표준 필드 키
+export type StandardFieldKey = 'name' | 'region' | 'phone' | 'email' | 'shares';
+
+// 🚀 주식수 표시 단위
+export type SharesUnit = '1' | '10' | '100' | '1000';
+
+// 🚀 시/도 + 시/군/구 (정형 지역 데이터)
+export interface Region {
+  sido: string;      // 예: "경기도"
+  sigungu: string;   // 예: "성남시 분당구"
+}
+
+// 🚀 표준 필드 정의 (대장이 가입 폼 빌더에서 설정)
+export interface StandardField {
+  key: StandardFieldKey;
+  enabled: boolean;       // 사용 여부 (false면 가입 폼에 미노출)
+  required: boolean;      // 필수 응답 여부
+  // shares 전용
+  sharesUnit?: SharesUnit;   // 입력 단위 (1=1주, 10=10주, 100=100주, 1000=1K)
+  sharesLabel?: string;      // 종목명 (예: "삼성전자")
+}
+
+// 🚀 커스텀 질문 (자유 텍스트, 표준 필드에서 비활성화한 자리만큼 추가 가능)
+export interface CustomQuestion {
+  id: string;             // 'cq_1', 'cq_2' (클라이언트 생성)
+  label: string;          // 질문 본문
+  placeholder?: string;
+  required: boolean;
+  maxLength?: number;     // 기본 200
+}
+
+// 🚀 가입 폼 전체 정의 (Community에 임베드)
+export interface JoinForm {
+  standardFields: StandardField[];   // 5개 표준 필드 (enabled로 사용/미사용 결정)
+  customQuestions: CustomQuestion[]; // 추가 자유 질문
+}
+
+// 🚀 신청자가 제출한 답변 (CommunityMember에 임베드)
+export interface JoinAnswers {
+  standard?: {
+    name?: string;
+    region?: Region;
+    phone?: string;
+    email?: string;
+    shares?: { value: number; unit: SharesUnit; label?: string };
+  };
+  custom?: Array<{
+    questionId: string;
+    question: string;     // 스냅샷 (질문이 나중에 바뀌어도 당시 질문 보존)
+    answer: string;
+  }>;
+}
+
+// 🚀 인증 마킹 (대장/부대장이 ring 멤버에게 부여)
+export interface VerifiedBadge {
+  verifiedAt: FirestoreTimestamp;
+  verifiedBy: string;          // thumb/index의 UID
+  verifiedByNickname: string;  // 부여 시점 닉네임 스냅샷
+  label: string;               // "주주", "홀더", "거주민" 등 (없으면 "인증")
+}
+
 export interface Community {
   id: string;                    // community_timestamp_uid 형식
   name: string;                  // 커뮤니티명
@@ -159,6 +220,8 @@ export interface Community {
   joinQuestion?: string;         // 승인제 가입 시 신청자에게 보여줄 안내 문구
   pinnedPostId?: string;         // 공지 고정 글 ID
   notifyMembers?: string[];      // 🚀 Phase 4: 새 글 알림 opt-in userId 목록
+  // 🚀 Phase 6 — 가입 폼 빌더 (joinType='approval'일 때 활성)
+  joinForm?: JoinForm;
 }
 
 export interface CommunityMember {
@@ -173,6 +236,10 @@ export interface CommunityMember {
   joinStatus?: JoinStatus;       // 가입 상태 (미설정 시 'active'로 취급)
   joinMessage?: string;          // 승인제: 가입 신청 메시지
   banReason?: string;            // 강퇴/차단 사유
+  // 🚀 Phase 6 — 가입 답변 (영구 보존, 본인+관리자만 조회)
+  joinAnswers?: JoinAnswers;
+  // 🚀 Phase 6 — 인증 마킹 (대장/부대장이 부여)
+  verified?: VerifiedBadge;
 }
 
 export interface CommunityPost {
