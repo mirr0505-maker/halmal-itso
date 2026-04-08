@@ -1,10 +1,13 @@
 // src/components/CommunityView.tsx — 개별 커뮤니티 상세: 글 목록 + 글 작성
 import { useState, useEffect } from 'react';
 import { db } from '../firebase';
-import { collection, onSnapshot, query, where, orderBy, doc, setDoc, updateDoc, deleteDoc, increment, arrayUnion, arrayRemove, serverTimestamp } from 'firebase/firestore';
+import { collection, onSnapshot, query, where, orderBy, doc, setDoc, updateDoc, deleteDoc, deleteField, increment, arrayUnion, arrayRemove, serverTimestamp } from 'firebase/firestore';
 import type { Community, CommunityPost, CommunityMember, FingerRole, UserData, FirestoreTimestamp } from '../types';
 import TiptapEditor from './TiptapEditor';
 import CommunityAdminPanel from './CommunityAdminPanel';
+import VerifiedBadgeComponent from './VerifiedBadge';
+import VerifyMemberModal from './VerifyMemberModal';
+import JoinAnswersDisplay from './JoinAnswersDisplay';
 import { sanitizeHtml } from '../sanitize';
 import { uploadToR2 } from '../uploadToR2';
 import { calculateLevel } from '../utils';
@@ -170,6 +173,31 @@ const CommunityView = ({ community, currentUserData, allUsers, onBack, onClosed 
   const handleReject = async (member: CommunityMember) => {
     if (!window.confirm(`${member.nickname}님의 가입 신청을 거절하시겠습니까?`)) return;
     await deleteDoc(doc(db, 'community_memberships', `${community.id}_${member.userId}`));
+  };
+
+  // 🚀 Phase 6 Step 4B — 인증 마킹 상태
+  const [verifyingMember, setVerifyingMember] = useState<CommunityMember | null>(null);
+  const [viewingAnswersMember, setViewingAnswersMember] = useState<CommunityMember | null>(null);
+
+  // 🚀 인증 부여
+  const handleVerifyMember = async (member: CommunityMember, label: string) => {
+    if (!currentUserData) return;
+    const membershipId = `${community.id}_${member.userId}`;
+    await updateDoc(doc(db, 'community_memberships', membershipId), {
+      verified: {
+        verifiedAt: serverTimestamp(),
+        verifiedBy: currentUserData.uid,
+        verifiedByNickname: currentUserData.nickname,
+        label: label.trim(),
+      },
+    });
+  };
+
+  // 🚀 인증 해제
+  const handleUnverifyMember = async (member: CommunityMember) => {
+    if (!window.confirm(`${member.nickname}님의 인증을 해제하시겠습니까?`)) return;
+    const membershipId = `${community.id}_${member.userId}`;
+    await updateDoc(doc(db, 'community_memberships', membershipId), { verified: deleteField() });
   };
 
   // 🚀 다섯 손가락 Phase 2 — 손가락 역할 변경 (thumb/index만 가능)
@@ -365,33 +393,84 @@ const CommunityView = ({ community, currentUserData, allUsers, onBack, onClosed 
           {activeMembers.map(m => {
             const finger: FingerRole = m.finger ?? (m.role === 'owner' ? 'thumb' : 'ring');
             const meta = FINGER_META[finger];
+            const isSelf = m.userId === currentUserData?.uid;
+            const hasAnswers = !!m.joinAnswers || !!m.joinMessage;
             return (
-              <div key={m.userId} className="flex items-center justify-between px-5 py-3 border-b border-slate-50 last:border-0">
-                <div className="flex items-center gap-3">
-                  <img src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${m.nickname}`} className="w-8 h-8 rounded-full bg-slate-50" alt="" />
-                  <div>
-                    <span className="text-[13px] font-bold text-slate-800">{m.nickname}</span>
-                    <span className={`ml-2 text-[10px] font-black px-1.5 py-0.5 rounded ${meta.colorCls}`}>{meta.emoji} {meta.label}</span>
+              <div key={m.userId} className="px-5 py-3 border-b border-slate-50 last:border-0">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <img src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${m.nickname}`} className="w-8 h-8 rounded-full bg-slate-50 shrink-0" alt="" />
+                    <div className="flex items-center gap-1.5 flex-wrap min-w-0">
+                      <span className="text-[13px] font-bold text-slate-800">{m.nickname}</span>
+                      <span className={`text-[10px] font-black px-1.5 py-0.5 rounded ${meta.colorCls}`}>{meta.emoji} {meta.label}</span>
+                      {/* 🚀 Phase 6: 인증 배지 */}
+                      <VerifiedBadgeComponent verified={m.verified} size="sm" />
+                    </div>
                   </div>
+                  {/* 관리자 액션 (thumb/index만, 본인 제외) */}
+                  {isAdmin && !isSelf && finger !== 'thumb' && (
+                    <div className="flex items-center gap-1 shrink-0">
+                      {/* 가입 답변 보기 */}
+                      {hasAnswers && (
+                        <button onClick={() => setViewingAnswersMember(m)}
+                          className="text-[10px] font-bold text-slate-400 hover:text-blue-600 px-1.5 py-1 rounded hover:bg-blue-50 transition-colors" title="가입 답변 보기">📋</button>
+                      )}
+                      {/* 인증 부여/해제 */}
+                      {m.verified ? (
+                        <button onClick={() => handleUnverifyMember(m)}
+                          className="text-[10px] font-bold text-red-400 hover:text-red-600 px-1.5 py-1 rounded hover:bg-red-50 transition-colors" title="인증 해제">🛡️✕</button>
+                      ) : (
+                        <button onClick={() => setVerifyingMember(m)}
+                          className="text-[10px] font-bold text-emerald-500 hover:text-emerald-700 px-1.5 py-1 rounded hover:bg-emerald-50 transition-colors" title="인증 부여">🛡️+</button>
+                      )}
+                      <select
+                        value={finger}
+                        onChange={(e) => handleChangeFinger(m, e.target.value as FingerRole)}
+                        className="text-[11px] font-bold text-slate-500 border border-slate-200 rounded-md px-1.5 py-1 outline-none"
+                      >
+                        {(['index', 'middle', 'ring', 'pinky'] as FingerRole[]).map(f => (
+                          <option key={f} value={f}>{FINGER_META[f].label}</option>
+                        ))}
+                      </select>
+                      <button onClick={() => handleBan(m)} className="text-[11px] font-black text-red-400 hover:text-red-600 px-2 py-1 rounded hover:bg-red-50 transition-colors">강퇴</button>
+                    </div>
+                  )}
                 </div>
-                {/* 역할 변경 (thumb/index만, 본인 제외) */}
-                {isAdmin && m.userId !== currentUserData?.uid && finger !== 'thumb' && (
-                  <div className="flex items-center gap-1">
-                    <select
-                      value={finger}
-                      onChange={(e) => handleChangeFinger(m, e.target.value as FingerRole)}
-                      className="text-[11px] font-bold text-slate-500 border border-slate-200 rounded-md px-1.5 py-1 outline-none"
-                    >
-                      {(['index', 'middle', 'ring', 'pinky'] as FingerRole[]).map(f => (
-                        <option key={f} value={f}>{FINGER_META[f].label}</option>
-                      ))}
-                    </select>
-                    <button onClick={() => handleBan(m)} className="text-[11px] font-black text-red-400 hover:text-red-600 px-2 py-1 rounded hover:bg-red-50 transition-colors">강퇴</button>
-                  </div>
-                )}
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* 🚀 Phase 6 Step 4B — 인증 부여 모달 */}
+      {verifyingMember && (
+        <VerifyMemberModal
+          community={community}
+          member={verifyingMember}
+          onClose={() => setVerifyingMember(null)}
+          onConfirm={async (label) => { await handleVerifyMember(verifyingMember, label); }}
+        />
+      )}
+
+      {/* 🚀 Phase 6 Step 4B — 가입 답변 보기 모달 */}
+      {viewingAnswersMember && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setViewingAnswersMember(null)}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="px-6 py-4 border-b border-slate-100">
+              <h3 className="text-[15px] font-[1000] text-slate-900">📋 {viewingAnswersMember.nickname}님의 가입 답변</h3>
+              <p className="text-[10px] font-bold text-slate-400 mt-0.5">가입 신청 당시 제출한 정보</p>
+            </div>
+            <div className="px-6 py-5">
+              <JoinAnswersDisplay answers={viewingAnswersMember.joinAnswers!} />
+              {!viewingAnswersMember.joinAnswers && viewingAnswersMember.joinMessage && (
+                <p className="text-[11px] font-bold text-slate-600">"{viewingAnswersMember.joinMessage}"</p>
+              )}
+            </div>
+            <div className="px-6 py-4 border-t border-slate-100">
+              <button onClick={() => setViewingAnswersMember(null)}
+                className="w-full py-2.5 rounded-xl text-[13px] font-bold text-slate-500 border border-slate-200 hover:bg-slate-50 transition-colors">닫기</button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -474,6 +553,8 @@ const CommunityView = ({ community, currentUserData, allUsers, onBack, onClosed 
                     <div className="flex items-center gap-2">
                       <img src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${post.author}`} className="w-5 h-5 rounded-full bg-slate-50" alt="" />
                       <span className="text-[11px] font-bold text-slate-500">{post.author}</span>
+                      {/* 🚀 Phase 6: 글 작성자 인증 배지 (멤버 목록에서 조회) */}
+                      <VerifiedBadgeComponent verified={members.find(m => m.userId === post.author_id)?.verified} size="sm" showDate={false} />
                       {authorData && <span className="text-[10px] font-bold text-slate-300">Lv{calculateLevel(authorData?.exp || 0)}</span>}
                       <span className="text-[10px] font-bold text-slate-300">{formatTime(post.createdAt)}</span>
                     </div>
