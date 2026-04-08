@@ -78,6 +78,15 @@ const CommunityView = ({ community, currentUserData, allUsers, onBack, onClosed 
   const pendingMembers = members.filter(m => (m.joinStatus ?? 'active') === 'pending');
   const activeMembers  = members.filter(m => (m.joinStatus ?? 'active') === 'active');
 
+  // 🚀 Phase 6: 비가입자 접근 제한
+  // isMember: active 멤버 또는 pending(승인 대기)인 경우 true
+  const isMember = !!currentMembership && (currentMembership.joinStatus === 'active' || !currentMembership.joinStatus);
+  const isPending = !!currentMembership && currentMembership.joinStatus === 'pending';
+  const joinType = community.joinType || 'open';
+  // 승인제: 비가입자 완전 차단 / open·password: 글 목록만 보임(상세·글쓰기 차단)
+  const isBlocked = !isMember && !isPending && joinType === 'approval';
+  const isReadOnly = !isMember && !isBlocked; // open/password 비가입자: 글 목록만
+
   // 🚀 Phase 3 — 공지 고정 글 (pinnedPostId로 찾기)
   const pinnedPost = community.pinnedPostId ? posts.find(p => p.id === community.pinnedPostId) : null;
   // 공지 제외한 일반 글 목록 (블라인드 필터링 포함)
@@ -327,7 +336,7 @@ const CommunityView = ({ community, currentUserData, allUsers, onBack, onClosed 
             >
               ← 커뮤니티 목록
             </button>
-            {currentUserData && (
+            {currentUserData && isMember && (
               <div className="flex items-center gap-2">
                 {/* 🚀 Phase 4 — 알림 토글 버튼 */}
                 {currentMembership && (
@@ -370,8 +379,32 @@ const CommunityView = ({ community, currentUserData, allUsers, onBack, onClosed 
               <span className="text-[11px] font-bold text-slate-400">개설자 {community.creatorNickname}</span>
             </div>
           </div>
-          {/* 🚀 다섯 손가락 Phase 2 — 탭 바 */}
-          <div className="flex gap-0 mt-3 border-b border-slate-100">
+          {/* 🚀 Phase 6: 비가입자 접근 제한 — 승인제 완전 차단 */}
+          {isBlocked && (
+            <div className="mt-4 py-16 text-center">
+              <p className="text-[32px] mb-3">🔒</p>
+              <p className="text-[14px] font-[1000] text-slate-700 mb-1">승인제 장갑입니다</p>
+              <p className="text-[11px] font-bold text-slate-400 mb-4">가입 신청 후 관리자 승인이 필요합니다</p>
+              {community.description && <p className="text-[12px] font-bold text-slate-500 mb-6">"{community.description}"</p>}
+            </div>
+          )}
+          {/* 🚀 Phase 6: pending 상태 안내 */}
+          {isPending && (
+            <div className="mt-4 py-10 text-center bg-amber-50/50 rounded-xl border border-amber-100">
+              <p className="text-[28px] mb-2">⏳</p>
+              <p className="text-[13px] font-[1000] text-amber-700">가입 승인 대기 중</p>
+              <p className="text-[11px] font-bold text-amber-500 mt-1">관리자가 승인하면 활동할 수 있습니다</p>
+            </div>
+          )}
+          {/* 🚀 Phase 6: open/password 비가입자 — 글 목록만 표시, 읽기 전용 안내 */}
+          {isReadOnly && !isBlocked && (
+            <div className="mt-3 flex items-center gap-2 bg-blue-50/50 border border-blue-100 rounded-lg px-3 py-2">
+              <span className="text-[12px]">👀</span>
+              <p className="text-[10px] font-bold text-blue-600">가입하면 글쓰기·댓글·좋아요를 할 수 있습니다</p>
+            </div>
+          )}
+          {/* 🚀 다섯 손가락 Phase 2 — 탭 바 (멤버만 표시) */}
+          {!isBlocked && !isPending && <div className="flex gap-0 mt-3 border-b border-slate-100">
             {(['posts', 'members', ...(isAdmin ? ['admin'] : [])] as Array<'posts' | 'members' | 'admin'>).map((tab) => {
               const labels: Record<string, string> = { posts: '💬 소곤소곤', members: `🤝 멤버 ${activeMembers.length}`, admin: `⚙️ 관리${pendingMembers.length > 0 ? ` (${pendingMembers.length})` : ''}` };
               return (
@@ -384,12 +417,12 @@ const CommunityView = ({ community, currentUserData, allUsers, onBack, onClosed 
                 </button>
               );
             })}
-          </div>
+          </div>}
         </div>
       </div>
 
-      {/* 🚀 다섯 손가락 Phase 2 — 멤버 탭 */}
-      {activeTab === 'members' && (
+      {/* 🚀 다섯 손가락 Phase 2 — 멤버 탭 (멤버만) */}
+      {activeTab === 'members' && isMember && (
         <div className="bg-white border border-slate-100 rounded-xl overflow-hidden shadow-sm">
           <div className="px-5 py-3 border-b border-slate-50">
             <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest">활성 멤버 {activeMembers.length}명</p>
@@ -491,7 +524,7 @@ const CommunityView = ({ community, currentUserData, allUsers, onBack, onClosed 
       )}
 
       {/* 글 작성 폼 */}
-      {activeTab === 'posts' && isWriting && (
+      {activeTab === 'posts' && isWriting && isMember && (
         <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm mb-4 mt-4">
           <div className="flex items-center justify-between px-5 h-11 border-b border-slate-100">
             <span className="text-[12px] font-bold text-slate-400">새 글 작성</span>
@@ -512,7 +545,7 @@ const CommunityView = ({ community, currentUserData, allUsers, onBack, onClosed 
       )}
 
       {/* 글 목록 */}
-      {activeTab === 'posts' && (
+      {activeTab === 'posts' && !isBlocked && !isPending && (
         posts.length === 0 ? (
           <div className="py-32 text-center text-slate-400 font-bold text-sm italic">
             첫 번째 이야기를 남겨보세요!
@@ -523,8 +556,8 @@ const CommunityView = ({ community, currentUserData, allUsers, onBack, onClosed 
             {pinnedPost && (
               <div
                 key={`pinned_${pinnedPost.id}`}
-                onClick={() => setSelectedPost(pinnedPost)}
-                className="bg-amber-50 border-2 border-amber-300 rounded-xl px-5 py-4 cursor-pointer hover:shadow-md transition-all group"
+                onClick={() => { if (isReadOnly) return; setSelectedPost(pinnedPost); }}
+                className={`bg-amber-50 border-2 border-amber-300 rounded-xl px-5 py-4 transition-all group ${isReadOnly ? 'cursor-default' : 'cursor-pointer hover:shadow-md'}`}
               >
                 <div className="flex items-center gap-2 mb-1.5">
                   <span className="text-[10px] font-black text-amber-600 bg-amber-100 px-2 py-0.5 rounded-full">📌 공지</span>
@@ -543,8 +576,8 @@ const CommunityView = ({ community, currentUserData, allUsers, onBack, onClosed 
               return (
                 <div
                   key={post.id}
-                  onClick={() => setSelectedPost(post)}
-                  className="bg-white border border-slate-100 rounded-xl px-5 py-4 cursor-pointer hover:border-blue-300 hover:shadow-md transition-all group"
+                  onClick={() => { if (isReadOnly) return; setSelectedPost(post); }}
+                  className={`bg-white border border-slate-100 rounded-xl px-5 py-4 transition-all group ${isReadOnly ? 'cursor-default' : 'cursor-pointer hover:border-blue-300 hover:shadow-md'}`}
                 >
                   {post.title && (
                     <h3 className="text-[15px] font-[1000] text-slate-900 group-hover:text-blue-600 transition-colors mb-1">{post.title}</h3>
