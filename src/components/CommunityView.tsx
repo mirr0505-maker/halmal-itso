@@ -171,37 +171,52 @@ const CommunityView = ({ community, currentUserData, allUsers, followerCounts = 
     if (post.author_id) updateDoc(doc(db, 'users', post.author_id), { exp: increment(-2) }).catch(() => {});
   };
 
-  // 🚀 Phase 5 — 중지(middle) 자동 산정
-  // 조건: 커뮤니티 내 작성글 5개 이상 OR 수신 좋아요 합계 20개 이상 → finger: 'middle' 자동 승격
-  // 이미 middle/index/thumb이거나 ring/pinky도 아닌 경우 스킵
-  const checkMiddlePromotion = async () => {
+  // 🚀 자동 승급: 새내기→멤버→핵심멤버 (promotionRules 기반)
+  const checkPromotion = async () => {
     if (!currentUserData || !currentMembership) return;
     const currentFinger: FingerRole = currentMembership.finger ?? (currentMembership.role === 'owner' ? 'thumb' : 'ring');
-    // 이미 middle 이상이면 스킵
-    if (['thumb', 'index', 'middle'].includes(currentFinger)) return;
+    // thumb/index는 이미 상위 → 스킵
+    if (['thumb', 'index'].includes(currentFinger)) return;
 
-    // 이 커뮤니티에서 내가 작성한 글 목록 조회
-    const myPostsInCommunity = posts.filter(p => p.author_id === currentUserData.uid);
-    const postCount = myPostsInCommunity.length;
-    // 수신 좋아요 합산
-    const totalLikes = myPostsInCommunity.reduce((sum, p) => sum + (p.likes || 0), 0);
-
-    const qualified = postCount >= 5 || totalLikes >= 20;
-    if (!qualified) return;
-
-    // middle로 자동 승격
+    const rules = community.promotionRules ?? { toRing: { posts: 3, likes: 10 }, toMiddle: { posts: 5, likes: 20 } };
+    const myPosts = posts.filter(p => p.author_id === currentUserData.uid);
+    const postCount = myPosts.length;
+    const totalLikes = myPosts.reduce((sum, p) => sum + (p.likes || 0), 0);
     const membershipId = `${community.id}_${currentUserData.uid}`;
-    await updateDoc(doc(db, 'community_memberships', membershipId), { finger: 'middle' });
-    // 🚀 알림 경로: 닉네임 → UID
-    const notifRef = doc(collection(db, 'notifications', currentUserData.uid, 'items'));
-    await (await import('firebase/firestore')).setDoc(notifRef, {
-      type: 'finger_promoted',
-      communityId: community.id,
-      communityName: community.name,
-      message: `[${community.name}] 축하해요! 🖐 핵심멤버로 승급했습니다.`,
-      isRead: false,
-      createdAt: new Date(),
-    });
+
+    let newFinger: FingerRole | null = null;
+    let promoMsg = '';
+
+    if (currentFinger === 'middle') return; // 이미 핵심멤버
+
+    // 핵심멤버 조건 체크 (ring → middle)
+    if (currentFinger === 'ring' && (postCount >= rules.toMiddle.posts || totalLikes >= rules.toMiddle.likes)) {
+      newFinger = 'middle';
+      promoMsg = `[${community.name}] 축하해요! 🖐 핵심멤버로 승급했습니다.`;
+    }
+    // 멤버 조건 체크 (pinky → ring)
+    else if (currentFinger === 'pinky' && (postCount >= rules.toRing.posts || totalLikes >= rules.toRing.likes)) {
+      newFinger = 'ring';
+      promoMsg = `[${community.name}] 축하해요! 🤝 멤버로 승급했습니다.`;
+    }
+
+    if (!newFinger) return;
+
+    // 낙관적 업데이트
+    setMembers(prev => prev.map(m => m.userId === currentUserData.uid ? { ...m, finger: newFinger! } : m));
+    await updateDoc(doc(db, 'community_memberships', membershipId), { finger: newFinger });
+    // 승급 알림
+    try {
+      const notifRef = doc(collection(db, 'notifications', currentUserData.uid, 'items'));
+      await (await import('firebase/firestore')).setDoc(notifRef, {
+        type: 'finger_promoted',
+        communityId: community.id,
+        communityName: community.name,
+        message: promoMsg,
+        isRead: false,
+        createdAt: new Date(),
+      });
+    } catch (e) { console.warn('[승급 알림 실패]', e); }
   };
 
   // 🚀 Phase 4 — 새 글 알림 Opt-in 토글
@@ -376,7 +391,7 @@ const CommunityView = ({ community, currentUserData, allUsers, followerCounts = 
       await batch.commit();
 
       // 🚀 Phase 5 — 중지 자동 산정 (비동기, 실패 무시 — batch 외부 처리)
-      checkMiddlePromotion().catch(console.error);
+      checkPromotion().catch(console.error);
       setNewTitle(''); setNewContent(''); setIsWriting(false);
     } finally { setIsSubmitting(false); }
   };

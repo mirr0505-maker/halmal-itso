@@ -268,6 +268,8 @@ export interface Community {
   joinQuestion?: string;         // 승인제 가입 시 신청자에게 보여줄 안내 문구
   pinnedPostId?: string;         // 공지 고정 글 ID
   notifyMembers?: string[];      // 🚀 Phase 4: 새 글 알림 opt-in userId 목록
+  // 🚀 멤버 승급 조건 (미설정 시 DEFAULT_PROMOTION_RULES 사용)
+  promotionRules?: PromotionRules;
   // 🚀 Phase 6 — 가입 폼 빌더 (joinType='approval'일 때 활성)
   joinForm?: JoinForm;
 }
@@ -309,6 +311,20 @@ export interface CommunityPost {
   thanksballTotal?: number;      // 받은 땡스볼 총수
   pinnedCommentId?: string;      // 작성자가 고정한 댓글 ID
 }
+
+// 🚀 멤버 승급 조건 (Community에 임베드)
+export interface PromotionRules {
+  // 새내기(pinky) → 멤버(ring)
+  toRing: { posts: number; likes: number };
+  // 멤버(ring) → 핵심멤버(middle)
+  toMiddle: { posts: number; likes: number };
+}
+
+// 디폴트 승급 조건
+export const DEFAULT_PROMOTION_RULES: PromotionRules = {
+  toRing: { posts: 3, likes: 10 },
+  toMiddle: { posts: 5, likes: 20 },
+};
 
 // 🚀 거대 나무(자이언트 트리): 주장 전파 루트 문서
 export interface GiantTree {
