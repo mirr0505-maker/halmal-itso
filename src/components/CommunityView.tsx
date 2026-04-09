@@ -1,7 +1,7 @@
 // src/components/CommunityView.tsx — 개별 커뮤니티 상세: 글 목록 + 글 작성
 import { useState, useEffect } from 'react';
 import { db } from '../firebase';
-import { collection, onSnapshot, query, where, orderBy, doc, setDoc, updateDoc, deleteDoc, deleteField, increment, arrayUnion, arrayRemove, serverTimestamp } from 'firebase/firestore';
+import { collection, onSnapshot, query, where, orderBy, limit, doc, setDoc, updateDoc, deleteDoc, deleteField, increment, arrayUnion, arrayRemove, serverTimestamp } from 'firebase/firestore';
 import type { Community, CommunityPost, CommunityMember, FingerRole, UserData, FirestoreTimestamp } from '../types';
 import { CHAT_MEMBER_LIMIT } from '../types';
 import TiptapEditor from './TiptapEditor';
@@ -91,6 +91,42 @@ const CommunityView = ({ community, currentUserData, allUsers, onBack, onClosed 
   // 승인제: 비가입자 완전 차단 / open·password: 글 목록만 보임(상세·글쓰기 차단)
   const isBlocked = !isMember && !isPending && joinType === 'approval';
   const isReadOnly = !isMember && !isBlocked; // open/password 비가입자: 글 목록만
+
+  // 🚀 Phase 7: 읽지 않은 채팅 메시지 카운트
+  const [chatLastReadAt, setChatLastReadAt] = useState<number>(0);
+  const [latestChatMessages, setLatestChatMessages] = useState<{ createdAt?: { seconds: number } }[]>([]);
+
+  // chatLastReadAt 초기 로드 — 멤버십 문서에서
+  useEffect(() => {
+    if (currentMembership) {
+      const ts = (currentMembership as CommunityMember & { chatLastReadAt?: { seconds: number } }).chatLastReadAt;
+      if (ts?.seconds) setChatLastReadAt(ts.seconds);
+    }
+  }, [currentMembership]);
+
+  // 최신 채팅 메시지 구독 (카운트 계산용, 채팅 탭이 아닐 때만)
+  useEffect(() => {
+    if (activeTab === 'chat' || !isMember) return;
+    const messagesRef = collection(doc(db, 'community_chats', community.id), 'messages');
+    const q = query(messagesRef, orderBy('createdAt', 'desc'), limit(50));
+    const unsub = onSnapshot(q, (snap) => {
+      setLatestChatMessages(snap.docs.map(d => ({ createdAt: d.data().createdAt })));
+    }, () => {});
+    return () => unsub();
+  }, [community.id, activeTab, isMember]);
+
+  const unreadChatCount = chatLastReadAt > 0
+    ? latestChatMessages.filter(m => m.createdAt && m.createdAt.seconds > chatLastReadAt).length
+    : (latestChatMessages.length > 0 ? latestChatMessages.length : 0);
+
+  // 채팅 탭 진입 시 lastReadAt 갱신
+  useEffect(() => {
+    if (activeTab !== 'chat' || !currentUserData || !isMember) return;
+    const membershipId = `${community.id}_${currentUserData.uid}`;
+    setChatLastReadAt(Math.floor(Date.now() / 1000));
+    setLatestChatMessages([]);
+    updateDoc(doc(db, 'community_memberships', membershipId), { chatLastReadAt: serverTimestamp() }).catch(() => {});
+  }, [activeTab, community.id, currentUserData, isMember]);
 
   // 🚀 Phase 3 — 공지 고정 글 (pinnedPostId로 찾기)
   const pinnedPost = community.pinnedPostId ? posts.find(p => p.id === community.pinnedPostId) : null;
@@ -433,7 +469,8 @@ const CommunityView = ({ community, currentUserData, allUsers, onBack, onClosed 
           {/* 🚀 다섯 손가락 Phase 2 — 탭 바 (멤버만 표시) */}
           {!isBlocked && !isPending && <div className="flex gap-0 mt-3 border-b border-slate-100">
             {(['posts', 'chat', 'members', ...(isAdmin ? ['admin'] : [])] as Array<'posts' | 'chat' | 'members' | 'admin'>).map((tab) => {
-              const chatLabel = isChatAvailable ? '💭 채팅' : '💭 채팅 (50명+)';
+              const chatBadge = isChatAvailable && unreadChatCount > 0 && activeTab !== 'chat' ? ` (${unreadChatCount > 99 ? '99+' : unreadChatCount})` : '';
+              const chatLabel = isChatAvailable ? `💭 채팅${chatBadge}` : '💭 채팅 (50명+)';
               const labels: Record<string, string> = { posts: '💬 소곤소곤', chat: chatLabel, members: `🤝 멤버 ${activeMembers.length}`, admin: `⚙️ 관리${pendingMembers.length > 0 ? ` (${pendingMembers.length})` : ''}` };
               return (
                 <button
