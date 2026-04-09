@@ -2,7 +2,8 @@
 import { useState, useEffect } from 'react';
 import { db } from '../firebase';
 import { collection, onSnapshot, query, where, orderBy, limit, doc, updateDoc, deleteDoc, deleteField, increment, arrayUnion, arrayRemove, serverTimestamp } from 'firebase/firestore';
-import type { Community, CommunityPost, CommunityMember, FingerRole, UserData } from '../types';
+import type { Community, CommunityPost, CommunityMember, FingerRole, UserData, PromotionRules } from '../types';
+import { DEFAULT_PROMOTION_RULES } from '../types';
 import { CHAT_MEMBER_LIMIT } from '../types';
 import TiptapEditor from './TiptapEditor';
 import CommunityAdminPanel from './CommunityAdminPanel';
@@ -526,6 +527,9 @@ const CommunityView = ({ community, currentUserData, allUsers, followerCounts = 
 
       {/* 🚀 다섯 손가락 Phase 2 — 멤버 탭 (멤버만) */}
       {activeTab === 'members' && isMember && (
+        <>
+        {/* 🚀 승급 조건 패널 — 개설자(thumb)에게만 */}
+        {myFinger === 'thumb' && <MemberPromotionPanel community={community} />}
         <div className="bg-white border border-slate-100 rounded-xl overflow-hidden shadow-sm">
           <div className="px-5 py-3 border-b border-slate-50">
             <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest">활성 멤버 {activeMembers.length}명</p>
@@ -580,6 +584,7 @@ const CommunityView = ({ community, currentUserData, allUsers, followerCounts = 
             );
           })}
         </div>
+        </>
       )}
 
       {/* 🚀 Phase 6 Step 4B — 인증 부여 모달 */}
@@ -764,5 +769,56 @@ const CommunityView = ({ community, currentUserData, allUsers, followerCounts = 
 };
 
 // CommunityPostDetail → src/components/CommunityPostDetail.tsx 별도 파일로 추출됨
+
+// 🚀 멤버 승급 조건 패널 — 멤버 탭 상단, 개설자(thumb)에게만 노출
+function MemberPromotionPanel({ community }: { community: Community }) {
+  const rules = community.promotionRules ?? DEFAULT_PROMOTION_RULES;
+  const [promoRules, setPromoRules] = useState<PromotionRules>(rules);
+  const [saving, setSaving] = useState(false);
+
+  return (
+    <div className="bg-white border border-slate-100 rounded-xl overflow-hidden shadow-sm mb-3">
+      <div className="px-5 py-3 border-b border-slate-50">
+        <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest">📊 멤버 승급 조건</p>
+      </div>
+      <div className="px-5 py-3 flex flex-col gap-3">
+        {/* 새내기 → 멤버 */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-[11px] font-[1000] text-slate-600">🤙→🤝</span>
+          <span className="text-[10px] font-bold text-slate-400">글</span>
+          <input type="number" min={1} max={100} value={promoRules.toRing.posts}
+            onChange={(e) => setPromoRules(prev => ({ ...prev, toRing: { ...prev.toRing, posts: parseInt(e.target.value) || 1 } }))}
+            className="w-14 border border-slate-200 rounded px-2 py-1 text-[12px] font-bold text-center outline-none focus:border-blue-400" />
+          <span className="text-[10px] font-bold text-slate-400">OR 좋아요</span>
+          <input type="number" min={1} max={999} value={promoRules.toRing.likes}
+            onChange={(e) => setPromoRules(prev => ({ ...prev, toRing: { ...prev.toRing, likes: parseInt(e.target.value) || 1 } }))}
+            className="w-14 border border-slate-200 rounded px-2 py-1 text-[12px] font-bold text-center outline-none focus:border-blue-400" />
+        </div>
+        {/* 멤버 → 핵심멤버 */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-[11px] font-[1000] text-slate-600">🤝→🖐</span>
+          <span className="text-[10px] font-bold text-slate-400">글</span>
+          <input type="number" min={1} max={100} value={promoRules.toMiddle.posts}
+            onChange={(e) => setPromoRules(prev => ({ ...prev, toMiddle: { ...prev.toMiddle, posts: parseInt(e.target.value) || 1 } }))}
+            className="w-14 border border-slate-200 rounded px-2 py-1 text-[12px] font-bold text-center outline-none focus:border-blue-400" />
+          <span className="text-[10px] font-bold text-slate-400">OR 좋아요</span>
+          <input type="number" min={1} max={999} value={promoRules.toMiddle.likes}
+            onChange={(e) => setPromoRules(prev => ({ ...prev, toMiddle: { ...prev.toMiddle, likes: parseInt(e.target.value) || 1 } }))}
+            className="w-14 border border-slate-200 rounded px-2 py-1 text-[12px] font-bold text-center outline-none focus:border-blue-400" />
+        </div>
+        <button onClick={async () => {
+          setSaving(true);
+          try {
+            await updateDoc(doc(db, 'communities', community.id), { promotionRules: promoRules });
+            alert('승급 조건이 저장되었습니다.');
+          } finally { setSaving(false); }
+        }} disabled={saving}
+          className={`w-full py-1.5 rounded-lg text-[12px] font-black transition-all ${saving ? 'bg-slate-100 text-slate-400' : 'bg-slate-900 text-white hover:bg-blue-600'}`}>
+          {saving ? '저장 중...' : '승급 조건 저장'}
+        </button>
+      </div>
+    </div>
+  );
+}
 
 export default CommunityView;
