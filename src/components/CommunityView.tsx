@@ -108,6 +108,8 @@ const CommunityView = ({ community, currentUserData, allUsers, onBack, onClosed 
   const handleBlindPost = async (post: CommunityPost) => {
     if (!isAdmin) return;
     if (!window.confirm(post.isBlinded ? '블라인드를 해제하시겠습니까?' : '이 글을 블라인드 처리하시겠습니까?')) return;
+    // 낙관적 업데이트
+    setPosts(prev => prev.map(p => p.id === post.id ? { ...p, isBlinded: !p.isBlinded } : p));
     await updateDoc(doc(db, 'community_posts', post.id), { isBlinded: !post.isBlinded });
   };
 
@@ -123,10 +125,11 @@ const CommunityView = ({ community, currentUserData, allUsers, onBack, onClosed 
     } else {
       await updateDoc(doc(db, 'communities', community.id), { postCount: increment(-1) });
     }
-    await deleteDoc(doc(db, 'community_posts', post.id));
-    // 🚀 EXP 차감: 장갑 글 삭제 -2
-    if (post.author_id) updateDoc(doc(db, 'users', post.author_id), { exp: increment(-2) }).catch(() => {});
+    // 낙관적 업데이트
+    setPosts(prev => prev.filter(p => p.id !== post.id));
     if (selectedPost?.id === post.id) setSelectedPost(null);
+    await deleteDoc(doc(db, 'community_posts', post.id));
+    if (post.author_id) updateDoc(doc(db, 'users', post.author_id), { exp: increment(-2) }).catch(() => {});
   };
 
   // 🚀 Phase 5 — 중지(middle) 자동 산정
@@ -174,6 +177,8 @@ const CommunityView = ({ community, currentUserData, allUsers, onBack, onClosed 
 
   // 🚀 다섯 손가락 Phase 2 — 멤버 승인 (pending → active, finger: pinky→ring)
   const handleApprove = async (member: CommunityMember) => {
+    // 낙관적 업데이트
+    setMembers(prev => prev.map(m => m.userId === member.userId ? { ...m, joinStatus: 'active', finger: 'ring' } : m));
     const membershipId = `${community.id}_${member.userId}`;
     await updateDoc(doc(db, 'community_memberships', membershipId), {
       joinStatus: 'active',
@@ -186,6 +191,8 @@ const CommunityView = ({ community, currentUserData, allUsers, onBack, onClosed 
   // 🚀 다섯 손가락 Phase 2 — 멤버 거절 (문서 삭제)
   const handleReject = async (member: CommunityMember) => {
     if (!window.confirm(`${member.nickname}님의 가입 신청을 거절하시겠습니까?`)) return;
+    // 낙관적 업데이트
+    setMembers(prev => prev.filter(m => m.userId !== member.userId));
     await deleteDoc(doc(db, 'community_memberships', `${community.id}_${member.userId}`));
   };
 
@@ -201,6 +208,9 @@ const CommunityView = ({ community, currentUserData, allUsers, onBack, onClosed 
       return;
     }
     const membershipId = `${community.id}_${member.userId}`;
+    const verifiedData = { verifiedAt: { seconds: Math.floor(Date.now() / 1000) }, verifiedBy: currentUserData.uid, verifiedByNickname: currentUserData.nickname, label: label.trim() };
+    // 낙관적 업데이트
+    setMembers(prev => prev.map(m => m.userId === member.userId ? { ...m, verified: verifiedData } : m));
     await updateDoc(doc(db, 'community_memberships', membershipId), {
       verified: {
         verifiedAt: serverTimestamp(),
@@ -214,6 +224,8 @@ const CommunityView = ({ community, currentUserData, allUsers, onBack, onClosed 
   // 🚀 인증 해제
   const handleUnverifyMember = async (member: CommunityMember) => {
     if (!window.confirm(`${member.nickname}님의 인증을 해제하시겠습니까?`)) return;
+    // 낙관적 업데이트
+    setMembers(prev => prev.map(m => m.userId === member.userId ? { ...m, verified: undefined } : m));
     const membershipId = `${community.id}_${member.userId}`;
     await updateDoc(doc(db, 'community_memberships', membershipId), { verified: deleteField() });
   };
@@ -221,6 +233,8 @@ const CommunityView = ({ community, currentUserData, allUsers, onBack, onClosed 
   // 🚀 다섯 손가락 Phase 2 — 손가락 역할 변경 (thumb/index만 가능)
   const handleChangeFinger = async (member: CommunityMember, newFinger: FingerRole) => {
     if (!isAdmin) return;
+    // 낙관적 업데이트
+    setMembers(prev => prev.map(m => m.userId === member.userId ? { ...m, finger: newFinger } : m));
     const membershipId = `${community.id}_${member.userId}`;
     await updateDoc(doc(db, 'community_memberships', membershipId), { finger: newFinger });
   };
@@ -229,6 +243,8 @@ const CommunityView = ({ community, currentUserData, allUsers, onBack, onClosed 
   const handleBan = async (member: CommunityMember) => {
     if (!isAdmin) return;
     if (!window.confirm(`${member.nickname}님을 강퇴하시겠습니까?`)) return;
+    // 낙관적 업데이트
+    setMembers(prev => prev.map(m => m.userId === member.userId ? { ...m, joinStatus: 'banned' } : m));
     const membershipId = `${community.id}_${member.userId}`;
     await updateDoc(doc(db, 'community_memberships', membershipId), { joinStatus: 'banned', banReason: '관리자 강퇴' });
     await updateDoc(doc(db, 'communities', community.id), { memberCount: increment(-1) });
@@ -307,6 +323,12 @@ const CommunityView = ({ community, currentUserData, allUsers, onBack, onClosed 
     if (!currentUserData) { alert('로그인이 필요합니다.'); return; }
     const isLiked = post.likedBy?.includes(currentUserData.nickname);
     const diff = isLiked ? -1 : 1;
+    // 낙관적 업데이트
+    setPosts(prev => prev.map(p => p.id === post.id ? {
+      ...p,
+      likes: Math.max(0, (p.likes || 0) + diff),
+      likedBy: isLiked ? (p.likedBy || []).filter(n => n !== currentUserData.nickname) : [...(p.likedBy || []), currentUserData.nickname],
+    } : p));
     await updateDoc(doc(db, 'community_posts', post.id), {
       likes: Math.max(0, (post.likes || 0) + diff),
       likedBy: isLiked ? arrayRemove(currentUserData.nickname) : arrayUnion(currentUserData.nickname),

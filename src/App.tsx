@@ -497,7 +497,7 @@ function App() {
             <div className="flex-1 min-w-0">
               {selectedCommunity ? (
                 <CommunityView
-                  community={selectedCommunity}
+                  community={communities.find(c => c.id === selectedCommunity.id) ?? selectedCommunity}
                   currentUserData={userData}
                   allUsers={allUsers}
                   onBack={() => setSelectedCommunity(null)}
