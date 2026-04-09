@@ -1,6 +1,6 @@
 # 🧤 우리들의 장갑 — 설계 및 구현 문서 (GLOVE.md)
 
-> 최종 갱신: 2026-04-09 v1.4 (Phase 7 완성 + UI 통일)  |  연계 파일: `blueprint.md` §8
+> 최종 갱신: 2026-04-09 v1.5 (Phase 8 알림 + 승급 조건 설정)  |  연계 파일: `blueprint.md` §8
 
 ---
 
@@ -225,11 +225,13 @@ finger 없음 + role='member' → ring으로 취급
 - 헤더 우측: 🔔 알림 ON/OFF 토글 (가입 멤버만) + + 글 쓰기 버튼
 
 **멤버 탭**
+- 📊 승급 조건 패널 (개설자 thumb에게만 노출): 새내기→멤버, 멤버→핵심멤버 조건 설정 + 저장
 - 활성 멤버 목록 + 손가락 배지 + 🛡️ 인증 배지
 - thumb/index에게: 📋 가입 답변 보기 + 🛡️ 인증 부여/해제 + 역할 변경 + 강퇴 (본인·thumb 제외)
 
 **관리 탭** (`CommunityAdminPanel`)
-- 승인 대기 섹션: joinAnswers 구조화 표시(JoinAnswersDisplay) 또는 레거시 joinMessage + 승인/거절 버튼
+- 승인 대기 섹션: joinAnswers 구조화 표시(JoinAnswersDisplay) 또는 레거시 joinMessage + 승인/거절 버튼 (승인/거절 시 신청자에게 알림)
+- 📊 멤버 승급 조건: 새내기→멤버(글N/좋아요N), 멤버→핵심멤버(글N/좋아요N) 설정 + 저장
 - 장갑 설정 수정: 이름·설명·분야·색상 변경 저장
 - 공지 고정 현황: 현재 고정 글 안내 + 고정 해제 버튼
 - 장갑 폐쇄 (thumb 전용): 2단계 confirm → writeBatch로 멤버십 전체 삭제 + communities 문서 삭제
@@ -254,16 +256,48 @@ message: '[커뮤니티명] 글 제목'
 > ⚠️ Cloud Functions 미사용 (Spark 플랜) — 앱 레이어 N writes 방식. 멤버 51명 이상 장갑은 write 비용 절감을 위해 알림 스킵.
 > writeBatch 500문서 한도 내 동작 (구독자 ≤50 제한으로 충분).
 
+### Phase 8 추가 알림 타입 (2026-04-09)
+
+| 타입 | 아이콘 | 발생 조건 | 수신자 |
+|------|--------|----------|--------|
+| `community_join_request` | 🔔 | 승인제 가입 신청 | 개설자(creatorId) |
+| `community_join_approved` | ✅ | 가입 승인 | 신청자 |
+| `community_join_rejected` | ❌ | 가입 거절 | 신청자 |
+| `community_comment` | 💬 | 댓글 작성 | 글 작성자 (본인 제외) |
+
+- 모든 알림은 `notifications/{uid}/items`에 저장 (기존 패턴 동일)
+- 커뮤니티 🔔 opt-in 토글과 무관하게 **무조건 발송**
+- 알림 실패 시 메인 기능에 영향 없음 (try/catch + warn)
+
 ---
 
-## 8. 중지 자동 산정 (Phase 5)
+## 8. 멤버 승급 시스템
 
+### 가입 방식별 초기 등급
+- **모든 방식(open/password/approval)**: `finger: 'pinky'`(새내기)로 시작
+- approval은 `joinStatus: 'pending'`(승인 대기), open/password는 `joinStatus: 'active'`(즉시 활동)
+
+### 2단계 자동 승급
 ```
 트리거: 커뮤니티 내 새 글 작성 완료 시
-조건: 해당 커뮤니티 내 내 글 수 ≥ 5개  OR  수신 좋아요 합계 ≥ 20개
-대상: 현재 ring/pinky인 멤버만 (thumb/index/middle 이미 상위 → 스킵)
-동작: finger: 'middle' 업데이트 + 본인 notifications에 "🖐 핵심멤버 승급" push
+대상: thumb/index/middle 이미 상위 → 스킵
+
+🤙 새내기(pinky) → 🤝 멤버(ring)
+조건: 글 N개 이상 OR 좋아요 N개 이상 (디폴트: 글 3/좋아요 10)
+
+🤝 멤버(ring) → 🖐 핵심멤버(middle)
+조건: 글 N개 이상 OR 좋아요 N개 이상 (디폴트: 글 5/좋아요 20)
+
+동작: finger 업데이트 + 승급 알림(finger_promoted) push
 ```
+
+### 승급 조건 설정 (`community.promotionRules`)
+- **관리 탭 + 멤버 탭** 모두에서 설정 가능 (개설자 thumb만)
+- `PromotionRules` 타입: `{ toRing: { posts, likes }, toMiddle: { posts, likes } }`
+- 미설정 시 `DEFAULT_PROMOTION_RULES` 사용 (toRing: 글3/좋아요10, toMiddle: 글5/좋아요20)
+
+### 수동 역할 변경
+- 멤버 탭에서 역할 변경 드롭다운(index~pinky) — thumb/index만 가능, 본인·thumb 제외
 
 ---
 
@@ -355,6 +389,8 @@ match /community_posts/{id} {
 | 2026-04-08 | Phase 7 Step 4 | 이미지 업로드(R2 재사용, 📎+클립보드+드래그), 라이트박스 원본 보기 |
 | 2026-04-08 | Phase 7 Step 5 | 채팅 땡스볼(기존 Cloud Function 확장, ThanksballModal 재사용, thanksballSenders 5명 한도) |
 | 2026-04-08 | Phase 7 Step 6 | Firestore Rules 정식화, 페이징(스크롤 기반 30개씩), soft delete(본인+관리자), GLOVE.md Phase 7 반영 |
+| 2026-04-09 | Phase 8 | 가입 승인/거절/신청 알림(4타입), 댓글 알림, 모든 가입 새내기(pinky) 시작 |
+| 2026-04-09 | Phase 8+ | 2단계 자동 승급(pinky→ring→middle), promotionRules 설정 UI(관리탭+멤버탭), MemberPromotionPanel |
 
 ---
 
