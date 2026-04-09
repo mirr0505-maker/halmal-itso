@@ -226,6 +226,8 @@ export interface ChatMessage {
   // 본문
   content: string;                   // 최대 500자
   imageUrl?: string;                 // R2 업로드 이미지 (Step 4)
+  fileUrl?: string;                  // R2 업로드 문서 파일 (PDF/DOC/XLSX/PPTX)
+  fileName?: string;                 // 원본 파일명
 
   // 답장 (Step 3)
   replyTo?: ChatReplyRef;

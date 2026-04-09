@@ -82,6 +82,24 @@ function ChatMessageItem({ message, currentUid, isAdmin, onReply, onToggleReacti
             <img src={message.imageUrl} alt="첨부 이미지" className="w-full h-auto max-h-[300px] object-contain bg-slate-100" loading="lazy" />
           </button>
         )}
+        {/* 🚀 문서 파일 첨부 (PDF/DOC/XLSX/PPTX) */}
+        {message.fileUrl && !message.deleted && (
+          <a
+            href={message.fileUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(e) => e.stopPropagation()}
+            className={`flex items-center gap-2 mb-1 px-3 py-2 rounded-xl border max-w-[280px] transition-colors ${
+              isMine ? 'bg-emerald-400/80 border-emerald-300 text-white hover:bg-emerald-400' : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+            }`}
+          >
+            <span className="text-[20px] shrink-0">{(() => { const ext = (message.fileName || '').split('.').pop()?.toLowerCase() || ''; const icons: Record<string, string> = { pdf: '📄', doc: '📝', docx: '📝', xls: '📊', xlsx: '📊', ppt: '📑', pptx: '📑' }; return icons[ext] || '📎'; })()}</span>
+            <div className="flex flex-col min-w-0">
+              <span className="text-[12px] font-bold truncate">{message.fileName || '파일'}</span>
+              <span className={`text-[9px] ${isMine ? 'text-emerald-100' : 'text-slate-400'}`}>다운로드</span>
+            </div>
+          </a>
+        )}
 
         {/* 메시지 본문 + 시간 + 액션 버튼 */}
         <div className={`flex items-end gap-1 ${isMine ? 'flex-row-reverse' : 'flex-row'}`}>
@@ -187,8 +205,8 @@ const CommunityChatPanel = ({ community, currentUser, members, allUsers = {} }: 
   const [reactionPickerFor, setReactionPickerFor] = useState<string | null>(null);
   // 🚀 Step 5: 땡스볼 상태
   const [thanksballTarget, setThanksballTarget] = useState<ChatMessage | null>(null);
-  // 🚀 Step 4: 이미지 업로드 상태
-  const [pendingImage, setPendingImage] = useState<{ file: File; previewUrl: string } | null>(null);
+  // 🚀 Step 4: 파일 업로드 상태 (이미지 + 문서)
+  const [pendingFile, setPendingFile] = useState<{ file: File; previewUrl: string; isImage: boolean } | null>(null);
   const [uploading, setUploading] = useState(false);
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -259,12 +277,19 @@ const CommunityChatPanel = ({ community, currentUser, members, allUsers = {} }: 
     handleScroll();
   }, [handleScroll]);
 
-  // 🚀 이미지 파일 선택 공통 핸들러
+  // 🚀 허용 파일 타입 (이미지 + 문서)
+  const ALLOWED_TYPES = ['image/', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument', 'application/vnd.ms-excel', 'application/vnd.ms-powerpoint'];
+  const FILE_ICONS: Record<string, string> = { pdf: '📄', doc: '📝', docx: '📝', xls: '📊', xlsx: '📊', ppt: '📑', pptx: '📑' };
+  const getFileIcon = (name: string) => { const ext = name.split('.').pop()?.toLowerCase() || ''; return FILE_ICONS[ext] || '📎'; };
+  const isAllowedFile = (file: File) => ALLOWED_TYPES.some(t => file.type.startsWith(t));
+
+  // 🚀 파일 선택 공통 핸들러 (이미지 + 문서)
   const handleFileSelect = (file: File) => {
-    if (!file.type.startsWith('image/')) { alert('이미지 파일만 업로드할 수 있습니다.'); return; }
-    if (file.size > 5 * 1024 * 1024) { alert('이미지는 5MB 이하만 업로드 가능합니다.'); return; }
-    if (pendingImage) URL.revokeObjectURL(pendingImage.previewUrl);
-    setPendingImage({ file, previewUrl: URL.createObjectURL(file) });
+    if (!isAllowedFile(file)) { alert('이미지, PDF, DOC, XLSX, PPTX 파일만 업로드할 수 있습니다.'); return; }
+    if (file.size > 10 * 1024 * 1024) { alert('파일은 10MB 이하만 업로드 가능합니다.'); return; }
+    if (pendingFile) URL.revokeObjectURL(pendingFile.previewUrl);
+    const isImage = file.type.startsWith('image/');
+    setPendingFile({ file, previewUrl: isImage ? URL.createObjectURL(file) : '', isImage });
   };
 
   // 🚀 클립보드 paste (Ctrl+V 이미지)
@@ -291,19 +316,19 @@ const CommunityChatPanel = ({ community, currentUser, members, allUsers = {} }: 
   const handleSend = async () => {
     if (!currentUser || !myMembership || sending) return;
     const trimmed = input.trim();
-    if (!trimmed && !pendingImage) return;
+    if (!trimmed && !pendingFile) return;
     if (trimmed.length > 500) { alert('메시지는 500자 이내로 입력해주세요.'); return; }
 
     setSending(true);
-    if (pendingImage) setUploading(true);
+    if (pendingFile) setUploading(true);
 
     try {
-      // 이미지 업로드 (먼저)
-      let imageUrl: string | undefined;
-      if (pendingImage) {
-        const ext = pendingImage.file.name.split('.').pop() || 'jpg';
+      // 파일 업로드 (이미지 또는 문서)
+      let uploadedUrl: string | undefined;
+      if (pendingFile) {
+        const ext = pendingFile.file.name.split('.').pop() || 'bin';
         const filePath = `chats/${community.id}/${Date.now()}_${currentUser.uid.slice(0, 8)}.${ext}`;
-        imageUrl = await uploadToR2(pendingImage.file, filePath);
+        uploadedUrl = await uploadToR2(pendingFile.file, filePath);
       }
 
       const messageId = `chat_${Date.now()}_${currentUser.uid.slice(0, 8)}`;
@@ -318,7 +343,15 @@ const CommunityChatPanel = ({ community, currentUser, members, allUsers = {} }: 
         content: trimmed,
         createdAt: serverTimestamp(),
       };
-      if (imageUrl) messageData.imageUrl = imageUrl;
+      // 이미지 vs 문서 분기
+      if (uploadedUrl && pendingFile) {
+        if (pendingFile.isImage) {
+          messageData.imageUrl = uploadedUrl;
+        } else {
+          messageData.fileUrl = uploadedUrl;
+          messageData.fileName = pendingFile.file.name;
+        }
+      }
       if (myMembership.finger) messageData.authorFinger = myMembership.finger;
       if (myMembership.verified) messageData.authorVerified = myMembership.verified;
       if (replyTarget) {
@@ -336,7 +369,7 @@ const CommunityChatPanel = ({ community, currentUser, members, allUsers = {} }: 
       // 정리
       setInput('');
       setReplyTarget(null);
-      if (pendingImage) { URL.revokeObjectURL(pendingImage.previewUrl); setPendingImage(null); }
+      if (pendingFile) { URL.revokeObjectURL(pendingFile.previewUrl); setPendingFile(null); }
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : '메시지 전송 실패';
       alert(msg);
@@ -459,14 +492,18 @@ const CommunityChatPanel = ({ community, currentUser, members, allUsers = {} }: 
       )}
 
       {/* 🚀 이미지 미리보기 */}
-      {pendingImage && (
+      {pendingFile && (
         <div className="px-4 py-2 bg-slate-100 border-t border-slate-200 flex items-start gap-2">
-          <img src={pendingImage.previewUrl} alt="미리보기" className="w-14 h-14 object-cover rounded-lg border border-slate-300" />
+          {pendingFile.isImage ? (
+            <img src={pendingFile.previewUrl} alt="미리보기" className="w-14 h-14 object-cover rounded-lg border border-slate-300" />
+          ) : (
+            <span className="text-[32px] shrink-0">{getFileIcon(pendingFile.file.name)}</span>
+          )}
           <div className="flex-1 min-w-0">
-            <p className="text-[11px] text-slate-500 truncate">{pendingImage.file.name}</p>
-            <p className="text-[9px] text-slate-400">{(pendingImage.file.size / 1024).toFixed(0)} KB</p>
+            <p className="text-[11px] text-slate-500 truncate">{pendingFile.file.name}</p>
+            <p className="text-[9px] text-slate-400">{(pendingFile.file.size / 1024).toFixed(0)} KB</p>
           </div>
-          <button onClick={() => { URL.revokeObjectURL(pendingImage.previewUrl); setPendingImage(null); }}
+          <button onClick={() => { if (pendingFile.previewUrl) URL.revokeObjectURL(pendingFile.previewUrl); setPendingFile(null); }}
             className="text-slate-400 hover:text-slate-600 text-[14px] shrink-0 leading-none">✕</button>
         </div>
       )}
@@ -474,7 +511,7 @@ const CommunityChatPanel = ({ community, currentUser, members, allUsers = {} }: 
       {/* 입력 영역 */}
       <div className="border-t border-slate-200 bg-white px-3 py-2.5 shrink-0">
         {/* 숨겨진 파일 input */}
-        <input ref={fileInputRef} type="file" accept="image/*" className="hidden"
+        <input ref={fileInputRef} type="file" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx" className="hidden"
           onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFileSelect(f); e.target.value = ''; }} />
         <div className="flex gap-2 items-end">
           <button onClick={() => fileInputRef.current?.click()} disabled={sending}
@@ -492,9 +529,9 @@ const CommunityChatPanel = ({ community, currentUser, members, allUsers = {} }: 
           />
           <button
             onClick={handleSend}
-            disabled={(!input.trim() && !pendingImage) || sending}
+            disabled={(!input.trim() && !pendingFile) || sending}
             className={`px-4 py-2 rounded-lg text-[12px] font-[1000] transition-all shrink-0 ${
-              (!input.trim() && !pendingImage) || sending
+              (!input.trim() && !pendingFile) || sending
                 ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
                 : 'bg-emerald-500 text-white hover:bg-emerald-600'
             }`}
