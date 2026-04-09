@@ -87,6 +87,26 @@ const CommunityList = ({ communities, currentUserData, joinedCommunityIds, onCom
                       {community.description && (
                         <p className="text-[12px] font-bold text-slate-400 mt-0.5 line-clamp-1">{community.description}</p>
                       )}
+                      {/* 🚀 가입 조건 나열 */}
+                      {(() => {
+                        const conditions: string[] = [];
+                        const jt = community.joinType || 'open';
+                        if (jt === 'approval') conditions.push('승인제');
+                        if (jt === 'password') conditions.push('초대코드');
+                        if ((community.minLevel || 1) > 1) conditions.push(`Lv${community.minLevel}+`);
+                        if (community.joinForm) {
+                          const enabled = community.joinForm.standardFields?.filter(f => f.enabled && f.required) || [];
+                          const labels: Record<string, string> = { name: '이름', region: '지역', phone: '연락처', email: '이메일', shares: '보유수량' };
+                          enabled.forEach(f => conditions.push(labels[f.key] || f.key));
+                          const reqCustom = community.joinForm.customQuestions?.filter(q => q.required) || [];
+                          if (reqCustom.length > 0) conditions.push(`추가질문 ${reqCustom.length}개`);
+                        }
+                        return conditions.length > 0 ? (
+                          <p className="text-[10px] font-bold text-amber-600 mt-0.5 truncate">
+                            📋 {conditions.join(' · ')}
+                          </p>
+                        ) : null;
+                      })()}
                     </div>
                   </div>
 
