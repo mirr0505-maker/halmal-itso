@@ -13,7 +13,7 @@ import CommunityPostDetail from './CommunityPostDetail';
 import JoinAnswersDisplay from './JoinAnswersDisplay';
 import { sanitizeHtml } from '../sanitize';
 import { uploadToR2 } from '../uploadToR2';
-import { calculateLevel } from '../utils';
+import { calculateLevel, getReputationLabel, getReputationScore, formatKoreanNumber } from '../utils';
 
 // 🚀 다섯 손가락 Phase 2 — 손가락 배지 정의
 const FINGER_META: Record<FingerRole, { emoji: string; label: string; colorCls: string }> = {
@@ -28,11 +28,12 @@ interface Props {
   community: Community;
   currentUserData: UserData | null;
   allUsers: Record<string, UserData>;
+  followerCounts?: Record<string, number>;
   onBack: () => void;
   onClosed?: () => void; // 🚀 Phase 3: 장갑 폐쇄 후 목록 복귀
 }
 
-const CommunityView = ({ community, currentUserData, allUsers, onBack, onClosed }: Props) => {
+const CommunityView = ({ community, currentUserData, allUsers, followerCounts = {}, onBack, onClosed }: Props) => {
   const [posts, setPosts] = useState<CommunityPost[]>([]);
   const [isWriting, setIsWriting] = useState(false);
   const [newTitle, setNewTitle] = useState('');
@@ -378,15 +379,6 @@ const CommunityView = ({ community, currentUserData, allUsers, onBack, onClosed 
     }
   };
 
-  const formatTime = (ts: { seconds: number } | null | undefined) => {
-    if (!ts) return '';
-    const d = new Date(ts.seconds * 1000);
-    const diff = Math.floor((Date.now() - d.getTime()) / 1000);
-    if (diff < 60) return '방금 전';
-    if (diff < 3600) return `${Math.floor(diff / 60)}분 전`;
-    if (diff < 86400) return `${Math.floor(diff / 3600)}시간 전`;
-    return d.toLocaleDateString('ko-KR', { month: '2-digit', day: '2-digit' });
-  };
 
   return (
     <div className="w-full max-w-[860px] mx-auto pb-20 animate-in fade-in">
@@ -662,49 +654,51 @@ const CommunityView = ({ community, currentUserData, allUsers, onBack, onClosed 
                     className="text-[13px] font-medium text-slate-500 line-clamp-3 leading-relaxed [&_img]:hidden [&_p]:mb-1"
                     dangerouslySetInnerHTML={{ __html: sanitizeHtml(post.content) }}
                   />
+                  {/* 🚀 하단: AnyTalkList 글카드와 동일 구조 (공유 제외) + 관리자 버튼 */}
                   <div className="flex items-center justify-between mt-3 pt-2 border-t border-slate-50">
-                    <div className="flex items-center gap-2">
-                      <img src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${post.author}`} className="w-5 h-5 rounded-full bg-slate-50" alt="" />
-                      <span className="text-[11px] font-bold text-slate-500">{post.author}</span>
-                      {/* 🚀 Phase 6: 글 작성자 인증 배지 (멤버 목록에서 조회) */}
-                      <VerifiedBadgeComponent verified={members.find(m => m.userId === post.author_id)?.verified} size="sm" showDate={false} />
-                      {authorData && <span className="text-[10px] font-bold text-slate-300">Lv{calculateLevel(authorData?.exp || 0)}</span>}
-                      <span className="text-[10px] font-bold text-slate-300">{formatTime(post.createdAt)}</span>
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <div className="w-6 h-6 rounded-full bg-slate-50 overflow-hidden shrink-0 border border-white shadow-sm ring-1 ring-slate-100">
+                        <img src={authorData?.avatarUrl || `https://api.dicebear.com/7.x/adventurer/svg?seed=${post.author}`} alt="" className="w-full h-full object-cover" />
+                      </div>
+                      <div className="flex flex-col min-w-0">
+                        <div className="flex items-center gap-1">
+                          <span className="text-[11px] font-[1000] text-slate-900 truncate leading-none">{post.author}</span>
+                          <VerifiedBadgeComponent verified={members.find(m => m.userId === post.author_id)?.verified} size="sm" showDate={false} />
+                        </div>
+                        <span className="text-[9px] font-bold text-slate-400 truncate tracking-tight">
+                          Lv {calculateLevel(authorData?.exp || 0)} · {getReputationLabel(authorData ? getReputationScore(authorData) : 0)} · 깐부수 {formatKoreanNumber(followerCounts[post.author] || 0)}
+                        </span>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2 text-[11px] font-black text-slate-300">
-                      {/* 관리자 핀/블라인드 버튼 */}
+                    <div className="flex items-center gap-2 text-[10px] font-black shrink-0 text-slate-300">
+                      {/* 관리자 핀/블라인드/삭제 버튼 */}
                       {isAdmin && (
                         <>
-                          <button
-                            onClick={(e) => { e.stopPropagation(); handlePinPost(post.id); }}
-                            className={`text-[10px] font-black px-1.5 py-0.5 rounded transition-colors ${community.pinnedPostId === post.id ? 'text-amber-600 bg-amber-50' : 'text-slate-300 hover:text-amber-400'}`}
-                            title="공지 고정"
-                          >📌</button>
-                          <button
-                            onClick={(e) => { e.stopPropagation(); handleBlindPost(post); }}
-                            className="text-[10px] font-black px-1.5 py-0.5 rounded text-slate-300 hover:text-red-400 transition-colors"
-                            title="블라인드 처리"
-                          >🚫</button>
+                          <button onClick={(e) => { e.stopPropagation(); handlePinPost(post.id); }}
+                            className={`px-1 transition-colors ${community.pinnedPostId === post.id ? 'text-amber-600' : 'text-slate-300 hover:text-amber-400'}`} title="공지 고정">📌</button>
+                          <button onClick={(e) => { e.stopPropagation(); handleBlindPost(post); }}
+                            className="px-1 text-slate-300 hover:text-red-400 transition-colors" title="블라인드">🚫</button>
                         </>
                       )}
-                      {/* 🚀 삭제 버튼 — 작성자 본인 또는 관리자 */}
                       {(post.author_id === currentUserData?.uid || isAdmin) && (
-                        <button
-                          onClick={(e) => { e.stopPropagation(); handleDeletePost(post); }}
-                          className="text-[10px] font-black px-1.5 py-0.5 rounded text-slate-300 hover:text-rose-500 transition-colors"
-                          title="글 삭제"
-                        >🗑️</button>
+                        <button onClick={(e) => { e.stopPropagation(); handleDeletePost(post); }}
+                          className="px-1 text-slate-300 hover:text-rose-500 transition-colors" title="삭제">🗑️</button>
                       )}
                       <span className="flex items-center gap-1">
                         <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
-                        {post.commentCount || 0}
+                        {formatKoreanNumber(post.commentCount || 0)}
                       </span>
+                      {(post.thanksballTotal || 0) > 0 && (
+                        <span className="flex items-center gap-0.5 text-amber-400">
+                          <span className="text-[13px]">⚾</span> {post.thanksballTotal}
+                        </span>
+                      )}
                       <span
                         onClick={(e) => handleLike(e, post)}
                         className={`flex items-center gap-1 cursor-pointer transition-colors ${isLiked ? 'text-rose-500' : 'hover:text-rose-400'}`}
                       >
                         <svg className={`w-3.5 h-3.5 ${isLiked ? 'fill-current' : 'fill-none'}`} stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" /></svg>
-                        {post.likes || 0}
+                        {formatKoreanNumber(post.likes || 0)}
                       </span>
                     </div>
                   </div>
@@ -720,6 +714,8 @@ const CommunityView = ({ community, currentUserData, allUsers, onBack, onClosed 
         <CommunityPostDetail
           post={posts.find(p => p.id === selectedPost.id) ?? selectedPost}
           currentUserData={currentUserData}
+          allUsers={allUsers}
+          followerCounts={followerCounts}
           members={members}
           onClose={() => setSelectedPost(null)}
         />

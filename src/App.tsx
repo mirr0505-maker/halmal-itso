@@ -501,6 +501,7 @@ function App() {
                   community={communities.find(c => c.id === selectedCommunity.id) ?? selectedCommunity}
                   currentUserData={userData}
                   allUsers={allUsers}
+                  followerCounts={followerCounts}
                   onBack={() => setSelectedCommunity(null)}
                   onClosed={() => setSelectedCommunity(null)}
                 />
@@ -510,6 +511,7 @@ function App() {
                   joinedCommunityIds={joinedCommunityIds}
                   allUsers={allUsers}
                   communities={communities}
+                  followerCounts={followerCounts}
                   onCommunityClick={setSelectedCommunity}
                 />
               ) : (

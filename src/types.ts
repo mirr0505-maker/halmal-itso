@@ -304,6 +304,7 @@ export interface CommunityPost {
   // 🚀 다섯 손가락 Phase 1
   isPinned?: boolean;            // 공지 고정 여부 (엄지/검지만 설정 가능)
   isBlinded?: boolean;           // 관리자 블라인드 처리
+  thanksballTotal?: number;      // 받은 땡스볼 총수
 }
 
 // 🚀 거대 나무(자이언트 트리): 주장 전파 루트 문서

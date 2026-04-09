@@ -5,7 +5,7 @@ import { db } from '../firebase';
 import { collection, query, where, orderBy, onSnapshot, getDocs } from 'firebase/firestore';
 import type { CommunityPost, Community, UserData, CommunityMember } from '../types';
 import { sanitizeHtml } from '../sanitize';
-import { calculateLevel } from '../utils';
+import { calculateLevel, getReputationLabel, getReputationScore, formatKoreanNumber } from '../utils';
 import CommunityPostDetail from './CommunityPostDetail';
 
 interface Props {
@@ -13,10 +13,11 @@ interface Props {
   joinedCommunityIds: string[];
   allUsers: Record<string, UserData>;
   communities?: Community[];
+  followerCounts?: Record<string, number>;
   onCommunityClick: (community: Community) => void;
 }
 
-const CommunityFeed = ({ currentUserData, joinedCommunityIds, allUsers, communities: _communities = [], onCommunityClick: _onCommunityClick }: Props) => {
+const CommunityFeed = ({ currentUserData, joinedCommunityIds, allUsers, communities: _communities = [], followerCounts = {}, onCommunityClick: _onCommunityClick }: Props) => {
   const [posts, setPosts] = useState<CommunityPost[]>([]);
   // 🚀 글 상세 모달 + 멤버 lazy load
   const [selectedPost, setSelectedPost] = useState<CommunityPost | null>(null);
@@ -102,20 +103,32 @@ const CommunityFeed = ({ currentUserData, joinedCommunityIds, allUsers, communit
               className="text-[13px] font-medium text-slate-500 line-clamp-2 leading-relaxed [&_img]:hidden [&_p]:mb-0.5"
               dangerouslySetInnerHTML={{ __html: sanitizeHtml(post.content) }}
             />
+            {/* 🚀 하단: AnyTalkList 글카드와 동일 구조 (공유 제외) */}
             <div className="flex items-center justify-between mt-3 pt-2 border-t border-slate-50">
-              <div className="flex items-center gap-2">
-                <img src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${post.author}`} className="w-5 h-5 rounded-full bg-slate-50" alt="" />
-                <span className="text-[11px] font-bold text-slate-500">{post.author}</span>
-                {authorData && <span className="text-[10px] font-bold text-slate-300">Lv{calculateLevel(authorData?.exp || 0)}</span>}
+              <div className="flex items-center gap-1.5 min-w-0">
+                <div className="w-6 h-6 rounded-full bg-slate-50 overflow-hidden shrink-0 border border-white shadow-sm ring-1 ring-slate-100">
+                  <img src={authorData?.avatarUrl || `https://api.dicebear.com/7.x/adventurer/svg?seed=${post.author}`} alt="" className="w-full h-full object-cover" />
+                </div>
+                <div className="flex flex-col min-w-0">
+                  <span className="text-[11px] font-[1000] text-slate-900 truncate leading-none mb-0.5">{post.author}</span>
+                  <span className="text-[9px] font-bold text-slate-400 truncate tracking-tight">
+                    Lv {calculateLevel(authorData?.exp || 0)} · {getReputationLabel(authorData ? getReputationScore(authorData) : 0)} · 깐부수 {formatKoreanNumber(followerCounts[post.author] || 0)}
+                  </span>
+                </div>
               </div>
-              <div className="flex items-center gap-3 text-[11px] font-black text-slate-300">
+              <div className="flex items-center gap-2 text-[10px] font-black shrink-0 text-slate-300">
                 <span className="flex items-center gap-1">
                   <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
-                  {post.commentCount || 0}
+                  {formatKoreanNumber(post.commentCount || 0)}
                 </span>
+                {(post.thanksballTotal || 0) > 0 && (
+                  <span className="flex items-center gap-0.5 text-amber-400">
+                    <span className="text-[13px]">⚾</span> {post.thanksballTotal}
+                  </span>
+                )}
                 <span className="flex items-center gap-1">
                   <svg className="w-3.5 h-3.5 fill-none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" /></svg>
-                  {post.likes || 0}
+                  {formatKoreanNumber(post.likes || 0)}
                 </span>
               </div>
             </div>
@@ -128,6 +141,8 @@ const CommunityFeed = ({ currentUserData, joinedCommunityIds, allUsers, communit
         <CommunityPostDetail
           post={selectedPost}
           currentUserData={currentUserData}
+          allUsers={allUsers}
+          followerCounts={followerCounts}
           members={modalMembers}
           onClose={() => { setSelectedPost(null); setModalMembers([]); }}
         />

@@ -5,16 +5,19 @@ import { db } from '../firebase';
 import { collection, doc, setDoc, updateDoc, query, where, orderBy, onSnapshot, increment, serverTimestamp, arrayUnion, arrayRemove } from 'firebase/firestore';
 import type { CommunityPost, CommunityMember, UserData, FirestoreTimestamp } from '../types';
 import { sanitizeHtml } from '../sanitize';
+import { calculateLevel, getReputationLabel, getReputationScore, formatKoreanNumber } from '../utils';
 import VerifiedBadgeComponent from './VerifiedBadge';
 
 interface Props {
   post: CommunityPost;
   currentUserData: UserData | null;
+  allUsers?: Record<string, UserData>;
+  followerCounts?: Record<string, number>;
   members: CommunityMember[];
   onClose: () => void;
 }
 
-const CommunityPostDetail = ({ post, currentUserData, members, onClose }: Props) => {
+const CommunityPostDetail = ({ post, currentUserData, allUsers = {}, followerCounts = {}, members, onClose }: Props) => {
   const [livePost, setLivePost] = useState(post);
   const [comments, setComments] = useState<{id: string; author: string; author_id?: string; content: string; createdAt?: FirestoreTimestamp}[]>([]);
   const [newComment, setNewComment] = useState('');
@@ -98,26 +101,53 @@ const CommunityPostDetail = ({ post, currentUserData, members, onClose }: Props)
         {/* 본문 */}
         <div className="px-6 py-5">
           {livePost.title && <h2 className="text-[20px] font-[1000] text-slate-900 mb-3">{livePost.title}</h2>}
-          <div className="flex items-center gap-2 mb-4">
-            <img src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${livePost.author}`} className="w-6 h-6 rounded-full bg-slate-50" alt="" />
-            <span className="text-[12px] font-bold text-slate-600">{livePost.author}</span>
-            <VerifiedBadgeComponent verified={members.find(m => m.userId === livePost.author_id)?.verified} size="sm" showDate={false} />
-            <span className="text-[11px] font-bold text-slate-300">{formatTime(livePost.createdAt)}</span>
-          </div>
           <div
             className="text-[14px] font-medium text-slate-700 leading-[1.8] [&_p]:mb-3 [&_strong]:font-bold [&_em]:italic [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_img]:rounded-lg [&_img]:max-w-full [&_a]:text-blue-400 [&_a]:underline"
             dangerouslySetInnerHTML={{ __html: sanitizeHtml(livePost.content) }}
           />
-          <div className="flex items-center gap-4 mt-4 pt-4 border-t border-slate-100">
-            <span
-              onClick={handleLike}
-              className={`flex items-center gap-1.5 text-[13px] font-black cursor-pointer transition-colors ${isLiked ? 'text-rose-500' : 'text-slate-300 hover:text-rose-400'}`}
-            >
-              <svg className={`w-4 h-4 ${isLiked ? 'fill-current' : 'fill-none'}`} stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" /></svg>
-              {livePost.likes || 0}
-            </span>
-            <span className="text-[12px] font-bold text-slate-400">댓글 {livePost.commentCount || 0}</span>
-          </div>
+          {/* 🚀 하단: AnyTalkList 글카드와 동일 구조 (공유 제외) */}
+          {(() => {
+            const authorData = allUsers[`nickname_${livePost.author}`];
+            const displayLevel = calculateLevel(authorData?.exp || 0);
+            const repLabel = getReputationLabel(authorData ? getReputationScore(authorData) : 0);
+            const realFollowers = followerCounts[livePost.author] || 0;
+            return (
+              <div className="flex items-center justify-between mt-4 pt-4 border-t border-slate-100">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <div className="w-7 h-7 rounded-full bg-slate-50 overflow-hidden shrink-0 border border-white shadow-sm ring-1 ring-slate-100">
+                    <img src={authorData?.avatarUrl || `https://api.dicebear.com/7.x/adventurer/svg?seed=${livePost.author}`} alt="" className="w-full h-full object-cover" />
+                  </div>
+                  <div className="flex flex-col min-w-0">
+                    <div className="flex items-center gap-1">
+                      <span className="text-[12px] font-[1000] text-slate-900 truncate leading-none">{livePost.author}</span>
+                      <VerifiedBadgeComponent verified={members.find(m => m.userId === livePost.author_id)?.verified} size="sm" showDate={false} />
+                    </div>
+                    <span className="text-[10px] font-bold text-slate-400 truncate tracking-tight">
+                      Lv {displayLevel} · {repLabel} · 깐부수 {formatKoreanNumber(realFollowers)}
+                    </span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 text-[11px] font-black shrink-0 text-slate-300">
+                  <span className="flex items-center gap-1">
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
+                    {formatKoreanNumber(livePost.commentCount || 0)}
+                  </span>
+                  {(livePost.thanksballTotal || 0) > 0 && (
+                    <span className="flex items-center gap-0.5 text-amber-400">
+                      <span className="text-[13px]">⚾</span> {livePost.thanksballTotal}
+                    </span>
+                  )}
+                  <span
+                    onClick={handleLike}
+                    className={`flex items-center gap-1 cursor-pointer transition-colors ${isLiked ? 'text-rose-500' : 'hover:text-rose-400'}`}
+                  >
+                    <svg className={`w-3.5 h-3.5 ${isLiked ? 'fill-current' : 'fill-none'}`} stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" /></svg>
+                    {formatKoreanNumber(livePost.likes || 0)}
+                  </span>
+                </div>
+              </div>
+            );
+          })()}
         </div>
         {/* 댓글 목록 */}
         <div className="px-6 pb-2 border-t border-slate-100">
