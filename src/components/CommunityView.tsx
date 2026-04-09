@@ -784,7 +784,7 @@ function MemberPromotionPanel({ community }: { community: Community }) {
       <div className="px-5 py-3 flex flex-col gap-3">
         {/* 새내기 → 멤버 */}
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-[11px] font-[1000] text-slate-600">🤙→🤝</span>
+          <span className="text-[11px] font-[1000] text-slate-600">🤙 새내기 → 🤝 멤버</span>
           <span className="text-[10px] font-bold text-slate-400">글</span>
           <input type="number" min={1} max={100} value={promoRules.toRing.posts}
             onChange={(e) => setPromoRules(prev => ({ ...prev, toRing: { ...prev.toRing, posts: parseInt(e.target.value) || 1 } }))}
@@ -796,7 +796,7 @@ function MemberPromotionPanel({ community }: { community: Community }) {
         </div>
         {/* 멤버 → 핵심멤버 */}
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-[11px] font-[1000] text-slate-600">🤝→🖐</span>
+          <span className="text-[11px] font-[1000] text-slate-600">🤝 멤버 → 🖐 핵심멤버</span>
           <span className="text-[10px] font-bold text-slate-400">글</span>
           <input type="number" min={1} max={100} value={promoRules.toMiddle.posts}
             onChange={(e) => setPromoRules(prev => ({ ...prev, toMiddle: { ...prev.toMiddle, posts: parseInt(e.target.value) || 1 } }))}
