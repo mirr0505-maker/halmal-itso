@@ -133,7 +133,8 @@ export function useGloveActions({
       userId: userData.uid,
       nickname: userData.nickname,
       role: 'member',
-      finger: isApprovalPending ? 'pinky' : 'ring',
+      // 🚀 모든 가입 방식에서 새내기(pinky)로 시작 — 기여도에 따라 ring→middle 자동 승급
+      finger: 'pinky',
       joinStatus: isApprovalPending ? 'pending' : 'active',
       // 🚀 Phase 6 — 가입 폼 답변 저장 (영구 보존)
       ...(options?.joinAnswers ? { joinAnswers: options.joinAnswers } : {}),
