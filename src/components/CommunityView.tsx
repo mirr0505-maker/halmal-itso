@@ -626,8 +626,8 @@ const CommunityView = ({ community, currentUserData, allUsers, onBack, onClosed 
             {pinnedPost && (
               <div
                 key={`pinned_${pinnedPost.id}`}
-                onClick={() => { if (isReadOnly) return; setSelectedPost(pinnedPost); }}
-                className={`bg-amber-50 border-2 border-amber-300 rounded-xl px-5 py-4 transition-all group ${isReadOnly ? 'cursor-default' : 'cursor-pointer hover:shadow-md'}`}
+                onClick={() => { if (!isMember) return; setSelectedPost(pinnedPost); }}
+                className={`bg-amber-50 border-2 border-amber-300 rounded-xl px-5 py-4 transition-all group ${!isMember ? 'cursor-default' : 'cursor-pointer hover:shadow-md'}`}
               >
                 <div className="flex items-center gap-2 mb-1.5">
                   <span className="text-[10px] font-black text-amber-600 bg-amber-100 px-2 py-0.5 rounded-full">📌 공지</span>
@@ -646,8 +646,8 @@ const CommunityView = ({ community, currentUserData, allUsers, onBack, onClosed 
               return (
                 <div
                   key={post.id}
-                  onClick={() => { if (isReadOnly) return; setSelectedPost(post); }}
-                  className={`bg-white border border-slate-100 rounded-xl px-5 py-4 transition-all group ${isReadOnly ? 'cursor-default' : 'cursor-pointer hover:border-blue-300 hover:shadow-md'}`}
+                  onClick={() => { if (!isMember) return; setSelectedPost(post); }}
+                  className={`bg-white border border-slate-100 rounded-xl px-5 py-4 transition-all group ${!isMember ? 'cursor-default' : 'cursor-pointer hover:border-blue-300 hover:shadow-md'}`}
                 >
                   {post.title && (
                     <h3 className="text-[15px] font-[1000] text-slate-900 group-hover:text-blue-600 transition-colors mb-1">{post.title}</h3>
