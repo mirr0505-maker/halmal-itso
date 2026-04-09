@@ -514,8 +514,6 @@ const CommunityChatPanel = ({ community, currentUser, members, allUsers = {} }: 
         <input ref={fileInputRef} type="file" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx" className="hidden"
           onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFileSelect(f); e.target.value = ''; }} />
         <div className="flex gap-2 items-end">
-          <button onClick={() => fileInputRef.current?.click()} disabled={sending}
-            className="text-[18px] text-slate-400 hover:text-emerald-500 transition-colors px-1 shrink-0" title="이미지 첨부">📎</button>
           <textarea
             value={input}
             onChange={(e) => setInput(e.target.value)}
@@ -527,6 +525,11 @@ const CommunityChatPanel = ({ community, currentUser, members, allUsers = {} }: 
             className="flex-1 resize-none px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-emerald-400 text-[13px] font-medium text-slate-900 placeholder:text-slate-300"
             disabled={sending}
           />
+          {/* 파일 첨부 버튼 (이미지+문서) */}
+          <button onClick={() => fileInputRef.current?.click()} disabled={sending}
+            className="px-2 py-2 rounded-lg text-slate-400 hover:text-emerald-500 hover:bg-emerald-50 transition-colors shrink-0 border border-slate-200" title="파일 첨부 (이미지·PDF·DOC·XLSX·PPTX)">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" /></svg>
+          </button>
           <button
             onClick={handleSend}
             disabled={(!input.trim() && !pendingFile) || sending}
