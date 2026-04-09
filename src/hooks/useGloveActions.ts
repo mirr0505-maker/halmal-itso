@@ -3,6 +3,7 @@ import { db } from '../firebase';
 import { doc, setDoc, updateDoc, increment, getDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
 import type { Dispatch, SetStateAction } from 'react';
 import type { Community, KanbuRoom, UserData } from '../types';
+import { calculateLevel } from '../utils';
 
 interface GloveActionDeps {
   userData: UserData | null;
@@ -31,7 +32,7 @@ export function useGloveActions({
       description: data.description || '',
       creatorId: userData.uid,
       creatorNickname: userData.nickname,
-      creatorLevel: userData.level,
+      creatorLevel: calculateLevel(userData.exp || 0),
       createdAt: serverTimestamp(),
     });
     setIsCreateRoomOpen(false);
@@ -46,8 +47,8 @@ export function useGloveActions({
     joinForm?: import('../types').JoinForm;
   }) => {
     if (!userData) return;
-    if ((userData.level || 1) < GLOVE_CREATE_MIN_LEVEL) {
-      alert(`커뮤니티 개설은 Lv${GLOVE_CREATE_MIN_LEVEL} 이상만 가능합니다. (현재 Lv${userData.level || 1})`);
+    if ((calculateLevel(userData.exp || 0)) < GLOVE_CREATE_MIN_LEVEL) {
+      alert(`커뮤니티 개설은 Lv${GLOVE_CREATE_MIN_LEVEL} 이상만 가능합니다. (현재 Lv${calculateLevel(userData.exp || 0)})`);
       return;
     }
     const communityId = `community_${Date.now()}_${userData.uid}`;
@@ -59,7 +60,7 @@ export function useGloveActions({
       coverColor: data.coverColor || '',
       creatorId: userData.uid,
       creatorNickname: userData.nickname,
-      creatorLevel: userData.level || 1,
+      creatorLevel: calculateLevel(userData.exp || 0),
       memberCount: 1,
       postCount: 0,
       createdAt: serverTimestamp(),
@@ -105,8 +106,8 @@ export function useGloveActions({
 
     // 최소 레벨 체크
     const minLevel = community.minLevel || 1;
-    if ((userData.level || 1) < minLevel) {
-      alert(`이 장갑은 Lv${minLevel} 이상만 가입할 수 있습니다. (현재 Lv${userData.level || 1})`);
+    if ((calculateLevel(userData.exp || 0)) < minLevel) {
+      alert(`이 장갑은 Lv${minLevel} 이상만 가입할 수 있습니다. (현재 Lv${calculateLevel(userData.exp || 0)})`);
       return;
     }
 
