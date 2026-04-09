@@ -2,10 +2,11 @@
 // 🚀 Firestore 'in' 쿼리 최대 30개 제한 — 초과 시 첫 30개 커뮤니티만 구독
 import { useState, useEffect } from 'react';
 import { db } from '../firebase';
-import { collection, query, where, orderBy, onSnapshot } from 'firebase/firestore';
-import type { CommunityPost, Community, UserData } from '../types';
+import { collection, query, where, orderBy, onSnapshot, getDocs } from 'firebase/firestore';
+import type { CommunityPost, Community, UserData, CommunityMember } from '../types';
 import { sanitizeHtml } from '../sanitize';
 import { calculateLevel } from '../utils';
+import CommunityPostDetail from './CommunityPostDetail';
 
 interface Props {
   currentUserData: UserData | null;
@@ -15,12 +16,14 @@ interface Props {
   onCommunityClick: (community: Community) => void;
 }
 
-const CommunityFeed = ({ currentUserData, joinedCommunityIds, allUsers, communities = [], onCommunityClick }: Props) => {
+const CommunityFeed = ({ currentUserData, joinedCommunityIds, allUsers, communities: _communities = [], onCommunityClick: _onCommunityClick }: Props) => {
   const [posts, setPosts] = useState<CommunityPost[]>([]);
+  // 🚀 글 상세 모달 + 멤버 lazy load
+  const [selectedPost, setSelectedPost] = useState<CommunityPost | null>(null);
+  const [modalMembers, setModalMembers] = useState<CommunityMember[]>([]);
 
   useEffect(() => {
     if (joinedCommunityIds.length === 0) { setPosts([]); return; }
-    // Firestore 'in' 연산자 최대 30개 제한 — 초과 시 앞 30개만 사용
     const ids = joinedCommunityIds.slice(0, 30);
     const q = query(
       collection(db, 'community_posts'),
@@ -32,6 +35,17 @@ const CommunityFeed = ({ currentUserData, joinedCommunityIds, allUsers, communit
     }, (err) => console.error('[CommunityFeed onSnapshot]', err));
     return () => unsub();
   }, [joinedCommunityIds]);
+
+  // 🚀 글 클릭 → 모달 열기 + 해당 커뮤니티 멤버 lazy load
+  const handlePostClick = async (post: CommunityPost) => {
+    setSelectedPost(post);
+    setModalMembers([]);
+    try {
+      const q = query(collection(db, 'community_memberships'), where('communityId', '==', post.communityId));
+      const snap = await getDocs(q);
+      setModalMembers(snap.docs.map(d => d.data() as CommunityMember));
+    } catch (e) { console.error('[feed member load]', e); }
+  };
 
   const formatTime = (ts: { seconds: number } | null | undefined) => {
     if (!ts) return '';
@@ -74,7 +88,7 @@ const CommunityFeed = ({ currentUserData, joinedCommunityIds, allUsers, communit
         const authorData = allUsers[`nickname_${post.author}`];
         return (
           <div key={post.id}
-            onClick={() => { const c = communities.find(cm => cm.id === post.communityId); if (c) onCommunityClick(c); }}
+            onClick={() => handlePostClick(post)}
             className="bg-white border border-slate-100 rounded-xl px-5 py-4 hover:border-blue-200 hover:shadow-md transition-all group cursor-pointer">
             {/* 커뮤니티명 배지 */}
             <div className="flex items-center gap-2 mb-2">
@@ -108,6 +122,16 @@ const CommunityFeed = ({ currentUserData, joinedCommunityIds, allUsers, communit
           </div>
         );
       })}
+
+      {/* 🚀 글 상세 모달 */}
+      {selectedPost && (
+        <CommunityPostDetail
+          post={selectedPost}
+          currentUserData={currentUserData}
+          members={modalMembers}
+          onClose={() => { setSelectedPost(null); setModalMembers([]); }}
+        />
+      )}
     </div>
   );
 };
