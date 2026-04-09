@@ -97,7 +97,10 @@
 | `EditorToolbar.tsx` | 링크 삽입 후 Workers 호출 → `LinkPreviewCard` 표시. `fetchPreview` 내부 상태 보호. |
 | `LinkPreviewCard.tsx` | OgData 타입 export — EditorToolbar에서 import해 사용. |
 | `MyContentTabs.tsx` | 나의 기록·한컷 리스트. 상태 배지(새글/미등록/등록글/인기글/최고글) + 재등록 버튼(1회 한정). `canRepost()` / `getPostStatus()` 로직 보호. |
-| `CommunityView.tsx` | 멤버 탭: 인증 부여/해제 + 가입 답변 보기 + 글 작성자 인증 배지. `handleVerifyMember`에 active 가드 있음. |
+| `CommunityView.tsx` | 소곤소곤·채팅·멤버·관리 4탭. 인증 부여/해제, 낙관적 업데이트 전체 적용. 비가입자 접근 제한(승인제 차단/open 읽기전용). `selectedCommunity`는 `communities.find()`로 최신값 참조. |
+| `CommunityPostDetail.tsx` | 별도 파일(CommunityView에서 추출). 자체 onSnapshot(글+댓글). 댓글: 좋아요/땡스볼/수정/삭제/고정. 작성자 카드 RootPostCard 패턴. CommunityFeed에서도 재사용. |
+| `CommunityChatPanel.tsx` | 실시간 채팅 (onSnapshot limit 50 + 페이징 30). 답장/이모지 6종/이미지+문서 첨부/땡스볼/soft delete. 50명 한도 가드. 읽지 않은 메시지 카운트(chatLastReadAt). |
+| `CommunityFeed.tsx` | 소곤소곤 피드. 글 클릭 → CommunityPostDetail 모달 직접 오픈 + 멤버 lazy load. |
 | `CreateCommunityModal.tsx` | 승인제(approval) 선택 시 가입 폼 빌더 표시. `joinForm` state + 표준 필드 토글 + 커스텀 질문 5개 슬롯 제한. |
 | `JoinCommunityModal.tsx` | joinForm 있으면 폼 빌더 모드, 없으면 레거시 모드. `validateJoinAnswers`로 필수 항목 검증. |
 

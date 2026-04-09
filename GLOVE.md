@@ -1,6 +1,6 @@
 # 🧤 우리들의 장갑 — 설계 및 구현 문서 (GLOVE.md)
 
-> 최종 갱신: 2026-04-08 v1.3 (Phase 7 실시간 채팅방)  |  연계 파일: `blueprint.md` §8
+> 최종 갱신: 2026-04-09 v1.4 (Phase 7 완성 + UI 통일)  |  연계 파일: `blueprint.md` §8
 
 ---
 
@@ -163,6 +163,37 @@ finger 없음 + role='member' → ring으로 취급
 - 본인 update: verified/finger/joinStatus/banReason 변경 차단
 - 관리자 update: `hasOnly` 검증, joinAnswers 수정 불가
 
+### Phase 7: 실시간 채팅방
+
+**컬렉션**: `community_chats/{communityId}/messages/{messageId}` (서브컬렉션)
+**한도**: 50명 이하 장갑만 채팅 활성화 (`CHAT_MEMBER_LIMIT = 50`)
+
+**기능 목록**:
+- 실시간 onSnapshot (최근 50개 + 스크롤 페이징 30개씩)
+- 카톡 스타일 좌/우 정렬 (내 메시지 우측 emerald, 상대 좌측 흰색)
+- 작성자 스냅샷: authorLevel, authorFinger, authorVerified (매 메시지 저장)
+- 답장: replyTo (snippet 50자), 인용 블록 표시
+- 이모지 반응 6종 (👍❤️😂🔥🤔💯), arrayUnion/arrayRemove 원자적 토글
+- 이미지 업로드 (R2, 📎+클립보드+드래그), 라이트박스 원본 보기
+- 문서 파일 첨부 (PDF/DOC/XLSX/PPTX, 10MB 한도, 아이콘+다운로드)
+- ⚾ 땡스볼 (기존 sendThanksball Cloud Function 확장, ThanksballModal 재사용)
+- soft delete (본인 + 관리자, deleted=true)
+- 읽지 않은 메시지 카운트 (chatLastReadAt 기반, 탭 라벨에 표시)
+
+**비가입자 접근 제한**:
+- 승인제(approval): 비가입자 완전 차단 (🔒 가입 안내만)
+- open/password: 글 목록 열람 가능, 상세·글쓰기 차단 (👀 안내)
+- pending: ⏳ 승인 대기 안내
+
+**UI 개선 (v42)**:
+- 글카드 하단: AnyTalkList와 동일 (아바타+Lv/평판/깐부수 + 댓글/땡스볼/좋아요)
+- 상세글 작성자 카드: RootPostCard 패턴 (큰 아바타 + ❤️/⚾/깐부맺기 pill 버튼)
+- 상세글 댓글: DebateBoard 패턴 (아바타+Lv/평판/깐부수, 좋아요/땡스볼/수정/삭제/고정)
+- CommunityPostDetail 별도 파일 추출 → CommunityFeed에서도 재사용
+- 장갑찾기 기본 탭, 가입된 장갑 목록에서 제외, 카드에 가입 조건 나열
+- 블라인드 글 관리자에게 표시 (해제 가능)
+- 낙관적 업데이트 (좋아요/승인/거절/인증/역할변경/강퇴 즉시 반영)
+
 ---
 
 ## 6. UI 구조
@@ -184,8 +215,9 @@ finger 없음 + role='member' → ring으로 취급
 
 ### 6.3 CommunityView 탭 구조
 ```
-[💬 소곤소곤]  [🤝 멤버 N]  [⚙️ 관리 (N)]  ← 관리 탭: thumb/index만 보임
+[💬 소곤소곤]  [💭 채팅 (N)]  [🤝 멤버 N]  [⚙️ 관리 (N)]  ← 관리 탭: thumb/index만 보임
 ```
+- 채팅 탭: 50명 이하만 활성, 50명 초과 시 (50명+) 라벨, 읽지 않은 메시지 카운트
 
 **소곤소곤 탭**
 - 공지 고정 글: 피드 최상단 amber 하이라이트 카드 (📌 공지 배지)

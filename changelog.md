@@ -643,6 +643,22 @@
   - **Step 5**: 채팅 땡스볼(Cloud Function 확장, ThanksballModal 재사용)
   - **Step 6**: Firestore Rules 정식화, 페이징(스크롤 기반 30개씩), soft delete, GLOVE.md 반영
 
+- [x] **커뮤니티 UI 통일 + 버그 수정 (2026-04-09 v42)**:
+  - 글카드 하단 AnyTalkList 패턴 통일 (아바타+Lv/평판/깐부수+댓글/땡스볼/좋아요) — CommunityFeed, CommunityView, CommunityPostDetail
+  - 상세글 작성자 카드 RootPostCard 패턴 (큰 아바타+❤️/⚾/깐부맺기 pill, 본인 비활성)
+  - 상세글 댓글 DebateBoard 패턴 (좋아요/땡스볼/수정/삭제/고정)
+  - CommunityPostDetail 별도 파일 추출 → CommunityFeed에서 상세 모달 직접 오픈
+  - 채팅 문서 파일 공유 (PDF/DOC/XLSX/PPTX, 10MB 한도, 아이콘+다운로드)
+  - 장갑 개설/가입 레벨 체크: userData.level→calculateLevel(exp) 교체
+  - 장갑 개설 후 joinedCommunityIds 즉시 반영
+  - 커뮤니티 카드에 가입 조건 나열 (승인제·Lv·필수 필드)
+  - 커뮤니티 전체 낙관적 업데이트 (좋아요/승인/거절/인증/역할변경/강퇴)
+  - 채팅 읽지 않은 메시지 카운트 (chatLastReadAt)
+  - 블라인드 글 관리자에게 표시 (해제 가능)
+  - 장갑찾기 기본 탭, 가입된 장갑 카드 제외
+  - selectedCommunity 최신값 참조 (communities.find 패턴)
+  - firestore.indexes.json 누락 인덱스 정비
+
 ### 🛠️ 진행 중 / 개선 필요 사항
 - [ ] **에디터 보완**: `bubble-menu` 활성화 (텍스트 선택 시 서식 도구 노출).
 - [ ] **검색 엔진**: Firestore 텍스트 검색 한계 보완 (현재는 클라이언트 사이드 필터링).

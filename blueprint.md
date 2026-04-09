@@ -150,7 +150,9 @@
     ├── CommunityList.tsx    # 장갑 찾기: 전체 커뮤니티 목록 (카테고리 필터 13종, 가입 버튼)
     ├── MyCommunityList.tsx  # 나의 아늑한 장갑: 가입한 커뮤니티 목록 (탈퇴 버튼) / compact=true 시 사이드바용 소형 리스트
     ├── CommunityFeed.tsx    # 소곤소곤: 가입 커뮤니티 통합 최신글 피드
-    ├── CommunityView.tsx    # 개별 커뮤니티 상세 (소곤소곤·멤버·관리 3탭, 공지 고정, 블라인드, 알림 토글, 인증 부여/해제) + CommunityPostDetail 인라인 컴포넌트
+    ├── CommunityView.tsx    # 개별 커뮤니티 상세 (소곤소곤·채팅·멤버·관리 4탭, 공지 고정, 블라인드, 알림 토글, 인증 부여/해제)
+    ├── CommunityPostDetail.tsx # 커뮤니티 글 상세 모달 (댓글 좋아요/땡스볼/수정/삭제/고정, RootPostCard 패턴 작성자 카드)
+    ├── CommunityChatPanel.tsx # 커뮤니티 실시간 채팅 (onSnapshot, 답장, 이모지 6종, 이미지+문서 첨부, 땡스볼, 50명 한도)
     ├── JoinCommunityModal.tsx # 장갑 가입 신청 폼 (폼 빌더 모드 + 레거시 모드)
     ├── JoinAnswersDisplay.tsx # 가입 답변 구조화 표시 (승인 패널·멤버 탭 재사용)
     ├── VerifiedBadge.tsx    # 🛡️ 인증 배지 컴포넌트 (멤버 탭·글 작성자 옆)
@@ -368,7 +370,7 @@ interface KanbuChat {
 ## 8. 구현 이력 (Changelog)
 
 > 📋 완료된 기능 전체 이력은 **[changelog.md](./changelog.md)** 를 참조하세요.
-> 최신 버전: v41 (2026-04-08)
+> 최신 버전: v42 (2026-04-09)
 
 ## 9. 외부 서비스 규칙
 
@@ -377,6 +379,9 @@ interface KanbuChat {
 - 공개 URL: `https://pub-9e6af273cd034aa6b7857343d0745224.r2.dev`
 - 버킷 2개: `halmal-itso-bucket` (게시글 이미지), `avatars` (아바타)
 - **업로드 경로**: 클라이언트 → `halmal-upload-worker` (Cloudflare Worker) → R2 바인딩 직접 저장
+  - 게시글: `uploads/{userId}/{filename}`
+  - 아바타: `avatars/{nickname}_{timestamp}`
+  - 채팅: `chats/{communityId}/{timestamp}_{uid8자}.{ext}` (이미지 + 문서: PDF/DOC/XLSX/PPTX)
 - **보안**: 클라이언트에 R2 API 키 없음. Worker가 Firebase Auth ID Token 검증 후 업로드 처리. `uploads/` 경로는 본인 UID 폴더만 허용.
 
 ### Cloudflare Workers
