@@ -104,7 +104,7 @@ const NotificationBell = ({ currentUid, onNavigate }: Props) => {
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 top-[50px] w-[320px] bg-white rounded-2xl shadow-2xl border border-slate-100 z-[100] overflow-hidden">
+        <div className="absolute right-0 top-[50px] w-[400px] bg-white rounded-2xl shadow-2xl border border-slate-100 z-[100] overflow-hidden">
           {/* 헤더 */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-slate-50">
             <div className="flex items-center gap-2">
