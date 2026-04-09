@@ -32,8 +32,8 @@ const KanbuPromoCard = ({ userData, followerCount = 0, onClick }: Props) => {
 
   return (
     <div
-      onClick={onClick}
-      className={`bg-white rounded-2xl border p-4 cursor-pointer hover:shadow-md transition-all group ${remaining?.expired ? 'border-slate-200 opacity-60' : 'border-slate-100 hover:border-violet-200'}`}
+      onClick={remaining?.expired ? undefined : onClick}
+      className={`bg-white rounded-2xl border p-4 transition-all ${remaining?.expired ? 'border-slate-200 opacity-50 cursor-default grayscale-[30%]' : 'border-slate-100 hover:border-violet-200 hover:shadow-md cursor-pointer group'}`}
     >
       {/* 1. 아바타 + 닉네임 + 레벨 */}
       <div className="flex items-center gap-2.5 mb-2">
