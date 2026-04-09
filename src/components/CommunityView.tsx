@@ -132,7 +132,8 @@ const CommunityView = ({ community, currentUserData, allUsers, onBack, onClosed 
   // 🚀 Phase 3 — 공지 고정 글 (pinnedPostId로 찾기)
   const pinnedPost = community.pinnedPostId ? posts.find(p => p.id === community.pinnedPostId) : null;
   // 공지 제외한 일반 글 목록 (블라인드 필터링 포함)
-  const visiblePosts = posts.filter(p => !p.isBlinded && p.id !== community.pinnedPostId);
+  // 🚀 관리자는 블라인드 글도 볼 수 있음 (해제하려면 보여야 하니까)
+  const visiblePosts = posts.filter(p => p.id !== community.pinnedPostId && (!p.isBlinded || isAdmin));
 
   // 🚀 Phase 3 — 공지 고정 핸들러 (thumb/index만)
   const handlePinPost = async (postId: string) => {
@@ -648,8 +649,12 @@ const CommunityView = ({ community, currentUserData, allUsers, onBack, onClosed 
                 <div
                   key={post.id}
                   onClick={() => setSelectedPost(post)}
-                  className="bg-white border border-slate-100 rounded-xl px-5 py-4 transition-all group cursor-pointer hover:border-blue-300 hover:shadow-md"
+                  className={`border rounded-xl px-5 py-4 transition-all group cursor-pointer hover:shadow-md ${post.isBlinded ? 'bg-rose-50/50 border-rose-200 opacity-60' : 'bg-white border-slate-100 hover:border-blue-300'}`}
                 >
+                  {/* 🚀 블라인드 표시 (관리자에게만 보임) */}
+                  {post.isBlinded && (
+                    <span className="text-[10px] font-[1000] text-rose-500 bg-rose-100 px-2 py-0.5 rounded mb-2 inline-block">🚫 블라인드 처리됨</span>
+                  )}
                   {post.title && (
                     <h3 className="text-[15px] font-[1000] text-slate-900 group-hover:text-blue-600 transition-colors mb-1">{post.title}</h3>
                   )}
