@@ -170,14 +170,15 @@ const CommunityPostDetail = ({ post, currentUserData, allUsers = {}, followerCou
             className="text-[14px] font-medium text-slate-700 leading-[1.8] [&_p]:mb-3 [&_strong]:font-bold [&_em]:italic [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_img]:rounded-lg [&_img]:max-w-full [&_a]:text-blue-400 [&_a]:underline"
             dangerouslySetInnerHTML={{ __html: sanitizeHtml(livePost.content) }}
           />
-          {/* 🚀 글 작성자 카드 — RootPostCard 스타일 (큰 아바타 + 좋아요/땡스볼 버튼) */}
+          {/* 🚀 글 작성자 카드 — RootPostCard 완전 동일 패턴 */}
           {(() => {
             const authorData = allUsers[`nickname_${livePost.author}`];
             const displayLevel = calculateLevel(authorData?.exp || 0);
             const repLabel = getReputationLabel(authorData ? getReputationScore(authorData) : 0);
             const realFollowers = followerCounts[livePost.author] || 0;
+            const isMyPost = currentUserData && livePost.author_id === currentUserData.uid;
             return (
-              <div className="mt-6 flex items-center justify-between bg-slate-50 rounded-2xl px-5 py-4 border border-slate-100">
+              <div className="mt-6 flex flex-col md:flex-row items-center justify-between gap-3 bg-slate-50 rounded-2xl px-5 py-4 border border-slate-100">
                 {/* 좌측: 큰 아바타 + 닉네임 + Lv/평판/깐부수 */}
                 <div className="flex items-center gap-3 min-w-0">
                   <div className="w-12 h-12 rounded-full bg-white overflow-hidden shrink-0 border-2 border-white shadow-md ring-1 ring-slate-200">
@@ -185,43 +186,50 @@ const CommunityPostDetail = ({ post, currentUserData, allUsers = {}, followerCou
                   </div>
                   <div className="flex flex-col min-w-0">
                     <div className="flex items-center gap-1.5">
-                      <span className="text-[14px] font-[1000] text-slate-900 truncate">{livePost.author}</span>
+                      <span className="text-[15px] font-[1000] text-slate-900 truncate">{livePost.author}</span>
                       <VerifiedBadgeComponent verified={members.find(m => m.userId === livePost.author_id)?.verified} size="sm" showDate={false} />
                     </div>
-                    <span className="text-[11px] font-bold text-slate-400 truncate tracking-tight">
+                    <span className="text-[11px] font-bold text-slate-500 truncate">
                       Lv {displayLevel} · {repLabel} · 깐부수 {formatKoreanNumber(realFollowers)}
                     </span>
                   </div>
                 </div>
-                {/* 우측: 좋아요(큰 버튼) + 땡스볼 */}
-                <div className="flex items-center gap-2 shrink-0">
-                  {/* 좋아요 버튼 — 큰 pill */}
+                {/* 우측: 좋아요 + 땡스볼 + 깐부맺기 — RootPostCard 동일 */}
+                <div className="flex items-center gap-2 w-full md:w-auto">
+                  {/* ❤️ 좋아요 */}
                   <button
                     onClick={handleLike}
-                    className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-[13px] font-[1000] transition-all ${
+                    className={`flex-1 md:flex-none flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl transition-all font-[1000] text-[12px] whitespace-nowrap ${
                       isLiked
-                        ? 'bg-rose-500 text-white shadow-md'
-                        : 'bg-white text-slate-400 border border-slate-200 hover:border-rose-300 hover:text-rose-400'
+                        ? 'bg-[#FF2E56] text-white ring-2 ring-rose-300 scale-105'
+                        : 'bg-white text-rose-400 border border-rose-200 hover:bg-rose-50'
                     }`}
                   >
-                    <svg className={`w-4 h-4 ${isLiked ? 'fill-current' : 'fill-none'}`} stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" /></svg>
+                    <svg className="w-3.5 h-3.5 fill-current shrink-0" viewBox="0 0 24 24" stroke="none"><path d="M11.645 20.91l-.007-.003-.022-.012a15.247 15.247 0 01-.383-.218 25.18 25.18 0 01-4.244-3.17C4.688 15.36 2.25 12.174 2.25 8.25 2.25 5.322 4.714 3 7.688 3A5.5 5.5 0 0112 5.052 5.5 5.5 0 0116.313 3c2.973 0 5.437 2.322 5.437 5.25 0 3.925-2.438 7.111-4.739 9.256a25.175 25.175 0 01-4.244 3.17 15.247 15.247 0 01-.383.219l-.022.012-.007.004-.003.001a.752.752 0 01-.704 0l-.003-.001z" /></svg>
                     {formatKoreanNumber(livePost.likes || 0)}
                   </button>
-                  {/* 땡스볼 버튼 — 본인 글 제외 */}
-                  {currentUserData && livePost.author_id !== currentUserData.uid && (
-                    <button
-                      onClick={() => setPostThanksballOpen(true)}
-                      className="flex items-center gap-1.5 px-4 py-2 rounded-full text-[13px] font-[1000] bg-white text-slate-400 border border-amber-200 hover:border-amber-400 hover:text-amber-500 transition-all"
-                    >
-                      <span className="text-[15px]">⚾</span> 땡스볼
-                      {(livePost.thanksballTotal || 0) > 0 && <span className="text-amber-500">{livePost.thanksballTotal}</span>}
-                    </button>
-                  )}
-                  {currentUserData && livePost.author_id === currentUserData.uid && (livePost.thanksballTotal || 0) > 0 && (
-                    <span className="flex items-center gap-1 px-3 py-2 rounded-full text-[13px] font-[1000] bg-amber-50 text-amber-500 border border-amber-200">
-                      <span className="text-[15px]">⚾</span> {livePost.thanksballTotal}
-                    </span>
-                  )}
+                  {/* ⚾ 땡스볼 — 본인도 표시하되 비활성 */}
+                  <button
+                    onClick={() => { if (!isMyPost && currentUserData) setPostThanksballOpen(true); }}
+                    className={`flex-1 md:flex-none flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border text-[12px] font-[1000] whitespace-nowrap transition-all ${
+                      isMyPost || !currentUserData
+                        ? 'bg-white text-slate-300 border-slate-200 cursor-default'
+                        : 'bg-white text-amber-500 border-amber-200 hover:bg-amber-50 cursor-pointer'
+                    }`}
+                  >
+                    <span className="text-[14px] leading-none">⚾</span>
+                    <span>{(livePost.thanksballTotal || 0) > 0 ? `${livePost.thanksballTotal}볼` : '땡스볼'}</span>
+                  </button>
+                  {/* + 깐부맺기 — 본인은 비활성 표시 */}
+                  <button
+                    className={`flex-1 md:flex-none px-3 py-2 text-[12px] font-[1000] rounded-xl border transition-all whitespace-nowrap ${
+                      isMyPost
+                        ? 'bg-white text-slate-300 border-slate-200 cursor-default'
+                        : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                    }`}
+                  >
+                    + 깐부맺기
+                  </button>
                 </div>
               </div>
             );
