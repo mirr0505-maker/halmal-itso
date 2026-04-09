@@ -1,12 +1,26 @@
-// src/components/CommunityPostDetail.tsx — 커뮤니티 글 상세 오버레이 (댓글 + 좋아요)
+// src/components/CommunityPostDetail.tsx — 커뮤니티 글 상세 오버레이
 // 🚀 CommunityView + CommunityFeed 양쪽에서 재사용
+// 댓글: 좋아요·땡스볼·수정·삭제·고정 (DebateBoard 패턴)
 import { useState, useEffect } from 'react';
 import { db } from '../firebase';
-import { collection, doc, setDoc, updateDoc, query, where, orderBy, onSnapshot, increment, serverTimestamp, arrayUnion, arrayRemove } from 'firebase/firestore';
+import { collection, doc, setDoc, updateDoc, deleteDoc, query, where, orderBy, onSnapshot, increment, serverTimestamp, arrayUnion, arrayRemove } from 'firebase/firestore';
 import type { CommunityPost, CommunityMember, UserData, FirestoreTimestamp } from '../types';
 import { sanitizeHtml } from '../sanitize';
 import { calculateLevel, getReputationLabel, getReputationScore, formatKoreanNumber } from '../utils';
 import VerifiedBadgeComponent from './VerifiedBadge';
+import ThanksballModal from './ThanksballModal';
+
+// 🚀 댓글 타입 (community_post_comments 문서 구조)
+interface CommunityComment {
+  id: string;
+  author: string;
+  author_id?: string;
+  content: string;
+  createdAt?: FirestoreTimestamp;
+  likes?: number;
+  likedBy?: string[];
+  thanksballTotal?: number;
+}
 
 interface Props {
   post: CommunityPost;
@@ -19,11 +33,18 @@ interface Props {
 
 const CommunityPostDetail = ({ post, currentUserData, allUsers = {}, followerCounts = {}, members, onClose }: Props) => {
   const [livePost, setLivePost] = useState(post);
-  const [comments, setComments] = useState<{id: string; author: string; author_id?: string; content: string; createdAt?: FirestoreTimestamp}[]>([]);
+  const [comments, setComments] = useState<CommunityComment[]>([]);
   const [newComment, setNewComment] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // 🚀 댓글 수정
+  const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
+  const [editingContent, setEditingContent] = useState('');
+  // 🚀 댓글 땡스볼
+  const [thanksballTarget, setThanksballTarget] = useState<{ docId: string; recipient: string } | null>(null);
 
-  // 🚀 글 실시간 구독 (좋아요 등 즉시 반영)
+  const isPostAuthor = currentUserData && livePost.author_id === currentUserData.uid;
+
+  // 🚀 글 실시간 구독 (좋아요·댓글수·pinnedCommentId 즉시 반영)
   useEffect(() => {
     const unsub = onSnapshot(doc(db, 'community_posts', post.id), (snap) => {
       if (snap.exists()) setLivePost({ id: snap.id, ...snap.data() } as CommunityPost);
@@ -39,11 +60,12 @@ const CommunityPostDetail = ({ post, currentUserData, allUsers = {}, followerCou
       orderBy('createdAt', 'asc')
     );
     const unsub = onSnapshot(q, snap => {
-      setComments(snap.docs.map(d => ({ id: d.id, ...d.data() } as { id: string; author: string; author_id?: string; content: string; createdAt?: FirestoreTimestamp })));
+      setComments(snap.docs.map(d => ({ id: d.id, ...d.data() } as CommunityComment)));
     }, (err) => console.error('[community_post_comments onSnapshot]', err));
     return () => unsub();
   }, [post.id]);
 
+  // 🚀 댓글 작성
   const handleCommentSubmit = async () => {
     if (!currentUserData || !newComment.trim() || isSubmitting) return;
     setIsSubmitting(true);
@@ -55,6 +77,8 @@ const CommunityPostDetail = ({ post, currentUserData, allUsers = {}, followerCou
         author: currentUserData.nickname,
         author_id: currentUserData.uid,
         content: newComment.trim(),
+        likes: 0,
+        likedBy: [],
         createdAt: serverTimestamp(),
       });
       await updateDoc(doc(db, 'community_posts', post.id), { commentCount: increment(1) });
@@ -65,6 +89,7 @@ const CommunityPostDetail = ({ post, currentUserData, allUsers = {}, followerCou
     } finally { setIsSubmitting(false); }
   };
 
+  // 🚀 글 좋아요
   const handleLike = async (e: React.MouseEvent) => {
     e.stopPropagation();
     if (!currentUserData) return;
@@ -79,6 +104,40 @@ const CommunityPostDetail = ({ post, currentUserData, allUsers = {}, followerCou
     }
   };
 
+  // 🚀 댓글 좋아요
+  const handleCommentLike = async (comment: CommunityComment) => {
+    if (!currentUserData) return;
+    const isLiked = comment.likedBy?.includes(currentUserData.nickname);
+    const diff = isLiked ? -1 : 1;
+    await updateDoc(doc(db, 'community_post_comments', comment.id), {
+      likes: Math.max(0, (comment.likes || 0) + diff),
+      likedBy: isLiked ? arrayRemove(currentUserData.nickname) : arrayUnion(currentUserData.nickname),
+    });
+  };
+
+  // 🚀 댓글 삭제
+  const handleCommentDelete = async (comment: CommunityComment) => {
+    if (!window.confirm('이 댓글을 삭제하시겠습니까?')) return;
+    await deleteDoc(doc(db, 'community_post_comments', comment.id));
+    await updateDoc(doc(db, 'community_posts', post.id), { commentCount: increment(-1) });
+    if (comment.author_id) updateDoc(doc(db, 'users', comment.author_id), { exp: increment(-2) }).catch(() => {});
+  };
+
+  // 🚀 댓글 수정 저장
+  const handleCommentEditSave = async () => {
+    if (!editingCommentId || !editingContent.trim()) return;
+    await updateDoc(doc(db, 'community_post_comments', editingCommentId), { content: editingContent.trim() });
+    setEditingCommentId(null);
+    setEditingContent('');
+  };
+
+  // 🚀 댓글 고정/해제 (글 작성자만)
+  const handlePinComment = async (commentId: string) => {
+    if (!isPostAuthor) return;
+    const newPinned = (livePost as CommunityPost & { pinnedCommentId?: string }).pinnedCommentId === commentId ? null : commentId;
+    await updateDoc(doc(db, 'community_posts', post.id), { pinnedCommentId: newPinned });
+  };
+
   const formatTime = (ts: { seconds: number } | null | undefined) => {
     if (!ts) return '';
     const d = new Date(ts.seconds * 1000);
@@ -89,6 +148,11 @@ const CommunityPostDetail = ({ post, currentUserData, allUsers = {}, followerCou
   };
 
   const isLiked = currentUserData && livePost.likedBy?.includes(currentUserData.nickname);
+  const pinnedCommentId = (livePost as CommunityPost & { pinnedCommentId?: string }).pinnedCommentId;
+  // 고정 댓글을 맨 앞으로
+  const sortedComments = pinnedCommentId
+    ? [...comments].sort((a, b) => (a.id === pinnedCommentId ? -1 : b.id === pinnedCommentId ? 1 : 0))
+    : comments;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4" onClick={onClose}>
@@ -105,7 +169,7 @@ const CommunityPostDetail = ({ post, currentUserData, allUsers = {}, followerCou
             className="text-[14px] font-medium text-slate-700 leading-[1.8] [&_p]:mb-3 [&_strong]:font-bold [&_em]:italic [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_img]:rounded-lg [&_img]:max-w-full [&_a]:text-blue-400 [&_a]:underline"
             dangerouslySetInnerHTML={{ __html: sanitizeHtml(livePost.content) }}
           />
-          {/* 🚀 하단: AnyTalkList 글카드와 동일 구조 (공유 제외) */}
+          {/* 🚀 글 하단: 아바타+Lv/평판/깐부수 + 댓글/땡스볼/좋아요 */}
           {(() => {
             const authorData = allUsers[`nickname_${livePost.author}`];
             const displayLevel = calculateLevel(authorData?.exp || 0);
@@ -149,20 +213,104 @@ const CommunityPostDetail = ({ post, currentUserData, allUsers = {}, followerCou
             );
           })()}
         </div>
-        {/* 댓글 목록 */}
+
+        {/* 🚀 댓글 목록 — DebateBoard 패턴 */}
         <div className="px-6 pb-2 border-t border-slate-100">
-          {comments.map(c => (
-            <div key={c.id} className="py-3 border-b border-slate-50 last:border-0">
-              <div className="flex items-center gap-2 mb-1">
-                <img src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${c.author}`} className="w-5 h-5 rounded-full bg-slate-50" alt="" />
-                <span className="text-[12px] font-bold text-slate-700">{c.author}</span>
-                <VerifiedBadgeComponent verified={members.find(m => m.userId === c.author_id)?.verified} size="sm" showDate={false} />
-                <span className="text-[10px] font-bold text-slate-300">{formatTime(c.createdAt)}</span>
+          {sortedComments.map(c => {
+            const cAuthorData = allUsers[`nickname_${c.author}`];
+            const cLevel = calculateLevel(cAuthorData?.exp || 0);
+            const cRepLabel = getReputationLabel(cAuthorData ? getReputationScore(cAuthorData) : 0);
+            const cFollowers = followerCounts[c.author] || 0;
+            const cIsLiked = currentUserData && c.likedBy?.includes(currentUserData.nickname);
+            const cIsMine = currentUserData && c.author_id === currentUserData.uid;
+            const cIsPinned = pinnedCommentId === c.id;
+            const isEditing = editingCommentId === c.id;
+
+            return (
+              <div key={c.id} className={`py-3 border-b border-slate-50 last:border-0 ${cIsPinned ? 'bg-amber-50/50 -mx-6 px-6 border-l-2 border-l-amber-400' : ''}`}>
+                {/* 고정 표시 */}
+                {cIsPinned && (
+                  <div className="text-[10px] font-black text-amber-600 mb-1.5 flex items-center gap-1">
+                    <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>
+                    작성자가 고정한 댓글
+                  </div>
+                )}
+                {/* 댓글 헤더: 좌측 아바타+정보, 우측 액션 */}
+                <div className="flex items-center justify-between mb-1">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className="w-7 h-7 rounded-full overflow-hidden shrink-0 border border-slate-200">
+                      <img src={cAuthorData?.avatarUrl || `https://api.dicebear.com/7.x/adventurer/svg?seed=${c.author}`} alt="" className="w-full h-full object-cover" />
+                    </div>
+                    <div className="flex flex-col min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[12px] font-[1000] text-slate-800 leading-none">{c.author}</span>
+                        <VerifiedBadgeComponent verified={members.find(m => m.userId === c.author_id)?.verified} size="sm" showDate={false} />
+                        <span className="text-[9px] font-bold text-slate-300">{formatTime(c.createdAt)}</span>
+                      </div>
+                      <span className="text-[9px] text-slate-400 font-bold leading-tight mt-0.5">
+                        Lv {cLevel} · {cRepLabel} · 깐부수 {formatKoreanNumber(cFollowers)}
+                      </span>
+                    </div>
+                  </div>
+                  {/* 우측 액션: 좋아요·땡스볼·수정·삭제·고정 */}
+                  <div className="flex items-center gap-2 shrink-0">
+                    {/* 좋아요 */}
+                    <button onClick={() => handleCommentLike(c)}
+                      className={`flex items-center gap-0.5 text-[11px] font-bold transition-colors ${cIsLiked ? 'text-rose-500' : 'text-slate-300 hover:text-rose-400'}`}>
+                      <svg className={`w-3 h-3 ${cIsLiked ? 'fill-current' : 'fill-none'}`} stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+                      {(c.likes || 0) > 0 && <span>{c.likes}</span>}
+                    </button>
+                    {/* 땡스볼 */}
+                    {currentUserData && !cIsMine ? (
+                      <button onClick={() => setThanksballTarget({ docId: c.id, recipient: c.author })}
+                        className="flex items-center gap-0.5 text-[11px] font-bold text-slate-300 hover:text-amber-500 transition-colors">
+                        <span className="text-[13px] leading-none">⚾</span>
+                        {(c.thanksballTotal || 0) > 0 && <span className="text-amber-400">{c.thanksballTotal}</span>}
+                      </button>
+                    ) : (c.thanksballTotal || 0) > 0 ? (
+                      <span className="flex items-center gap-0.5 text-[11px] font-bold text-amber-400">
+                        <span className="text-[13px] leading-none">⚾</span>{c.thanksballTotal}
+                      </span>
+                    ) : null}
+                    {/* 수정 (본인만) */}
+                    {cIsMine && (
+                      <button onClick={() => { setEditingCommentId(c.id); setEditingContent(c.content); }}
+                        className="text-[10px] font-bold text-slate-300 hover:text-blue-500 transition-colors">수정</button>
+                    )}
+                    {/* 삭제 (본인만) */}
+                    {cIsMine && (
+                      <button onClick={() => handleCommentDelete(c)}
+                        className="text-slate-300 hover:text-rose-500 transition-colors">
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h14" /></svg>
+                      </button>
+                    )}
+                    {/* 고정 (글 작성자만) */}
+                    {isPostAuthor && (
+                      <button onClick={() => handlePinComment(c.id)}
+                        title={cIsPinned ? '고정 해제' : '댓글 고정'}
+                        className={`transition-colors ${cIsPinned ? 'text-amber-500' : 'text-slate-300 hover:text-amber-400'}`}>
+                        <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>
+                      </button>
+                    )}
+                  </div>
+                </div>
+                {/* 댓글 본문 또는 수정 모드 */}
+                {isEditing ? (
+                  <div className="pl-9 flex gap-2 mt-1">
+                    <input type="text" value={editingContent} onChange={(e) => setEditingContent(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) handleCommentEditSave(); }}
+                      className="flex-1 bg-slate-50 rounded-lg px-3 py-1.5 text-[13px] font-medium text-slate-900 outline-none border border-blue-300" autoFocus />
+                    <button onClick={handleCommentEditSave} className="text-[11px] font-bold text-blue-600 hover:text-blue-800 shrink-0">저장</button>
+                    <button onClick={() => setEditingCommentId(null)} className="text-[11px] font-bold text-slate-400 hover:text-slate-600 shrink-0">취소</button>
+                  </div>
+                ) : (
+                  <p className="text-[13px] font-medium text-slate-600 pl-9 mt-0.5">{c.content}</p>
+                )}
               </div>
-              <p className="text-[13px] font-medium text-slate-600 pl-7">{c.content}</p>
-            </div>
-          ))}
+            );
+          })}
         </div>
+
         {/* 댓글 입력 */}
         {currentUserData && (
           <div className="sticky bottom-0 bg-white px-6 py-3 border-t border-slate-100 flex gap-2">
@@ -178,6 +326,21 @@ const CommunityPostDetail = ({ post, currentUserData, allUsers = {}, followerCou
               등록
             </button>
           </div>
+        )}
+
+        {/* 🚀 댓글 땡스볼 모달 */}
+        {thanksballTarget && currentUserData && (
+          <ThanksballModal
+            postId={post.id}
+            postAuthor={thanksballTarget.recipient}
+            postTitle={livePost.title || '[커뮤니티 댓글]'}
+            currentNickname={currentUserData.nickname}
+            allUsers={allUsers}
+            recipientNickname={thanksballTarget.recipient}
+            targetDocId={thanksballTarget.docId}
+            targetCollection="community_post_comments"
+            onClose={() => setThanksballTarget(null)}
+          />
         )}
       </div>
     </div>
