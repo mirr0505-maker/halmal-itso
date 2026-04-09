@@ -146,6 +146,19 @@ export function useGloveActions({
       setJoinedCommunityIds(prev => [...prev, community.id]);
       alert(`'${community.name}' 장갑에 가입되었습니다!`);
     } else {
+      // 🚀 Phase 8: 가입 신청 알림 → 개설자에게
+      try {
+        const { addDoc, collection: col } = await import('firebase/firestore');
+        await addDoc(col(db, 'notifications', community.creatorId, 'items'), {
+          type: 'community_join_request',
+          message: `${userData.nickname}님이 [${community.name}]에 가입 신청했어요`,
+          communityId: community.id,
+          communityName: community.name,
+          applicantNickname: userData.nickname,
+          read: false,
+          createdAt: serverTimestamp(),
+        });
+      } catch (e) { console.warn('[가입 신청 알림 실패]', e); }
       alert(`가입 신청이 완료되었습니다.\n관리자 승인 후 활동할 수 있습니다.`);
     }
   };
