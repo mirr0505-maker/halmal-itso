@@ -11,10 +11,11 @@ interface Props {
   currentUserData: UserData | null;
   joinedCommunityIds: string[];
   allUsers: Record<string, UserData>;
+  communities?: Community[];
   onCommunityClick: (community: Community) => void;
 }
 
-const CommunityFeed = ({ currentUserData, joinedCommunityIds, allUsers }: Props) => {
+const CommunityFeed = ({ currentUserData, joinedCommunityIds, allUsers, communities = [], onCommunityClick }: Props) => {
   const [posts, setPosts] = useState<CommunityPost[]>([]);
 
   useEffect(() => {
@@ -72,7 +73,9 @@ const CommunityFeed = ({ currentUserData, joinedCommunityIds, allUsers }: Props)
       {posts.map(post => {
         const authorData = allUsers[`nickname_${post.author}`];
         return (
-          <div key={post.id} className="bg-white border border-slate-100 rounded-xl px-5 py-4 hover:border-blue-200 hover:shadow-md transition-all group">
+          <div key={post.id}
+            onClick={() => { const c = communities.find(cm => cm.id === post.communityId); if (c) onCommunityClick(c); }}
+            className="bg-white border border-slate-100 rounded-xl px-5 py-4 hover:border-blue-200 hover:shadow-md transition-all group cursor-pointer">
             {/* 커뮤니티명 배지 */}
             <div className="flex items-center gap-2 mb-2">
               <span className="text-[10px] font-[1000] text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">🧤 {post.communityName}</span>

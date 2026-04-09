@@ -509,6 +509,7 @@ function App() {
                   currentUserData={userData}
                   joinedCommunityIds={joinedCommunityIds}
                   allUsers={allUsers}
+                  communities={communities}
                   onCommunityClick={setSelectedCommunity}
                 />
               ) : (
