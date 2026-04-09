@@ -122,7 +122,8 @@ function App() {
   const [selectedRoom, setSelectedRoom] = useState<KanbuRoom | null>(null);
   const [isCreateRoomOpen, setIsCreateRoomOpen] = useState(false);
   // 🚀 우리들의 따뜻한 장갑: 커뮤니티 상태
-  const [gloveSubTab, setGloveSubTab] = useState<'feed' | 'list'>('feed');
+  // 🚀 장갑찾기가 기본 탭 (사용자가 커뮤니티를 발견하도록 유도)
+  const [gloveSubTab, setGloveSubTab] = useState<'feed' | 'list'>('list');
   const [selectedCommunity, setSelectedCommunity] = useState<Community | null>(null);
   const [isCreateCommunityOpen, setIsCreateCommunityOpen] = useState(false);
   const [selectedFriend, setSelectedFriend] = useState<string | null>(null);

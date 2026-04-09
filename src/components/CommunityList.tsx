@@ -20,9 +20,11 @@ const CommunityList = ({ communities, currentUserData, joinedCommunityIds, onCom
   // 🚀 Phase 6: 승인제 가입 모달 상태
   const [joinModalTarget, setJoinModalTarget] = useState<Community | null>(null);
 
+  // 🚀 가입된 장갑은 목록에서 제외 (나의 아늑한 장갑에서 접근)
+  const notJoined = communities.filter(c => !joinedCommunityIds.includes(c.id) && c.creatorId !== currentUserData?.uid);
   const filtered = selectedCategory === '전체'
-    ? communities
-    : communities.filter(c => c.category === selectedCategory);
+    ? notJoined
+    : notJoined.filter(c => c.category === selectedCategory);
 
   const handleJoin = async (e: React.MouseEvent, community: Community) => {
     e.stopPropagation();
