@@ -225,6 +225,18 @@ const CommunityView = ({ community, currentUserData, allUsers, followerCounts = 
       role: 'member',
     });
     await updateDoc(doc(db, 'communities', community.id), { memberCount: increment(1) });
+    // 🚀 Phase 8: 승인 알림
+    try {
+      const { addDoc } = await import('firebase/firestore');
+      await addDoc(collection(db, 'notifications', member.userId, 'items'), {
+        type: 'community_join_approved',
+        message: `[${community.name}] 가입이 승인되었어요! 환영합니다 🎉`,
+        communityId: community.id,
+        communityName: community.name,
+        read: false,
+        createdAt: serverTimestamp(),
+      });
+    } catch (e) { console.warn('[승인 알림 실패]', e); }
   };
 
   // 🚀 다섯 손가락 Phase 2 — 멤버 거절 (문서 삭제)
@@ -232,6 +244,18 @@ const CommunityView = ({ community, currentUserData, allUsers, followerCounts = 
     if (!window.confirm(`${member.nickname}님의 가입 신청을 거절하시겠습니까?`)) return;
     // 낙관적 업데이트
     setMembers(prev => prev.filter(m => m.userId !== member.userId));
+    // 🚀 Phase 8: 거절 알림 (삭제 전에 먼저)
+    try {
+      const { addDoc } = await import('firebase/firestore');
+      await addDoc(collection(db, 'notifications', member.userId, 'items'), {
+        type: 'community_join_rejected',
+        message: `[${community.name}] 아쉽지만 가입이 거절되었어요`,
+        communityId: community.id,
+        communityName: community.name,
+        read: false,
+        createdAt: serverTimestamp(),
+      });
+    } catch (e) { console.warn('[거절 알림 실패]', e); }
     await deleteDoc(doc(db, 'community_memberships', `${community.id}_${member.userId}`));
   };
 

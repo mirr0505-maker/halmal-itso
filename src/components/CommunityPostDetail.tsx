@@ -3,7 +3,7 @@
 // 댓글: 좋아요·땡스볼·수정·삭제·고정 (DebateBoard 패턴)
 import { useState, useEffect } from 'react';
 import { db } from '../firebase';
-import { collection, doc, setDoc, updateDoc, deleteDoc, query, where, orderBy, onSnapshot, increment, serverTimestamp, arrayUnion, arrayRemove } from 'firebase/firestore';
+import { collection, doc, setDoc, addDoc, updateDoc, deleteDoc, query, where, orderBy, onSnapshot, increment, serverTimestamp, arrayUnion, arrayRemove } from 'firebase/firestore';
 import type { CommunityPost, CommunityMember, UserData, FirestoreTimestamp } from '../types';
 import { sanitizeHtml } from '../sanitize';
 import { calculateLevel, getReputationLabel, getReputationScore, formatKoreanNumber } from '../utils';
@@ -85,6 +85,22 @@ const CommunityPostDetail = ({ post, currentUserData, allUsers = {}, followerCou
       await updateDoc(doc(db, 'community_posts', post.id), { commentCount: increment(1) });
       if (newComment.trim().length >= 10) {
         await updateDoc(doc(db, 'users', currentUserData.uid), { exp: increment(2) });
+      }
+      // 🚀 Phase 8: 댓글 알림 (글 작성자에게, 본인 제외)
+      if (post.author_id && post.author_id !== currentUserData.uid) {
+        try {
+          await addDoc(collection(db, 'notifications', post.author_id, 'items'), {
+            type: 'community_comment',
+            message: `${currentUserData.nickname}님이 [${post.communityName}] 글에 댓글을 남겼어요`,
+            communityId: post.communityId,
+            communityName: post.communityName,
+            postId: post.id,
+            postTitle: post.title || post.content?.replace(/<[^>]*>/g, '').slice(0, 30) || '',
+            commenterNickname: currentUserData.nickname,
+            read: false,
+            createdAt: serverTimestamp(),
+          });
+        } catch (e) { console.warn('[댓글 알림 실패]', e); }
       }
       setNewComment('');
     } finally { setIsSubmitting(false); }

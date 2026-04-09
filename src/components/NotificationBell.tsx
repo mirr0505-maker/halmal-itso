@@ -5,7 +5,7 @@ import { collection, query, orderBy, limit, onSnapshot, updateDoc, doc, writeBat
 
 interface Notification {
   id: string;
-  type: 'thanksball' | 'community_post' | 'finger_promoted' | 'giant_tree_spread' | 'giant_tree_wilt';
+  type: 'thanksball' | 'community_post' | 'finger_promoted' | 'giant_tree_spread' | 'giant_tree_wilt' | 'community_join_approved' | 'community_join_rejected' | 'community_comment';
   fromNickname?: string;  // 땡스볼·커뮤니티 알림
   fromNick?: string;      // 거대나무 알림 (필드명 다름)
   amount?: number;
@@ -137,9 +137,12 @@ const NotificationBell = ({ currentUid, onNavigate }: Props) => {
                   n.type === 'community_post' ? '🧤' :
                   n.type === 'finger_promoted' ? '🖐' :
                   n.type === 'giant_tree_spread' ? '🌳' :
-                  n.type === 'giant_tree_wilt' ? '🍂' : '⚾';
+                  n.type === 'giant_tree_wilt' ? '🍂' :
+                  n.type === 'community_join_approved' ? '✅' :
+                  n.type === 'community_join_rejected' ? '❌' :
+                  n.type === 'community_comment' ? '💬' : '⚾';
                 const body =
-                  n.type === 'community_post' || n.type === 'finger_promoted'
+                  n.type === 'community_post' || n.type === 'finger_promoted' || n.type === 'community_join_approved' || n.type === 'community_join_rejected' || n.type === 'community_comment'
                     ? (n.message || '')
                   : n.type === 'giant_tree_spread'
                     ? (<><span className="text-blue-600">{n.fromNick}</span>님이 내 거대나무에{' '}<span className={n.side === 'agree' ? 'text-blue-500 font-[1000]' : 'text-rose-500 font-[1000]'}>{n.side === 'agree' ? '공감' : '반대'}</span>했어요</>)
