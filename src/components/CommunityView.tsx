@@ -646,7 +646,7 @@ const CommunityView = ({ community, currentUserData, allUsers, onBack, onClosed 
               return (
                 <div
                   key={post.id}
-                  onClick={() => setSelectedPost(post)}
+                  onClick={() => { console.log('[DEBUG] 글 클릭:', post.id, post.title); setSelectedPost(post); }}
                   className="bg-white border border-slate-100 rounded-xl px-5 py-4 transition-all group cursor-pointer hover:border-blue-300 hover:shadow-md"
                 >
                   {post.title && (
