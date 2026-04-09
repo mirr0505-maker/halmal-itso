@@ -84,6 +84,8 @@ export function useGloveActions({
       joinStatus: 'active',  // 🚀 가입 상태: 활성
       joinedAt: serverTimestamp(),
     });
+    // 🚀 로컬 상태 즉시 반영 — onSnapshot 도착 전에 리스트에 표시
+    setJoinedCommunityIds(prev => [...prev, communityId]);
     setIsCreateCommunityOpen(false);
     setGloveSubTab('feed');
   };
