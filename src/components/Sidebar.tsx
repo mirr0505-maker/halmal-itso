@@ -1,5 +1,6 @@
 // src/components/Sidebar.tsx
 import type { ReactNode } from 'react';
+import { PLATFORM_ADMIN_NICKNAMES } from '../constants';
 
 export type MenuId =
   | 'home'
@@ -19,6 +20,7 @@ export type MenuId =
   | 'giant_tree'
   | 'ranking'
   | 'adsmarket'
+  | 'ad_admin'
   | 'mypage';
 
 // 사이드바 메뉴 항목 타입
@@ -34,12 +36,13 @@ interface Props {
   activeMenu: MenuId;
   setActiveMenu: (menu: MenuId) => void;
   kanbuRoomCount?: number;
+  currentNickname?: string;
   // 🚀 모바일 드로어 모드
   mobile?: boolean;
   onClose?: () => void;
 }
 
-const Sidebar = ({ activeMenu, setActiveMenu, kanbuRoomCount = 0, mobile = false, onClose }: Props) => {
+const Sidebar = ({ activeMenu, setActiveMenu, kanbuRoomCount = 0, currentNickname, mobile = false, onClose }: Props) => {
   const mainServiceMenus: MenuItem[] = [
     {
       id: 'home',
@@ -195,6 +198,16 @@ const Sidebar = ({ activeMenu, setActiveMenu, kanbuRoomCount = 0, mobile = false
         </svg>
       )
     },
+    // 🚀 광고 관리자 메뉴 — 화이트리스트 닉네임만 노출
+    ...(currentNickname && PLATFORM_ADMIN_NICKNAMES.includes(currentNickname) ? [{
+      id: 'ad_admin' as MenuId,
+      label: '광고 관리',
+      icon: (
+        <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      )
+    }] : []),
   ];
 
   const renderMenuButton = (menu: MenuItem) => {

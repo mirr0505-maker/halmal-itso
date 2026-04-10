@@ -25,6 +25,11 @@ export const EXTERNAL_URLS = {
 // TODO: 실 서비스 전환 시 이 배열 제거 후 전체 유저 표시로 변경
 export const FRIENDS_MENU_ALLOWED_NICKNAMES = ["깐부1호", "깐부2호", "깐부3호", "깐부4호", "깐부5호", "깐부6호", "깐부7호", "깐부8호", "깐부9호", "깐부10호", "흑무영"];
 
+// 🚀 플랫폼 관리자 닉네임 화이트리스트 (광고 검수·정산 승인·부정행위 모니터링)
+// Why: 별도 isAdmin 필드/커스텀 클레임 없이 닉네임으로 단순 판별 (MVP 단계)
+// TODO: 정식 출시 전 users.isAdmin 필드 또는 Firebase Auth Custom Claims로 전환
+export const PLATFORM_ADMIN_NICKNAMES = ["흑무영"];
+
 // 🚀 테스트 계정 — exp/likes로 레벨·평판 초기값 설정
 // 레벨: exp 기반 (LEVEL_TABLE: 0,30,100,250,500)
 // 평판: (likes×2) + (totalShares×3) + (ballReceived×5) — likes만으로 설정

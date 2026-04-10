@@ -2,6 +2,14 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // 🚀 플랫폼 관리자 판별 — users/{uid}.nickname 기반 화이트리스트
+    // MVP 단계: 닉네임 직접 비교. 정식 출시 전 Custom Claims로 전환.
+    function isAdmin() {
+      return request.auth != null
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.nickname in ['흑무영'];
+    }
+
+
     // 포럼 콘텐츠 — 비로그인도 읽기 가능 (공개 게시판)
     // 🔒 보안: update/delete는 작성자 본인만 허용 (클라이언트 우회 공격 방지)
     match /posts/{id} {
@@ -180,6 +188,10 @@ service cloud.firestore {
         && !id.matches('nickname_.*')
         && request.resource.data.diff(resource.data).affectedKeys()
             .hasOnly(['likes', 'totalShares', 'ballReceived', 'ballSpent', 'promoViewCount']);
+      // 관리자: pendingRevenue/pendingThanksBall 원복용 (정산 거절 시)
+      allow update: if isAdmin()
+        && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['pendingRevenue', 'pendingThanksBall']);
     }
 
     // 알림·내역 — 본인 문서만 읽기/쓰기
@@ -203,12 +215,13 @@ service cloud.firestore {
     // 🚀 ADSMARKET — 광고 경매 시장 보안 규칙
     // ════════════════════════════════════════════════════════
 
-    // 광고 소재: 누구나 읽기 (노출용), 광고주 본인만 생성/수정
+    // 광고 소재: 누구나 읽기 (노출용), 광고주 본인 + 관리자(검수)
     match /ads/{adId} {
       allow read: if true;
       allow create: if request.auth != null;
+      // 본인 또는 관리자(승인/거절) update 허용
       allow update: if request.auth != null
-        && resource.data.advertiserId == request.auth.uid;
+        && (resource.data.advertiserId == request.auth.uid || isAdmin());
       allow delete: if request.auth != null
         && resource.data.advertiserId == request.auth.uid;
     }
@@ -237,10 +250,11 @@ service cloud.firestore {
       allow write: if false;
     }
 
-    // 정산 내역: 본인만 읽기
+    // 정산 내역: 본인만 읽기, 관리자만 update (승인/거절/완료)
     match /settlements/{stId} {
       allow read: if request.auth != null;
-      allow write: if false;
+      allow update: if isAdmin();
+      allow create, delete: if false;
     }
   }
 }

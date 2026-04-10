@@ -63,6 +63,7 @@ const GiantTreeView = lazy(() => import('./components/GiantTreeView'));
 const CreateDebate = lazy(() => import('./components/CreateDebate')); // 연계글 팝업 전용
 // 🚀 ADSMARKET: 광고주 센터
 const AdvertiserCenter = lazy(() => import('./components/advertiser/AdvertiserCenter'));
+const AdAdminPage = lazy(() => import('./components/admin/AdAdminPage'));
 const FriendsView = lazy(() => import('./components/FriendsView'));
 const AdvertiserRegister = lazy(() => import('./components/advertiser/AdvertiserRegister'));
 // 🚀 우리들의 따뜻한 장갑: 커뮤니티 컴포넌트
@@ -397,6 +398,11 @@ function App() {
         return <AdvertiserRegister onComplete={() => setActiveMenu('adsmarket')} onCancel={() => setActiveMenu('home')} />;
       }
       return <AdvertiserCenter onBack={() => setActiveMenu('home')} />;
+    }
+
+    // 🚀 광고 관리자 페이지 (PLATFORM_ADMIN_NICKNAMES만)
+    if (activeMenu === 'ad_admin') {
+      return <AdAdminPage currentUser={userData} onBack={() => setActiveMenu('home')} />;
     }
 
     if (activeMenu === 'mypage') {
@@ -784,7 +790,7 @@ function App() {
           )}
         </div>
       </header>
-      <div className="flex flex-1 overflow-hidden">{!(selectedTopic || isCreateOpen) && <Sidebar activeMenu={activeMenu} setActiveMenu={(menu) => { setActiveMenu(menu); setSelectedTopic(null); setIsCreateOpen(false); setSelectedRoom(null); }} kanbuRoomCount={accessibleRooms.length} />}<main className={`flex-1 overflow-y-auto bg-[#F8FAFC] transition-all duration-500 ${(selectedTopic || isCreateOpen) ? 'px-4 md:px-6 pt-4' : 'pt-0'}`}><div className={(selectedTopic || isCreateOpen) ? "max-w-[1600px] mx-auto pb-20 md:pb-20 pb-28" : "pb-20 md:pb-20 pb-28"}>
+      <div className="flex flex-1 overflow-hidden">{!(selectedTopic || isCreateOpen) && <Sidebar activeMenu={activeMenu} setActiveMenu={(menu) => { setActiveMenu(menu); setSelectedTopic(null); setIsCreateOpen(false); setSelectedRoom(null); }} kanbuRoomCount={accessibleRooms.length} currentNickname={userData?.nickname} />}<main className={`flex-1 overflow-y-auto bg-[#F8FAFC] transition-all duration-500 ${(selectedTopic || isCreateOpen) ? 'px-4 md:px-6 pt-4' : 'pt-0'}`}><div className={(selectedTopic || isCreateOpen) ? "max-w-[1600px] mx-auto pb-20 md:pb-20 pb-28" : "pb-20 md:pb-20 pb-28"}>
         {!(selectedTopic || isCreateOpen) && (
           (activeMenu === 'home' || activeMenu === 'onecut') ? (
             <SubNavbar activeTab={activeTab} onTabClick={setActiveTab} showTabs={true} />
@@ -829,6 +835,7 @@ function App() {
                 setIsMobileMenuOpen(false);
               }}
               kanbuRoomCount={accessibleRooms.length}
+              currentNickname={userData?.nickname}
               mobile={true}
               onClose={() => setIsMobileMenuOpen(false)}
             />
