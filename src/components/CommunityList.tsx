@@ -113,9 +113,18 @@ const CommunityList = ({ communities, currentUserData, joinedCommunityIds, onCom
                   </div>
 
                   <div className="flex items-center justify-between mt-2">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-[10px] font-[1000] text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">{community.category}</span>
                       <span className="text-[10px] font-bold text-slate-400">멤버 {community.memberCount}명</span>
+                      {/* 🚀 가입 방식 배지 */}
+                      <span className={`text-[9px] font-black px-1.5 py-0.5 rounded ${
+                        (community.joinType || 'open') === 'open' ? 'text-emerald-600 bg-emerald-50' :
+                        community.joinType === 'approval' ? 'text-blue-600 bg-blue-50' :
+                        'text-slate-500 bg-slate-100'
+                      }`}>
+                        {(community.joinType || 'open') === 'open' ? '🟢 자동 가입' :
+                         community.joinType === 'approval' ? '🔵 승인제' : '🔒 초대코드'}
+                      </span>
                     </div>
                     {/* 가입 버튼 — 이미 가입했거나 owner면 숨김 */}
                     {!isJoined && !isOwner && currentUserData && (
