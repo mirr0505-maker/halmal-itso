@@ -19,13 +19,15 @@ interface Props {
   allPosts?: Post[];
   oneCutPosts?: Post[];
   onOneCutMoreClick?: () => void;
+  // 🚀 깐부찾기 인라인 섹션
+  onFriendsMoreClick?: () => void;
   // 🚀 공유수 카운트: URL 복사 버튼 클릭 시 호출 → posts.shareCount + users.totalShares +1
   onShareCount?: (postId: string, authorId?: string) => void;
 }
 
 const AnyTalkList = ({
   posts, onTopicClick, onLikeClick, commentCounts = {}, currentNickname, allUsers = {}, followerCounts = {}, tab, onAuthorClick, onShareCount,
-  allPosts = [], oneCutPosts, onOneCutMoreClick,
+  allPosts = [], oneCutPosts, onOneCutMoreClick, onFriendsMoreClick,
 }: Props) => {
   const isNewTab = tab === 'any';
 
@@ -336,6 +338,64 @@ const AnyTalkList = ({
                 </div>
               </div>
             )}
+
+            {/* 🚀 깐부찾기 인터리브 스트립: 등록글/인기글/최고글에서만, 한컷 다음 줄 */}
+            {ci === 0 && onFriendsMoreClick && ['recent', 'best', 'rank'].includes(tab || '') && (() => {
+              // promoEnabled + 만료 안 된 유저 4명
+              const now = Date.now();
+              const promoUsers = Object.values(allUsers).filter(u => {
+                const p = u as unknown as { promoEnabled?: boolean; promoExpireAt?: { seconds: number } };
+                if (!p.promoEnabled) return false;
+                if (p.promoExpireAt && p.promoExpireAt.seconds * 1000 < now) return false;
+                return true;
+              }).slice(0, 4);
+              if (promoUsers.length === 0) return null;
+              return (
+                <div className="my-4 border-y border-slate-100 py-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-[13px] font-[1000] text-slate-700 flex items-center gap-1.5">
+                      🤝 깐부찾기
+                    </span>
+                    <button onClick={onFriendsMoreClick} className="text-[11px] font-bold text-slate-400 hover:text-violet-600 transition-colors flex items-center gap-0.5">
+                      깐부찾기 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7"/></svg>
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    {promoUsers.map(user => {
+                      const level = calculateLevel(user.exp || 0);
+                      const repLabel = getReputationLabel(getReputationScore(user));
+                      const promo = user as unknown as { promoImageUrl?: string; promoKeywords?: string[]; promoMessage?: string };
+                      return (
+                        <div key={user.uid}
+                          onClick={() => onAuthorClick?.(user.nickname)}
+                          className="bg-white rounded-xl border border-slate-100 p-3 cursor-pointer hover:border-violet-200 hover:shadow-md transition-all group"
+                        >
+                          <div className="flex items-center gap-2 mb-2">
+                            <div className="w-8 h-8 rounded-full overflow-hidden border border-slate-200 bg-slate-50 shrink-0">
+                              <img src={user.avatarUrl || `https://api.dicebear.com/7.x/adventurer/svg?seed=${user.nickname}`} alt="" className="w-full h-full object-cover" />
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-[11px] font-[1000] text-slate-900 truncate">{user.nickname}</p>
+                              <p className="text-[9px] font-bold text-slate-400">Lv{level} · {repLabel} · 깐부수 {formatKoreanNumber(followerCounts[user.nickname] || 0)}</p>
+                            </div>
+                          </div>
+                          {(promo.promoKeywords || []).length > 0 && (
+                            <div className="flex gap-1 flex-wrap mb-1">
+                              {promo.promoKeywords!.slice(0, 2).map((kw, i) => (
+                                <span key={i} className="text-[8px] font-bold text-violet-500 bg-violet-50 px-1 py-0.5 rounded">#{kw}</span>
+                              ))}
+                            </div>
+                          )}
+                          {promo.promoMessage && (
+                            <p className="text-[10px] font-bold text-slate-500 line-clamp-1">"{promo.promoMessage}"</p>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })()}
           </React.Fragment>
         );
       })}
