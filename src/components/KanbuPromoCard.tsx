@@ -79,7 +79,7 @@ const KanbuPromoCard = ({ userData, followerCount = 0, onClick }: Props) => {
 
       {/* 5. 조회수 */}
       {(userData.promoViewCount || 0) > 0 && (
-        <p className="text-[9px] font-bold text-slate-300">👀 {userData.promoViewCount}회 조회</p>
+        <p className="text-[9px] font-bold text-slate-300">👀 {userData.promoViewCount}회</p>
       )}
     </div>
   );
