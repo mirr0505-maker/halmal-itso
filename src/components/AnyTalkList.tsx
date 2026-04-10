@@ -19,7 +19,7 @@ interface Props {
   allPosts?: Post[];
   oneCutPosts?: Post[];
   onOneCutMoreClick?: () => void;
-  // 🚀 깐부찾기 인라인 섹션
+  // 🚀 깐부맺기 인라인 섹션
   onFriendsMoreClick?: () => void;
   // 🚀 공유수 카운트: URL 복사 버튼 클릭 시 호출 → posts.shareCount + users.totalShares +1
   onShareCount?: (postId: string, authorId?: string) => void;
@@ -339,8 +339,8 @@ const AnyTalkList = ({
               </div>
             )}
 
-            {/* 🚀 깐부찾기 인터리브 스트립: 등록글/인기글/최고글에서만, 한컷 다음 줄 */}
-            {ci === 0 && onFriendsMoreClick && ['recent', 'best', 'rank'].includes(tab || '') && (() => {
+            {/* 🚀 깐부맺기 인터리브 스트립: 등록글/인기글/최고글에서만, 한컷 다음 줄 */}
+            {ci === 0 && onFriendsMoreClick && ['any', 'recent', 'best', 'rank'].includes(tab || '') && (() => {
               // promoEnabled + 만료 안 된 유저 4명
               const now = Date.now();
               const promoUsers = Object.values(allUsers).filter(u => {
@@ -354,10 +354,10 @@ const AnyTalkList = ({
                 <div className="my-4 border-y border-slate-100 py-4">
                   <div className="flex items-center justify-between mb-3">
                     <span className="text-[13px] font-[1000] text-slate-700 flex items-center gap-1.5">
-                      🤝 깐부찾기
+                      🤝 깐부맺기
                     </span>
                     <button onClick={onFriendsMoreClick} className="text-[11px] font-bold text-slate-400 hover:text-violet-600 transition-colors flex items-center gap-0.5">
-                      깐부찾기 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7"/></svg>
+                      깐부맺기 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7"/></svg>
                     </button>
                   </div>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
