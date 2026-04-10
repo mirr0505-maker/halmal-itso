@@ -86,7 +86,7 @@ const FriendsView = ({ currentNickname, currentUserData, allUsers, allRootPosts:
                 {promoUsers.map(user => (
                   <KanbuPromoCard
                     key={user.uid}
-                    userData={user as UserData & { promoImageUrl?: string; promoKeywords?: string[]; promoMessage?: string; promoExpireAt?: { seconds: number } }}
+                    userData={user as UserData & { promoImageUrl?: string; promoKeywords?: string[]; promoMessage?: string; promoExpireAt?: { seconds: number }; promoViewCount?: number }}
                     followerCount={_followerCounts[user.nickname] || 0}
                     onClick={() => setSelectedUser(user as UserData & { promoImageUrl?: string; promoKeywords?: string[]; promoMessage?: string })}
                   />
