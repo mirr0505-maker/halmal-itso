@@ -369,7 +369,16 @@ const AnyTalkList = ({
                     {promoUsers.map(user => {
                       const level = calculateLevel(user.exp || 0);
                       const repLabel = getReputationLabel(getReputationScore(user));
-                      const promo = user as unknown as { promoImageUrl?: string; promoKeywords?: string[]; promoMessage?: string };
+                      const promo = user as unknown as { promoImageUrl?: string; promoKeywords?: string[]; promoMessage?: string; promoExpireAt?: { seconds: number }; promoViewCount?: number };
+                      // 게시종료 남은 기간
+                      const remaining = (() => {
+                        if (!promo.promoExpireAt) return null;
+                        const diffMs = promo.promoExpireAt.seconds * 1000 - now;
+                        if (diffMs <= 0) return null; // 만료된 건 이미 필터링됨
+                        const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+                        if (diffHours < 24) return `종료 ${diffHours}시간`;
+                        return `종료 ${Math.floor(diffHours / 24)}일`;
+                      })();
                       return (
                         <div key={user.uid}
                           onClick={() => onAuthorClick?.(user.nickname)}
@@ -379,8 +388,13 @@ const AnyTalkList = ({
                             <div className="w-8 h-8 rounded-full overflow-hidden border border-slate-200 bg-slate-50 shrink-0">
                               <img src={user.avatarUrl || `https://api.dicebear.com/7.x/adventurer/svg?seed=${user.nickname}`} alt="" className="w-full h-full object-cover" />
                             </div>
-                            <div className="min-w-0">
-                              <p className="text-[11px] font-[1000] text-slate-900 truncate">{user.nickname}</p>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-1">
+                                <p className="text-[11px] font-[1000] text-slate-900 truncate">{user.nickname}</p>
+                                {remaining && (
+                                  <span className="text-[8px] font-bold text-amber-500 bg-amber-50 px-1 py-0.5 rounded border border-amber-100 shrink-0 ml-auto">{remaining}</span>
+                                )}
+                              </div>
                               <p className="text-[9px] font-bold text-slate-400">Lv{level} · {repLabel} · 깐부수 {formatKoreanNumber(followerCounts[user.nickname] || 0)}</p>
                             </div>
                           </div>
@@ -393,6 +407,10 @@ const AnyTalkList = ({
                           )}
                           {promo.promoMessage && (
                             <p className="text-[10px] font-bold text-slate-500 line-clamp-1">"{promo.promoMessage}"</p>
+                          )}
+                          {/* 조회수 */}
+                          {(promo.promoViewCount || 0) > 0 && (
+                            <p className="text-[9px] font-bold text-slate-300 mt-1">👀 {promo.promoViewCount}회 조회</p>
                           )}
                         </div>
                       );
