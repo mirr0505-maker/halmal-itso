@@ -89,12 +89,12 @@ const CommunityList = ({ communities, currentUserData, joinedCommunityIds, onCom
                       {community.description && (
                         <p className="text-[12px] font-bold text-slate-400 mt-0.5 line-clamp-1">{community.description}</p>
                       )}
-                      {/* 🚀 가입 조건 나열 */}
+                      {/* 🚀 가입 방식 + 조건 나열 (모든 장갑 통일 형식) */}
                       {(() => {
-                        const conditions: string[] = [];
                         const jt = community.joinType || 'open';
-                        if (jt === 'approval') conditions.push('승인제');
-                        if (jt === 'password') conditions.push('초대코드');
+                        const badge = jt === 'open' ? '🟢 자동 가입' : jt === 'approval' ? '🔵 승인제' : '🔒 초대코드';
+                        const badgeColor = jt === 'open' ? 'text-emerald-600' : jt === 'approval' ? 'text-blue-600' : 'text-slate-500';
+                        const conditions: string[] = [];
                         if ((community.minLevel || 1) > 1) conditions.push(`Lv${community.minLevel}+`);
                         if (community.joinForm) {
                           const enabled = community.joinForm.standardFields?.filter(f => f.enabled && f.required) || [];
@@ -103,28 +103,19 @@ const CommunityList = ({ communities, currentUserData, joinedCommunityIds, onCom
                           const reqCustom = community.joinForm.customQuestions?.filter(q => q.required) || [];
                           if (reqCustom.length > 0) conditions.push(`추가질문 ${reqCustom.length}개`);
                         }
-                        return conditions.length > 0 ? (
-                          <p className="text-[10px] font-bold text-amber-600 mt-0.5 truncate">
-                            📋 {conditions.join(' · ')}
+                        return (
+                          <p className={`text-[10px] font-bold mt-0.5 truncate ${badgeColor}`}>
+                            {badge}{conditions.length > 0 ? ` · ${conditions.join(' · ')}` : ''}
                           </p>
-                        ) : null;
+                        );
                       })()}
                     </div>
                   </div>
 
                   <div className="flex items-center justify-between mt-2">
-                    <div className="flex items-center gap-2 flex-wrap">
+                    <div className="flex items-center gap-2">
                       <span className="text-[10px] font-[1000] text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">{community.category}</span>
                       <span className="text-[10px] font-bold text-slate-400">멤버 {community.memberCount}명</span>
-                      {/* 🚀 가입 방식 배지 */}
-                      <span className={`text-[9px] font-black px-1.5 py-0.5 rounded ${
-                        (community.joinType || 'open') === 'open' ? 'text-emerald-600 bg-emerald-50' :
-                        community.joinType === 'approval' ? 'text-blue-600 bg-blue-50' :
-                        'text-slate-500 bg-slate-100'
-                      }`}>
-                        {(community.joinType || 'open') === 'open' ? '🟢 자동 가입' :
-                         community.joinType === 'approval' ? '🔵 승인제' : '🔒 초대코드'}
-                      </span>
                     </div>
                     {/* 가입 버튼 — 이미 가입했거나 owner면 숨김 */}
                     {!isJoined && !isOwner && currentUserData && (
