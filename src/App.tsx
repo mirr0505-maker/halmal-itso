@@ -197,6 +197,16 @@ function App() {
 
   useEffect(() => { if (replyTarget) { setSelectedType('comment'); setNewTitle(""); } }, [replyTarget]);
   useEffect(() => { setSelectedFriend(null); setViewingAuthor(null); setPublicProfileNick(null); }, [activeMenu, activeTab]);
+
+  // 🚀 깐부맺기 홍보 조회수 카운트 — publicProfileNick 변경 시 1회만 실행
+  useEffect(() => {
+    if (!publicProfileNick || !userData) return;
+    const target = allUsers[`nickname_${publicProfileNick}`];
+    if (!target) return;
+    if (!(target as unknown as { promoEnabled?: boolean }).promoEnabled) return;
+    if (target.uid === userData.uid) return; // 본인 제외
+    updateDoc(doc(db, 'users', target.uid), { promoViewCount: increment(1) }).catch(() => {});
+  }, [publicProfileNick]); // eslint-disable-line react-hooks/exhaustive-deps
   // 🚀 장갑 메뉴 이탈 시 커뮤니티 선택 초기화
   useEffect(() => { if (activeMenu !== 'glove') { setSelectedCommunity(null); } }, [activeMenu]);
 
@@ -368,13 +378,8 @@ function App() {
       return <CreatePostBox userData={userData!} editingPost={editingPost} activeMenu={resolvedKey} menuMessages={MENU_MESSAGES} onSubmit={handlePostSubmit} onClose={() => { setIsCreateOpen(false); setEditingPost(null); setCreateMenuKey(null); }} />;
     }
     
-    // 🚀 공개 프로필 — 아바타 클릭 시 표시 + 깐부맺기 홍보 조회수 카운트
+    // 🚀 공개 프로필 — 아바타 클릭 시 표시
     if (publicProfileNick) {
-      // 🚀 promoViewCount +1 (프로모 활성 유저 프로필 열 때, 본인 제외)
-      const _targetUser = allUsers[`nickname_${publicProfileNick}`];
-      if (_targetUser && (_targetUser as unknown as { promoEnabled?: boolean }).promoEnabled && _targetUser.uid !== userData?.uid) {
-        updateDoc(doc(db, 'users', _targetUser.uid), { promoViewCount: increment(1) }).catch(() => {});
-      }
       return <PublicProfile
         targetNickname={publicProfileNick}
         allUsers={allUsers}

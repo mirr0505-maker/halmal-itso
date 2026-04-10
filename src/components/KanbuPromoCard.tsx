@@ -7,6 +7,7 @@ interface KanbuPromo {
   promoKeywords?: string[];
   promoMessage?: string;
   promoExpireAt?: { seconds: number };
+  promoViewCount?: number;
 }
 
 interface Props {
@@ -62,18 +63,23 @@ const KanbuPromoCard = ({ userData, followerCount = 0, onClick }: Props) => {
         </div>
       )}
 
-      {/* 3. 공약 */}
+      {/* 3. 이미지 */}
+      {userData.promoImageUrl && (
+        <div className="rounded-xl overflow-hidden bg-slate-100 max-h-[200px] mb-2">
+          <img src={userData.promoImageUrl} alt="" className="w-full h-auto object-contain max-h-[200px] group-hover:scale-105 transition-transform duration-500" />
+        </div>
+      )}
+
+      {/* 4. 공약 — 이미지 아래, 항상 표시 */}
       {userData.promoMessage && (
-        <p className="text-[11px] font-bold text-slate-500 line-clamp-2 leading-relaxed mb-2">
+        <p className="text-[11px] font-bold text-slate-500 line-clamp-2 leading-relaxed mb-1">
           "{userData.promoMessage}"
         </p>
       )}
 
-      {/* 4. 이미지 — 원본 비율 그대로 (세로든 가로든 자연스럽게) */}
-      {userData.promoImageUrl && (
-        <div className="rounded-xl overflow-hidden bg-slate-100 max-h-[200px]">
-          <img src={userData.promoImageUrl} alt="" className="w-full h-auto object-contain max-h-[200px] group-hover:scale-105 transition-transform duration-500" />
-        </div>
+      {/* 5. 조회수 */}
+      {(userData.promoViewCount || 0) > 0 && (
+        <p className="text-[9px] font-bold text-slate-300">👀 {userData.promoViewCount}회 조회</p>
       )}
     </div>
   );
