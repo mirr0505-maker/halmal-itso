@@ -3,7 +3,7 @@
 > **문서 목적**: VS Code에서 AI(Claude) 또는 휴먼 개발자가 코딩 작업을 수행할 때 **단일 진실 소스(Single Source of Truth)**로 사용하는 기획서.
 > 모든 컬렉션 · 인터페이스 · 비즈니스 로직 · UI 컴포넌트를 이 문서 하나로 확정한다.
 >
-> 최종 갱신: 2026-04-06 v1.0 | 기술 스택: React 19 + TS + Vite · Tailwind 4 · Firebase (Firestore + Auth + Cloud Functions) · Cloudflare R2/Workers
+> 최종 갱신: 2026-04-10 v1.1 | 기술 스택: React 19 + TS + Vite · Tailwind 4 · Firebase (Firestore + Auth + Cloud Functions) · Cloudflare R2/Workers
 
 ---
 
@@ -408,6 +408,23 @@ advertiserAccounts ── 1:N ── chargeHistory
 - `posts/{id}.adSlotEnabled: boolean`, `adSlotType: 'auction' | 'adsense'` 필드 저장.
 - 작성자 광고 OFF 시 해당 글에는 플랫폼 광고만 표시.
 
+#### 지역 타겟팅 (경매 통합)
+
+지역광고는 별도 옵션이 아니라 **기존 경매 시스템에 통합**되어 자동 처리된다.
+
+- 광고주가 `targetRegions: ["서울", "경기"]`로 설정하면 해당 지역 열람자에게 우선 매칭
+- 열람자 지역은 **IP 기반 자동 추정** (`getViewerRegion()` — ipapi.co 무료 API)
+- 영문 지역명 → 한글 시/도 매핑 후 `viewerRegion` 파라미터로 경매 엔진에 전달
+- 30분 sessionStorage 캐시 (API 호출 최소화)
+- 추정 실패 시 빈 문자열 → 전국 타겟 광고만 매칭 (graceful fallback)
+
+| 광고주 targetRegions | 열람자 viewerRegion | 결과 |
+|---------------------|-------------------|------|
+| `["경기"]` | `"경기"` | 매칭 |
+| `["경기"]` | `"서울"` | 미매칭 (스킵) |
+| `["경기"]` | `""` (미추정) | 통과 (일단 노출) |
+| `[]` (전국) | 아무 값 | 항상 통과 |
+
 ### 3.2 경매 엔진 로직 (Cloud Function: `runAdAuction`)
 
 ```
@@ -432,6 +449,11 @@ advertiserAccounts ── 1:N ── chargeHistory
    (a) 구글 애드센스 네트워크 광고 요청
    (b) 애드센스도 없으면 → 자체 프로모션 배너 (수익 0)
 ```
+
+> ✅ **실제 구현 (functions/auction.js — Phase 5)**
+> - viewerRegion 파라미터 수신 (클라이언트에서 IP 추정 후 전달)
+> - 필터 조건: `ad.targetRegions.length > 0 && viewerRegion && !ad.targetRegions.includes(viewerRegion)` → 스킵
+> - viewerRegion이 빈 문자열이면 지역 필터 무시 (전국 매칭)
 
 ### 3.3 Waterfall 우선순위 상세
 
@@ -831,13 +853,17 @@ Admin 페이지 → [세무 데이터 다운로드]
 │   │   ├── AdvertiserRegister.tsx # 광고주 등록 폼
 │   │   └── AdvertiserSettings.tsx # 사업자 정보 수정
 │   │
-│   ├── admin/                   # ★ 관리자 기능 확장
-│   │   ├── AdReviewQueue.tsx    # 광고 검수 대기열
-│   │   ├── SettlementQueue.tsx  # 정산 승인 대기열
-│   │   ├── FraudAlerts.tsx      # 부정행위 알림 목록
+│   ├── admin/                   # ★ 관리자 기능 (Phase 5 구현 완료)
+│   │   ├── AdAdminPage.tsx      # 관리자 4탭 컨테이너 + 권한 체크
+│   │   ├── AdReviewQueue.tsx    # 광고 검수 대기열 (승인/거절)
+│   │   ├── SettlementQueue.tsx  # 정산 승인 대기열 (승인/거절/보류 + 잔액 원복)
+│   │   ├── FraudAlerts.tsx      # 부정행위 의심 이벤트 목록
 │   │   └── TaxReportExport.tsx  # 세무 데이터 CSV 내보내기
 │   │
 │   └── MyContentTabs.tsx        # 기존 파일에 '수익' 탭 추가
+│
+├── utils/
+│   └── getViewerRegion.ts       # ★ IP 기반 열람자 지역 추정 (ipapi.co + sessionStorage 캐시)
 │
 ├── hooks/
 │   ├── useAdSlot.ts             # AdSlot 경매 요청 & 결과 캐싱 hook
@@ -853,8 +879,7 @@ Admin 페이지 → [세무 데이터 다운로드]
 ├── aggregateDailyRevenue.js     # ★ 일일 수익 집계 (Scheduled: 매일 00:05 KST)
 ├── detectFraud.js               # ★ 부정행위 탐지 (Scheduled: 매일 00:00 KST)
 ├── processSettlements.js        # ★ 정산 처리 (Scheduled: 매주 월 09:00 KST)
-├── syncAdBids.js                # ★ ads 변경 시 adBids 동기화 (Firestore Trigger)
-├── updateAdMetrics.js           # ★ adEvents 생성 시 ads 누적 지표 업데이트 (Firestore Trigger)
+├── adTriggers.js                # ★ syncAdBids + updateAdMetrics (Firestore v2 Trigger, Phase 5 구현)
 └── package.json                 # 의존성 추가
 
 /upload-worker
@@ -876,6 +901,15 @@ Admin 페이지 → [세무 데이터 다운로드]
 | `utils.ts` | 세금 계산 함수 추가 | 파일 끝에 append |
 | `firebase.ts` | 컬렉션 레퍼런스 추가 | export 섹션 |
 | `upload-worker/src/index.ts` | `ad-banners/` 경로 허용 추가 | 경로 검증 로직 |
+| `CreateNakedKing.tsx` | AdSlotSetting 삽입 (Phase 5) | 폼 하단 |
+| `CreateGiantTree.tsx` | AdSlotSetting 삽입 (Phase 5) | 폼 하단 |
+| `Sidebar.tsx` | '광고 관리' 메뉴 추가 (관리자 전용, Phase 5) | 메뉴 리스트 |
+| `App.tsx` | `ad_admin` 라우팅 + AdAdminPage lazy load (Phase 5) | 라우팅 섹션 |
+| `constants.ts` | `PLATFORM_ADMIN_NICKNAMES` 화이트리스트 (Phase 5) | 상수 추가 |
+| `firestore.rules` | `isAdmin()` 함수 + 관리자 update 허용 (Phase 5) | Rules 섹션 |
+| `functions/index.js` | adTriggers re-export 추가 (Phase 5) | export 섹션 |
+| `AdSlot.tsx` | viewerRegion 파라미터 추가 (getViewerRegion 호출, Phase 5) | fetch 요청 부분 |
+| `functions/auction.js` | viewerRegion 수신 + targetRegions 필터 로직 추가 (Phase 5) | 경매 필터 섹션 |
 
 ---
 
@@ -976,6 +1010,10 @@ Admin 페이지 → [세무 데이터 다운로드]
 3. status가 'active' 아니면 adBids.status도 동기화
 ```
 
+> ✅ Phase 5에서 구현 완료 (2026-04-10). `functions/adTriggers.js`에 통합.
+> v2 API 사용: `onDocumentUpdated`. 리전: asia-northeast3.
+> 첫 생성 시 createdAt 추가, 이후 merge update. 품질 점수 + effectiveBid 자동 계산.
+
 ### 9.6 `updateAdMetrics` (Firestore Trigger)
 
 ```
@@ -989,11 +1027,15 @@ Admin 페이지 → [세무 데이터 다운로드]
 5. adBids/{bidId}.dailyBudgetRemaining 차감
 ```
 
+> ✅ Phase 5에서 구현 완료 (2026-04-10). `functions/adTriggers.js`에 통합.
+> v2 API 사용: `onDocumentCreated`. 리전: asia-northeast3.
+> isSuspicious 이벤트는 지표에 미반영. CPM/CPC 자동 과금. 예산 소진 시 ads.status='exhausted' 자동 변경.
+
 ---
 
 ## 10. 구현 로드맵
 
-> 최종 갱신: 2026-04-06 | Phase 1, 3, 4, CF 완료. Phase 2는 애드센스 승인 대기.
+> 최종 갱신: 2026-04-10 | Phase 1, 3, 4, 5 완료. Phase 2는 애드센스 승인 대기.
 
 ### Phase 1: 기반 구축 — ✅ 완료 (2026-04-06)
 
@@ -1050,30 +1092,52 @@ Admin 페이지 → [세무 데이터 다운로드]
 ✅ Cloud Function: aggregateDailyRevenue (매일 00:05 KST 일일 수익 집계)
 
 미구현 (향후):
-□ 관리자: SettlementQueue (정산 검수 승인 UI)
-□ 세무 데이터 CSV Export (TaxReportExport — 국세청 양식)
-□ 광고주 세금계산서 관리 (InvoiceList)
 □ 이체 API 연동 (수동 승인 → 은행 API 자동 이체)
 □ 정산 정보 AES-256 암호화 (현재는 평문 저장 → 실서비스 전 암호화 필수)
+□ 광고주 세금계산서 관리 (InvoiceList)
 ```
 
-### 앞으로 해야 할 일 (수동 작업)
+### Phase 5: AdSlotSetting 전체 적용 + 지역 타겟팅 + 관리자 UI — ✅ 완료 (2026-04-10)
 
 ```
-1. 애드센스 승인 신청 — https://www.google.com/adsense
-   → 승인 후 ads.txt + 스니펫 삽입 (Claude에 요청)
+✅ AdSlotSetting 12개 글 작성 폼 전체 적용 (CreateNakedKing, CreateGiantTree 포함)
+✅ viewerRegion IP 기반 추정 (getViewerRegion.ts — ipapi.co + sessionStorage 캐시)
+✅ 경매 엔진 targetRegions 필터 구현 (auction.js)
+✅ syncAdBids Firestore Trigger (ads 변경 → adBids 동기화)
+✅ updateAdMetrics Firestore Trigger (adEvents → ads 누적 지표 + 품질 점수 + 예산 소진 자동 처리)
+✅ calculateQualityScore 공통 함수 (CTR 60% + 관련도 30% + 랜딩 10%)
+✅ 관리자 페이지 4탭 (AdAdminPage — 검수/정산/부정행위/세무)
+✅ AdReviewQueue (광고 승인/거절 + 사유 입력)
+✅ SettlementQueue (정산 승인/거절/보류 + pendingRevenue 원복)
+✅ FraudAlerts (isSuspicious 이벤트 100건 + 일/주 카운트)
+✅ TaxReportExport (기간 선택 + CSV 다운로드 + BOM 한글 지원)
+✅ isAdmin() Rules 함수 + 관리자 전용 update 허용
+✅ PLATFORM_ADMIN_NICKNAMES 화이트리스트 (MVP — 정식 출시 전 Custom Claims 전환 필요)
+✅ Firestore Rules 보강 (ads/settlements/users 관리자 권한)
+```
 
-2. PG사 계약 — 포트원(PortOne) 또는 나이스페이
-   → 광고주 잔액 충전 기능 활성화
+### 앞으로 해야 할 일 (수동 작업 + 미구현)
 
-3. R2 Worker 재배포 — cd upload-worker && npx wrangler deploy
-   → ad-banners/ 경로 UID 검증 적용
+```
+[외부 진행 필요]
+□ 구글 애드센스 승인 신청 → 승인 후 AdFallback에 스니펫 삽입
+□ PG사 계약 (포트원) → 광고주 잔액 충전 기능 활성화
+□ 사업자등록 → 세금계산서 발행 전제
+□ 개인정보처리방침 페이지 → 애드센스 + 정산 정보 수집에 필요
 
-4. 사업자등록 — 세금계산서 발행을 위해 필요
+[코드 작업 — 선행 조건 필요]
+□ 애드센스 스니펫 삽입 (AdFallback — 승인 후)
+□ PG 충전 연동 (ChargeModal + 포트원 SDK — 계약 후)
+□ 이체 API 자동화 (processSettlements — 은행 API 연동)
+□ 정산 정보 AES-256 암호화 (실서비스 전 필수)
+□ 광고주 세금계산서 관리 (InvoiceList — 사업자등록 후)
 
-5. 개인정보처리방침 페이지 — 애드센스 승인 + 정산 정보 수집에 필요
-
-6. 관리자 페이지 — 광고 검수·정산 승인·부정행위 알림 UI (별도 세션)
+[코드 작업 — 언제든 가능]
+□ 관리자 권한을 Firebase Custom Claims로 전환 (현재 닉네임 기반)
+□ viewerRegion을 유저 프로필 지역(A안)과 하이브리드로 확장
+□ 품질 점수 adRelevanceScore 자동화 (키워드 매칭)
+□ 광고 배너 사이즈 검증 (이미지 업로드 시 가로/세로 체크)
+□ 광고주 세금계산서 자동 발행 (홈택스 API or PG 연동)
 ```
 
 ---
@@ -1140,6 +1204,18 @@ ad-banners/ 경로 추가 규칙:
 - 허용 MIME: image/jpeg, image/png, image/gif, image/webp
 - 파일명: 비ASCII 금지 (기존 규칙 동일)
 ```
+
+### 11.4 Phase 5 추가 보안 사항
+
+- [x] 관리자 권한 체크 (AdAdminPage — PLATFORM_ADMIN_NICKNAMES 화이트리스트)
+- [ ] 관리자 권한을 Custom Claims로 전환 (닉네임 기반은 위변조 가능 — 정식 출시 전 필수)
+- [x] 정산 거절 시 pendingRevenue 원복 (SettlementQueue)
+- [x] 계좌번호 마스킹 표시 (SettlementQueue — `***-***-1234`)
+- [x] CSV Export 시 이름 마스킹 + 주민번호 `***` 처리 (TaxReportExport)
+- [x] viewerRegion sessionStorage만 사용 (프라이버시 친화 — localStorage 미사용)
+- [x] ipapi.co API 실패 시 graceful fallback (빈 문자열 → 전국 매칭)
+- [x] Firestore Rules: ads/settlements update는 isAdmin()만 허용
+- [x] users 타인 update는 화이트리스트 필드만 (likes·totalShares·ballReceived·ballSpent·promoViewCount + 관리자 pendingRevenue/pendingThanksBall)
 
 ---
 
