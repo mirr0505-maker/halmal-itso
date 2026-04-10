@@ -179,7 +179,7 @@ service cloud.firestore {
         && request.auth.uid != id
         && !id.matches('nickname_.*')
         && request.resource.data.diff(resource.data).affectedKeys()
-            .hasOnly(['likes', 'totalShares', 'ballReceived', 'ballSpent']);
+            .hasOnly(['likes', 'totalShares', 'ballReceived', 'ballSpent', 'promoViewCount']);
     }
 
     // 알림·내역 — 본인 문서만 읽기/쓰기
