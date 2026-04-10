@@ -88,7 +88,17 @@ const FriendsView = ({ currentNickname, currentUserData, allUsers, allRootPosts:
                     key={user.uid}
                     userData={user as UserData & { promoImageUrl?: string; promoKeywords?: string[]; promoMessage?: string; promoExpireAt?: { seconds: number }; promoViewCount?: number }}
                     followerCount={_followerCounts[user.nickname] || 0}
-                    onClick={() => setSelectedUser(user as UserData & { promoImageUrl?: string; promoKeywords?: string[]; promoMessage?: string })}
+                    onClick={() => {
+                      setSelectedUser(user as UserData & { promoImageUrl?: string; promoKeywords?: string[]; promoMessage?: string });
+                      // 🚀 홍보 모달 조회수 카운트 (본인 제외)
+                      if (currentNickname && user.nickname !== currentNickname) {
+                        import('firebase/firestore').then(({ doc: fbDoc, updateDoc: fbUpdate, increment: fbInc }) => {
+                          import('../firebase').then(({ db: fbDb }) => {
+                            fbUpdate(fbDoc(fbDb, 'users', user.uid), { promoViewCount: fbInc(1) }).catch(() => {});
+                          });
+                        });
+                      }
+                    }}
                   />
                 ))}
               </div>

@@ -4,6 +4,7 @@ import type { Post, UserData } from '../types';
 import { formatKoreanNumber, getReputationLabel, getReputationScore, getCategoryDisplayName, calculateLevel } from '../utils';
 import { sanitizeHtml, extractText, extractFirstImage } from '../sanitize';
 import KanbuPromoCard from './KanbuPromoCard';
+import KanbuPromoModal from './KanbuPromoModal';
 
 interface Props {
   posts: Post[];
@@ -22,18 +23,22 @@ interface Props {
   onOneCutMoreClick?: () => void;
   // 🚀 깐부맺기 인라인 섹션
   onFriendsMoreClick?: () => void;
+  friends?: string[];
+  onToggleFriend?: (nickname: string) => void;
   // 🚀 공유수 카운트: URL 복사 버튼 클릭 시 호출 → posts.shareCount + users.totalShares +1
   onShareCount?: (postId: string, authorId?: string) => void;
 }
 
 const AnyTalkList = ({
-  posts, onTopicClick, onLikeClick, commentCounts = {}, currentNickname, allUsers = {}, followerCounts = {}, tab, onAuthorClick, onShareCount,
-  allPosts = [], oneCutPosts, onOneCutMoreClick, onFriendsMoreClick,
+  posts, onTopicClick, onLikeClick, commentCounts = {}, currentNickname, currentUserData, allUsers = {}, followerCounts = {}, tab, onAuthorClick, onShareCount,
+  allPosts = [], oneCutPosts, onOneCutMoreClick, onFriendsMoreClick, friends = [], onToggleFriend,
 }: Props) => {
   const isNewTab = tab === 'any';
 
   // 🚀 목록 카드 공유 버튼: 복사된 카드 ID를 추적해 해당 카드에만 피드백 표시
   const [copiedPostId, setCopiedPostId] = useState<string | null>(null);
+  // 🚀 깐부맺기 홍보 모달
+  const [selectedPromoUser, setSelectedPromoUser] = useState<UserData | null>(null);
 
   const handleCopyUrl = (e: React.MouseEvent, postId: string) => {
     e.stopPropagation(); // 카드 전체 클릭 이벤트(글 열기) 차단
@@ -372,7 +377,17 @@ const AnyTalkList = ({
                         key={user.uid}
                         userData={user as UserData & { promoImageUrl?: string; promoKeywords?: string[]; promoMessage?: string; promoExpireAt?: { seconds: number }; promoViewCount?: number }}
                         followerCount={followerCounts[user.nickname] || 0}
-                        onClick={() => onAuthorClick?.(user.nickname)}
+                        onClick={() => {
+                          setSelectedPromoUser(user);
+                          // 🚀 홍보 모달 조회수 카운트 (본인 제외)
+                          if (user.uid !== (currentUserData?.uid || '')) {
+                            import('firebase/firestore').then(({ doc: fbDoc, updateDoc: fbUpdate, increment: fbInc }) => {
+                              import('../firebase').then(({ db: fbDb }) => {
+                                fbUpdate(fbDoc(fbDb, 'users', user.uid), { promoViewCount: fbInc(1) }).catch(() => {});
+                              });
+                            });
+                          }
+                        }}
                       />
                     ))}
                   </div>
@@ -382,6 +397,17 @@ const AnyTalkList = ({
           </React.Fragment>
         );
       })}
+      {/* 🚀 깐부맺기 홍보 모달 */}
+      {selectedPromoUser && currentNickname && (
+        <KanbuPromoModal
+          userData={selectedPromoUser as UserData & { promoImageUrl?: string; promoKeywords?: string[]; promoMessage?: string }}
+          isFriend={friends.includes(selectedPromoUser.nickname)}
+          isMutual={friends.includes(selectedPromoUser.nickname) && !!(selectedPromoUser.friendList && selectedPromoUser.friendList.includes(currentNickname))}
+          onToggleFriend={() => { onToggleFriend?.(selectedPromoUser.nickname); setSelectedPromoUser(null); }}
+          onViewProfile={() => { setSelectedPromoUser(null); onAuthorClick?.(selectedPromoUser.nickname); }}
+          onClose={() => setSelectedPromoUser(null)}
+        />
+      )}
     </div>
   );
 };

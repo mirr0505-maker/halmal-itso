@@ -31,7 +31,7 @@ const getDeepLinkParams = (() => {
 })();
 import { useState, useEffect, lazy, Suspense } from 'react';
 import { db } from './firebase';
-import { collection, doc, onSnapshot, query, where, updateDoc, increment } from 'firebase/firestore';
+import { collection, onSnapshot, query, where } from 'firebase/firestore';
 import type { Post, KanbuRoom, Community } from './types';
 import { useFirebaseListeners } from './hooks/useFirebaseListeners';
 import { useAuthActions } from './hooks/useAuthActions';
@@ -198,15 +198,8 @@ function App() {
   useEffect(() => { if (replyTarget) { setSelectedType('comment'); setNewTitle(""); } }, [replyTarget]);
   useEffect(() => { setSelectedFriend(null); setViewingAuthor(null); setPublicProfileNick(null); }, [activeMenu, activeTab]);
 
-  // 🚀 깐부맺기 홍보 조회수 카운트 — publicProfileNick 변경 시 1회만 실행
-  useEffect(() => {
-    if (!publicProfileNick || !userData) return;
-    const target = allUsers[`nickname_${publicProfileNick}`];
-    if (!target) return;
-    if (!(target as unknown as { promoEnabled?: boolean }).promoEnabled) return;
-    if (target.uid === userData.uid) return; // 본인 제외
-    updateDoc(doc(db, 'users', target.uid), { promoViewCount: increment(1) }).catch(() => {});
-  }, [publicProfileNick]); // eslint-disable-line react-hooks/exhaustive-deps
+  // 🚀 깐부맺기 홍보 조회수 — 별도 함수로 분리 (FriendsView + AnyTalkList에서 호출)
+  // 조회수는 홍보 모달 열릴 때 카운트 (오픈프로필이 아님)
   // 🚀 장갑 메뉴 이탈 시 커뮤니티 선택 초기화
   useEffect(() => { if (activeMenu !== 'glove') { setSelectedCommunity(null); } }, [activeMenu]);
 
@@ -736,7 +729,7 @@ function App() {
             ))}
           </div>
         )}
-        <AnyTalkList posts={searchedPosts} onTopicClick={handleViewPost} onLikeClick={handleLike} commentCounts={commentCounts} currentNickname={userData?.nickname} currentUserData={userData} allUsers={allUsers} followerCounts={followerCounts} tab={activeTab} onAuthorClick={setPublicProfileNick} onShareCount={handleShareCount} allPosts={allRootPosts} oneCutPosts={onecutTabPosts} onOneCutMoreClick={() => setActiveMenu('onecut')} onFriendsMoreClick={() => setActiveMenu('friends')} />
+        <AnyTalkList posts={searchedPosts} onTopicClick={handleViewPost} onLikeClick={handleLike} commentCounts={commentCounts} currentNickname={userData?.nickname} currentUserData={userData} allUsers={allUsers} followerCounts={followerCounts} tab={activeTab} onAuthorClick={setPublicProfileNick} onShareCount={handleShareCount} allPosts={allRootPosts} oneCutPosts={onecutTabPosts} onOneCutMoreClick={() => setActiveMenu('onecut')} onFriendsMoreClick={() => setActiveMenu('friends')} friends={friends} onToggleFriend={toggleFriend} />
       </div>
     );
   };
