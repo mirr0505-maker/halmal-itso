@@ -5,6 +5,8 @@ import { collection, doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import type { UserData } from '../types';
 import { getReputationLabel, getReputationScore, calculateLevel } from '../utils';
 import { MAX_SPREAD_BY_REPUTATION } from './GiantTreeView';
+import AdSlotSetting from './ads/AdSlotSetting';
+import { useAdSlotSetting } from './ads/useAdSlotSetting';
 
 interface Props {
   currentNickname?: string;
@@ -17,6 +19,8 @@ const CreateGiantTree = ({ currentNickname, currentUserData, onBack, onCreated }
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // 🚀 ADSMARKET: 광고 슬롯 설정
+  const { adSlotFields, adSlotEnabled, adSlotType, onAdSlotChange } = useAdSlotSetting();
 
   const reputation = getReputationLabel(currentUserData ? getReputationScore(currentUserData) : 0);
   const maxSpread = MAX_SPREAD_BY_REPUTATION[reputation] || 0;
@@ -43,6 +47,7 @@ const CreateGiantTree = ({ currentNickname, currentUserData, onBack, onCreated }
         opposeCount: 0,
         circuitBroken: false,
         createdAt: serverTimestamp(),
+        ...adSlotFields,
       });
       onCreated(treeId);
     } catch (e) {
@@ -95,6 +100,12 @@ const CreateGiantTree = ({ currentNickname, currentUserData, onBack, onCreated }
           rows={8}
           className="w-full border border-slate-200 rounded-xl px-4 py-3 text-[13.5px] font-medium text-slate-700 outline-none focus:border-emerald-400 placeholder:text-slate-300 bg-white resize-none leading-relaxed"
         />
+      </div>
+
+      {/* 🚀 ADSMARKET: 광고 슬롯 설정 (Lv5+) */}
+      <div className="mb-4 border border-slate-100 rounded-xl overflow-hidden">
+        <AdSlotSetting userLevel={calculateLevel(currentUserData?.exp || 0)} adSlotEnabled={adSlotEnabled} adSlotType={adSlotType}
+          onChange={onAdSlotChange} />
       </div>
 
       {/* 제출 */}

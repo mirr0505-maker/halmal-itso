@@ -9,7 +9,7 @@ exports.adAuction = onRequest(
   async (req, res) => {
     if (req.method !== "POST") return res.status(405).json({ error: "Method Not Allowed" });
 
-    const { slotPosition, postCategory, postId, postAuthorId, postAuthorLevel } = req.body;
+    const { slotPosition, postCategory, postId, postAuthorId, postAuthorLevel, viewerRegion } = req.body;
     if (!slotPosition || !postId) return res.status(400).json({ error: "slotPosition, postId 필수" });
 
     if ((postAuthorLevel || 0) < 5) return res.json({ success: true, ad: null, fallback: "promo" });
@@ -23,6 +23,11 @@ exports.adAuction = onRequest(
         .filter(ad => {
           if (!ad.targetSlots?.includes(slotPosition)) return false;
           if (ad.targetCategories?.length > 0 && !ad.targetCategories.includes(postCategory)) return false;
+          // 🚀 지역 매칭 (Phase 5 Step 1)
+          // - targetRegions 비어있으면 전국 타겟 (통과)
+          // - viewerRegion 비어있으면 지역 무관 (통과)
+          // - 둘 다 있으면 포함 여부 확인
+          if (ad.targetRegions?.length > 0 && viewerRegion && !ad.targetRegions.includes(viewerRegion)) return false;
           if (ad.totalSpent >= ad.totalBudget) return false;
           return true;
         })

@@ -5,6 +5,7 @@ import { getCreatorAdSlots, PLATFORM_AD_MIN_LEVEL } from '../../constants';
 import type { Ad } from '../../types';
 import AdBanner from './AdBanner';
 import AdFallback from './AdFallback';
+import { getViewerRegion } from '../../utils/getViewerRegion';
 
 const AD_AUCTION_URL = 'https://adauction-uqukvdmr2q-du.a.run.app';
 
@@ -45,18 +46,22 @@ const AdSlot = ({ position, postCategory, postId, postAuthorId, postAuthorLevel,
   if (!rs.positions.includes(position)) return null;
   if (!adSlotEnabled) return null;
 
-  // 경매 엔진 호출
+  // 경매 엔진 호출 + viewerRegion 전달
   useEffect(() => {
     if (!postId) { setFallback('promo'); setLoaded(true); return; }
-    fetch(AD_AUCTION_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ slotPosition: position, postCategory, postId, postAuthorId, postAuthorLevel }),
-    })
-      .then(r => r.json())
-      .then(data => { if (data.ad) setAuctionAd(data.ad); else setFallback(data.fallback || 'promo'); })
-      .catch(() => setFallback('promo'))
-      .finally(() => setLoaded(true));
+    (async () => {
+      const viewerRegion = await getViewerRegion();
+      try {
+        const r = await fetch(AD_AUCTION_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ slotPosition: position, postCategory, postId, postAuthorId, postAuthorLevel, viewerRegion }),
+        });
+        const data = await r.json();
+        if (data.ad) setAuctionAd(data.ad); else setFallback(data.fallback || 'promo');
+      } catch { setFallback('promo'); }
+      finally { setLoaded(true); }
+    })();
   }, [postId, position]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!loaded) return null;

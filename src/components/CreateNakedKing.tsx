@@ -3,6 +3,9 @@ import { useState } from 'react';
 import { uploadToR2 } from '../uploadToR2';
 import type { Post, UserData } from '../types';
 import TiptapEditor from './TiptapEditor';
+import AdSlotSetting from './ads/AdSlotSetting';
+import { useAdSlotSetting } from './ads/useAdSlotSetting';
+import { calculateLevel } from '../utils';
 
 interface Props {
   userData: UserData;
@@ -33,6 +36,8 @@ const CreateNakedKing = ({ userData, editingPost, onSubmit, onClose }: Props) =>
     setPostData(p => { const arr = [...(p.factCheckSources || [])]; arr[i] = val; return { ...p, factCheckSources: arr }; });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  // 🚀 ADSMARKET: 광고 슬롯 설정
+  const { adSlotFields, adSlotEnabled, adSlotType, onAdSlotChange } = useAdSlotSetting();
 
   const uploadFile = async (file: File): Promise<string | null> => {
     if (!userData) return null;
@@ -62,6 +67,7 @@ const CreateNakedKing = ({ userData, editingPost, onSubmit, onClose }: Props) =>
         tags: filteredTags,
         factChecked: postData.verdict === 'fact',
         factCheckSources: (postData.factCheckSources || []).filter(s => s.trim() !== ''),
+        ...adSlotFields,
       }, editingPost?.id);
     } finally { setIsSubmitting(false); }
   };
@@ -202,6 +208,10 @@ const CreateNakedKing = ({ userData, editingPost, onSubmit, onClose }: Props) =>
             </div>
           ))}
         </div>
+
+        {/* 🚀 ADSMARKET: 광고 슬롯 설정 (Lv5+) */}
+        <AdSlotSetting userLevel={calculateLevel(userData?.exp || 0)} adSlotEnabled={adSlotEnabled} adSlotType={adSlotType}
+          onChange={onAdSlotChange} />
 
       </div>
     </div>
