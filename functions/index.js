@@ -406,12 +406,15 @@ const { processSettlements } = require("./settlement");
 const { recalcContentTextLength } = require("./contentLength");
 const { testChargeBall } = require("./testCharge");
 const { sendThanksball } = require("./thanksball");
+const { syncAdBids, updateAdMetrics } = require("./adTriggers");
 
 exports.registerKanbuPromo = registerKanbuPromo;
 exports.adAuction = adAuction;
 exports.aggregateDailyRevenue = aggregateDailyRevenue;
 exports.detectFraud = detectFraud;
 exports.processSettlements = processSettlements;
+exports.syncAdBids = syncAdBids;
+exports.updateAdMetrics = updateAdMetrics;
 exports.recalcContentTextLength = recalcContentTextLength;
 exports.testChargeBall = testChargeBall;
 exports.sendThanksball = sendThanksball;
