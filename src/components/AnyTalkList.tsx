@@ -343,12 +343,17 @@ const AnyTalkList = ({
             {ci === 0 && onFriendsMoreClick && ['any', 'recent', 'best', 'rank'].includes(tab || '') && (() => {
               // promoEnabled + 만료 안 된 유저 4명
               const now = Date.now();
-              const promoUsers = Object.values(allUsers).filter(u => {
+              // 🚀 nickname_ 접두사 문서 제외 (UID 키 문서만 사용) + 중복 방지
+              const seen = new Set<string>();
+              const promoUsers = Object.entries(allUsers).filter(([key, u]) => {
+                if (key.startsWith('nickname_')) return false;
                 const p = u as unknown as { promoEnabled?: boolean; promoExpireAt?: { seconds: number } };
                 if (!p.promoEnabled) return false;
                 if (p.promoExpireAt && p.promoExpireAt.seconds * 1000 < now) return false;
+                if (seen.has(u.nickname)) return false;
+                seen.add(u.nickname);
                 return true;
-              }).slice(0, 4);
+              }).map(([, u]) => u).slice(0, 4);
               if (promoUsers.length === 0) return null;
               return (
                 <div className="my-4 border-y border-slate-100 py-4">
