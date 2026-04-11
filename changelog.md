@@ -1,5 +1,32 @@
 ## 8. 현재 구현 상태 (2026-03-24 기준, 코드 실측)
 
+### 🖋️ 마르지 않는 잉크병 (2026-04-11 v38 — Phase 1~5 완료)
+> 상세 설계: [INKWELL.md](./INKWELL.md)
+
+- [x] **Phase 1**: Firestore Rules + 복합 인덱스 + 타입 정의 (`series`, `unlocked_episodes`, `series_subscriptions`, Post에 잉크병 필드 추가)
+- [x] **Phase 2**: Cloud Functions — `unlockEpisode` (결제 트랜잭션, 멱등성 보장), `onEpisodeCreate` (구독자 알림)
+- [x] **Phase 3**: 작품/회차 CRUD — SeriesGrid/Card/Detail, EpisodeReader/CommentBoard/Form, CreateSeries/Episode, EditSeries/Episode
+- [x] **Phase 3-D**: PaywallOverlay (미리보기 + 그라데이션 + 결제 박스) + unlockEpisode 연동
+- [x] **Phase 4-A**: 구독 시스템 (SubscribeButton + series_subscriptions) + 알림 발송 흐름 완성
+- [x] **Phase 4-B**: 마이페이지 "나의 연재작" 탭 (본인 작가 작품)
+- [x] **Phase 4-C**: 회차 댓글 기능 (EpisodeCommentBoard/Form, 기존 useFirestoreActions 패턴 차용)
+- [x] **Phase 4-D-1/2**: 회차/작품 수정·삭제 (구매자 있으면 비공개 전환, 회차 있으면 작품 비공개 전환)
+- [x] **Phase 4-E**: 댓글 좋아요 + 땡스볼 통합 (기존 ThanksballModal 재사용, targetCollection='comments')
+- [x] **Phase 4-F**: 작가 대시보드 (InkwellSummaryCards KPI 카드 + 작품별 통계 박스)
+- [x] **Phase 4-G**: 회차 본문 좋아요/땡스볼 (인터랙션 바, series.totalLikes 동기화)
+- [x] **Phase 4-I**: 댓글 수정/삭제 (작성자 본인 수정·삭제 + 작가는 삭제만)
+- [x] **Phase 5**: 알림 라우팅 전파 (NotificationBell → EpisodeReader 직접 진입)
+- [x] **Phase 5-A**: 비공개 → 공개 복귀 토글 (isHidden: false / status: 'serializing')
+- [x] **Phase 5-B**: 고아 알림 cleanup 트리거 (`onInkwellPostDelete` + NotificationBell fallback)
+- [x] **Phase 5-C**: 댓글 Soft delete + placeholder (isDeleted 플래그, content 보존)
+- [x] **Phase 5-D**: 1단계 답글(대댓글) — parentCommentId, depth 1 제한
+- [x] **홈 통합**: 한컷/깐부맺기 옆 잉크병 인라인 스트립 + 구독글 탭 + 메인 글카드에서 잉크병 제외
+- [x] **마이페이지 📚 구독한 작품 탭**: 본인 구독 작품 라이브러리 (series_subscriptions 기반)
+- [x] **InkwellHomeView 2탭**: 사이드 메뉴 진입 시 [📖 회차 등록글] + [📚 작품 카탈로그] glove 패턴 sticky 헤더
+- [x] **공유 통합**: 공용 `sharePost()` 헬퍼 (Web Share API + fallback 클립보드) — RootPostCard/EpisodeReader 공용
+- [x] **EpisodeReader 점세개 메뉴**: 공개프로필/신고(disabled) + 작가 수정·다시공개·삭제
+- [x] **차분 톤다운**: 잉크병 전 화면(작품/회차/폼/댓글) slate 계열 통일, 글자 크기 축소, 본문 typography RootPostCard와 동일(text-[15px] leading-[1.8])
+
 ### ✅ 완료된 핵심 기능 (2026-03-25 갱신)
 - [x] **Tiptap 프리미엄 에디터**: 스티키 툴바, 이미지 R2 업로드(드래그&드롭/붙여넣기), 마크다운 호환 스타일.
 - [x] **상세 뷰 리뉴얼**: 콤팩트한 2컬럼 레이아웃, 카테고리별 맞춤형 탭 UI(동의/반대/질문 등).

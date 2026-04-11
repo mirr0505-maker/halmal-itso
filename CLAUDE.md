@@ -9,6 +9,9 @@
 - **blueprint.md** — 설계 계약서 (아키텍처·규칙·가이드라인). 모든 작업 전 반드시 참조.
 - **changelog.md** — 구현 완료 기능 이력 (blueprint.md 섹션 8 분리). 과거 구현 확인 시 참조.
 - **GIANTTREE.md** — 거대 나무 상세 설계서 (blueprint.md 섹션 10 분리). 전파 시스템·잎사귀·시든 가지 등.
+- **INKWELL.md** — 🖋️ 마르지 않는 잉크병 상세 설계서 (blueprint.md 섹션 11 분리). 연재 시스템·부분 유료화·구독·답글·안전 정책 등.
+- **GLOVE.md** — 우리들의 장갑(커뮤니티) 상세 설계서.
+- **ADSMARKET.md** — ADSMARKET 광고 시스템 상세 설계서.
 - **GEMINI.md** — 범용 AI 개발 원칙 (코드 품질, Firebase 규칙 등).
 - **src/types.ts** — TypeScript 인터페이스 전체. 새 타입 추가 시 여기에만 작성.
 
@@ -103,6 +106,17 @@
 | `CommunityFeed.tsx` | 소곤소곤 피드. 글 클릭 → CommunityPostDetail 모달 직접 오픈 + 멤버 lazy load. |
 | `CreateCommunityModal.tsx` | 승인제(approval) 선택 시 가입 폼 빌더 표시. `joinForm` state + 표준 필드 토글 + 커스텀 질문 5개 슬롯 제한. |
 | `JoinCommunityModal.tsx` | joinForm 있으면 폼 빌더 모드, 없으면 레거시 모드. `validateJoinAnswers`로 필수 항목 검증. |
+| `InkwellHomeView.tsx` | 🖋️ 잉크병 사이드 메뉴 진입 화면. glove 패턴 sticky 헤더 + 2탭 (📖 회차 / 📚 작품). `activeTab`은 부모(App.tsx `inkwellTab`)에서 관리 — SeriesDetail 진입 후 복귀 시 탭 유지. |
+| `SeriesDetail.tsx` | 🖋️ 작품 상세 (표지·시놉시스·구독·목차·작가 통계). 작가 본인만 `[✏️ 작품 수정][🗑️ 작품 삭제]` + 작가 통계 박스(차분 슬레이트). 회차가 있으면 삭제 불가 → 비공개 전환(`status: 'deleted'`)으로 폴백. 목차는 `visibleEpisodes`로 `isHidden` 필터 (작가는 모두 표시). |
+| `EpisodeReader.tsx` | 🖋️ 회차 본문 뷰어. 상단 `← 되돌아가기` + 우상단 `[📤 공유][⋮ 더보기]`. 점세개: 누구나 `공개프로필/신고(disabled)` + 작가 본인 `수정/다시공개/삭제`. 공유는 `sharePost()` 헬퍼(Web Share API+클립보드). PaywallOverlay는 미구매자 전용. 하단 `이전/목차/다음` — 목차 버튼은 `onGoToSeries`로 SeriesDetail 직접 이동(onBack과 구분). 본문 typography `text-[15px] leading-[1.8]` (RootPostCard 동일). |
+| `EpisodeCommentBoard.tsx` | 🖋️ 회차 댓글 + 1단계 답글 (`parentCommentId`, depth 1). Soft delete(`isDeleted: true`) + placeholder. 작가 본인 댓글 뱃지 강조. 기존 useFirestoreActions.handleLike 패턴 차용(닉네임 likedBy, 평판 ±3, EXP milestone). |
+| `EpisodeCommentForm.tsx` | 🖋️ 회차 댓글/답글 작성 폼 (`parentCommentId` prop으로 답글 모드). 기존 handleInlineReply 필드 구조 그대로. |
+| `PaywallOverlay.tsx` | 🖋️ 유료 회차 미구매자 전용 페이월 (previewContent 미리보기 + 그라데이션 페이드 + 결제 박스). `sharePost` 무관, `sendThanksball` 아닌 `unlockEpisode` Cloud Function 호출. |
+| `CreateSeries.tsx` / `EditSeries.tsx` | 🖋️ 작품 개설/수정. 수정 시 title/genre는 disabled (브랜드 일관성). 표지 교체 선택적 — 변경 안 하면 기존 URL 유지 (불필요한 R2 업로드 방지). |
+| `CreateEpisode.tsx` / `EditEpisode.tsx` | 🖋️ 회차 작성/수정. 수정 시 episodeNumber/isPaid/price 수정 불가 (결제 형평성). 유료는 posts.content 빈 문자열 + private_data/content 서브문서 분리 저장 + previewContent 평문 200자. |
+| `SubscribeButton.tsx` | 🖋️ 작품 구독 토글 + 구독자 수 표시. `series_subscriptions/{seriesId}_{uid}` 단일 문서 onSnapshot. 작가 본인은 비활성. `subscriberCount`는 Rules 카운터 화이트리스트 포함. |
+| `SeriesGrid.tsx` / `SeriesCard.tsx` / `EpisodeListItem.tsx` | 🖋️ 작품 카탈로그 / 작품 카드 / 회차 목록 1줄. 차분 톤 통일. |
+| `InkwellSummaryCards.tsx` | 🖋️ 작가 KPI 요약 카드 (마이페이지 나의 연재작 탭 상단). |
 
 ---
 

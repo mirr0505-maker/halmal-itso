@@ -2,7 +2,7 @@
 
 이 문서는 **할말있소(HALMAL-ITSO)** 프로젝트의 설계 원칙, 현재 구현 상태, 그리고 AI 개발자의 **절대적 행동 지침**을 담은 단일 진실 소스(Single Source of Truth)입니다.
 
-> 최종 갱신: 2026-04-07 v37 (코드 실측 기준)  |  현재 브랜치: `main`
+> 최종 갱신: 2026-04-11 v38 (잉크병 전체 Phase + 톤다운 + 공유 통합)  |  현재 브랜치: `main`
 
 ---
 
@@ -181,6 +181,10 @@
 | `community_post_comments` | 커뮤니티 글 댓글 | `cpcomment_timestamp_uid` |
 | `notifications/{uid}/items` | 땡스볼·알림 수신 내역 (UID 기반) | `addDoc` 자동 ID |
 | `sentBalls/{uid}/items` | 땡스볼 발신 내역 (UID 기반) | `addDoc` 자동 ID |
+| `series` | 🖋️ 잉크병 작품 메타 | `series_{timestamp}_{uid}` |
+| `posts/{postId}/private_data/content` | 🖋️ 잉크병 유료 회차 본문 분리 저장 | 고정 `content` |
+| `unlocked_episodes` | 🖋️ 잉크병 회차 구매 영수증 (Cloud Function만 write) | `{postId}_{uid}` |
+| `series_subscriptions` | 🖋️ 잉크병 작품 구독 (깐부) | `{seriesId}_{uid}` |
 
 - **commentCount 비정규화**: 댓글 작성 시 `posts/{postId}` 문서에 `increment(1)` 누적 → 홈 피드 쿼리에서 Firestore 읽기 비용 절감.
 - **per-topic 구독**: `selectedTopic` 변경 시에만 `comments` where `rootId == selectedTopic.id` 구독 (전체 구독 비용 절감).
@@ -295,7 +299,8 @@ interface KanbuChat {
 | 메뉴 ID | 표시명 (Title) | 카테고리 키 (DB) | 특이사항 |
 |---------|--------------|-----------------|----------|
 | `onecut` | 한컷 | (isOneCut 플래그) | 16:9 가로형 이미지 전용 |
-| `my_story` | 너와 나의 이야기 | 너와 나의 이야기 | 일상, 공감 위주 |
+| `my_story` | 참새들의 방앗간 | 너와 나의 이야기 | 일상, 공감 위주. 표시명만 2026-04 변경, DB category 값은 그대로 유지 (utils.ts CATEGORY_DISPLAY_MAP 매핑) |
+| `inkwell` | 마르지 않는 잉크병 | magic_inkwell | 🖋️ 연재 시스템 — 작품(Series) + 회차(posts) 분리 모델, 부분 유료화·구독·답글. 자세한 내용 → [INKWELL.md](./INKWELL.md) |
 | `naked_king` | 판도라의 상자 | 판도라의 상자 | 지그재그 댓글 보드 (동의/반박 인라인 입력, 핀 고정, boardType: pandora) |
 | `donkey_ears` | 솔로몬의 재판 | 솔로몬의 재판 | 동의/비동의 지그재그 pandora 댓글 보드 + 연계글 팝업(CreateDebate). boardType: pandora |
 | `knowledge_seller` | 황금알을 낳는 거위 | 황금알을 낳는 거위 | Q&A 보드 (구: 지식 소매상 → migrate 완료) |
@@ -319,6 +324,7 @@ interface KanbuChat {
 - **인기글 (best)**: 좋아요 10개 이상.
 - **최고글 (rank)**: 좋아요 30개 이상.
 - **깐부글 (friend)**: 좋아요 3개 이상 + 팔로우 유저 작성 (시간 제한 없음 — 친구들의 좋은 글 모아보기).
+- **구독글 (subscribed)**: 🖋️ 내가 구독한 잉크병 작품의 모든 회차 — 임계값 없이 최신순 (구독 라이브러리 채널, 발견이 아닌 소비 목적). 빈 상태 시 `📚 아직 구독한 작품이 없어요 + [작품 둘러보기]` 안내.
 - **미등록**: 2시간 경과 + 좋아요 3 미만. 홈 피드 어디에도 노출되지 않음. 내정보 나의 기록·나의 한컷에서만 접근 가능.
 
 ### 6.1.1 재등록 시스템
@@ -399,6 +405,9 @@ interface KanbuChat {
   - `registerKanbuPromo`: 깐부 홍보 카드 등록 (promoEnabled 직접 수정 차단)
   - `adAuction` / `aggregateDailyRevenue` / `detectFraud` / `processSettlements`: ADSMARKET 광고 시스템
   - `validateContentLength`: 신포도와 여우 100자 제한
+  - 🖋️ `unlockEpisode`: 잉크병 유료 회차 결제 트랜잭션 (땡스볼 차감 → 작가 지급 → 영수증)
+  - 🖋️ `onEpisodeCreate`: 잉크병 새 회차 발행 시 series 카운터 증가 + 구독자 `new_episode` 알림
+  - 🖋️ `onInkwellPostDelete`: 잉크병 회차 삭제 시 고아 알림 cleanup (collectionGroup)
   - 배포: `firebase deploy --only functions`
   - 로그: `firebase functions:log`
 - **향후 구현 가능 (Blaze)**:
@@ -412,3 +421,25 @@ interface KanbuChat {
 
 > 📋 상세 설계 문서는 **[GIANTTREE.md](./GIANTTREE.md)** 를 참조하세요.
 > 하이브리드 성장 시스템 v1 (2026-04-05) — 직계 전파자(Node) + 일반 참여자(Leaf) 분리, 시든 가지 알림, 성장 6단계
+
+---
+
+## 11. 마르지 않는 잉크병 (Magic Inkwell)
+
+> 📋 상세 설계 문서는 **[INKWELL.md](./INKWELL.md)** 를 참조하세요.
+
+### 핵심 요약
+- **모델**: 작품(`series`) + 회차(`posts where category=magic_inkwell`) 분리 구조
+- **부분 유료화**: 회차별 `isPaid/price`, 본문은 `posts/{id}/private_data/content` 서브문서에 분리 저장 (Rules로 구매자/작가만 read)
+- **결제**: Cloud Function `unlockEpisode` — 땡스볼 트랜잭션으로 구매자 차감 + 작가 지급 + 영수증(`unlocked_episodes`) 생성, 멱등성 보장
+- **구독**: **작품 단위** 구독 (`series_subscriptions/{seriesId}_{uid}`). 작가가 새 회차 발행 시 `onEpisodeCreate` 트리거가 구독자에게 `new_episode` 알림 batch 발송
+- **답글**: 1단계 대댓글 (`parentCommentId`, depth 1 제한)
+- **Soft delete**: 잉크병 댓글은 `isDeleted: true` 플래그 + placeholder (작성자 본인 및 작가 권한)
+- **안전 정책**: 구매자 있는 회차/회차 있는 작품은 **비공개 전환**만 가능 (`isHidden` / `status: 'deleted'`). 작가가 언제든 복귀 가능.
+- **UI 진입**:
+  - 사이드 메뉴 "마르지 않는 잉크병" → InkwellHomeView 2탭 (📖 회차 등록글 / 📚 작품 카탈로그)
+  - 홈 인라인 스트립 (한컷/깐부맺기 옆, 탭별 임계값 일관)
+  - 홈 구독글 탭 (깐부글 옆, 임계값 없음)
+  - 마이페이지 🖋️ 나의 연재작 + 📚 구독한 작품 2탭
+- **공유**: 일반 게시판과 공용 `sharePost()` 헬퍼 사용 — Web Share API + fallback 클립보드
+- **점세개 메뉴** (EpisodeReader 우상단): 공개프로필 보기 / 신고하기(disabled) / 작가 액션(수정·다시 공개·삭제)
