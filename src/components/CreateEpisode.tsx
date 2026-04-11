@@ -1,11 +1,10 @@
 // src/components/CreateEpisode.tsx — 마르지 않는 잉크병: 회차 작성 폼
-// 🖋️ Tiptap 본문 + 무료/유료 자동 판별 + 작가의 말 → posts 컬렉션 (유료 본문은 private_data 분리 저장)
+// 🖋️ Tiptap 본문 + 무료/유료 자동 판별 + 작가의 말
+// 🚀 실제 회차 생성은 Cloud Function createEpisode가 처리 (서버측 episodeNumber 트랜잭션 — 레이스 방지)
 import { useState, useEffect, useMemo } from 'react';
-import {
-  doc, getDoc, setDoc, collection, query, where, orderBy, limit, getDocs,
-  serverTimestamp,
-} from 'firebase/firestore';
-import { db } from '../firebase';
+import { doc, getDoc } from 'firebase/firestore';
+import { httpsCallable } from 'firebase/functions';
+import { db, functions } from '../firebase';
 import { uploadToR2 } from '../uploadToR2';
 import type { Series } from '../types';
 import TiptapEditor from './TiptapEditor';
@@ -18,7 +17,7 @@ interface CreateEpisodeProps {
   onCancel: () => void;
 }
 
-const CreateEpisode = ({ seriesId, currentUserUid, currentUserNickname, onSuccess, onCancel }: CreateEpisodeProps) => {
+const CreateEpisode = ({ seriesId, currentUserUid, onSuccess, onCancel }: CreateEpisodeProps) => {
   const [series, setSeries] = useState<Series | null>(null);
   const [nextEpisodeNumber, setNextEpisodeNumber] = useState<number>(1);
   const [episodeTitle, setEpisodeTitle] = useState('');
@@ -30,30 +29,16 @@ const CreateEpisode = ({ seriesId, currentUserUid, currentUserNickname, onSucces
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // 작품 메타 + 다음 회차 번호 조회
+  // 작품 메타 조회 — 다음 회차 번호는 `(series.totalEpisodes || 0) + 1`로 UI 미리보기
+  // (실제 확정은 Cloud Function createEpisode 트랜잭션에서 결정 — 동시 제출 레이스 방지)
   useEffect(() => {
     getDoc(doc(db, 'series', seriesId)).then((snap) => {
-      if (snap.exists()) setSeries({ id: snap.id, ...snap.data() } as Series);
-    }).catch((err) => console.error('[CreateEpisode] 작품 조회 실패:', err));
-
-    const q = query(
-      collection(db, 'posts'),
-      where('category', '==', 'magic_inkwell'),
-      where('seriesId', '==', seriesId),
-      orderBy('episodeNumber', 'desc'),
-      limit(1)
-    );
-    getDocs(q).then((snap) => {
-      if (snap.empty) {
-        setNextEpisodeNumber(1);
-      } else {
-        const max = snap.docs[0].data().episodeNumber || 0;
-        setNextEpisodeNumber(max + 1);
+      if (snap.exists()) {
+        const s = { id: snap.id, ...snap.data() } as Series;
+        setSeries(s);
+        setNextEpisodeNumber((s.totalEpisodes || 0) + 1);
       }
-    }).catch((err) => {
-      console.error('[CreateEpisode] 다음 회차 번호 조회 실패:', err);
-      setNextEpisodeNumber(1);
-    });
+    }).catch((err) => console.error('[CreateEpisode] 작품 조회 실패:', err));
   }, [seriesId]);
 
   // Tiptap 이미지 업로드 (기존 CreateMyStory 패턴 동일)
@@ -96,53 +81,35 @@ const CreateEpisode = ({ seriesId, currentUserUid, currentUserNickname, onSucces
     setError(null);
 
     try {
-      const timestamp = Date.now();
-      const postId = `topic_${timestamp}_${currentUserUid}`;
+      // 🚀 Cloud Function createEpisode 호출 — 서버측 episodeNumber 트랜잭션 결정
+      // (클라이언트에서 episodeNumber를 계산하면 동시 제출 시 중복 생성 발생 가능)
+      const createEpisodeFn = httpsCallable<
+        { seriesId: string; episodeTitle: string; content: string; authorNote?: string; isPaidOverride: boolean | null; customPrice: number | null },
+        { success: boolean; postId: string }
+      >(functions, 'createEpisode');
 
-      // 미리보기: HTML 태그 제거 후 200자
-      const previewText = content.replace(/<[^>]+>/g, '').trim().slice(0, 200);
-
-      // 1. posts 문서 생성 — 유료는 content 빈 문자열, 무료는 본문 직접 저장
-      await setDoc(doc(db, 'posts', postId), {
-        id: postId,
-        author: currentUserNickname,
-        author_id: currentUserUid,
-        category: 'magic_inkwell',
-        title: `${series.title} - ${nextEpisodeNumber}화`,
-        episodeTitle: episodeTitle.trim(),
-        episodeNumber: nextEpisodeNumber,
+      const result = await createEpisodeFn({
         seriesId,
-        isPaid: willBePaid,
-        price: finalPrice,
-        previewContent: willBePaid ? previewText : null,
-        content: willBePaid ? '' : content,
-        authorNote: authorNote.trim() || null,
-        likes: 0,
-        likedBy: [],
-        commentCount: 0,
-        viewCount: 0,
-        thanksballTotal: 0,
-        side: 'left',
-        type: 'comment',
-        parentId: null,
-        rootId: null,
-        createdAt: serverTimestamp(),
+        episodeTitle: episodeTitle.trim(),
+        content,
+        authorNote: authorNote.trim() || undefined,
+        isPaidOverride,
+        customPrice,
       });
 
-      // 2. 유료 회차는 본문을 private_data/content 서브문서에 분리 저장
-      if (willBePaid) {
-        await setDoc(
-          doc(db, 'posts', postId, 'private_data', 'content'),
-          { body: content, images: [] }
-        );
-      }
-
-      // ⚠️ series.totalEpisodes 증가는 onEpisodeCreate 트리거가 자동 처리
-      onSuccess(postId);
+      onSuccess(result.data.postId);
     } catch (err: unknown) {
       console.error('[CreateEpisode] 회차 생성 실패:', err);
-      const msg = err instanceof Error ? err.message : '회차 생성 중 오류가 발생했습니다.';
-      setError(msg);
+      const fnErr = err as { code?: string; message?: string };
+      if (fnErr.code === 'functions/permission-denied') {
+        setError(fnErr.message || '작품의 작가만 회차를 작성할 수 있습니다.');
+      } else if (fnErr.code === 'functions/invalid-argument') {
+        setError(fnErr.message || '입력값을 확인해주세요.');
+      } else if (fnErr.code === 'functions/not-found') {
+        setError('작품을 찾을 수 없습니다.');
+      } else {
+        setError(fnErr.message || '회차 생성 중 오류가 발생했습니다.');
+      }
     } finally {
       setSubmitting(false);
     }

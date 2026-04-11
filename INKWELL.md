@@ -422,12 +422,90 @@ interface EpisodePrivateContent {
 
 ## 14. 알려진 미구현 / 다음 단계 후보
 
+### 14.1 일반 개선 사항
+
 - **작품 카탈로그 정렬 옵션** (최근/인기/구독자 기준)
 - **회차 댓글 좋아요 milestone EXP** (본문은 있고 댓글도 추가)
-- **신고 기능** — 관리자 페이지 설계 후 구현
-- **잉크병 전용 수익 집계** — 현재 `users.ballReceived`는 다른 게시판 수익 포함. Cloud Function `aggregateInkwellRevenue` daily aggregate 권장
-- **R2 표지 파일 cleanup** — 작품 삭제/교체 시 이전 R2 파일 자동 삭제 (Cloud Function 또는 cleanup job)
+- **신고 기능** — 관리자 페이지 설계 후 구현 (현재 EpisodeReader 점세개 메뉴에 disabled 버튼으로 자리 표시)
 - **작품별 통계 대시보드** (일일 매출·구독자 트렌드 등 — recharts 도입)
-- **작품 출금** — 작가 정산 시스템과 연계
 - **댓글 답글 알림** — 원댓글 작성자에게 `new_reply` 알림
+- **R2 표지 파일 cleanup** — 작품 삭제/교체 시 이전 R2 파일 자동 삭제 (Cloud Function 또는 cleanup job)
 - **비공개 전환 작품의 R2 표지 접근 제어** — 현재 직접 URL로 공개 노출됨
+
+### 14.2 🔖 외부 검토자 진단 — 보류 항목 (2026-04-11)
+
+외부 검토자(Gemini)의 진단 결과 중 즉시 처리하지 못하고 **장기 과제로 남긴 항목**:
+
+#### (1) 결제 구매 보호 / 본문 편집 이력 — 우선순위 🟡 MID
+**문제**: 구매자가 회차를 결제한 직후 작가가 본문을 완전히 지우거나 악성 내용으로 교체해도 기록이 없음. Phase 4-D-1의 "구매자 있으면 삭제 차단"만으로는 본문 수정까지는 막지 못함. 분쟁 발생 시 증거 없음.
+
+**해결 옵션**:
+- **옵션 A** (24시간 Lock): `posts.lastPurchasedAt` 필드 + EditEpisode/handleDelete에서 `now - lastPurchasedAt < 24h`면 변경 차단. 단점: 구매가 계속 이어지면 영원히 Lock.
+- **옵션 B** (스냅샷): 구매 시점의 본문을 `unlocked_episodes/{docId}.snapshotBody`에 저장. 작가가 수정해도 구매자는 원본 유지. 단점: 저장 용량 증가.
+- **옵션 C 권장** (버전 관리): `private_data/content` → `private_data/versions/{versionNum}` 배열. `UnlockedEpisode.purchasedVersion: number` 추가. 독자는 산 버전 기준으로 렌더.
+
+**난이도**: 🟡 중~상
+**진행 시점**: 수익 모델 확정 + 유료 회차 구매자 증가 후
+
+#### (2) 플랫폼 수수료 (Platform Fee) — 우선순위 🔴 HIGH (런칭 전 필수)
+**문제**: 현재 `unlockEpisode`가 결제 금액을 **1:1 그대로 작가 `ballReceived`에 적립**. 플랫폼 운영 수수료 개념 없음. ADSMARKET의 `creatorRate` (30/50/70%) 정산 로직과 연결 안 됨.
+
+**해결**: `unlockEpisode` 트랜잭션에서 수수료 차감 로직 추가
+```js
+const PLATFORM_FEE_RATE = 0.15; // 정책 미확정 — 초안 15%
+const authorShare = Math.floor(price * (1 - PLATFORM_FEE_RATE));
+const platformShare = price - authorShare;
+// 작가: ballReceived += authorShare (즉시 입금)
+// 플랫폼: pendingThanksBall += platformShare (정산 가능 필드로 누적)
+```
+
+**난이도**: 🟡 중 (Cloud Function 1곳 + ADSMARKET 정산 통합)
+**진행 시점**: 수익 모델 확정 후 **정식 런칭 전 반드시 반영**
+
+#### (3) 웹툰/만화 유료 이미지 유출 방지 — 우선순위 🔴 HIGH (웹툰 런칭 전)
+**문제**: 현재 R2는 **public bucket** (`pub-9e6af273cd034aa6b7857343d0745224.r2.dev`). 유료 회차 이미지도 Tiptap 업로드 시 공개 URL로 저장됨 → URL 유출 시 비구매자도 접근 가능.
+
+**영향 범위**:
+- 텍스트 중심(소설·수필·시): 영향 거의 없음
+- **웹툰·만화**: 치명적 — 한 구매자가 URL 덤프하면 전체 유출
+
+**해결 옵션**:
+1. **Signed URL** (Cloudflare R2 지원) — Worker가 토큰 발급, 만료 시간
+2. **Private bucket + 다운로드 프록시** — `halmal-download-worker` 신설, Firebase Auth ID Token 검증 후 이미지 바이트 릴레이
+3. **이미지 컴포넌트 래핑** — 유료 이미지는 `<img src="{worker-url}?token=...">` 형태
+
+**난이도**: 🔴 상 (Worker 추가 + Tiptap 업로드 경로 분기 + 이미지 렌더 래핑)
+**진행 시점**: 소설/수필 중심 운영 기간에는 후순위. **웹툰/만화 장르 본격 런칭 전 필수**
+
+#### (4) 구독 알림 요약 (Debounce) — 우선순위 🟡 MID
+**문제**: `onEpisodeCreate` 트리거가 매 회차마다 개별 알림 발송. 작가가 10화를 한 번에 올리면 구독자에게 **알림 10개** 동시 발송 → 피로도 ↑
+
+**해결 단계**:
+- **Phase A (간단)**: 트리거에서 직전 알림 시간 체크 — 1시간 내 동일 seriesId 알림이 이미 있으면 **기존 알림을 "N화 업데이트됨"으로 update** (발송 수는 같아도 NotificationBell에서 1개로 보임)
+- **Phase B (완전)**: Cloud Tasks 기반 진짜 debounce — pending 버퍼 → 1시간 후 묶어서 단일 알림 발송
+
+**난이도**: 🟡 중 (Phase A) / 🔴 상 (Phase B)
+**진행 시점**: 인기 작가 실제 등장 관찰 후 Phase A로 먼저 대응
+
+#### (5) 본문 유출 추적 (워터마크) — 우선순위 🟢 LOW (장기)
+**문제**: EpisodeReader가 본문 HTML 그대로 렌더 → DevTools로 privateContent 객체 확인 가능. 웹툰/만화 우클릭 저장 차단 없음. `user-select: none`은 접근성 문제.
+
+**해결 방향**: 근본적 차단 대신 **유출 추적** — 각 구매자별 워터마크 ID를 본문에 삽입(사람 눈에는 안 보이는 zero-width space 조합 등)하여 유출본 역추적
+
+**난이도**: 🔴 상
+**진행 시점**: 실제 유출 사고 발생 또는 프리미엄 서비스 정식 런칭 후
+
+#### (6) Auto-Next / 작가의 말 위치 — 우선순위 🟢 LOW
+**제안**:
+- 본문 하단 "다음 화 보기" 고정 CTA (현재는 하단 네비 `[이전/목차/다음]`만)
+- 작가의 말을 댓글 영역 바로 위로 재배치 (현재는 본문 직후)
+
+**진행 시점**: A/B 테스트 후 결정. 현재 구조도 타당하므로 측정 불가한 개선은 보류.
+
+---
+
+### 14.3 해결 완료 (2026-04-11 A묶음)
+
+- ✅ **서버측 episodeNumber 결정** — Cloud Function `createEpisode` 신규 (runTransaction 원자 처리). `onEpisodeCreate` 트리거는 카운터 증가 역할 제거 → 구독자 알림만 담당. 클라이언트 CreateEpisode는 callable 호출로 전환 (레이스 컨디션 + 인덱스 fallback 중복 생성 버그 근본 차단)
+- ✅ **`UnlockedEpisode.expiryDate` 선제 필드** — 대여 옵션 도입 시 마이그레이션 비용 0
+- ✅ **회차 삭제 시 unlocked_episodes cleanup** — `onInkwellPostDelete` 트리거가 해당 postId의 구매 영수증도 batch 삭제 (고아 데이터 방지)

@@ -407,7 +407,7 @@ const { recalcContentTextLength } = require("./contentLength");
 const { testChargeBall } = require("./testCharge");
 const { sendThanksball } = require("./thanksball");
 const { syncAdBids, updateAdMetrics } = require("./adTriggers");
-const { unlockEpisode, onEpisodeCreate, onInkwellPostDelete } = require("./inkwell");
+const { unlockEpisode, createEpisode, onEpisodeCreate, onInkwellPostDelete } = require("./inkwell");
 
 exports.registerKanbuPromo = registerKanbuPromo;
 exports.adAuction = adAuction;
@@ -420,5 +420,6 @@ exports.recalcContentTextLength = recalcContentTextLength;
 exports.testChargeBall = testChargeBall;
 exports.sendThanksball = sendThanksball;
 exports.unlockEpisode = unlockEpisode;
+exports.createEpisode = createEpisode;
 exports.onEpisodeCreate = onEpisodeCreate;
 exports.onInkwellPostDelete = onInkwellPostDelete;
