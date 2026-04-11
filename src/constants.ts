@@ -59,7 +59,7 @@ export const MENU_MESSAGES: Record<string, { title: string, description: string,
   },
   my_story: {
     emoji: "📝",
-    title: "너와 나의 이야기",
+    title: "참새들의 방앗간",
     description: "현재를 살아가는 너와 내가 들려주는 즐겁고 재밌는, 슬프고 힘든, 짜증나고 싫증나는 일상의 소식들"
   },
   naked_king: {

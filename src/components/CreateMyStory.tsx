@@ -76,7 +76,7 @@ const CreateMyStory = ({ userData, editingPost, onSubmit, onClose }: Props) => {
         <div className="flex items-center justify-between px-5 h-12 border-b border-slate-100 shrink-0">
           <div className="flex items-center gap-2.5">
             <span className="text-[12px] font-bold text-slate-400 tracking-wide uppercase">{editingPost ? '글 수정' : '새 글 작성'}</span>
-            <span className="text-[11px] font-bold text-emerald-500">📝 너와 나의 이야기</span>
+            <span className="text-[11px] font-bold text-emerald-500">📝 참새들의 방앗간</span>
             {isUploading && <span className="flex items-center gap-1.5 text-[11px] font-bold text-blue-500"><span className="w-2.5 h-2.5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin inline-block" />이미지 업로드 중</span>}
           </div>
           <div className="flex items-center gap-1.5">

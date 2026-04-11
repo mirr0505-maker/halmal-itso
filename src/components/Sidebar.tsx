@@ -66,7 +66,7 @@ const Sidebar = ({ activeMenu, setActiveMenu, kanbuRoomCount = 0, currentNicknam
     },
     {
       id: 'my_story',
-      label: '너와 나의 이야기',
+      label: '참새들의 방앗간',
       description: '일상 소식들',
       icon: (
         <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">

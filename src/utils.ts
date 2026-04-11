@@ -25,7 +25,8 @@ export const formatKoreanNumber = (num: number): string => {
  */
 // 마이그레이션 완료 후에도 구버전 DB 데이터 backward-compat용
 const CATEGORY_DISPLAY_MAP: Record<string, string> = {
-  "나의 이야기":          "너와 나의 이야기",
+  "나의 이야기":          "참새들의 방앗간",
+  "너와 나의 이야기":       "참새들의 방앗간",
   "벌거벗은 임금님":       "판도라의 상자",
   "임금님 귀는 당나귀 귀": "솔로몬의 재판",
   "현지 소식":             "마법 수정 구슬",
@@ -35,7 +36,7 @@ const CATEGORY_DISPLAY_MAP: Record<string, string> = {
 };
 
 export const getCategoryDisplayName = (category?: string): string => {
-  if (!category) return "너와 나의 이야기";
+  if (!category) return "참새들의 방앗간";
   return CATEGORY_DISPLAY_MAP[category] || category;
 };
 
