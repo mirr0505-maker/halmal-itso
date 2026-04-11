@@ -987,7 +987,7 @@ function App() {
               {friends.length === 0 ? '아직 맺은 깐부가 없어요' : '깐부가 작성한 등록글이 아직 없어요'}
             </p>
             <p className="text-[12px] text-slate-500 font-bold">
-              {friends.length === 0 ? '마음에 드는 작가와 깐부를 맺어보세요' : '깐부가 새 글을 올리길 기다려보세요'}
+              {friends.length === 0 ? '마음에 드는 깐부를 맺어보세요' : '깐부가 새 글을 올리길 기다려보세요'}
             </p>
             <button
               onClick={() => { setActiveMenu('friends'); setSelectedTopic(null); setIsCreateOpen(false); }}
