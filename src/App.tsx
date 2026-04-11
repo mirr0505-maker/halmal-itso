@@ -977,6 +977,29 @@ function App() {
       );
     }
 
+    // 🤝 깐부글 탭 빈 상태 — 친절 안내 + 깐부맺기 메뉴 이동 버튼
+    if (activeTab === 'friend' && searchedPosts.length === 0) {
+      return (
+        <div className="w-full animate-in fade-in">
+          <div className="py-32 flex flex-col items-center justify-center text-center">
+            <div className="text-5xl mb-4 opacity-40">🤝</div>
+            <p className="text-sm text-slate-500 font-bold mb-1">
+              {friends.length === 0 ? '아직 맺은 깐부가 없어요' : '깐부가 작성한 등록글이 아직 없어요'}
+            </p>
+            <p className="text-[12px] text-slate-500 font-bold">
+              {friends.length === 0 ? '마음에 드는 작가와 깐부를 맺어보세요' : '깐부가 새 글을 올리길 기다려보세요'}
+            </p>
+            <button
+              onClick={() => { setActiveMenu('friends'); setSelectedTopic(null); setIsCreateOpen(false); }}
+              className="mt-5 px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-lg text-sm font-[1000] transition-colors"
+            >
+              🤝 깐부 맺기
+            </button>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="w-full animate-in fade-in">
         {/* 깐부글 탭: 깐부 아바타 칩 가로 스크롤 */}
