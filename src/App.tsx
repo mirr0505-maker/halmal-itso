@@ -731,7 +731,9 @@ function App() {
       return (
         <InkwellHomeView
           allRootPosts={allRootPosts}
-          onTopicClick={handleViewPost}
+          // 🖋️ 잉크병 메뉴 내부에서 회차 카드 클릭 → selectedEpisodeId로 직접 전환 (EpisodeReader 분기 진입)
+          // selectedTopic 분기는 이 함수 뒤에 있어서 activeMenu === 'inkwell' 조건이 먼저 매칭되기 때문
+          onTopicClick={(post) => setSelectedEpisodeId(post.id)}
           onLikeClick={handleLike}
           commentCounts={commentCounts}
           currentNickname={userData?.nickname}

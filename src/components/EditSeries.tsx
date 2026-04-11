@@ -8,7 +8,7 @@ import { doc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase';
 import { uploadToR2 } from '../uploadToR2';
 import type { Series, SeriesGenre } from '../types';
-import { GENRE_LABEL, GENRE_COLOR } from '../utils/inkwell';
+import { GENRE_LABEL } from '../utils/inkwell';
 
 interface EditSeriesProps {
   seriesId: string;
@@ -163,18 +163,18 @@ const EditSeries = ({ seriesId, currentUserUid, onSuccess, onCancel }: EditSerie
   return (
     <div className="max-w-[700px] mx-auto px-4 py-6">
       {/* 상단 헤더 */}
-      <div className="flex items-center justify-between mb-6 pb-3 border-b border-slate-200">
-        <button onClick={onCancel} className="text-sm text-slate-600 hover:text-slate-900 font-bold transition-colors">
+      <div className="flex items-center justify-between mb-5 pb-3 border-b border-slate-200">
+        <button onClick={onCancel} className="text-[12px] text-slate-500 hover:text-slate-900 font-bold transition-colors">
           ← 취소
         </button>
-        <h1 className="text-lg font-bold text-slate-900">작품 수정</h1>
+        <h1 className="text-[14px] font-[1000] text-slate-700">작품 수정</h1>
         <div className="w-12" />
       </div>
 
       <div className="space-y-6">
         {/* 표지 (변경 가능) */}
         <div>
-          <label className="block text-sm font-bold text-slate-700 mb-2">표지 이미지</label>
+          <label className="block text-[12px] font-[1000] text-slate-600 mb-2">표지 이미지</label>
           <div className="flex gap-4">
             <div className="flex-shrink-0 w-32 aspect-[3/4] bg-slate-100 rounded-lg overflow-hidden border border-slate-200">
               {newCoverPreview ? (
@@ -199,7 +199,7 @@ const EditSeries = ({ seriesId, currentUserUid, onSuccess, onCancel }: EditSerie
 
         {/* 제목 (수정 불가) */}
         <div>
-          <label className="block text-sm font-bold text-slate-700 mb-2">
+          <label className="block text-[12px] font-[1000] text-slate-600 mb-2">
             작품 제목 <span className="text-xs font-bold text-slate-400">(수정 불가)</span>
           </label>
           <input
@@ -213,17 +213,17 @@ const EditSeries = ({ seriesId, currentUserUid, onSuccess, onCancel }: EditSerie
 
         {/* 장르 (수정 불가) */}
         <div>
-          <label className="block text-sm font-bold text-slate-700 mb-2">
+          <label className="block text-[12px] font-[1000] text-slate-600 mb-2">
             장르 <span className="text-xs font-bold text-slate-400">(수정 불가)</span>
           </label>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-1.5">
             {(['novel', 'poem', 'essay', 'webtoon', 'comic'] as SeriesGenre[]).map((g) => (
               <button
                 key={g}
                 type="button"
                 disabled
-                className={`px-4 py-2 rounded-lg text-sm font-[1000] cursor-not-allowed ${
-                  series?.genre === g ? `${GENRE_COLOR[g]} text-white` : 'bg-slate-50 text-slate-400'
+                className={`px-3 py-1.5 rounded-full text-[11px] font-[1000] cursor-not-allowed ${
+                  series?.genre === g ? 'bg-blue-600 text-white shadow-sm' : 'bg-slate-50 text-slate-400'
                 }`}
               >
                 {GENRE_LABEL[g]}
@@ -234,7 +234,7 @@ const EditSeries = ({ seriesId, currentUserUid, onSuccess, onCancel }: EditSerie
 
         {/* 시놉시스 (수정 가능) */}
         <div>
-          <label className="block text-sm font-bold text-slate-700 mb-2">
+          <label className="block text-[12px] font-[1000] text-slate-600 mb-2">
             시놉시스 <span className="text-red-500">*</span>
           </label>
           <textarea
@@ -249,7 +249,7 @@ const EditSeries = ({ seriesId, currentUserUid, onSuccess, onCancel }: EditSerie
 
         {/* 태그 */}
         <div>
-          <label className="block text-sm font-bold text-slate-700 mb-2">태그 (최대 5개)</label>
+          <label className="block text-[12px] font-[1000] text-slate-600 mb-2">태그 (최대 5개)</label>
           <div className="flex gap-2 mb-2">
             <input
               type="text"
@@ -275,54 +275,54 @@ const EditSeries = ({ seriesId, currentUserUid, onSuccess, onCancel }: EditSerie
           )}
         </div>
 
-        {/* 부분 유료화 (미래 회차에만 적용) */}
-        <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
-          <h3 className="text-sm font-[1000] text-amber-800 mb-2">💰 부분 유료화 설정</h3>
-          <p className="text-xs text-amber-700 mb-3 font-bold">
+        {/* 부분 유료화 (미래 회차에만 적용) — 차분한 회색 톤 */}
+        <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
+          <h3 className="text-[12px] font-[1000] text-slate-700 mb-2">💰 부분 유료화 설정</h3>
+          <p className="text-[10px] text-slate-500 mb-3 font-bold">
             ⚠️ 변경 사항은 <strong>새로 발행하는 회차에만 적용</strong>됩니다. 이미 발행된 회차의 가격은 변하지 않습니다.
           </p>
 
           <div className="mb-3">
-            <label className="block text-xs font-bold text-slate-700 mb-1">무료 회차 수</label>
+            <label className="block text-[11px] font-[1000] text-slate-600 mb-1">무료 회차 수</label>
             <input
               type="number"
               value={freeEpisodeLimit}
               onChange={(e) => setFreeEpisodeLimit(Math.max(0, parseInt(e.target.value) || 0))}
               min={0}
               max={999}
-              className="w-24 px-3 py-1.5 border border-slate-300 rounded text-sm focus:outline-none focus:border-blue-500"
+              className="w-24 px-3 py-1.5 border border-slate-300 rounded text-[12px] focus:outline-none focus:border-blue-500"
             />
-            <span className="text-xs text-slate-600 ml-2 font-bold">화까지 무료 공개</span>
+            <span className="text-[11px] text-slate-500 ml-2 font-bold">화까지 무료 공개</span>
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1">기본 회차 가격</label>
+            <label className="block text-[11px] font-[1000] text-slate-600 mb-1">기본 회차 가격</label>
             <div className="flex items-center gap-2">
-              <span className="text-xl">🏀</span>
+              <span className="text-base">🏀</span>
               <input
                 type="number"
                 value={defaultPrice}
                 onChange={(e) => setDefaultPrice(Math.max(0, parseInt(e.target.value) || 0))}
                 min={0}
                 max={100}
-                className="w-24 px-3 py-1.5 border border-slate-300 rounded text-sm focus:outline-none focus:border-blue-500"
+                className="w-24 px-3 py-1.5 border border-slate-300 rounded text-[12px] focus:outline-none focus:border-blue-500"
               />
-              <span className="text-xs text-slate-600 font-bold">땡스볼</span>
+              <span className="text-[11px] text-slate-500 font-bold">땡스볼</span>
             </div>
           </div>
         </div>
 
         {/* 에러 */}
         {error && (
-          <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700 font-bold">{error}</div>
+          <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-[12px] text-red-700 font-bold">{error}</div>
         )}
 
         {/* 제출 */}
-        <div className="flex gap-2 pt-4">
-          <button type="button" onClick={onCancel} className="flex-1 px-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-[1000] transition-colors">
+        <div className="flex gap-2 pt-3">
+          <button type="button" onClick={onCancel} className="flex-1 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-[12px] font-[1000] transition-colors">
             취소
           </button>
-          <button type="button" onClick={handleSubmit} disabled={submitting} className="flex-1 px-4 py-3 bg-blue-500 hover:bg-blue-600 disabled:opacity-50 text-white rounded-lg text-sm font-[1000] transition-colors">
+          <button type="button" onClick={handleSubmit} disabled={submitting} className="flex-1 px-4 py-2.5 bg-blue-500 hover:bg-blue-600 disabled:opacity-50 text-white rounded-lg text-[12px] font-[1000] transition-colors">
             {submitting ? '저장 중...' : '💾 수정 저장'}
           </button>
         </div>

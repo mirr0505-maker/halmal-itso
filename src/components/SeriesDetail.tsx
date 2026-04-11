@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { doc, collection, query, where, orderBy, limit, onSnapshot, getDocs, updateDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase';
 import type { Series, Post } from '../types';
-import { GENRE_LABEL, GENRE_COLOR, formatCount } from '../utils/inkwell';
+import { GENRE_LABEL, formatCount } from '../utils/inkwell';
 import EpisodeListItem from './EpisodeListItem';
 import SubscribeButton from './SubscribeButton';
 
@@ -230,7 +230,7 @@ const SeriesDetail = ({ seriesId, currentUserUid, onBack, onSelectEpisode, onCre
       <div className="flex items-center justify-between mb-4">
         <button
           onClick={onBack}
-          className="flex items-center gap-1 text-sm text-slate-600 hover:text-slate-900 font-bold transition-colors"
+          className="flex items-center gap-1 text-[12px] text-slate-500 hover:text-slate-900 font-bold transition-colors"
         >
           ← 작품 목록으로
         </button>
@@ -284,26 +284,26 @@ const SeriesDetail = ({ seriesId, currentUserUid, onBack, onSelectEpisode, onCre
 
         {/* 우측: 정보 */}
         <div className="flex-1 flex flex-col min-w-0">
-          {/* 장르 + 완결 뱃지 */}
-          <div className="flex items-center gap-2 mb-2">
-            <span className={`px-2 py-0.5 rounded text-[10px] font-[1000] text-white ${GENRE_COLOR[series.genre]}`}>
+          {/* 장르 + 완결 뱃지 — 차분한 회색 톤 통일 */}
+          <div className="flex items-center gap-1.5 mb-2">
+            <span className="px-2 py-0.5 rounded bg-slate-100 border border-slate-200 text-slate-600 text-[10px] font-[1000]">
               {GENRE_LABEL[series.genre]}
             </span>
             {series.isCompleted && (
-              <span className="px-2 py-0.5 rounded text-[10px] font-[1000] text-white bg-slate-600">
+              <span className="px-2 py-0.5 rounded bg-slate-100 border border-slate-200 text-slate-500 text-[10px] font-[1000]">
                 완결
               </span>
             )}
           </div>
 
           {/* 제목 */}
-          <h1 className="text-2xl font-bold text-slate-900 mb-1 break-words">{series.title}</h1>
+          <h1 className="text-[16px] font-[1000] text-slate-900 mb-1 break-words tracking-tight">{series.title}</h1>
 
           {/* 작가 */}
-          <p className="text-sm text-slate-500 mb-4 font-bold">by {series.authorNickname}</p>
+          <p className="text-[11px] text-slate-500 mb-3 font-bold">{series.authorNickname}</p>
 
           {/* 메타 통계 */}
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px] text-slate-600 font-bold mb-4">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-500 font-bold mb-3">
             <span>📖 {series.totalEpisodes ?? 0}화</span>
             <span>👁 {formatCount(series.totalViews ?? 0)}</span>
             <span>❤️ {formatCount(series.totalLikes ?? 0)}</span>
@@ -311,15 +311,15 @@ const SeriesDetail = ({ seriesId, currentUserUid, onBack, onSelectEpisode, onCre
           </div>
 
           {/* 시놉시스 */}
-          <p className="text-sm text-slate-700 leading-relaxed mb-4 whitespace-pre-wrap">
+          <p className="text-[12px] text-slate-600 leading-relaxed mb-3 whitespace-pre-wrap">
             {series.synopsis}
           </p>
 
           {/* 태그 */}
           {series.tags && series.tags.length > 0 && (
-            <div className="flex flex-wrap gap-1 mb-4">
+            <div className="flex flex-wrap gap-1 mb-3">
               {series.tags.map((tag) => (
-                <span key={tag} className="px-2 py-0.5 bg-slate-100 text-slate-600 text-[11px] font-bold rounded">
+                <span key={tag} className="px-2 py-0.5 bg-slate-100 text-slate-500 text-[10px] font-bold rounded">
                   #{tag}
                 </span>
               ))}
@@ -337,7 +337,7 @@ const SeriesDetail = ({ seriesId, currentUserUid, onBack, onSelectEpisode, onCre
             {visibleEpisodes.length > 0 && (
               <button
                 onClick={() => onSelectEpisode(visibleEpisodes[0].id)}
-                className="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-800 rounded-lg text-sm font-[1000] transition-colors"
+                className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-[12px] font-[1000] transition-colors"
               >
                 ▶ 1화부터 보기
               </button>
@@ -346,41 +346,41 @@ const SeriesDetail = ({ seriesId, currentUserUid, onBack, onSelectEpisode, onCre
         </div>
       </div>
 
-      {/* 🖋️ Phase 4-F: 작가 본인 통계 박스 (목차 위) */}
+      {/* 🖋️ Phase 4-F: 작가 본인 통계 박스 (목차 위) — 차분한 회색 톤 */}
       {isAuthor && seriesStats && (
-        <div className="mb-6 p-4 bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-lg">
-          <h3 className="text-sm font-bold text-slate-700 mb-3 flex items-center gap-1">
+        <div className="mb-5 p-3 bg-slate-50 border border-slate-200 rounded-lg">
+          <h3 className="text-[12px] font-[1000] text-slate-600 mb-2 flex items-center gap-1">
             📊 작가 통계
-            <span className="text-xs font-bold text-slate-400">(작가 본인만 표시)</span>
+            <span className="text-[10px] font-bold text-slate-400">(작가 본인만 표시)</span>
           </h3>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-            <div className="bg-white rounded p-2 text-center">
-              <div className="text-xs text-slate-500 font-bold">📖 회차</div>
-              <div className="text-lg font-[1000] text-slate-900">{formatCount(visibleEpisodes.length)}</div>
+            <div className="bg-white border border-slate-200 rounded p-2 text-center">
+              <div className="text-[10px] text-slate-500 font-bold">📖 회차</div>
+              <div className="text-[13px] font-[1000] text-slate-900">{formatCount(visibleEpisodes.length)}</div>
             </div>
-            <div className="bg-white rounded p-2 text-center">
-              <div className="text-xs text-slate-500 font-bold">👁 누적 조회</div>
-              <div className="text-lg font-[1000] text-slate-900">{formatCount(seriesStats.totalEpisodeViews)}</div>
+            <div className="bg-white border border-slate-200 rounded p-2 text-center">
+              <div className="text-[10px] text-slate-500 font-bold">👁 누적 조회</div>
+              <div className="text-[13px] font-[1000] text-slate-900">{formatCount(seriesStats.totalEpisodeViews)}</div>
             </div>
-            <div className="bg-white rounded p-2 text-center">
-              <div className="text-xs text-slate-500 font-bold">❤️ 좋아요</div>
-              <div className="text-lg font-[1000] text-slate-900">{formatCount(seriesStats.totalEpisodeLikes)}</div>
+            <div className="bg-white border border-slate-200 rounded p-2 text-center">
+              <div className="text-[10px] text-slate-500 font-bold">❤️ 좋아요</div>
+              <div className="text-[13px] font-[1000] text-slate-900">{formatCount(seriesStats.totalEpisodeLikes)}</div>
             </div>
-            <div className="bg-white rounded p-2 text-center">
-              <div className="text-xs text-slate-500 font-bold">🏀 받은 응원</div>
-              <div className="text-lg font-[1000] text-slate-900">{formatCount(seriesStats.totalThanksballs)}</div>
+            <div className="bg-white border border-slate-200 rounded p-2 text-center">
+              <div className="text-[10px] text-slate-500 font-bold">🏀 받은 응원</div>
+              <div className="text-[13px] font-[1000] text-slate-900">{formatCount(seriesStats.totalThanksballs)}</div>
             </div>
           </div>
-          <p className="text-xs text-slate-400 font-bold mt-2">
+          <p className="text-[10px] text-slate-400 font-bold mt-2">
             💡 이 작품의 본문 인터랙션 누적 통계입니다. 댓글 땡스볼은 별도로 작가 ballReceived에 합산됩니다.
           </p>
         </div>
       )}
 
       {/* 3. 회차 목차 */}
-      <div className="border-t border-slate-200 pt-6">
+      <div className="border-t border-slate-200 pt-5">
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-lg font-bold text-slate-900">
+          <h2 className="text-[13px] font-[1000] text-slate-700">
             목차 ({visibleEpisodes.length}화)
           </h2>
           {/* 🖋️ 작가 본인만 [+ 새 회차] 버튼 표시 */}

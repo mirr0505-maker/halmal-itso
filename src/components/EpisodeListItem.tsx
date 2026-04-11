@@ -33,19 +33,19 @@ const EpisodeListItem = ({ episode, isUnlocked = false, isAuthor = false, onClic
   return (
     <div
       onClick={handleClick}
-      className="flex items-center gap-3 px-4 py-3 border-b border-slate-100 cursor-pointer hover:bg-slate-50 transition-colors last:border-b-0"
+      className="flex items-center gap-3 px-3 py-2.5 border-b border-slate-100 cursor-pointer hover:bg-slate-50 transition-colors last:border-b-0"
     >
       {/* 회차 번호 */}
-      <div className="flex-shrink-0 w-12 text-center text-sm font-semibold text-slate-600">
+      <div className="flex-shrink-0 w-10 text-center text-[11px] font-[1000] text-slate-500">
         {episode.episodeNumber ?? '-'}화
       </div>
 
       {/* 제목 */}
       <div className="flex-1 min-w-0">
-        <p className="text-sm text-slate-800 truncate font-bold">
+        <p className="text-[12px] text-slate-700 truncate font-[1000]">
           {episode.episodeTitle || episode.title || '(제목 없음)'}
         </p>
-        <div className="flex items-center gap-2 mt-0.5 text-[10px] text-slate-400 font-bold">
+        <div className="flex items-center gap-2 mt-0.5 text-[10px] text-slate-500 font-bold">
           {dateText && <span>{dateText}</span>}
           <span>❤️ {episode.likes || 0}</span>
           <span>💬 {episode.commentCount || 0}</span>
@@ -53,11 +53,11 @@ const EpisodeListItem = ({ episode, isUnlocked = false, isAuthor = false, onClic
       </div>
 
       {/* 잠금/유료 뱃지 */}
-      <div className="flex-shrink-0 text-xs">
+      <div className="flex-shrink-0 text-[10px]">
         {!isPaidEpisode ? null : isUnlocked || isAuthor ? (
           <span className="text-slate-400">🔓</span>
         ) : (
-          <span className="text-amber-600 font-[1000]">🔒 🏀 {price}</span>
+          <span className="px-2 py-0.5 rounded bg-rose-50 border border-rose-200 text-rose-600 font-[1000]">🔒 🏀{price}</span>
         )}
       </div>
     </div>

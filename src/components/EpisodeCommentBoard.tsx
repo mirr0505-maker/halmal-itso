@@ -174,13 +174,13 @@ const EpisodeCommentBoard = ({ episodeId, authorId, comments, currentUserUid, cu
           {/* 본문 */}
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1 flex-wrap">
-              <span className="text-sm font-[1000] text-slate-800">{comment.author}</span>
+              <span className="text-[12px] font-[1000] text-slate-800">{comment.author}</span>
               {isAuthorComment && (
-                <span className="px-1.5 py-0.5 bg-purple-100 text-purple-700 text-[10px] font-[1000] rounded">
+                <span className="px-1.5 py-0.5 bg-slate-100 border border-slate-200 text-slate-600 text-[9px] font-[1000] rounded">
                   ✍️ 작가
                 </span>
               )}
-              <span className="text-xs text-slate-400 font-bold">{formatRelativeTime(comment.createdAt)}</span>
+              <span className="text-[10px] text-slate-500 font-bold">{formatRelativeTime(comment.createdAt)}</span>
             </div>
 
             {/* 인라인 수정 모드 / 일반 모드 */}
@@ -195,31 +195,31 @@ const EpisodeCommentBoard = ({ episodeId, authorId, comments, currentUserUid, cu
                   maxLength={500}
                   rows={3}
                   autoFocus
-                  className="w-full px-2 py-1.5 border border-blue-300 rounded text-sm resize-none focus:outline-none focus:border-blue-500"
+                  className="w-full px-2 py-1.5 border border-blue-300 rounded text-[12px] resize-none focus:outline-none focus:border-blue-500"
                 />
                 <div className="flex items-center justify-between mt-1">
-                  <span className="text-xs text-slate-400 font-bold">{editContent.length}/500</span>
+                  <span className="text-[10px] text-slate-500 font-bold">{editContent.length}/500</span>
                   <div className="flex items-center gap-1">
                     <button
                       onClick={handleCancelEdit}
                       disabled={submitting}
-                      className="px-2 py-1 text-xs text-slate-600 hover:text-slate-900 font-bold transition-colors"
+                      className="px-2 py-1 text-[11px] text-slate-500 hover:text-slate-900 font-bold transition-colors"
                     >
                       취소
                     </button>
                     <button
                       onClick={() => handleSaveEdit(comment)}
                       disabled={submitting || !editContent.trim()}
-                      className="px-3 py-1 bg-blue-500 hover:bg-blue-600 disabled:opacity-50 text-white rounded text-xs font-[1000] transition-colors"
+                      className="px-3 py-1 bg-blue-500 hover:bg-blue-600 disabled:opacity-50 text-white rounded text-[11px] font-[1000] transition-colors"
                     >
                       {submitting ? '저장 중...' : '저장'}
                     </button>
                   </div>
                 </div>
-                {editError && <p className="text-xs text-red-500 mt-1 font-bold">{editError}</p>}
+                {editError && <p className="text-[10px] text-red-500 mt-1 font-bold">{editError}</p>}
               </div>
             ) : (
-              <p className="text-sm text-slate-700 whitespace-pre-wrap break-words mb-2">
+              <p className="text-[12px] text-slate-700 whitespace-pre-wrap break-words mb-2 leading-relaxed">
                 {comment.content}
               </p>
             )}
@@ -305,7 +305,7 @@ const EpisodeCommentBoard = ({ episodeId, authorId, comments, currentUserUid, cu
 
   if (rootComments.length === 0) {
     return (
-      <div className="py-8 text-center text-slate-400 text-sm font-bold italic">
+      <div className="py-6 text-center text-slate-500 text-[12px] font-bold italic">
         아직 댓글이 없어요. 첫 감상을 남겨보세요!
       </div>
     );

@@ -5,7 +5,7 @@ import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase';
 import { uploadToR2 } from '../uploadToR2';
 import type { SeriesGenre } from '../types';
-import { GENRE_LABEL, GENRE_COLOR } from '../utils/inkwell';
+import { GENRE_LABEL } from '../utils/inkwell';
 
 interface CreateSeriesProps {
   currentUserUid: string | null;
@@ -116,18 +116,18 @@ const CreateSeries = ({ currentUserUid, currentUserNickname, currentUserProfileI
   return (
     <div className="max-w-[700px] mx-auto px-4 py-6">
       {/* 상단 헤더 */}
-      <div className="flex items-center justify-between mb-6 pb-3 border-b border-slate-200">
-        <button onClick={onCancel} className="text-sm text-slate-600 hover:text-slate-900 font-bold transition-colors">
+      <div className="flex items-center justify-between mb-5 pb-3 border-b border-slate-200">
+        <button onClick={onCancel} className="text-[12px] text-slate-500 hover:text-slate-900 font-bold transition-colors">
           ← 취소
         </button>
-        <h1 className="text-lg font-bold text-slate-900">새 작품 개설</h1>
+        <h1 className="text-[14px] font-[1000] text-slate-700">새 작품 개설</h1>
         <div className="w-12" />
       </div>
 
       <div className="space-y-6">
         {/* 표지 업로드 */}
         <div>
-          <label className="block text-sm font-bold text-slate-700 mb-2">
+          <label className="block text-[12px] font-[1000] text-slate-600 mb-2">
             표지 이미지 <span className="text-red-500">*</span>
           </label>
           <div className="flex gap-4">
@@ -152,7 +152,7 @@ const CreateSeries = ({ currentUserUid, currentUserNickname, currentUserProfileI
 
         {/* 제목 */}
         <div>
-          <label className="block text-sm font-bold text-slate-700 mb-2">
+          <label className="block text-[12px] font-[1000] text-slate-600 mb-2">
             작품 제목 <span className="text-red-500">*</span>
           </label>
           <input
@@ -166,19 +166,19 @@ const CreateSeries = ({ currentUserUid, currentUserNickname, currentUserProfileI
           <p className="text-xs text-slate-400 mt-1 font-bold">{title.length}/50</p>
         </div>
 
-        {/* 장르 */}
+        {/* 장르 — 차분한 회색/블루 톤 */}
         <div>
-          <label className="block text-sm font-bold text-slate-700 mb-2">
+          <label className="block text-[12px] font-[1000] text-slate-600 mb-2">
             장르 <span className="text-red-500">*</span>
           </label>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-1.5">
             {(['novel', 'poem', 'essay', 'webtoon', 'comic'] as SeriesGenre[]).map((g) => (
               <button
                 key={g}
                 type="button"
                 onClick={() => setGenre(g)}
-                className={`px-4 py-2 rounded-lg text-sm font-[1000] transition-colors ${
-                  genre === g ? `${GENRE_COLOR[g]} text-white` : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                className={`px-3 py-1.5 rounded-full text-[11px] font-[1000] transition-colors ${
+                  genre === g ? 'bg-blue-600 text-white shadow-sm' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
                 }`}
               >
                 {GENRE_LABEL[g]}
@@ -189,7 +189,7 @@ const CreateSeries = ({ currentUserUid, currentUserNickname, currentUserProfileI
 
         {/* 시놉시스 */}
         <div>
-          <label className="block text-sm font-bold text-slate-700 mb-2">
+          <label className="block text-[12px] font-[1000] text-slate-600 mb-2">
             시놉시스 <span className="text-red-500">*</span>
           </label>
           <textarea
@@ -205,7 +205,7 @@ const CreateSeries = ({ currentUserUid, currentUserNickname, currentUserProfileI
 
         {/* 태그 */}
         <div>
-          <label className="block text-sm font-bold text-slate-700 mb-2">태그 (선택, 최대 5개)</label>
+          <label className="block text-[12px] font-[1000] text-slate-600 mb-2">태그 (선택, 최대 5개)</label>
           <div className="flex gap-2 mb-2">
             <input
               type="text"
@@ -231,53 +231,53 @@ const CreateSeries = ({ currentUserUid, currentUserNickname, currentUserProfileI
           )}
         </div>
 
-        {/* 부분 유료화 설정 */}
-        <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
-          <h3 className="text-sm font-[1000] text-amber-800 mb-3">💰 부분 유료화 설정</h3>
+        {/* 부분 유료화 설정 — 차분한 회색 톤 */}
+        <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
+          <h3 className="text-[12px] font-[1000] text-slate-700 mb-3">💰 부분 유료화 설정</h3>
 
           <div className="mb-3">
-            <label className="block text-xs font-bold text-slate-700 mb-1">무료 회차 수</label>
+            <label className="block text-[11px] font-[1000] text-slate-600 mb-1">무료 회차 수</label>
             <input
               type="number"
               value={freeEpisodeLimit}
               onChange={(e) => setFreeEpisodeLimit(Math.max(0, parseInt(e.target.value) || 0))}
               min={0}
               max={999}
-              className="w-24 px-3 py-1.5 border border-slate-300 rounded text-sm focus:outline-none focus:border-blue-500"
+              className="w-24 px-3 py-1.5 border border-slate-300 rounded text-[12px] focus:outline-none focus:border-blue-500"
             />
-            <span className="text-xs text-slate-600 ml-2 font-bold">화까지 무료 공개</span>
-            <p className="text-xs text-slate-500 mt-1 font-bold">전체 무료로 운영하려면 999 이상으로 설정</p>
+            <span className="text-[11px] text-slate-500 ml-2 font-bold">화까지 무료 공개</span>
+            <p className="text-[10px] text-slate-500 mt-1 font-bold">전체 무료로 운영하려면 999 이상으로 설정</p>
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1">기본 회차 가격</label>
+            <label className="block text-[11px] font-[1000] text-slate-600 mb-1">기본 회차 가격</label>
             <div className="flex items-center gap-2">
-              <span className="text-xl">🏀</span>
+              <span className="text-base">🏀</span>
               <input
                 type="number"
                 value={defaultPrice}
                 onChange={(e) => setDefaultPrice(Math.max(0, parseInt(e.target.value) || 0))}
                 min={0}
                 max={100}
-                className="w-24 px-3 py-1.5 border border-slate-300 rounded text-sm focus:outline-none focus:border-blue-500"
+                className="w-24 px-3 py-1.5 border border-slate-300 rounded text-[12px] focus:outline-none focus:border-blue-500"
               />
-              <span className="text-xs text-slate-600 font-bold">땡스볼</span>
+              <span className="text-[11px] text-slate-500 font-bold">땡스볼</span>
             </div>
-            <p className="text-xs text-slate-500 mt-1 font-bold">유료 회차 1편당 독자가 지불할 땡스볼 수</p>
+            <p className="text-[10px] text-slate-500 mt-1 font-bold">유료 회차 1편당 독자가 지불할 땡스볼 수</p>
           </div>
         </div>
 
         {/* 에러 */}
         {error && (
-          <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700 font-bold">{error}</div>
+          <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-[12px] text-red-700 font-bold">{error}</div>
         )}
 
         {/* 제출 */}
-        <div className="flex gap-2 pt-4">
-          <button type="button" onClick={onCancel} className="flex-1 px-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-[1000] transition-colors">
+        <div className="flex gap-2 pt-3">
+          <button type="button" onClick={onCancel} className="flex-1 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-[12px] font-[1000] transition-colors">
             취소
           </button>
-          <button type="button" onClick={handleSubmit} disabled={submitting} className="flex-1 px-4 py-3 bg-blue-500 hover:bg-blue-600 disabled:opacity-50 text-white rounded-lg text-sm font-[1000] transition-colors">
+          <button type="button" onClick={handleSubmit} disabled={submitting} className="flex-1 px-4 py-2.5 bg-blue-500 hover:bg-blue-600 disabled:opacity-50 text-white rounded-lg text-[12px] font-[1000] transition-colors">
             {submitting ? '생성 중...' : '🖋️ 작품 개설하기'}
           </button>
         </div>

@@ -75,7 +75,7 @@ const EpisodeCommentForm = ({ episodeId, currentUserUid, currentUserNickname, on
 
   if (!currentUserUid) {
     return (
-      <div className="border border-slate-200 rounded-lg p-3 bg-white text-center text-sm text-slate-400 font-bold py-4">
+      <div className="border border-slate-200 rounded-lg p-3 bg-white text-center text-[12px] text-slate-500 font-bold py-3">
         댓글을 작성하려면 로그인이 필요합니다
       </div>
     );
@@ -92,20 +92,20 @@ const EpisodeCommentForm = ({ episodeId, currentUserUid, currentUserNickname, on
         maxLength={500}
         rows={3}
         placeholder={placeholder || '이 회차에 대한 감상을 남겨보세요...'}
-        className="w-full px-3 py-2 border border-slate-200 rounded text-sm resize-none focus:outline-none focus:border-blue-500"
+        className="w-full px-3 py-2 border border-slate-200 rounded text-[12px] resize-none focus:outline-none focus:border-blue-500"
       />
       <div className="flex items-center justify-between mt-2">
-        <span className="text-xs text-slate-400 font-bold">{content.length}/500</span>
+        <span className="text-[10px] text-slate-500 font-bold">{content.length}/500</span>
         <button
           type="button"
           onClick={handleSubmit}
           disabled={submitting || !content.trim()}
-          className="px-4 py-1.5 bg-blue-500 hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded text-sm font-[1000] transition-colors"
+          className="px-3 py-1.5 bg-blue-500 hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded text-[11px] font-[1000] transition-colors"
         >
           {submitting ? '작성 중...' : (parentCommentId ? '답글 남기기' : '댓글 남기기')}
         </button>
       </div>
-      {error && <p className="text-xs text-red-500 mt-2 font-bold">{error}</p>}
+      {error && <p className="text-[10px] text-red-500 mt-2 font-bold">{error}</p>}
     </div>
   );
 };
