@@ -1,6 +1,6 @@
 // src/components/SubNavbar.tsx
 
-type TabId = 'any' | 'recent' | 'best' | 'rank' | 'friend';
+type TabId = 'any' | 'recent' | 'best' | 'rank' | 'friend' | 'subscribed';
 
 interface Props {
   activeTab: TabId;
@@ -66,10 +66,12 @@ const SubNavbar = ({ activeTab, onTabClick, showTabs }: Props) => {
             {renderTab('rank', '최고글', activeTab, onTabClick)}
           </div>
 
-          {/* 분리된 깐부글 영역 */}
+          {/* 분리된 깐부글 + 구독글 영역 */}
           <Divider />
-          <div className="flex items-center h-full">
+          <div className="flex items-center h-full gap-1">
             {renderTab('friend', '깐부글', activeTab, onTabClick)}
+            <Chevron />
+            {renderTab('subscribed', '구독글', activeTab, onTabClick)}
           </div>
         </div>
       </div>

@@ -1,8 +1,8 @@
 // src/components/MyPage.tsx
 import React, { useState, useEffect } from 'react';
 import { db, auth } from '../firebase';
-import { collection, query, where, orderBy, limit, onSnapshot, doc, updateDoc, getDocs, writeBatch, arrayUnion, arrayRemove } from 'firebase/firestore';
-import type { Post, Community, CommunityPost, CommunityMember, UserData, FirestoreTimestamp } from '../types';
+import { collection, query, where, orderBy, limit, onSnapshot, doc, getDoc, updateDoc, getDocs, writeBatch, arrayUnion, arrayRemove } from 'firebase/firestore';
+import type { Post, Community, CommunityPost, CommunityMember, UserData, FirestoreTimestamp, Series } from '../types';
 import ActivityStats from './ActivityStats';
 import MyContentTabs from './MyContentTabs';
 import ProfileHeader from './ProfileHeader';
@@ -79,13 +79,21 @@ interface Props {
   onLogout?: () => void;
   // 🚀 재등록: 등록글 미달 글을 새글로 다시 올리기 (1회 한정)
   onRepost?: (postId: string) => void;
+  // 🖋️ 잉크병 — 나의 연재작 카드 클릭 시 작품 상세로 이동
+  onNavigateToSeries?: (seriesId: string) => void;
+  // 🖋️ 잉크병 작품 카탈로그(작품 탭)로 이동 — 빈 구독 상태 안내용
+  onGoToInkwellCatalog?: () => void;
 }
 
 const MyPage = ({
   userData, allUserRootPosts, allUserChildPosts, friends, friendCount, followerCount = 0, onPostClick, onEditPost, onToggleFriend, allUsers, followerCounts,
-  communities = [], joinedCommunityIds = [], onGloveClick, onLeaveGlove, onLogout, onRepost
+  communities = [], joinedCommunityIds = [], onGloveClick, onLeaveGlove, onLogout, onRepost, onNavigateToSeries, onGoToInkwellCatalog
 }: Props) => {
-  const [activeTab, setActiveTab] = useState<'posts' | 'onecuts' | 'comments' | 'friends' | 'thanksball' | 'sentball' | 'glove' | 'revenue'>('posts');
+  const [activeTab, setActiveTab] = useState<'posts' | 'onecuts' | 'comments' | 'friends' | 'thanksball' | 'sentball' | 'glove' | 'revenue' | 'inkwell' | 'subscribedSeries'>('posts');
+  // 🖋️ 잉크병 — 본인이 작가인 작품 목록
+  const [mySeries, setMySeries] = useState<Series[]>([]);
+  // 🖋️ 잉크병 — 본인이 구독한 작품 목록
+  const [subscribedSeries, setSubscribedSeries] = useState<Series[]>([]);
   // 🚀 깐부 목록 서브탭: 내가 맺은 깐부(팔로잉) vs 나를 맺은 깐부수(팔로워)
   const [friendSubTab, setFriendSubTab] = useState<'following' | 'followers'>('following');
   const [isEditingProfile, setIsEditingProfile] = useState(false);
@@ -112,6 +120,51 @@ const MyPage = ({
       setSentBalls(snap.docs.map(d => ({ id: d.id, ...d.data() } as SentBall)));
     });
   }, [userData?.nickname]);
+
+  // 🖋️ 나의 연재작 — 본인이 작가인 series 실시간 구독
+  // Phase 1 복합 인덱스: series (authorId ASC, createdAt DESC) 사용
+  useEffect(() => {
+    if (!userData?.uid) return;
+    const q = query(
+      collection(db, 'series'),
+      where('authorId', '==', userData.uid),
+      orderBy('createdAt', 'desc')
+    );
+    return onSnapshot(
+      q,
+      (snap) => {
+        setMySeries(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Series)));
+      },
+      (err) => {
+        console.error('[MyPage] 나의 연재작 조회 실패:', err);
+      }
+    );
+  }, [userData?.uid]);
+
+  // 🖋️ 구독한 작품 — series_subscriptions where userId 구독 → 각 series 문서 fetch
+  useEffect(() => {
+    if (!userData?.uid) { setSubscribedSeries([]); return; }
+    const subQ = query(collection(db, 'series_subscriptions'), where('userId', '==', userData.uid));
+    return onSnapshot(
+      subQ,
+      async (subSnap) => {
+        const ids = subSnap.docs.map((d) => d.data().seriesId as string);
+        if (ids.length === 0) { setSubscribedSeries([]); return; }
+        try {
+          const docs = await Promise.all(ids.map((id) => getDoc(doc(db, 'series', id))));
+          const list = docs
+            .filter((d) => d.exists())
+            .map((d) => ({ id: d.id, ...d.data() } as Series))
+            .filter((s) => s.status !== 'deleted')
+            .sort((a, b) => (b.lastEpisodeAt?.seconds || 0) - (a.lastEpisodeAt?.seconds || 0));
+          setSubscribedSeries(list);
+        } catch (err) {
+          console.error('[MyPage] 구독한 작품 조회 실패:', err);
+        }
+      },
+      (err) => console.error('[MyPage] 구독 목록 조회 실패:', err)
+    );
+  }, [userData?.uid]);
 
   // 🚀 내가 쓴 커뮤니티 글 구독
   useEffect(() => {
@@ -399,7 +452,7 @@ const MyPage = ({
               <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-blue-600 to-indigo-500" />
               
               <div className="flex items-center gap-6 mb-10 border-b border-slate-50 pb-2 overflow-x-auto no-scrollbar">
-                {(['posts', 'onecuts', 'comments', 'friends', 'thanksball', 'sentball', 'glove', 'revenue'] as const).map(tab => (
+                {(['posts', 'onecuts', 'comments', 'friends', 'thanksball', 'sentball', 'glove', 'inkwell', 'subscribedSeries', 'revenue'] as const).map(tab => (
                   <button key={tab} onClick={() => setActiveTab(tab)} className={`pb-4 px-2 text-[15px] font-[1000] tracking-tight transition-all relative whitespace-nowrap ${activeTab === tab ? 'text-blue-600' : 'text-slate-300 hover:text-slate-500'}`}>
                     {tab === 'posts' && (
                       <span className="flex items-center gap-1">
@@ -453,6 +506,26 @@ const MyPage = ({
                         )}
                       </span>
                     )}
+                    {tab === 'inkwell' && (
+                      <span className="flex items-center gap-1">
+                        🖋️ 나의 연재작
+                        {mySeries.length > 0 && (
+                          <span className="text-[10px] font-[1000] text-blue-500 bg-blue-50 px-1.5 py-0.5 rounded-full border border-blue-100">
+                            {mySeries.length}
+                          </span>
+                        )}
+                      </span>
+                    )}
+                    {tab === 'subscribedSeries' && (
+                      <span className="flex items-center gap-1">
+                        📚 구독한 작품
+                        {subscribedSeries.length > 0 && (
+                          <span className="text-[10px] font-[1000] text-purple-500 bg-purple-50 px-1.5 py-0.5 rounded-full border border-purple-100">
+                            {subscribedSeries.length}
+                          </span>
+                        )}
+                      </span>
+                    )}
                     {tab === 'revenue' && '💰 수익'}
                     {activeTab === tab && <div className="absolute bottom-0 left-0 w-full h-1 bg-blue-600 rounded-full" />}
                   </button>
@@ -463,6 +536,8 @@ const MyPage = ({
                 {activeTab === 'posts' && <MyContentTabs posts={allMyPosts} onPostClick={onEditPost || onPostClick} onGloveClick={onGloveClick} onRepost={onRepost} type="posts" />}
                 {activeTab === 'onecuts' && <MyContentTabs posts={onecutPosts.map(p => ({ ...p, _source: 'post' as const }))} onPostClick={onEditPost || onPostClick} onRepost={onRepost} type="posts" />}
                 {activeTab === 'comments' && <MyContentTabs posts={allMyComments} onPostClick={onPostClick} onGloveClick={onGloveClick} type="comments" />}
+                {activeTab === 'inkwell' && <MyContentTabs posts={[]} onPostClick={onPostClick} type="inkwell" mySeries={mySeries} onNavigateToSeries={onNavigateToSeries} totalReceivedBalls={userData?.ballReceived || 0} />}
+                {activeTab === 'subscribedSeries' && <MyContentTabs posts={[]} onPostClick={onPostClick} type="subscribedSeries" subscribedSeries={subscribedSeries} onNavigateToSeries={onNavigateToSeries} onGoToInkwellSeries={onGoToInkwellCatalog} />}
                 {activeTab === 'thanksball' && (
                   <div className="flex flex-col gap-4">
                     <div className="flex items-center justify-between mb-2">

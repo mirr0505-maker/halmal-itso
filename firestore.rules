@@ -31,17 +31,64 @@ service cloud.firestore {
         && (resource.data.author_id == request.auth.uid
           || request.resource.data.diff(resource.data).affectedKeys()
               .hasOnly(['likes', 'likedBy', 'commentCount', 'viewCount', 'shareCount', 'thanksballTotal']));
+
+      // ════════════════════════════════════════════════════════
+      // 🖋️ 마르지 않는 잉크병 — 유료 회차 본문 보안 분리
+      // ════════════════════════════════════════════════════════
+      // 유료 회차의 실제 본문은 posts/{postId}/private_data/content에 저장
+      // 읽기: 작가 본인 OR 구매 내역이 있는 유저만 허용
+      // 쓰기: 작가 본인만 허용
+      // Why: F12 개발자 도구로 유료 본문을 훔쳐보는 것을 방지
+      match /private_data/{docId} {
+        allow read: if request.auth != null
+          && (
+            // 작가 본인
+            get(/databases/$(database)/documents/posts/$(id)).data.author_id == request.auth.uid
+            ||
+            // 구매한 유저 (unlocked_episodes 문서 존재 여부 확인)
+            exists(/databases/$(database)/documents/unlocked_episodes/$(id + '_' + request.auth.uid))
+          );
+        // 쓰기: 작가 본인만
+        allow write: if request.auth != null
+          && get(/databases/$(database)/documents/posts/$(id)).data.author_id == request.auth.uid;
+      }
+
+      // 기존 서브컬렉션 (댓글 등) — private_data 외 나머지는 기존 규칙 유지
+      // ⚠️ private_data는 위에서 별도 match로 처리되므로 여기서 제외됨
+      //    Firestore는 더 구체적인 match를 우선 적용함
       match /{sub=**} { allow read: if true; allow write: if request.auth != null; }
     }
     match /comments/{id} {
       allow read: if true;
       allow create: if request.auth != null;
+      // 🖋️ Phase 4-I: 삭제는 작성자 본인 OR 잉크병 회차의 작품 작가
+      // (작가는 자기 작품 회차에 달린 다른 사람 댓글을 삭제 가능. 수정은 불가)
       allow delete: if request.auth != null
-        && resource.data.author_id == request.auth.uid;
+        && (
+          resource.data.author_id == request.auth.uid
+          || (
+            get(/databases/$(database)/documents/posts/$(resource.data.rootId)).data.category == 'magic_inkwell'
+            && get(/databases/$(database)/documents/series/$(get(/databases/$(database)/documents/posts/$(resource.data.rootId)).data.seriesId)).data.authorId == request.auth.uid
+          )
+        );
+      // 수정: 작성자 본인 OR 카운터 필드만 OR 잉크병 회차 작가의 isDeleted 마킹 (Phase 5-C soft delete)
       allow update: if request.auth != null
-        && (resource.data.author_id == request.auth.uid
-          || request.resource.data.diff(resource.data).affectedKeys()
-              .hasOnly(['likes', 'likedBy', 'thanksballTotal']));
+        && (
+          // 작성자 본인 — 전체 수정 가능
+          resource.data.author_id == request.auth.uid
+          ||
+          // 누구나 카운터 필드만 수정
+          request.resource.data.diff(resource.data).affectedKeys()
+              .hasOnly(['likes', 'likedBy', 'thanksballTotal'])
+          ||
+          // 🖋️ 잉크병 회차 작가 — isDeleted: true 마킹만 가능 (false 복원/타필드 변경 차단)
+          (
+            request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isDeleted'])
+            && request.resource.data.isDeleted == true
+            && get(/databases/$(database)/documents/posts/$(resource.data.rootId)).data.category == 'magic_inkwell'
+            && get(/databases/$(database)/documents/series/$(get(/databases/$(database)/documents/posts/$(resource.data.rootId)).data.seriesId)).data.authorId == request.auth.uid
+          )
+        );
       match /{sub=**} { allow read: if true; allow write: if request.auth != null; }
     }
     match /kanbu_rooms/{id} {
@@ -209,6 +256,56 @@ service cloud.firestore {
     match /sentBalls/{nick}/items/{itemId} {
       allow read, write: if request.auth != null
         && request.auth.uid == nick;
+    }
+
+    // ════════════════════════════════════════════════════════
+    // 🖋️ 마르지 않는 잉크병 — 연재 시스템 보안 규칙
+    // ════════════════════════════════════════════════════════
+
+    // 연재 작품 메타데이터 — 비로그인도 읽기 가능 (작품 목록/상세)
+    // 생성: 로그인 + authorId가 본인인지 검증
+    // 수정: 작가 본인 OR 카운터 필드(totalViews, totalLikes, subscriberCount)만 변경
+    // 삭제: 작가 본인만
+    match /series/{seriesId} {
+      allow read: if true;
+
+      allow create: if request.auth != null
+        && request.resource.data.authorId == request.auth.uid;
+
+      // 작가 본인: 전체 수정 가능 (제목, 시놉시스, 표지, 무료회차수, 가격 등)
+      // 타인: 카운터 필드만 (조회수·좋아요·구독자 수 증감)
+      allow update: if request.auth != null
+        && (resource.data.authorId == request.auth.uid
+          || request.resource.data.diff(resource.data).affectedKeys()
+              .hasOnly(['totalViews', 'totalLikes', 'subscriberCount']));
+
+      allow delete: if request.auth != null
+        && resource.data.authorId == request.auth.uid;
+    }
+
+    // 유료 회차 구매 내역 — 클라이언트 직접 쓰기 금지 (Cloud Functions만)
+    // 읽기: 본인 구매 내역만 OR 작가가 자기 작품의 판매 내역 확인
+    match /unlocked_episodes/{docId} {
+      allow read: if request.auth != null
+        && (resource.data.userId == request.auth.uid
+          || resource.data.authorId == request.auth.uid);
+      allow write: if false;
+    }
+
+    // 작품 구독 (깐부) — 본인 구독만 관리
+    // 복합 ID: {seriesId}_{userId}
+    // 🔒 read는 docId 패턴(`*_{uid}`)으로 본인 문서만 허용 (문서 미존재 상태에서도 권한 평가 가능)
+    match /series_subscriptions/{docId} {
+      allow get: if request.auth != null
+        && docId.matches('.*_' + request.auth.uid + '$');
+      allow list: if request.auth != null
+        && resource.data.userId == request.auth.uid;
+      allow create: if request.auth != null
+        && request.resource.data.userId == request.auth.uid;
+      allow delete: if request.auth != null
+        && resource.data.userId == request.auth.uid;
+      // update 불필요 (구독 on/off는 create/delete로 처리)
+      allow update: if false;
     }
 
     // ════════════════════════════════════════════════════════

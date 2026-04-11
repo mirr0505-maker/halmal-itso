@@ -17,6 +17,7 @@ export type MenuId =
   | 'kanbu_room'
   | 'friends'
   | 'glove'
+  | 'inkwell'
   | 'giant_tree'
   | 'ranking'
   | 'adsmarket'
@@ -219,10 +220,10 @@ const Sidebar = ({ activeMenu, setActiveMenu, kanbuRoomCount = 0, currentNicknam
         className={`w-full flex flex-row items-start gap-2 px-2.5 py-1.5 rounded-xl transition-all duration-150 border-2 ${
           isActive
             ? 'bg-blue-50/40 text-blue-600 border-blue-100 shadow-sm shadow-blue-50 scale-[1.02]'
-            : 'bg-transparent text-slate-400 border-transparent hover:bg-slate-50 hover:text-slate-600'
+            : 'bg-transparent text-slate-500 border-transparent hover:bg-slate-50 hover:text-slate-600'
         }`}
       >
-        <span className={`transition-colors duration-150 shrink-0 mt-[1px] ${isActive ? 'text-blue-600' : 'text-slate-300'}`}>
+        <span className={`transition-colors duration-150 shrink-0 mt-[1px] ${isActive ? 'text-blue-600' : 'text-slate-500'}`}>
           {menu.icon}
         </span>
         <div className="flex flex-col items-start min-w-0 overflow-hidden">
@@ -230,7 +231,7 @@ const Sidebar = ({ activeMenu, setActiveMenu, kanbuRoomCount = 0, currentNicknam
             {menu.label}
           </span>
           {menu.description && (
-            <span className="text-[9px] font-bold text-slate-300 whitespace-nowrap overflow-hidden text-ellipsis leading-none mt-0.5">
+            <span className="text-[9px] font-bold text-slate-500 whitespace-nowrap overflow-hidden text-ellipsis leading-none mt-0.5">
               {menu.description}
             </span>
           )}
@@ -243,16 +244,16 @@ const Sidebar = ({ activeMenu, setActiveMenu, kanbuRoomCount = 0, currentNicknam
     <aside className={`flex flex-col bg-white overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] ${
       mobile
         ? 'w-72 h-full'
-        : 'w-36 hidden md:flex h-full border-r border-slate-100'
+        : 'w-36 hidden md:flex h-full border-r border-slate-300'
     }`}>
       {/* 🚀 모바일 드로어 전용 상단 헤더 */}
       {mobile && (
-        <div className="flex items-center justify-between px-4 py-4 border-b border-slate-100 shrink-0">
+        <div className="flex items-center justify-between px-4 py-4 border-b border-slate-300 shrink-0">
           <div>
-            <h2 className="text-[17px] font-[1000] italic tracking-tighter"><span className="text-blue-600">GL</span><span className="text-slate-900">ove</span></h2>
-            <p className="text-[9px] font-bold text-slate-300 tracking-tight">집단지성의 힘</p>
+            <h2 className="text-[17px] font-[1000] italic tracking-tighter"><span className="text-red-500">G</span><span className="text-blue-600">L</span><span className="text-slate-900">ove</span></h2>
+            <p className="text-[9px] font-bold text-slate-500 tracking-tight">집단지성의 힘</p>
           </div>
-          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-50 transition-colors">
+          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-500 hover:text-slate-700 hover:bg-slate-50 transition-colors">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" />
             </svg>
@@ -262,8 +263,8 @@ const Sidebar = ({ activeMenu, setActiveMenu, kanbuRoomCount = 0, currentNicknam
       <nav className="flex-1 px-2 pt-3 space-y-0.5 pb-4">
         {mainServiceMenus.map(renderMenuButton)}
 
-        <div className="my-2.5 px-4">
-          <div className="h-px bg-slate-100 w-full" />
+        <div className="my-2.5 px-3">
+          <div className="h-px bg-slate-300 w-full" />
         </div>
 
         {/* 🚀 우리들의 따뜻한 장갑: 커뮤니티 섹션 — 랭킹 위 배치 */}
@@ -272,7 +273,7 @@ const Sidebar = ({ activeMenu, setActiveMenu, kanbuRoomCount = 0, currentNicknam
           className={`w-full flex flex-row items-center gap-2 px-2.5 py-1.5 rounded-xl transition-all duration-150 border-2 ${
             activeMenu === 'glove'
               ? 'bg-blue-50/40 text-blue-600 border-blue-100 shadow-sm shadow-blue-50 scale-[1.02]'
-              : 'bg-transparent text-slate-400 border-transparent hover:bg-slate-50 hover:text-slate-600'
+              : 'bg-transparent text-slate-500 border-transparent hover:bg-slate-50 hover:text-slate-600'
           }`}
         >
           <span className="transition-all duration-150 shrink-0 text-[16px] leading-none" style={{ filter: 'grayscale(1)', opacity: activeMenu === 'glove' ? 0.65 : 0.20 }}>
@@ -280,21 +281,21 @@ const Sidebar = ({ activeMenu, setActiveMenu, kanbuRoomCount = 0, currentNicknam
           </span>
           <div className="flex flex-col items-start min-w-0 flex-1 overflow-hidden">
             <span className={`text-[12px] tracking-tight whitespace-nowrap ${activeMenu === 'glove' ? 'font-black' : 'font-bold'}`}>우리들의 장갑</span>
-            <span className="text-[9px] font-bold text-slate-300 whitespace-nowrap leading-none mt-0.5">커뮤니티</span>
+            <span className="text-[9px] font-bold text-slate-500 whitespace-nowrap leading-none mt-0.5">커뮤니티</span>
           </div>
         </button>
 
-        <div className="my-2.5 px-4">
-          <div className="h-px bg-slate-100 w-full" />
+        <div className="my-2.5 px-3">
+          <div className="h-px bg-slate-300 w-full" />
         </div>
 
-        {/* 🚀 거대 나무 섹션 — 주장 전파 (향후 동일 영역에 메뉴 추가 예정) */}
+        {/* 🚀 거대 나무 섹션 — 주장 전파 (마르지 않는 잉크병과 동일 영역) */}
         <button
           onClick={() => setActiveMenu('giant_tree')}
           className={`w-full flex flex-row items-center gap-2 px-2.5 py-1.5 rounded-xl transition-all duration-150 border-2 ${
             activeMenu === 'giant_tree'
               ? 'bg-emerald-50/40 text-emerald-700 border-emerald-100 shadow-sm shadow-emerald-50 scale-[1.02]'
-              : 'bg-transparent text-slate-400 border-transparent hover:bg-slate-50 hover:text-slate-600'
+              : 'bg-transparent text-slate-500 border-transparent hover:bg-slate-50 hover:text-slate-600'
           }`}
         >
           <span className="transition-all duration-150 shrink-0 text-[16px] leading-none" style={{ filter: 'grayscale(1)', opacity: activeMenu === 'giant_tree' ? 0.75 : 0.25 }}>
@@ -302,27 +303,45 @@ const Sidebar = ({ activeMenu, setActiveMenu, kanbuRoomCount = 0, currentNicknam
           </span>
           <div className="flex flex-col items-start min-w-0 flex-1 overflow-hidden">
             <span className={`text-[12px] tracking-tight whitespace-nowrap ${activeMenu === 'giant_tree' ? 'font-black' : 'font-bold'}`}>거대 나무</span>
-            <span className="text-[9px] font-bold text-slate-300 whitespace-nowrap leading-none mt-0.5">주장 전파</span>
+            <span className="text-[9px] font-bold text-slate-500 whitespace-nowrap leading-none mt-0.5">주장 전파</span>
           </div>
         </button>
 
-        <div className="my-2.5 px-4">
-          <div className="h-px bg-slate-100 w-full" />
+        {/* 🖋️ 마르지 않는 잉크병 — 거대 나무와 동일 영역 */}
+        <button
+          onClick={() => setActiveMenu('inkwell')}
+          className={`w-full flex flex-row items-center gap-2 px-2.5 py-1.5 rounded-xl transition-all duration-150 border-2 ${
+            activeMenu === 'inkwell'
+              ? 'bg-blue-50/40 text-blue-600 border-blue-100 shadow-sm shadow-blue-50 scale-[1.02]'
+              : 'bg-transparent text-slate-500 border-transparent hover:bg-slate-50 hover:text-slate-600'
+          }`}
+        >
+          <span className="transition-all duration-150 shrink-0 text-[16px] leading-none" style={{ filter: 'grayscale(1)', opacity: activeMenu === 'inkwell' ? 0.75 : 0.25 }}>
+            🖋️
+          </span>
+          <div className="flex flex-col items-start min-w-0 flex-1 overflow-hidden">
+            <span className={`text-[12px] tracking-tight whitespace-nowrap ${activeMenu === 'inkwell' ? 'font-black' : 'font-bold'}`}>마르지 않는 잉크병</span>
+            <span className="text-[9px] font-bold text-slate-500 whitespace-nowrap leading-none mt-0.5">연재</span>
+          </div>
+        </button>
+
+        <div className="my-2.5 px-3">
+          <div className="h-px bg-slate-300 w-full" />
         </div>
 
         {/* 랭킹 + 유배귀양지 섹션 */}
         {renderMenuButton(rankingMenu)}
         {renderMenuButton(exileMenu)}
 
-        <div className="my-2.5 px-4">
-          <div className="h-px bg-slate-100 w-full" />
+        <div className="my-2.5 px-3">
+          <div className="h-px bg-slate-300 w-full" />
         </div>
 
         {renderMenuButton(oneCutMenu)}
         {renderMenuButton(marketMenu)}
 
-        <div className="my-2.5 px-4">
-          <div className="h-px bg-slate-100 w-full" />
+        <div className="my-2.5 px-3">
+          <div className="h-px bg-slate-300 w-full" />
         </div>
 
         {/* 깐부 섹션: 깐부방 + 깐부맺기 */}
@@ -331,10 +350,10 @@ const Sidebar = ({ activeMenu, setActiveMenu, kanbuRoomCount = 0, currentNicknam
           className={`w-full flex flex-row items-center gap-2 px-2.5 py-1.5 rounded-xl transition-all duration-150 border-2 ${
             activeMenu === 'kanbu_room'
               ? 'bg-blue-50/40 text-blue-600 border-blue-100 shadow-sm shadow-blue-50 scale-[1.02]'
-              : 'bg-transparent text-slate-400 border-transparent hover:bg-slate-50 hover:text-slate-600'
+              : 'bg-transparent text-slate-500 border-transparent hover:bg-slate-50 hover:text-slate-600'
           }`}
         >
-          <span className={`transition-colors duration-150 shrink-0 ${activeMenu === 'kanbu_room' ? 'text-blue-600' : 'text-slate-300'}`}>
+          <span className={`transition-colors duration-150 shrink-0 ${activeMenu === 'kanbu_room' ? 'text-blue-600' : 'text-slate-500'}`}>
             <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
             </svg>
@@ -351,16 +370,16 @@ const Sidebar = ({ activeMenu, setActiveMenu, kanbuRoomCount = 0, currentNicknam
 
         {renderMenuButton(friendsMenu)}
 
-        <div className="my-2.5 px-4">
-          <div className="h-px bg-slate-100 w-full" />
+        <div className="my-2.5 px-3">
+          <div className="h-px bg-slate-300 w-full" />
         </div>
 
         {userMenus.map(renderMenuButton)}
       </nav>
       
       <div className="p-4 flex items-baseline gap-1.5 shrink-0">
-        <span className="text-[11px] font-black text-slate-300 tracking-tight">GLove</span>
-        <span className="text-[8px] font-bold text-slate-200 tracking-tight">집단지성의 힘</span>
+        <span className="text-[11px] font-[1000] italic tracking-tighter text-[#7c3aed]">GLove</span>
+        <span className="text-[8px] font-bold tracking-tight text-[#7c3aed]">집단지성의 힘</span>
       </div>
     </aside>
   );

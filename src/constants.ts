@@ -103,6 +103,11 @@ export const MENU_MESSAGES: Record<string, { title: string, description: string,
     title: "거대 나무",
     description: "자신의 주장을 다단계 전파 형태로 보낼 수 있는 곳"
   },
+  inkwell: {
+    emoji: "🖋️",
+    title: "마르지 않는 잉크병",
+    description: "시 · 소설 · 수필 · 웹툰 · 만화 — 작가의 이야기가 마르지 않는 곳"
+  },
   exile_place: {
     emoji: "🏚️",
     title: "유배·귀양지",

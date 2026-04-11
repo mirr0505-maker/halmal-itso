@@ -31,6 +31,7 @@ const CATEGORY_DISPLAY_MAP: Record<string, string> = {
   "현지 소식":             "마법 수정 구슬",
   "지식 소매상":           "황금알을 낳는 거위",
   "뼈때리는 글":           "신포도와 여우",
+  "magic_inkwell":         "마르지 않는 잉크병",
 };
 
 export const getCategoryDisplayName = (category?: string): string => {

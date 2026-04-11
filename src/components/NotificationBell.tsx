@@ -1,11 +1,11 @@
 // src/components/NotificationBell.tsx
 import { useState, useEffect, useRef } from 'react';
 import { db } from '../firebase';
-import { collection, query, orderBy, limit, onSnapshot, updateDoc, doc, writeBatch } from 'firebase/firestore';
+import { collection, query, orderBy, limit, onSnapshot, updateDoc, doc, writeBatch, getDoc, deleteDoc } from 'firebase/firestore';
 
 interface Notification {
   id: string;
-  type: 'thanksball' | 'community_post' | 'finger_promoted' | 'giant_tree_spread' | 'giant_tree_wilt' | 'community_join_approved' | 'community_join_rejected' | 'community_comment' | 'community_join_request';
+  type: 'thanksball' | 'community_post' | 'finger_promoted' | 'giant_tree_spread' | 'giant_tree_wilt' | 'community_join_approved' | 'community_join_rejected' | 'community_comment' | 'community_join_request' | 'new_episode' | 'episode_unlocked';
   fromNickname?: string;  // 땡스볼·커뮤니티 알림
   fromNick?: string;      // 거대나무 알림 (필드명 다름)
   amount?: number;
@@ -17,6 +17,10 @@ interface Notification {
   treeId?: string;
   treeTitle?: string;
   side?: 'agree' | 'oppose';
+  // 🖋️ 잉크병 — 새 회차 알림 전용
+  seriesId?: string;
+  seriesTitle?: string;
+  episodeNumber?: number;
   createdAt?: { seconds: number } | number;
   read?: boolean;   // 땡스볼·커뮤니티
   isRead?: boolean; // 거대나무 (필드명 다름)
@@ -26,6 +30,8 @@ interface Props {
   currentUid: string;       // 🚀 UID 기반 경로로 전환
   currentNickname: string;  // 표시용 (읽음 처리에는 미사용)
   onNavigate: (postId: string) => void;
+  // 🖋️ Phase 5: 잉크병 알림(new_episode/episode_unlocked) 클릭 → EpisodeReader 라우팅
+  onNavigateToEpisode?: (postId: string, seriesId?: string) => void;
 }
 
 const formatTime = (ts: { seconds: number } | number | null | undefined) => {
@@ -38,7 +44,7 @@ const formatTime = (ts: { seconds: number } | number | null | undefined) => {
   return d.toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' });
 };
 
-const NotificationBell = ({ currentUid, onNavigate }: Props) => {
+const NotificationBell = ({ currentUid, onNavigate, onNavigateToEpisode }: Props) => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -69,11 +75,36 @@ const NotificationBell = ({ currentUid, onNavigate }: Props) => {
   }, []);
 
   const markAsRead = async (notif: Notification) => {
+    // 🖋️ Phase 5-B: 잉크병 알림 fallback — 게시글 존재 여부 사전 확인 (트리거 실패/지연 대응)
+    if ((notif.type === 'new_episode' || notif.type === 'episode_unlocked') && notif.postId) {
+      try {
+        const postSnap = await getDoc(doc(db, 'posts', notif.postId));
+        if (!postSnap.exists()) {
+          // 고아 알림 → 자동 삭제 + 라우팅 차단
+          alert('이 회차는 더 이상 존재하지 않습니다. 알림을 정리합니다.');
+          try {
+            await deleteDoc(doc(db, 'notifications', currentUid, 'items', notif.id));
+          } catch (err) {
+            console.warn('[NotificationBell] 고아 알림 삭제 실패:', err);
+          }
+          setIsOpen(false);
+          return;
+        }
+      } catch (err) {
+        console.warn('[NotificationBell] 게시글 존재 확인 실패 (라우팅 시도 진행):', err);
+      }
+    }
+
     if (isUnread(notif)) {
       // 🚀 읽음 처리: 타입별 필드명이 달라 두 필드 모두 true로 기록
       await updateDoc(doc(db, 'notifications', currentUid, 'items', notif.id), { read: true, isRead: true });
     }
-    if (notif.postId) onNavigate(notif.postId);
+    // 🖋️ Phase 5: 잉크병 알림은 EpisodeReader로 우선 라우팅, 그 외엔 기존 onNavigate
+    if ((notif.type === 'new_episode' || notif.type === 'episode_unlocked') && notif.postId && onNavigateToEpisode) {
+      onNavigateToEpisode(notif.postId, notif.seriesId);
+    } else if (notif.postId) {
+      onNavigate(notif.postId);
+    }
     setIsOpen(false);
   };
 
@@ -141,7 +172,9 @@ const NotificationBell = ({ currentUid, onNavigate }: Props) => {
                   n.type === 'community_join_approved' ? '✅' :
                   n.type === 'community_join_rejected' ? '❌' :
                   n.type === 'community_comment' ? '💬' :
-                  n.type === 'community_join_request' ? '🔔' : '⚾';
+                  n.type === 'community_join_request' ? '🔔' :
+                  n.type === 'new_episode' ? '📖' :
+                  n.type === 'episode_unlocked' ? '🔓' : '⚾';
                 const body =
                   n.type === 'community_post' || n.type === 'finger_promoted' || n.type === 'community_join_approved' || n.type === 'community_join_rejected' || n.type === 'community_comment' || n.type === 'community_join_request'
                     ? (n.message || '')
@@ -149,6 +182,10 @@ const NotificationBell = ({ currentUid, onNavigate }: Props) => {
                     ? (<><span className="text-blue-600">{n.fromNick}</span>님이 내 거대나무에{' '}<span className={n.side === 'agree' ? 'text-blue-500 font-[1000]' : 'text-rose-500 font-[1000]'}>{n.side === 'agree' ? '공감' : '반대'}</span>했어요</>)
                   : n.type === 'giant_tree_wilt'
                     ? (<span className="text-amber-700">{n.message}</span>)
+                  : n.type === 'new_episode'
+                    ? (<>📖 <span className="text-blue-600">「{n.seriesTitle}」</span> {n.episodeNumber}화가 연재되었어요</>)
+                  : n.type === 'episode_unlocked'
+                    ? (<><span className="text-blue-600">{n.fromNickname}</span>님이{' '}<span className="text-amber-500 font-[1000]">{n.amount}볼</span>로 회차를 잠금 해제했어요</>)
                   : (<><span className="text-blue-600">{n.fromNickname}</span>님이{' '}<span className="text-amber-500 font-[1000]">{n.amount}볼</span> 땡스볼을 보냈어요</>);
                 return (
                   <div

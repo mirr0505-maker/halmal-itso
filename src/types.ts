@@ -97,6 +97,94 @@ export interface Post {
   // 🚀 공유수
   shareCount?: number; // 카카오/링크 공유 횟수 (누적)
 
+  // 🖋️ Phase 5-C: 잉크병 회차 댓글 soft delete (true면 placeholder로 표시)
+  isDeleted?: boolean;
+
+  // 🖋️ Phase 5-D: 잉크병 회차 댓글 답글 (1단계 대댓글) — 원댓글 ID 참조
+  parentCommentId?: string;
+
+  // 🖋️ 마르지 않는 잉크병 (연재) 전용 필드 — category가 "magic_inkwell"일 때만 사용
+  seriesId?: string;
+  episodeNumber?: number;
+  episodeTitle?: string;
+  authorNote?: string;
+  isPaid?: boolean;
+  price?: number;
+  previewContent?: string;
+  isHidden?: boolean;  // 비공개 전환된 회차 (구매자 있을 때 삭제 대신 사용)
+}
+
+// ════════════════════════════════════════════════════════
+// 🖋️ 마르지 않는 잉크병 — 연재 시스템 타입
+// ════════════════════════════════════════════════════════
+
+export type SeriesGenre = 'novel' | 'poem' | 'essay' | 'webtoon' | 'comic';
+export type SeriesStatus = 'serializing' | 'completed' | 'hiatus' | 'deleted';
+
+export interface Series {
+  id: string;                      // series_{timestamp}_{uid}
+  title: string;
+  synopsis: string;                // 시놉시스 (500자 제한)
+  coverImageUrl: string;           // R2 URL
+  genre: SeriesGenre;
+  tags?: string[];                 // 최대 5개
+
+  authorId: string;
+  authorNickname: string;
+  authorProfileImage?: string;
+
+  totalEpisodes: number;
+  totalViews: number;
+  totalLikes: number;
+  subscriberCount: number;
+
+  isCompleted: boolean;
+  status: SeriesStatus;
+
+  // 부분 유료화 설정
+  freeEpisodeLimit: number;        // 무료 회차 수 (예: 10)
+  defaultPrice: number;            // 기본 회차 가격 (땡스볼)
+
+  lastEpisodeAt: FirestoreTimestamp;
+  createdAt: FirestoreTimestamp;
+  updatedAt: FirestoreTimestamp;
+}
+
+// 에피소드는 기존 Post 인터페이스를 확장하여 사용
+// posts 컬렉션에 category: "magic_inkwell"로 저장됨
+export interface InkwellEpisodeFields {
+  category: 'magic_inkwell';
+  seriesId: string;
+  episodeNumber: number;
+  episodeTitle: string;
+  authorNote?: string;
+  isPaid: boolean;
+  price: number;
+  previewContent?: string;         // 유료 회차 미리보기 (200자)
+}
+
+// 유료 회차 본문 (서브컬렉션 posts/{postId}/private_data/content)
+export interface EpisodePrivateContent {
+  body: string;
+  images?: string[];               // 웹툰/만화 이미지 URL 목록
+}
+
+// 구매 영수증
+export interface UnlockedEpisode {
+  userId: string;
+  postId: string;
+  seriesId: string;
+  authorId: string;
+  paidAmount: number;
+  unlockedAt: FirestoreTimestamp;
+}
+
+// 작품 구독 (깐부)
+export interface SeriesSubscription {
+  userId: string;
+  seriesId: string;
+  subscribedAt: FirestoreTimestamp;
+  notifyOnNewEpisode: boolean;
 }
 
 export interface Thanksball {

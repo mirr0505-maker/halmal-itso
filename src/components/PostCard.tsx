@@ -197,7 +197,14 @@ const PostCard = ({
           ) : (
             <div
               className="text-[13.5px] text-slate-700 leading-relaxed font-medium break-words line-clamp-3 prose-compact"
-              dangerouslySetInnerHTML={{ __html: sanitizeHtml(post.content) }}
+              dangerouslySetInnerHTML={{
+                __html: sanitizeHtml(
+                  // 🖋️ 잉크병 유료 회차는 content가 빈 문자열 → previewContent(평문 200자) fallback
+                  (post.category === 'magic_inkwell' && post.isPaid && !post.content && post.previewContent)
+                    ? `<p>${post.previewContent}</p>`
+                    : post.content
+                ),
+              }}
             />
           )}
 
@@ -209,7 +216,9 @@ const PostCard = ({
 
           {/* 🚀 카테고리 정보 노출 (댓글/연계글 타입) */}
           {post.category && (
-            <span className="text-[8px] font-black text-blue-400/60 uppercase tracking-widest">{post.category}</span>
+            <span className="text-[8px] font-black text-blue-400/60 uppercase tracking-widest">
+              {post.category === 'magic_inkwell' ? '마르지 않는 잉크병' : post.category}
+            </span>
           )}
         </div>
       </div>

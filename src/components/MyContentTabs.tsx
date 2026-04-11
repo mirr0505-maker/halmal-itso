@@ -1,5 +1,7 @@
 // src/components/MyContentTabs.tsx
-import type { Post } from '../types';
+import type { Post, Series } from '../types';
+import SeriesCard from './SeriesCard';
+import InkwellSummaryCards from './InkwellSummaryCards';
 
 // 🚀 MixedPost: Post + CommunityPost + 커뮤니티 댓글 혼합 표시용 최소 공통 타입
 interface MixedPost {
@@ -24,7 +26,15 @@ interface Props {
   onGloveClick?: (communityId?: string) => void;
   // 🚀 재등록 콜백: 2시간 경과 + 좋아요 3개 미만 + 1회 미사용 글에 표시
   onRepost?: (postId: string) => void;
-  type: 'posts' | 'comments';
+  type: 'posts' | 'comments' | 'inkwell' | 'subscribedSeries';
+  // 🖋️ 잉크병 — 나의 연재작 탭 전용
+  mySeries?: Series[];
+  onNavigateToSeries?: (seriesId: string) => void;
+  // 🖋️ Phase 4-F — 작가 KPI 카드용 (users.ballReceived 그대로 전달, 잉크병 외 수익 포함)
+  totalReceivedBalls?: number;
+  // 🖋️ 구독한 작품 탭 전용
+  subscribedSeries?: Series[];
+  onGoToInkwellSeries?: () => void;  // 빈 상태 "작품 둘러보기" 버튼
 }
 
 // 🚀 재등록 가능 여부 판단: 2시간 경과 + 좋아요 3개 미만 + repostedAt 없음 + 일반 글/한컷만
@@ -51,7 +61,90 @@ function getPostStatus(post: MixedPost): { label: string; color: string } {
   return { label: '미등록', color: 'text-slate-400 bg-slate-50' };
 }
 
-const MyContentTabs = ({ posts = [], onPostClick, onGloveClick, onRepost, type }: Props) => {
+const MyContentTabs = ({ posts = [], onPostClick, onGloveClick, onRepost, type, mySeries, onNavigateToSeries, totalReceivedBalls, subscribedSeries, onGoToInkwellSeries }: Props) => {
+  // 🖋️ 구독한 작품 분기
+  if (type === 'subscribedSeries') {
+    if (!subscribedSeries || subscribedSeries.length === 0) {
+      return (
+        <div className="py-32 flex flex-col items-center justify-center text-center">
+          <div className="text-5xl mb-4 opacity-40">📚</div>
+          <p className="text-sm text-slate-500 font-bold mb-1">아직 구독한 작품이 없어요</p>
+          <p className="text-[12px] text-slate-500 font-bold">잉크병에서 마음에 드는 작품을 구독해보세요</p>
+          {onGoToInkwellSeries && (
+            <button
+              onClick={onGoToInkwellSeries}
+              className="mt-5 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-[1000] transition-colors"
+            >
+              🖋️ 작품 둘러보기
+            </button>
+          )}
+        </div>
+      );
+    }
+    return (
+      <div className="px-2 py-2">
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-3">
+          {subscribedSeries.map((series) => (
+            <SeriesCard
+              key={series.id}
+              series={series}
+              onClick={(s) => onNavigateToSeries?.(s.id)}
+            />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // 🖋️ 잉크병 분기 — 데이터 모델이 완전히 다르므로 early return으로 처리
+  if (type === 'inkwell') {
+    if (!mySeries || mySeries.length === 0) {
+      return (
+        <div className="py-32 flex flex-col items-center justify-center text-slate-300">
+          <div className="text-5xl mb-3 opacity-40">🖋️</div>
+          <p className="font-black italic text-sm mb-1">아직 개설한 작품이 없어요</p>
+          <p className="text-[11px] font-bold text-slate-400">잉크병 메뉴에서 새 작품을 만들어보세요</p>
+        </div>
+      );
+    }
+
+    // 🖋️ Phase 4-F: KPI 집계 (mySeries 배열 기반 — 실시간 onSnapshot 자동 반영)
+    const summary = {
+      totalSeries: mySeries.length,
+      totalEpisodes: mySeries.reduce((sum, s) => sum + (s.totalEpisodes || 0), 0),
+      totalSubscribers: mySeries.reduce((sum, s) => sum + (s.subscriberCount || 0), 0),
+      totalViews: mySeries.reduce((sum, s) => sum + (s.totalViews || 0), 0),
+      totalLikes: mySeries.reduce((sum, s) => sum + (s.totalLikes || 0), 0),
+      totalRevenue: totalReceivedBalls || 0,
+    };
+
+    return (
+      <div className="px-2 py-2">
+        {/* ⭐ KPI 요약 카드 */}
+        <InkwellSummaryCards
+          totalSeries={summary.totalSeries}
+          totalEpisodes={summary.totalEpisodes}
+          totalSubscribers={summary.totalSubscribers}
+          totalViews={summary.totalViews}
+          totalLikes={summary.totalLikes}
+          totalRevenue={summary.totalRevenue}
+          variant="full"
+        />
+
+        {/* 작품 그리드 (기존 코드) */}
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-3">
+          {mySeries.map((series) => (
+            <SeriesCard
+              key={series.id}
+              series={series}
+              onClick={(s) => onNavigateToSeries?.(s.id)}
+            />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   const itemsPerPage = 50;
   const displayList = posts.slice(0, itemsPerPage);
 

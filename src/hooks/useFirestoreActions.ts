@@ -38,7 +38,7 @@ interface FirestoreActionDeps {
   setEditingPost: Dispatch<SetStateAction<Post | null>>;
   setCreateMenuKey: Dispatch<SetStateAction<string | null>>;
   setActiveMenu: Dispatch<SetStateAction<MenuId>>;
-  setActiveTab: Dispatch<SetStateAction<'any' | 'recent' | 'best' | 'rank' | 'friend'>>;
+  setActiveTab: Dispatch<SetStateAction<'any' | 'recent' | 'best' | 'rank' | 'friend' | 'subscribed'>>;
   setLinkedPostSide: Dispatch<SetStateAction<'left' | 'right' | null>>;
 }
 

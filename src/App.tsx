@@ -66,6 +66,14 @@ const AdvertiserCenter = lazy(() => import('./components/advertiser/AdvertiserCe
 const AdAdminPage = lazy(() => import('./components/admin/AdAdminPage'));
 const FriendsView = lazy(() => import('./components/FriendsView'));
 const AdvertiserRegister = lazy(() => import('./components/advertiser/AdvertiserRegister'));
+// 🖋️ 마르지 않는 잉크병 — 사이드 메뉴 진입 화면 (회차/작품 2탭) + 상세/본문/생성 폼
+const InkwellHomeView = lazy(() => import('./components/InkwellHomeView'));
+const SeriesDetail = lazy(() => import('./components/SeriesDetail'));
+const EpisodeReader = lazy(() => import('./components/EpisodeReader'));
+const CreateSeries = lazy(() => import('./components/CreateSeries'));
+const CreateEpisode = lazy(() => import('./components/CreateEpisode'));
+const EditEpisode = lazy(() => import('./components/EditEpisode'));
+const EditSeries = lazy(() => import('./components/EditSeries'));
 // 🚀 우리들의 따뜻한 장갑: 커뮤니티 컴포넌트
 const CommunityList = lazy(() => import('./components/CommunityList'));
 const MyCommunityList = lazy(() => import('./components/MyCommunityList'));
@@ -116,11 +124,22 @@ function App() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [replyTarget, setReplyTarget] = useState<Post | null>(null);
   const [activeMenu, setActiveMenu] = useState<MenuId>('home');
-  const [activeTab, setActiveTab] = useState<'any' | 'recent' | 'best' | 'rank' | 'friend'>('any');
+  const [activeTab, setActiveTab] = useState<'any' | 'recent' | 'best' | 'rank' | 'friend' | 'subscribed'>('any');
+  // 🖋️ 내가 구독한 작품 ID Set (홈 구독글 탭 필터링용) — 잉크병 작품 단위 구독
+  const [mySubscribedSeriesIds, setMySubscribedSeriesIds] = useState<Set<string>>(new Set());
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editingPost, setEditingPost] = useState<Post | null>(null);
   const [linkedPostSide, setLinkedPostSide] = useState<'left' | 'right' | null>(null); // 솔로몬의 재판 연계글 팝업
   const [selectedRoom, setSelectedRoom] = useState<KanbuRoom | null>(null);
+  // 🖋️ 마르지 않는 잉크병 — 선택된 작품 (null이면 그리드, 값이 있으면 SeriesDetail)
+  const [selectedSeriesId, setSelectedSeriesId] = useState<string | null>(null);
+  // 🖋️ 마르지 않는 잉크병 — 선택된 에피소드 (값이 있으면 EpisodeReader가 최우선 표시)
+  const [selectedEpisodeId, setSelectedEpisodeId] = useState<string | null>(null);
+  // 🖋️ 잉크병 모드: 'list' | 'createSeries' | 'createEpisode'
+  // (detail/reader는 selectedSeriesId/selectedEpisodeId 존재 여부로 판단)
+  const [inkwellMode, setInkwellMode] = useState<'list' | 'createSeries' | 'createEpisode' | 'editEpisode' | 'editSeries'>('list');
+  // 🖋️ 잉크병 홈뷰 탭 (episodes/series) — SeriesDetail 진입/복귀 시 유지되도록 부모에서 관리
+  const [inkwellTab, setInkwellTab] = useState<'episodes' | 'series'>('episodes');
   const [isCreateRoomOpen, setIsCreateRoomOpen] = useState(false);
   // 🚀 우리들의 따뜻한 장갑: 커뮤니티 상태
   // 🚀 장갑찾기가 기본 탭 (사용자가 커뮤니티를 발견하도록 유도)
@@ -255,6 +274,20 @@ function App() {
     const unsub = onSnapshot(
       query(collection(db, 'comments'), where('author_id', '==', userData.uid)),
       (snap) => setMyComments(snap.docs.map(d => ({ id: d.id, ...d.data() } as Post)))
+    );
+    return unsub;
+  }, [userData?.uid]);
+
+  // 🖋️ 내가 구독한 잉크병 작품 ID Set 구독 (홈 구독글 탭 필터링용)
+  useEffect(() => {
+    if (!userData?.uid) { setMySubscribedSeriesIds(new Set()); return; }
+    const q = query(collection(db, 'series_subscriptions'), where('userId', '==', userData.uid));
+    const unsub = onSnapshot(
+      q,
+      (snap) => {
+        setMySubscribedSeriesIds(new Set(snap.docs.map(d => d.data().seriesId as string)));
+      },
+      (err) => console.error('[mySubscribedSeriesIds]', err)
     );
     return unsub;
   }, [userData?.uid]);
@@ -439,6 +472,21 @@ function App() {
           }}
           onLogout={handleLogout}
           onRepost={handleRepost}
+          onNavigateToSeries={(seriesId) => {
+            // 🖋️ 마이페이지 → 잉크병 작품 상세로 이동
+            setActiveMenu('inkwell');
+            setSelectedSeriesId(seriesId);
+            setSelectedEpisodeId(null);
+            setInkwellMode('list');
+          }}
+          onGoToInkwellCatalog={() => {
+            // 🖋️ 마이페이지 구독 빈 상태 → 잉크병 작품 카탈로그(작품 탭)
+            setActiveMenu('inkwell');
+            setSelectedSeriesId(null);
+            setSelectedEpisodeId(null);
+            setInkwellMode('list');
+            setInkwellTab('series');
+          }}
         />;
       }
       return <div className="w-full py-40 text-center"><button onClick={handleLogin} className="bg-slate-900 text-white px-8 py-3 rounded-xl font-black shadow-lg">로그인하기</button></div>;
@@ -574,9 +622,168 @@ function App() {
       return <GiantTreeView currentNickname={userData?.nickname} currentUserData={userData} allUsers={allUsers} initialTreeId={pendingTreeId || undefined} initialParentNodeId={pendingParentNodeId || undefined} />;
     }
 
+    // 🖋️ 마르지 않는 잉크병 — 5단계 우선순위 라우팅 (Phase 3-E)
+    if (activeMenu === 'inkwell') {
+      const currentUserUid = userData?.uid || null;
+      const currentUserNickname = userData?.nickname || '익명';
+      const currentUserProfileImage = userData?.avatarUrl || null;
+
+      // 1순위: 작품 개설 폼
+      if (inkwellMode === 'createSeries') {
+        return (
+          <CreateSeries
+            currentUserUid={currentUserUid}
+            currentUserNickname={currentUserNickname}
+            currentUserProfileImage={currentUserProfileImage}
+            onSuccess={(newSeriesId) => {
+              setInkwellMode('list');
+              setSelectedSeriesId(newSeriesId);
+            }}
+            onCancel={() => setInkwellMode('list')}
+          />
+        );
+      }
+      // 1.5순위: 작품 수정 폼 (selectedSeriesId 필수)
+      if (inkwellMode === 'editSeries' && selectedSeriesId) {
+        return (
+          <EditSeries
+            seriesId={selectedSeriesId}
+            currentUserUid={currentUserUid}
+            onSuccess={() => {
+              // selectedSeriesId 유지 → 수정 후 SeriesDetail로 자동 복귀
+              setInkwellMode('list');
+            }}
+            onCancel={() => setInkwellMode('list')}
+          />
+        );
+      }
+      // 2순위: 회차 작성 폼 (작품 상세에서 진입, selectedSeriesId 필수)
+      if (inkwellMode === 'createEpisode' && selectedSeriesId) {
+        return (
+          <CreateEpisode
+            seriesId={selectedSeriesId}
+            currentUserUid={currentUserUid}
+            currentUserNickname={currentUserNickname}
+            onSuccess={(newPostId) => {
+              setInkwellMode('list');
+              setSelectedEpisodeId(newPostId);
+            }}
+            onCancel={() => setInkwellMode('list')}
+          />
+        );
+      }
+      // 2.5순위: 회차 수정 폼 (selectedEpisodeId 필수)
+      if (inkwellMode === 'editEpisode' && selectedEpisodeId) {
+        return (
+          <EditEpisode
+            postId={selectedEpisodeId}
+            currentUserUid={currentUserUid}
+            currentUserNickname={currentUserNickname}
+            onSuccess={() => {
+              // selectedEpisodeId 유지 → 수정 후 EpisodeReader로 자동 복귀
+              setInkwellMode('list');
+            }}
+            onCancel={() => setInkwellMode('list')}
+          />
+        );
+      }
+      // 3순위: 본문 뷰어
+      if (selectedEpisodeId) {
+        return (
+          <EpisodeReader
+            postId={selectedEpisodeId}
+            currentUserUid={currentUserUid}
+            currentUserNickname={currentUserNickname}
+            onBack={() => setSelectedEpisodeId(null)}
+            onNavigateEpisode={(postId) => setSelectedEpisodeId(postId)}
+            onEditEpisode={() => setInkwellMode('editEpisode')}
+            onDeleteSuccess={() => {
+              // selectedSeriesId 유지 → 삭제 후 SeriesDetail로 자동 복귀
+              setSelectedEpisodeId(null);
+            }}
+            onGoToSeries={(seriesId) => {
+              // 🖋️ 하단 "목차" 버튼 — 작품 SeriesDetail로 이동
+              setSelectedSeriesId(seriesId);
+              setSelectedEpisodeId(null);
+            }}
+          />
+        );
+      }
+      // 4순위: 작품 상세
+      if (selectedSeriesId) {
+        return (
+          <SeriesDetail
+            seriesId={selectedSeriesId}
+            currentUserUid={currentUserUid}
+            onBack={() => setSelectedSeriesId(null)}
+            onSelectEpisode={(postId) => setSelectedEpisodeId(postId)}
+            onCreateEpisode={() => setInkwellMode('createEpisode')}
+            onEditSeries={() => setInkwellMode('editSeries')}
+            onDeleteSuccess={() => {
+              // 삭제/비공개 전환 후 그리드로 복귀
+              setSelectedSeriesId(null);
+              setInkwellMode('list');
+            }}
+          />
+        );
+      }
+      // 5순위: 잉크병 메뉴 진입 화면 — [📖 회차] 등록글 그리드 + [📚 작품] 카탈로그 2탭
+      return (
+        <InkwellHomeView
+          allRootPosts={allRootPosts}
+          onTopicClick={handleViewPost}
+          onLikeClick={handleLike}
+          commentCounts={commentCounts}
+          currentNickname={userData?.nickname}
+          currentUserData={userData}
+          allUsers={allUsers}
+          followerCounts={followerCounts}
+          onShareCount={handleShareCount}
+          onAuthorClick={setPublicProfileNick}
+          onSelectSeries={(id) => setSelectedSeriesId(id)}
+          onCreateSeries={() => setInkwellMode('createSeries')}
+          activeTab={inkwellTab}
+          onTabChange={setInkwellTab}
+        />
+      );
+    }
+
     // 🚀 selectedTopic 체크: ranking 등 다른 메뉴에서 글 클릭 시 상세보기 진입 가능하도록 먼저 판단
     if (selectedTopic) {
       const livePost = allRootPosts.find(p => p.id === selectedTopic.id) || selectedTopic;
+      // 🖋️ 잉크병 회차: DiscussionView 대신 EpisodeReader로 전환 (유료 페이월/private_data 처리 필요)
+      if (livePost.category === 'magic_inkwell') {
+        const currentUserUid = userData?.uid || null;
+        const currentUserNickname = userData?.nickname || '익명';
+        return (
+          <EpisodeReader
+            postId={livePost.id}
+            currentUserUid={currentUserUid}
+            currentUserNickname={currentUserNickname}
+            onBack={() => { setSelectedTopic(null); setReplyTarget(null); setEditingPost(null); }}
+            onNavigateEpisode={(postId) => {
+              const target = allRootPosts.find(p => p.id === postId);
+              if (target) setSelectedTopic(target);
+            }}
+            onEditEpisode={() => {
+              setActiveMenu('inkwell');
+              if (livePost.seriesId) setSelectedSeriesId(livePost.seriesId);
+              setSelectedEpisodeId(livePost.id);
+              setInkwellMode('editEpisode');
+              setSelectedTopic(null);
+            }}
+            onDeleteSuccess={() => { setSelectedTopic(null); }}
+            onGoToSeries={(seriesId) => {
+              // 🖋️ 홈/등록글에서 진입 시에도 하단 "목차" 버튼은 작품 SeriesDetail로 이동
+              setActiveMenu('inkwell');
+              setSelectedSeriesId(seriesId);
+              setSelectedEpisodeId(null);
+              setInkwellMode('list');
+              setSelectedTopic(null);
+            }}
+          />
+        );
+      }
       // 🚀 한컷 판정 로직 강화: isOneCut 플래그 또는 카테고리명이 "한컷"인 경우
       if (livePost.isOneCut || livePost.category === "한컷") {
         return <OneCutDetailView rootPost={livePost} allPosts={allChildPosts.filter(p => p.rootId === livePost.id)} otherTopics={allRootPosts} onTopicChange={handleViewPost} userData={userData!} onInlineReply={handleInlineReply} onLikeClick={handleLike} currentNickname={userData?.nickname} allUsers={allUsers} followerCounts={followerCounts} commentCounts={commentCounts} onEditPost={(post) => { setEditingPost(post); setIsCreateOpen(true); }} onBack={() => { setSelectedTopic(null); setReplyTarget(null); setEditingPost(null); }} isFriend={friends.includes(livePost.author)} onToggleFriend={() => toggleFriend(livePost.author)} onAuthorClick={setPublicProfileNick} />;
@@ -617,7 +824,8 @@ function App() {
 
     // 🚀 포스트 필터링 및 탭 처리
     // 🚀 홈 피드: 마라톤의 전령 속보도 포함 (속보 키워드 있는 글만 Firestore에 저장되므로 전체 허용)
-    let basePosts = allRootPosts.filter(p => !p.isOneCut);
+    // 🖋️ 기본 피드에서 잉크병 회차 제외 (잉크병은 자체 인라인 스트립 + 사이드 메뉴에서만 노출)
+    let basePosts = allRootPosts.filter(p => !p.isOneCut && p.category !== 'magic_inkwell');
 
     if (activeMenu !== 'home' && MENU_MESSAGES[activeMenu]) {
       const menuInfo = MENU_MESSAGES[activeMenu];
@@ -667,6 +875,16 @@ function App() {
       );
       // 특정 깐부 선택 시 추가 필터
       if (selectedFriend) filteredPosts = filteredPosts.filter(p => p.author === selectedFriend);
+    } else if (activeTab === 'subscribed') {
+      // 🖋️ 구독글: 내가 구독한 작품의 모든 잉크병 회차 (임계값 없음, 시간 제한 없음, 비공개 제외)
+      filteredPosts = allRootPosts
+        .filter(p =>
+          p.category === 'magic_inkwell'
+          && !p.isHidden
+          && p.seriesId
+          && mySubscribedSeriesIds.has(p.seriesId)
+        )
+        .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
     }
 
     // 🚀 한컷 인라인 섹션: 탭 기준과 동일한 필터 → 최신순 정렬 후 4개 표시
@@ -693,6 +911,30 @@ function App() {
     }
     onecutTabPosts = onecutTabPosts.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
 
+    // 🖋️ 잉크병 인라인 섹션: 탭 기준과 동일한 필터 → 최신순 정렬
+    const inkwellAllPosts = allRootPosts.filter(p => p.category === 'magic_inkwell' && !p.isHidden);
+    let inkwellTabPosts: Post[] = [];
+    if (activeTab === 'any') {
+      inkwellTabPosts = inkwellAllPosts.filter(p => {
+        const createdAt = p.createdAt?.toDate ? p.createdAt.toDate() : (p.createdAt?.seconds ? new Date(p.createdAt.seconds * 1000) : null);
+        return createdAt && createdAt > newPostCutoff;
+      });
+    } else if (activeTab === 'recent') {
+      inkwellTabPosts = inkwellAllPosts.filter(p => {
+        const createdAt = p.createdAt?.toDate ? p.createdAt.toDate() : (p.createdAt?.seconds ? new Date(p.createdAt.seconds * 1000) : null);
+        return (p.likes || 0) >= POST_FILTER.REGISTERED_MIN_LIKES && (!createdAt || createdAt <= newPostCutoff);
+      });
+    } else if (activeTab === 'best') {
+      inkwellTabPosts = inkwellAllPosts.filter(p => (p.likes || 0) >= POST_FILTER.BEST_MIN_LIKES);
+    } else if (activeTab === 'rank') {
+      inkwellTabPosts = inkwellAllPosts.filter(p => (p.likes || 0) >= POST_FILTER.RANK_MIN_LIKES);
+    } else if (activeTab === 'friend') {
+      inkwellTabPosts = inkwellAllPosts.filter(p =>
+        friends.includes(p.author) && (p.likes || 0) >= POST_FILTER.REGISTERED_MIN_LIKES
+      );
+    }
+    inkwellTabPosts = inkwellTabPosts.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+
     // 특정 작가 피드 보기 (A 탭 칩 또는 글카드 작가 클릭)
     if (viewingAuthor) {
       const authorPosts = filterBySearch(basePosts.filter(p => p.author === viewingAuthor));
@@ -713,6 +955,25 @@ function App() {
     }
 
     const searchedPosts = filterBySearch(filteredPosts);
+
+    // 🖋️ 구독글 탭 빈 상태 — AnyTalkList의 일반 빈 메시지 대신 친절 안내
+    if (activeTab === 'subscribed' && searchedPosts.length === 0) {
+      return (
+        <div className="w-full animate-in fade-in">
+          <div className="py-32 flex flex-col items-center justify-center text-center">
+            <div className="text-5xl mb-4 opacity-40">📚</div>
+            <p className="text-sm text-slate-500 font-bold mb-1">아직 구독한 작품이 없어요</p>
+            <p className="text-[12px] text-slate-500 font-bold">잉크병에서 마음에 드는 작품을 구독해보세요</p>
+            <button
+              onClick={() => { setActiveMenu('inkwell'); setSelectedSeriesId(null); setSelectedEpisodeId(null); setInkwellMode('list'); setInkwellTab('series'); }}
+              className="mt-5 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-[1000] transition-colors"
+            >
+              🖋️ 작품 둘러보기
+            </button>
+          </div>
+        </div>
+      );
+    }
 
     return (
       <div className="w-full animate-in fade-in">
@@ -735,20 +996,20 @@ function App() {
             ))}
           </div>
         )}
-        <AnyTalkList posts={searchedPosts} onTopicClick={handleViewPost} onLikeClick={handleLike} commentCounts={commentCounts} currentNickname={userData?.nickname} currentUserData={userData} allUsers={allUsers} followerCounts={followerCounts} tab={activeTab} onAuthorClick={setPublicProfileNick} onShareCount={handleShareCount} allPosts={allRootPosts} oneCutPosts={onecutTabPosts} onOneCutMoreClick={() => setActiveMenu('onecut')} onFriendsMoreClick={() => setActiveMenu('friends')} friends={friends} onToggleFriend={toggleFriend} />
+        <AnyTalkList posts={searchedPosts} onTopicClick={handleViewPost} onLikeClick={handleLike} commentCounts={commentCounts} currentNickname={userData?.nickname} currentUserData={userData} allUsers={allUsers} followerCounts={followerCounts} tab={activeTab} onAuthorClick={setPublicProfileNick} onShareCount={handleShareCount} allPosts={allRootPosts} oneCutPosts={onecutTabPosts} onOneCutMoreClick={() => setActiveMenu('onecut')} onFriendsMoreClick={() => setActiveMenu('friends')} friends={friends} onToggleFriend={toggleFriend} inkwellPosts={inkwellTabPosts} onInkwellMoreClick={() => { setActiveMenu('inkwell'); setSelectedSeriesId(null); setSelectedEpisodeId(null); setInkwellMode('list'); }} />
       </div>
     );
   };
 
   return (
     <div className="bg-[#F8FAFC] text-slate-900 font-sans h-screen flex flex-col overflow-hidden">
-      <header className="bg-white border-b border-slate-100 h-[56px] md:h-[64px] flex items-center justify-between px-4 md:px-6 shrink-0 z-50 shadow-sm">
+      <header className="bg-white border-b border-slate-300 h-[56px] md:h-[64px] flex items-center justify-between px-4 md:px-6 shrink-0 z-50 shadow-sm">
         <div className="flex items-center gap-4">
-          {/* 데스크톱: ≡+GLove 함께 클릭 → 홈 */}
+          {/* 데스크톱: ≡+글러브 함께 클릭 → 홈 */}
           <div className="hidden md:flex items-center gap-1.5 cursor-pointer hover:opacity-80 transition-opacity shrink-0" onClick={goHome}>
             <svg className="w-3 h-5 shrink-0" fill="none" strokeWidth="2" strokeLinecap="round" viewBox="0 4 12 16">
               <line x1="1" y1="6"  x2="11" y2="6"  stroke="#7c3aed" />
-              <line x1="1" y1="12" x2="11" y2="12" stroke="#a78bfa" />
+              <line x1="1" y1="12" x2="11" y2="12" stroke="#7c3aed" />
               <line x1="1" y1="18" x2="11" y2="18" stroke="#7c3aed" />
             </svg>
             <h1 className="text-[26px] font-[1000] italic tracking-tighter shrink-0">
@@ -768,7 +1029,7 @@ function App() {
         </div>
         <div className="hidden md:flex flex-1 justify-center h-full items-center px-4"><div className="relative flex items-center bg-slate-50/80 rounded-full px-4 h-[42px] border border-slate-100 focus-within:border-violet-500 focus-within:bg-white transition-all w-full max-w-sm"><svg className="w-4 h-4 text-slate-400 mr-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg><input type="text" placeholder="검색어를 입력해 주세요." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="bg-transparent outline-none w-full text-[13px] font-bold text-slate-700" /></div></div>
         {/* 🚀 데스크톱 우측 액션 — 모바일에서 숨김 */}
-        <div className="hidden md:flex items-center gap-4 ml-auto shrink-0">{isLoading ? <div className="w-8 h-8 border-2 border-violet-600 border-t-transparent rounded-full animate-spin"></div> : userData ? <>{!['giant_tree', 'glove', 'ranking'].includes(activeMenu) && <button onClick={() => setIsCreateOpen(true)} className="bg-violet-600 hover:bg-violet-700 text-white px-5 h-[40px] rounded-xl text-[13px] font-black shadow-sm">+ 새 글</button>}<NotificationBell currentUid={userData.uid} currentNickname={userData.nickname} onNavigate={(postId) => { const post = allRootPosts.find(p => p.id === postId); if (post) { setSelectedTopic(post); setActiveMenu('home'); } }} /><div className="flex items-center gap-3"><div className="w-[42px] h-[42px] rounded-full border-2 border-slate-100 overflow-hidden cursor-pointer bg-slate-50" onClick={() => { setPublicProfileNick(userData.nickname); setSelectedTopic(null); setIsCreateOpen(false); }}><img src={userData.avatarUrl || `https://api.dicebear.com/7.x/adventurer/svg?seed=${userData.nickname}`} alt="avatar" /></div><button onClick={handleLogout} className="text-[11px] font-black text-slate-300 hover:text-rose-500 transition-colors uppercase tracking-widest">Logout</button></div></> : <button onClick={handleLogin} className="flex items-center gap-2 bg-white border border-slate-200 hover:border-slate-900 px-5 h-[42px] rounded-xl text-[13px] font-black transition-all shadow-sm group"><svg className="w-4 h-4 group-hover:scale-110 transition-transform" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>구글 계정으로 시작하기</button>}</div>
+        <div className="hidden md:flex items-center gap-4 ml-auto shrink-0">{isLoading ? <div className="w-8 h-8 border-2 border-violet-600 border-t-transparent rounded-full animate-spin"></div> : userData ? <>{!['giant_tree', 'glove', 'ranking'].includes(activeMenu) && <button onClick={() => setIsCreateOpen(true)} className="bg-violet-600 hover:bg-violet-700 text-white px-5 h-[40px] rounded-xl text-[13px] font-black shadow-sm">+ 새 글</button>}<NotificationBell currentUid={userData.uid} currentNickname={userData.nickname} onNavigate={(postId) => { const post = allRootPosts.find(p => p.id === postId); if (post) { setSelectedTopic(post); setActiveMenu('home'); } }} onNavigateToEpisode={(postId, seriesId) => { setActiveMenu('inkwell'); if (seriesId) setSelectedSeriesId(seriesId); setSelectedEpisodeId(postId); setInkwellMode('list'); }} /><div className="flex items-center gap-3"><div className="w-[42px] h-[42px] rounded-full border-2 border-slate-100 overflow-hidden cursor-pointer bg-slate-50" onClick={() => { setPublicProfileNick(userData.nickname); setSelectedTopic(null); setIsCreateOpen(false); }}><img src={userData.avatarUrl || `https://api.dicebear.com/7.x/adventurer/svg?seed=${userData.nickname}`} alt="avatar" /></div><button onClick={handleLogout} className="text-[11px] font-black text-slate-300 hover:text-rose-500 transition-colors uppercase tracking-widest">Logout</button></div></> : <button onClick={handleLogin} className="flex items-center gap-2 bg-white border border-slate-200 hover:border-slate-900 px-5 h-[42px] rounded-xl text-[13px] font-black transition-all shadow-sm group"><svg className="w-4 h-4 group-hover:scale-110 transition-transform" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>구글 계정으로 시작하기</button>}</div>
         {/* 🚀 모바일 우측 — 알림 + 내정보/로그인 버튼 */}
         <div className="flex md:hidden items-center gap-1.5 ml-auto shrink-0">
           {userData ? (
@@ -777,6 +1038,13 @@ function App() {
                 currentUid={userData.uid}
                 currentNickname={userData.nickname}
                 onNavigate={(postId) => { const post = allRootPosts.find(p => p.id === postId); if (post) { setSelectedTopic(post); setActiveMenu('home'); } }}
+                onNavigateToEpisode={(postId, seriesId) => {
+                  // 🖋️ Phase 5: 잉크병 알림 → EpisodeReader 직접 라우팅
+                  setActiveMenu('inkwell');
+                  if (seriesId) setSelectedSeriesId(seriesId);
+                  setSelectedEpisodeId(postId);
+                  setInkwellMode('list');
+                }}
               />
               <button onClick={() => { setPublicProfileNick(userData.nickname); setSelectedTopic(null); setIsCreateOpen(false); }} className={`w-9 h-9 rounded-full overflow-hidden border-2 transition-all ${publicProfileNick ? 'border-violet-400' : 'border-slate-200'}`}>
                 <img src={userData.avatarUrl || `https://api.dicebear.com/7.x/adventurer/svg?seed=${userData.nickname}`} alt="프로필" className="w-full h-full object-cover" />
@@ -790,11 +1058,11 @@ function App() {
           )}
         </div>
       </header>
-      <div className="flex flex-1 overflow-hidden">{!(selectedTopic || isCreateOpen) && <Sidebar activeMenu={activeMenu} setActiveMenu={(menu) => { setActiveMenu(menu); setSelectedTopic(null); setIsCreateOpen(false); setSelectedRoom(null); }} kanbuRoomCount={accessibleRooms.length} currentNickname={userData?.nickname} />}<main className={`flex-1 overflow-y-auto bg-[#F8FAFC] transition-all duration-500 ${(selectedTopic || isCreateOpen) ? 'px-4 md:px-6 pt-4' : 'pt-0'}`}><div className={(selectedTopic || isCreateOpen) ? "max-w-[1600px] mx-auto pb-20 md:pb-20 pb-28" : "pb-20 md:pb-20 pb-28"}>
+      <div className="flex flex-1 overflow-hidden">{!(selectedTopic || isCreateOpen) && <Sidebar activeMenu={activeMenu} setActiveMenu={(menu) => { setActiveMenu(menu); setSelectedTopic(null); setIsCreateOpen(false); setSelectedRoom(null); setSelectedSeriesId(null); setSelectedEpisodeId(null); setInkwellMode('list'); }} kanbuRoomCount={accessibleRooms.length} currentNickname={userData?.nickname} />}<main className={`flex-1 overflow-y-auto bg-[#F8FAFC] transition-all duration-500 ${(selectedTopic || isCreateOpen) ? 'px-4 md:px-6 pt-4' : 'pt-0'}`}><div className={(selectedTopic || isCreateOpen) ? "max-w-[1600px] mx-auto pb-20 md:pb-20 pb-28" : "pb-20 md:pb-20 pb-28"}>
         {!(selectedTopic || isCreateOpen) && (
           (activeMenu === 'home' || activeMenu === 'onecut') ? (
             <SubNavbar activeTab={activeTab} onTabClick={setActiveTab} showTabs={true} />
-          ) : (MENU_MESSAGES[activeMenu] && activeMenu !== 'giant_tree' && activeMenu !== 'kanbu_room' && activeMenu !== 'friends') ? (
+          ) : (MENU_MESSAGES[activeMenu] && activeMenu !== 'giant_tree' && activeMenu !== 'kanbu_room' && activeMenu !== 'friends' && activeMenu !== 'inkwell') ? (
             <CategoryHeader menuInfo={MENU_MESSAGES[activeMenu]} />
           ) : null
         )}
@@ -832,6 +1100,9 @@ function App() {
                 setSelectedTopic(null);
                 setIsCreateOpen(false);
                 setSelectedRoom(null);
+                setSelectedSeriesId(null);
+                setSelectedEpisodeId(null);
+                setInkwellMode('list');
                 setIsMobileMenuOpen(false);
               }}
               kanbuRoomCount={accessibleRooms.length}
@@ -849,7 +1120,7 @@ function App() {
         <button onClick={() => setIsMobileMenuOpen(true)} className="flex-1 flex flex-col items-center justify-center h-full active:opacity-70 transition-opacity">
           <svg className="w-[24px] h-[24px]" fill="none" strokeWidth="2.5" strokeLinecap="round" viewBox="0 0 24 24">
             <line x1="4" y1="7" x2="20" y2="7" stroke="#7c3aed" />
-            <line x1="4" y1="12" x2="20" y2="12" stroke="#a78bfa" />
+            <line x1="4" y1="12" x2="20" y2="12" stroke="#7c3aed" />
             <line x1="4" y1="17" x2="20" y2="17" stroke="#7c3aed" />
           </svg>
         </button>
