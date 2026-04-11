@@ -285,8 +285,11 @@ service cloud.firestore {
 
     // 유료 회차 구매 내역 — 클라이언트 직접 쓰기 금지 (Cloud Functions만)
     // 읽기: 본인 구매 내역만 OR 작가가 자기 작품의 판매 내역 확인
+    // 🔒 get은 docId 패턴({postId}_{uid})으로 본인 문서만 허용 (문서 미존재 상태에서도 평가 가능)
     match /unlocked_episodes/{docId} {
-      allow read: if request.auth != null
+      allow get: if request.auth != null
+        && docId.matches('.*_' + request.auth.uid + '$');
+      allow list: if request.auth != null
         && (resource.data.userId == request.auth.uid
           || resource.data.authorId == request.auth.uid);
       allow write: if false;

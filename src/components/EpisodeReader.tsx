@@ -523,7 +523,7 @@ const EpisodeReader = ({ postId, currentUserUid, currentUserNickname, onBack, on
                 )}
                 <button
                   disabled
-                  className="w-full text-left px-3 py-1.5 text-[11px] font-bold text-slate-300 cursor-not-allowed border-t border-slate-100"
+                  className="w-full text-left px-3 py-1.5 text-[11px] font-bold text-slate-400 cursor-not-allowed border-t border-slate-100"
                 >
                   🚨 신고하기
                 </button>
