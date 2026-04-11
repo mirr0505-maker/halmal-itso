@@ -185,6 +185,7 @@
 | `posts/{postId}/private_data/content` | 🖋️ 잉크병 유료 회차 본문 분리 저장 | 고정 `content` |
 | `unlocked_episodes` | 🖋️ 잉크병 회차 구매 영수증 (Cloud Function만 write) | `{postId}_{uid}` |
 | `series_subscriptions` | 🖋️ 잉크병 작품 구독 (깐부) | `{seriesId}_{uid}` |
+| `platform_revenue` | 🖋️ 잉크병 플랫폼 수수료 누적 (Rules 전면 차단, Admin SDK 전용) | 고정 `inkwell` |
 
 - **commentCount 비정규화**: 댓글 작성 시 `posts/{postId}` 문서에 `increment(1)` 누적 → 홈 피드 쿼리에서 Firestore 읽기 비용 절감.
 - **per-topic 구독**: `selectedTopic` 변경 시에만 `comments` where `rootId == selectedTopic.id` 구독 (전체 구독 비용 절감).
@@ -405,9 +406,10 @@ interface KanbuChat {
   - `registerKanbuPromo`: 깐부 홍보 카드 등록 (promoEnabled 직접 수정 차단)
   - `adAuction` / `aggregateDailyRevenue` / `detectFraud` / `processSettlements`: ADSMARKET 광고 시스템
   - `validateContentLength`: 신포도와 여우 100자 제한
-  - 🖋️ `unlockEpisode`: 잉크병 유료 회차 결제 트랜잭션 (땡스볼 차감 → 작가 지급 → 영수증)
-  - 🖋️ `onEpisodeCreate`: 잉크병 새 회차 발행 시 series 카운터 증가 + 구독자 `new_episode` 알림
-  - 🖋️ `onInkwellPostDelete`: 잉크병 회차 삭제 시 고아 알림 cleanup (collectionGroup)
+  - 🖋️ `unlockEpisode`: 잉크병 유료 회차 결제 트랜잭션 (구매자 차감 → 플랫폼 수수료 11% 차감 → 작가 순수익 지급 → `platform_revenue/inkwell` 누적 → 영수증)
+  - 🖋️ `createEpisode`: 잉크병 회차 생성 트랜잭션 (서버측 episodeNumber 결정, 레이스 컨디션 차단)
+  - 🖋️ `onEpisodeCreate`: 잉크병 새 회차 발행 트리거 — 구독자 `new_episode` 알림 발송 (카운터 증가는 `createEpisode`가 담당)
+  - 🖋️ `onInkwellPostDelete`: 잉크병 회차 삭제 시 고아 알림 + `unlocked_episodes` 영수증 cleanup (collectionGroup)
   - 배포: `firebase deploy --only functions`
   - 로그: `firebase functions:log`
 - **향후 구현 가능 (Blaze)**:
@@ -431,7 +433,7 @@ interface KanbuChat {
 ### 핵심 요약
 - **모델**: 작품(`series`) + 회차(`posts where category=magic_inkwell`) 분리 구조
 - **부분 유료화**: 회차별 `isPaid/price`, 본문은 `posts/{id}/private_data/content` 서브문서에 분리 저장 (Rules로 구매자/작가만 read)
-- **결제**: Cloud Function `unlockEpisode` — 땡스볼 트랜잭션으로 구매자 차감 + 작가 지급 + 영수증(`unlocked_episodes`) 생성, 멱등성 보장
+- **결제**: Cloud Function `unlockEpisode` — 땡스볼 트랜잭션으로 구매자 차감 + 플랫폼 수수료 11% 차감 + 작가 순수익 지급 + 영수증(`unlocked_episodes`) 생성, 멱등성 보장. 수수료율은 `functions/inkwell.js` 상단 `PLATFORM_FEE_RATE` 상수로 관리 — 변경 시 상수 한 줄 수정 후 재배포.
 - **구독**: **작품 단위** 구독 (`series_subscriptions/{seriesId}_{uid}`). 작가가 새 회차 발행 시 `onEpisodeCreate` 트리거가 구독자에게 `new_episode` 알림 batch 발송
 - **답글**: 1단계 대댓글 (`parentCommentId`, depth 1 제한)
 - **Soft delete**: 잉크병 댓글은 `isDeleted: true` 플래그 + placeholder (작성자 본인 및 작가 권한)
