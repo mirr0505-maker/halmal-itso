@@ -10,6 +10,10 @@ const { getFirestore, FieldValue, Timestamp } = require("firebase-admin/firestor
 
 const db = getFirestore();
 
+// 🚀 플랫폼 수수료율 — 유료 회차 결제 시 작가 지급액에서 차감
+// 변경 시 이 값만 수정 후 재배포 (예: 0.15 = 15%). Math.floor 내림 적용으로 작가 손실 최소화.
+const PLATFORM_FEE_RATE = 0.11;
+
 // ════════════════════════════════════════════════════════════
 // 🚀 unlockEpisode — 유료 회차 결제 (onCall v2)
 // ════════════════════════════════════════════════════════════
@@ -79,25 +83,40 @@ exports.unlockEpisode = onCall(
         throw new HttpsError("failed-precondition", "땡스볼이 부족합니다.");
       }
 
-      // 구매자: 잔액 차감 + 누적 지출 + EXP +2
+      // 🚀 플랫폼 수수료 분배 계산 — 작가 손실 최소화를 위해 수수료는 내림 처리
+      const platformFee = Math.floor(price * PLATFORM_FEE_RATE);
+      const authorRevenue = price - platformFee;
+
+      // 구매자: 잔액 차감 + 누적 지출 + EXP +2 (구매자가 내는 금액은 price 그대로)
       tx.update(buyerRef, {
         ballBalance: currentBalance - price,
         ballSpent: FieldValue.increment(price),
         exp: FieldValue.increment(2),
       });
 
-      // 작가: ballReceived 누적 (set merge — thanksball.js와 동일 패턴)
+      // 작가: ballReceived 누적 (수수료 차감 후 순수익)
       tx.set(authorRef, {
-        ballReceived: FieldValue.increment(price),
+        ballReceived: FieldValue.increment(authorRevenue),
       }, { merge: true });
 
-      // 영수증 생성
+      // 플랫폼 수수료 누적 — 추후 정산·세무 대비 (단일 문서)
+      const platformRevenueRef = db.collection("platform_revenue").doc("inkwell");
+      tx.set(platformRevenueRef, {
+        totalFee: FieldValue.increment(platformFee),
+        totalGross: FieldValue.increment(price),
+        lastUpdatedAt: Timestamp.now(),
+      }, { merge: true });
+
+      // 영수증 생성 — paidAmount는 총액, 수수료 분배 내역 함께 기록 (감사 추적)
       tx.set(unlockedRef, {
         userId: buyerUid,
         postId: postId,
         seriesId: post.seriesId,
         authorId: post.author_id,
         paidAmount: price,
+        platformFee,
+        authorRevenue,
+        feeRate: PLATFORM_FEE_RATE,
         unlockedAt: Timestamp.now(),
       });
     });

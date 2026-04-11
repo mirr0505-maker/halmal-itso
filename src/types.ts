@@ -177,6 +177,10 @@ export interface UnlockedEpisode {
   authorId: string;
   paidAmount: number;
   unlockedAt: FirestoreTimestamp;
+  // 🖋️ 플랫폼 수수료 분배 내역 (2026-04-11~ 적용, 이전 영수증에는 없음)
+  platformFee?: number;
+  authorRevenue?: number;
+  feeRate?: number;
   // 🖋️ 대여 옵션 대비 선제 필드 (현재 미사용 — 영구 소장)
   // 향후 "3일 대여" 같은 옵션 도입 시 EpisodeReader의 isUnlocked 판정에 만료 체크 추가
   expiryDate?: FirestoreTimestamp | null;

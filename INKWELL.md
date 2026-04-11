@@ -447,22 +447,7 @@ interface EpisodePrivateContent {
 **난이도**: 🟡 중~상
 **진행 시점**: 수익 모델 확정 + 유료 회차 구매자 증가 후
 
-#### (2) 플랫폼 수수료 (Platform Fee) — 우선순위 🔴 HIGH (런칭 전 필수)
-**문제**: 현재 `unlockEpisode`가 결제 금액을 **1:1 그대로 작가 `ballReceived`에 적립**. 플랫폼 운영 수수료 개념 없음. ADSMARKET의 `creatorRate` (30/50/70%) 정산 로직과 연결 안 됨.
-
-**해결**: `unlockEpisode` 트랜잭션에서 수수료 차감 로직 추가
-```js
-const PLATFORM_FEE_RATE = 0.15; // 정책 미확정 — 초안 15%
-const authorShare = Math.floor(price * (1 - PLATFORM_FEE_RATE));
-const platformShare = price - authorShare;
-// 작가: ballReceived += authorShare (즉시 입금)
-// 플랫폼: pendingThanksBall += platformShare (정산 가능 필드로 누적)
-```
-
-**난이도**: 🟡 중 (Cloud Function 1곳 + ADSMARKET 정산 통합)
-**진행 시점**: 수익 모델 확정 후 **정식 런칭 전 반드시 반영**
-
-#### (3) 웹툰/만화 유료 이미지 유출 방지 — 우선순위 🔴 HIGH (웹툰 런칭 전)
+#### (2) 웹툰/만화 유료 이미지 유출 방지 — 우선순위 🔴 HIGH (웹툰 런칭 전)
 **문제**: 현재 R2는 **public bucket** (`pub-9e6af273cd034aa6b7857343d0745224.r2.dev`). 유료 회차 이미지도 Tiptap 업로드 시 공개 URL로 저장됨 → URL 유출 시 비구매자도 접근 가능.
 
 **영향 범위**:
@@ -477,7 +462,7 @@ const platformShare = price - authorShare;
 **난이도**: 🔴 상 (Worker 추가 + Tiptap 업로드 경로 분기 + 이미지 렌더 래핑)
 **진행 시점**: 소설/수필 중심 운영 기간에는 후순위. **웹툰/만화 장르 본격 런칭 전 필수**
 
-#### (4) 구독 알림 요약 (Debounce) — 우선순위 🟡 MID
+#### (3) 구독 알림 요약 (Debounce) — 우선순위 🟡 MID
 **문제**: `onEpisodeCreate` 트리거가 매 회차마다 개별 알림 발송. 작가가 10화를 한 번에 올리면 구독자에게 **알림 10개** 동시 발송 → 피로도 ↑
 
 **해결 단계**:
@@ -487,7 +472,7 @@ const platformShare = price - authorShare;
 **난이도**: 🟡 중 (Phase A) / 🔴 상 (Phase B)
 **진행 시점**: 인기 작가 실제 등장 관찰 후 Phase A로 먼저 대응
 
-#### (5) 본문 유출 추적 (워터마크) — 우선순위 🟢 LOW (장기)
+#### (4) 본문 유출 추적 (워터마크) — 우선순위 🟢 LOW (장기)
 **문제**: EpisodeReader가 본문 HTML 그대로 렌더 → DevTools로 privateContent 객체 확인 가능. 웹툰/만화 우클릭 저장 차단 없음. `user-select: none`은 접근성 문제.
 
 **해결 방향**: 근본적 차단 대신 **유출 추적** — 각 구매자별 워터마크 ID를 본문에 삽입(사람 눈에는 안 보이는 zero-width space 조합 등)하여 유출본 역추적
@@ -495,7 +480,7 @@ const platformShare = price - authorShare;
 **난이도**: 🔴 상
 **진행 시점**: 실제 유출 사고 발생 또는 프리미엄 서비스 정식 런칭 후
 
-#### (6) Auto-Next / 작가의 말 위치 — 우선순위 🟢 LOW
+#### (5) Auto-Next / 작가의 말 위치 — 우선순위 🟢 LOW
 **제안**:
 - 본문 하단 "다음 화 보기" 고정 CTA (현재는 하단 네비 `[이전/목차/다음]`만)
 - 작가의 말을 댓글 영역 바로 위로 재배치 (현재는 본문 직후)
@@ -509,3 +494,11 @@ const platformShare = price - authorShare;
 - ✅ **서버측 episodeNumber 결정** — Cloud Function `createEpisode` 신규 (runTransaction 원자 처리). `onEpisodeCreate` 트리거는 카운터 증가 역할 제거 → 구독자 알림만 담당. 클라이언트 CreateEpisode는 callable 호출로 전환 (레이스 컨디션 + 인덱스 fallback 중복 생성 버그 근본 차단)
 - ✅ **`UnlockedEpisode.expiryDate` 선제 필드** — 대여 옵션 도입 시 마이그레이션 비용 0
 - ✅ **회차 삭제 시 unlocked_episodes cleanup** — `onInkwellPostDelete` 트리거가 해당 postId의 구매 영수증도 batch 삭제 (고아 데이터 방지)
+
+### 14.4 해결 완료 (2026-04-11 플랫폼 수수료)
+
+- ✅ **플랫폼 수수료 11% 도입** — `functions/inkwell.js` 상단 상수 `PLATFORM_FEE_RATE = 0.11`. `unlockEpisode` 트랜잭션에서 `Math.floor(price * 0.11)` 차감, 작가에게는 `authorRevenue = price - platformFee`만 적립.
+  - 구매자 차감 금액은 `price` 그대로 (UI 영향 없음)
+  - `unlocked_episodes` 영수증에 `platformFee`, `authorRevenue`, `feeRate` 추가 (감사 추적)
+  - `platform_revenue/inkwell` 단일 문서에 `totalFee`, `totalGross` 누적 (정산·세무 대비, Rules read/write 모두 차단 — Admin SDK 전용)
+  - **수수료율 변경**: `inkwell.js`의 상수 한 줄 수정 → `firebase deploy --only functions:unlockEpisode` 재배포만 필요
