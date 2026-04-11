@@ -10,6 +10,7 @@ import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '../firebase';
 import type { Post, Series, EpisodePrivateContent } from '../types';
 import { formatCount } from '../utils/inkwell';
+import { sharePost } from '../utils/share';
 import PaywallOverlay from './PaywallOverlay';
 import EpisodeCommentBoard from './EpisodeCommentBoard';
 import EpisodeCommentForm from './EpisodeCommentForm';
@@ -26,9 +27,11 @@ interface EpisodeReaderProps {
   // 🖋️ 하단 "목차" 버튼 전용 — 항상 작품 SeriesDetail(목차)로 이동
   // 생략되면 onBack과 동일하게 동작 (하위 호환)
   onGoToSeries?: (seriesId: string) => void;
+  // 🖋️ 점세개 메뉴 "공개프로필 보기" — 작가 닉네임 전달
+  onAuthorClick?: (nickname: string) => void;
 }
 
-const EpisodeReader = ({ postId, currentUserUid, currentUserNickname, onBack, onNavigateEpisode, onEditEpisode, onDeleteSuccess, onGoToSeries }: EpisodeReaderProps) => {
+const EpisodeReader = ({ postId, currentUserUid, currentUserNickname, onBack, onNavigateEpisode, onEditEpisode, onDeleteSuccess, onGoToSeries, onAuthorClick }: EpisodeReaderProps) => {
   const [episode, setEpisode] = useState<Post | null>(null);
   const [series, setSeries] = useState<Series | null>(null);
   const [allEpisodes, setAllEpisodes] = useState<Post[]>([]);
@@ -252,48 +255,19 @@ const EpisodeReader = ({ postId, currentUserUid, currentUserNickname, onBack, on
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [menuOpen]);
 
-  // 🖋️ 공유 — Web Share API 우선, fallback으로 클립보드 복사
+  // 🖋️ 공유 — 공용 헬퍼 sharePost() 사용
   const handleShare = async () => {
     if (!episode) return;
-    const shareToken = episode.id.split('_').slice(0, 2).join('_');
-    const shareUrl = `${window.location.origin}/p/${shareToken}`;
-    const shareData = {
-      title: `${series?.title ? `${series.title} · ` : ''}${episode.episodeNumber}화 ${episode.episodeTitle || episode.title || ''}`.trim(),
+    const title = `${series?.title ? `${series.title} · ` : ''}${episode.episodeNumber}화 ${episode.episodeTitle || episode.title || ''}`.trim();
+    const result = await sharePost({
+      postId: episode.id,
+      authorId: episode.author_id,
+      title,
       text: `${episode.author}님의 작품 | 마르지 않는 잉크병`,
-      url: shareUrl,
-    };
-
-    // 공유수 카운트 증가 헬퍼 (성공 시에만 호출)
-    const bumpShareCount = () => {
-      updateDoc(doc(db, 'posts', episode.id), { shareCount: increment(1) }).catch(() => {});
-      if (episode.author_id) {
-        updateDoc(doc(db, 'users', episode.author_id), { totalShares: increment(1) }).catch(() => {});
-      }
-    };
-
-    // Web Share API 지원 시 네이티브 공유 시트 (모바일 우선)
-    if (navigator.share) {
-      try {
-        await navigator.share(shareData);
-        bumpShareCount();
-      } catch (err) {
-        // 사용자가 취소한 경우는 무시 (AbortError)
-        const e = err as Error;
-        if (e.name !== 'AbortError') {
-          console.warn('[EpisodeReader] share 실패:', err);
-        }
-      }
-      return;
-    }
-
-    // Fallback: 클립보드 복사
-    try {
-      await navigator.clipboard.writeText(shareUrl);
+    });
+    if (result.status === 'copied') {
       setShareCopied(true);
       setTimeout(() => setShareCopied(false), 2000);
-      bumpShareCount();
-    } catch (err) {
-      console.warn('[EpisodeReader] 클립보드 복사 실패:', err);
     }
   };
 
@@ -522,47 +496,65 @@ const EpisodeReader = ({ postId, currentUserUid, currentUserNickname, onBack, on
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/></svg>
             )}
           </button>
-          {/* 🖋️ 더보기(⋮) 드롭다운 — 작가 본인 액션 묶음 */}
-          {isAuthor && (
-            <div className="relative flex-shrink-0" ref={menuRef}>
-              <button
-                onClick={() => setMenuOpen((v) => !v)}
-                disabled={deleting || republishing}
-                className="w-7 h-7 flex items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 hover:text-slate-700 disabled:opacity-50 transition-colors"
-                title="더보기"
-              >
-                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                  <circle cx="12" cy="5" r="1.5" />
-                  <circle cx="12" cy="12" r="1.5" />
-                  <circle cx="12" cy="19" r="1.5" />
-                </svg>
-              </button>
-              {menuOpen && (
-                <div className="absolute right-0 top-8 z-40 min-w-[140px] bg-white border border-slate-200 rounded-lg shadow-lg overflow-hidden">
+          {/* 🖋️ 더보기(⋮) 드롭다운 — 공개프로필 / 신고 + 작가 본인 액션 */}
+          <div className="relative flex-shrink-0" ref={menuRef}>
+            <button
+              onClick={() => setMenuOpen((v) => !v)}
+              disabled={deleting || republishing}
+              className="w-7 h-7 flex items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 hover:text-slate-700 disabled:opacity-50 transition-colors"
+              title="더보기"
+            >
+              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                <circle cx="12" cy="5" r="1.5" />
+                <circle cx="12" cy="12" r="1.5" />
+                <circle cx="12" cy="19" r="1.5" />
+              </svg>
+            </button>
+            {menuOpen && (
+              <div className="absolute right-0 top-8 z-40 min-w-[140px] bg-white border border-slate-200 rounded-lg shadow-lg overflow-hidden">
+                {/* 누구나 — 공개프로필 / 신고 */}
+                {onAuthorClick && (
                   <button
-                    onClick={() => { setMenuOpen(false); onEditEpisode?.(); }}
+                    onClick={() => { setMenuOpen(false); onAuthorClick(episode.author); }}
                     className="w-full text-left px-3 py-2 text-[12px] font-bold text-slate-600 hover:bg-slate-50 transition-colors"
                   >
-                    ✏️ 회차 수정
+                    👤 공개프로필 보기
                   </button>
-                  {episode.isHidden && (
+                )}
+                <button
+                  disabled
+                  className="w-full text-left px-3 py-2 text-[12px] font-bold text-slate-300 cursor-not-allowed border-t border-slate-100"
+                >
+                  🚨 신고하기
+                </button>
+                {/* 작가 본인 — 수정 / 다시 공개 / 삭제 */}
+                {isAuthor && (
+                  <>
                     <button
-                      onClick={() => { setMenuOpen(false); handleRepublishEpisode(); }}
+                      onClick={() => { setMenuOpen(false); onEditEpisode?.(); }}
                       className="w-full text-left px-3 py-2 text-[12px] font-bold text-slate-600 hover:bg-slate-50 transition-colors border-t border-slate-100"
                     >
-                      👁 다시 공개
+                      ✏️ 회차 수정
                     </button>
-                  )}
-                  <button
-                    onClick={() => { setMenuOpen(false); handleDelete(); }}
-                    className="w-full text-left px-3 py-2 text-[12px] font-bold text-rose-600 hover:bg-rose-50 transition-colors border-t border-slate-100"
-                  >
-                    🗑️ 회차 삭제
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
+                    {episode.isHidden && (
+                      <button
+                        onClick={() => { setMenuOpen(false); handleRepublishEpisode(); }}
+                        className="w-full text-left px-3 py-2 text-[12px] font-bold text-slate-600 hover:bg-slate-50 transition-colors border-t border-slate-100"
+                      >
+                        👁 다시 공개
+                      </button>
+                    )}
+                    <button
+                      onClick={() => { setMenuOpen(false); handleDelete(); }}
+                      className="w-full text-left px-3 py-2 text-[12px] font-bold text-rose-600 hover:bg-rose-50 transition-colors border-t border-slate-100"
+                    >
+                      🗑️ 회차 삭제
+                    </button>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 

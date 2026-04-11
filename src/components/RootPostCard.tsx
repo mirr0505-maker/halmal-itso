@@ -9,6 +9,7 @@ import LinkPreviewCard from './LinkPreviewCard';
 import type { OgData } from './LinkPreviewCard';
 import { EXTERNAL_URLS } from '../constants';
 import { sanitizeHtml } from '../sanitize';
+import { sharePost } from '../utils/share';
 import ThanksballModal from './ThanksballModal';
 import PandoraDetail from './PandoraDetail';
 
@@ -80,21 +81,19 @@ const RootPostCard = ({
   const [showThanksball, setShowThanksball] = useState(false);
   const [copied, setCopied] = useState(false); // 공유 URL 복사 완료 피드백용
 
-  // 🚀 글 공유 URL 복사: ?post=topic_타임스탬프 형식 (UID 노출 방지)
-  // 예) topic_1234567890123_AbCxYz → ?post=topic_1234567890123
-  const handleCopyUrl = () => {
-    const shareToken = post.id.split('_').slice(0, 2).join('_'); // "topic_타임스탬프" 까지만
-    // /p/{shareToken} 형식 — ogRenderer Cloud Function이 SNS 봇에 동적 OG 반환
-    const shareUrl = `${window.location.origin}/p/${shareToken}`;
-    navigator.clipboard.writeText(shareUrl).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000); // 2초 후 버튼 원상복귀
-      // 🚀 공유수 카운트: URL 복사 성공 시 posts.shareCount + users.totalShares +1
-      updateDoc(doc(db, 'posts', post.id), { shareCount: increment(1) }).catch(() => {});
-      if (post.author_id) {
-        updateDoc(doc(db, 'users', post.author_id), { totalShares: increment(1) }).catch(() => {});
-      }
+  // 🚀 글 공유 — 공용 헬퍼 sharePost() 사용 (Web Share API + fallback 클립보드)
+  const handleCopyUrl = async () => {
+    const result = await sharePost({
+      postId: post.id,
+      authorId: post.author_id,
+      title: post.title || `${getCategoryDisplayName(post.category)} | 글러브`,
+      text: '',
     });
+    // 클립보드 복사 시에만 피드백 표시 (Web Share API는 OS 시트가 피드백 담당)
+    if (result.status === 'copied') {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
   };
   const hasImageInContent = post.content.includes('<img');
 

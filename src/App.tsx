@@ -706,6 +706,7 @@ function App() {
               setSelectedSeriesId(seriesId);
               setSelectedEpisodeId(null);
             }}
+            onAuthorClick={setPublicProfileNick}
           />
         );
       }
@@ -783,6 +784,7 @@ function App() {
               setInkwellMode('list');
               setSelectedTopic(null);
             }}
+            onAuthorClick={setPublicProfileNick}
           />
         );
       }
