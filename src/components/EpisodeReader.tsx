@@ -511,19 +511,19 @@ const EpisodeReader = ({ postId, currentUserUid, currentUserNickname, onBack, on
               </svg>
             </button>
             {menuOpen && (
-              <div className="absolute right-0 top-8 z-40 min-w-[140px] bg-white border border-slate-200 rounded-lg shadow-lg overflow-hidden">
+              <div className="absolute right-0 top-8 z-40 w-36 bg-white border border-slate-200 rounded-lg shadow-lg overflow-hidden whitespace-nowrap">
                 {/* 누구나 — 공개프로필 / 신고 */}
                 {onAuthorClick && (
                   <button
                     onClick={() => { setMenuOpen(false); onAuthorClick(episode.author); }}
-                    className="w-full text-left px-3 py-2 text-[12px] font-bold text-slate-600 hover:bg-slate-50 transition-colors"
+                    className="w-full text-left px-3 py-1.5 text-[11px] font-bold text-slate-700 hover:bg-slate-50 transition-colors"
                   >
                     👤 공개프로필 보기
                   </button>
                 )}
                 <button
                   disabled
-                  className="w-full text-left px-3 py-2 text-[12px] font-bold text-slate-300 cursor-not-allowed border-t border-slate-100"
+                  className="w-full text-left px-3 py-1.5 text-[11px] font-bold text-slate-300 cursor-not-allowed border-t border-slate-100"
                 >
                   🚨 신고하기
                 </button>
@@ -532,21 +532,21 @@ const EpisodeReader = ({ postId, currentUserUid, currentUserNickname, onBack, on
                   <>
                     <button
                       onClick={() => { setMenuOpen(false); onEditEpisode?.(); }}
-                      className="w-full text-left px-3 py-2 text-[12px] font-bold text-slate-600 hover:bg-slate-50 transition-colors border-t border-slate-100"
+                      className="w-full text-left px-3 py-1.5 text-[11px] font-bold text-slate-700 hover:bg-slate-50 transition-colors border-t border-slate-100"
                     >
                       ✏️ 회차 수정
                     </button>
                     {episode.isHidden && (
                       <button
                         onClick={() => { setMenuOpen(false); handleRepublishEpisode(); }}
-                        className="w-full text-left px-3 py-2 text-[12px] font-bold text-slate-600 hover:bg-slate-50 transition-colors border-t border-slate-100"
+                        className="w-full text-left px-3 py-1.5 text-[11px] font-bold text-slate-700 hover:bg-slate-50 transition-colors border-t border-slate-100"
                       >
                         👁 다시 공개
                       </button>
                     )}
                     <button
                       onClick={() => { setMenuOpen(false); handleDelete(); }}
-                      className="w-full text-left px-3 py-2 text-[12px] font-bold text-rose-600 hover:bg-rose-50 transition-colors border-t border-slate-100"
+                      className="w-full text-left px-3 py-1.5 text-[11px] font-bold text-rose-600 hover:bg-rose-50 transition-colors border-t border-slate-100"
                     >
                       🗑️ 회차 삭제
                     </button>
