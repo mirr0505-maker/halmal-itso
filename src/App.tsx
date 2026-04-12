@@ -835,7 +835,8 @@ function App() {
       const menuInfo = MENU_MESSAGES[activeMenu];
       const categoryKey = menuInfo.title;
       basePosts = allRootPosts.filter(p => !p.isOneCut && ( // 카테고리 뷰: 마라톤 포함 전체에서 필터
-        menuInfo.title === "너와 나의 이야기"
+        // 🚀 참새들의 방앗간(구 너와 나의 이야기): DB category는 "너와 나의 이야기" 유지
+        activeMenu === 'my_story'
           ? (p.category === "너와 나의 이야기" || p.category === undefined)
           : (p.category === categoryKey)
       ));
