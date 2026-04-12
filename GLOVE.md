@@ -513,7 +513,7 @@ functions/
 
 | 소스 | API | 무료 여부 | 갱신 주기 |
 |------|-----|-----------|-----------|
-| 뉴스 기사 | 네이버 뉴스 검색 API | 무료 (일 25,000건) | 30분 |
+| 뉴스 기사 | Google News RSS (`news.google.com/rss/search?q=키워드&hl=ko&gl=KR`) | 무료, API 키 불필요 | 30분 |
 | DART 공시 | DART OpenAPI (`opendart.fss.or.kr`) | 무료 (API키 발급) | 30분 |
 | 주가 변동 | 한국투자증권 KIS Developers API | 무료 (등록 필요) | 5분 |
 | 정부 정책 | 정책브리핑 RSS (`korea.kr`) | 무료 | 1시간 |
@@ -540,7 +540,7 @@ functions/
 
 | Phase | 작업 | 난이도 | 선결 조건 |
 |-------|------|--------|-----------|
-| 1 | `activateInfoBot` + 관리 UI + 뉴스 봇 | 🟡 중 | 네이버 API 키 |
+| 1 | `activateInfoBot` + 관리 UI + 뉴스 봇 | 🟡 중 | 없음 (Google News RSS) |
 | 2 | DART 공시 봇 | 🟡 중 | DART API 키 |
 | 3 | 주가 변동 알림 | 🟡 중 | 증권 API 등록 |
 | 4 | 정부 정책 RSS | 🟢 하 | 없음 |
@@ -548,7 +548,7 @@ functions/
 
 ### 12.9 선결 과제
 
-1. **네이버 API 키**: https://developers.naver.com → 애플리케이션 등록 → 검색 API 선택 → Client ID/Secret 발급
+1. ~~네이버 API 키~~ → **Google News RSS 사용** (API 키 불필요, 즉시 구현 가능)
 2. **DART API 키**: https://opendart.fss.or.kr → 인증키 신청
 3. **증권 API**: https://apiportal.koreainvestment.com → 계정 등록 → API 키 발급
 4. **Blaze 플랜 확인**: onSchedule + 외부 HTTP 호출 필요 (마라톤 전령이 이미 사용 중이면 OK)
