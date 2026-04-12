@@ -409,3 +409,146 @@ match /community_posts/{id} {
 - [ ] **성향 제한**: 특정 칭호(블루 기여자 이상 등) 보유자만 가입 가능 설정
 - [ ] **투표(Poll) 기능**: 중지 이상 멤버 전용 투표 생성 권한
 - [ ] **활성 뱃지 / Presence**: 커뮤니티 카드에 "현재 N명 접속 중" 또는 "🔴 Live" 표시. Firebase Presence(RTDB) 또는 커스텀 heartbeat 방식 필요 — 비용 대비 효과 검토 후 진행
+
+---
+
+## 12. 🤖 정보봇 (주식 장갑 전용) — 기획서 v1
+
+> 작성일: 2026-04-13 | 상태: 기획 완료, API 키 발급 대기
+
+### 12.1 개요
+
+주식 카테고리(`category === '주식'`) 장갑에 한해 대장(thumb)이 월 20볼을 결제하면 30일간 뉴스·공시·주가알림·정부정책 등을 자동 게시하는 봇 서비스.
+
+**핵심 원칙**:
+- 결제 주체: 장갑 대장(thumb) **1인만**
+- 수혜자: 장갑 가입 멤버 **전원** (추가 결제 없음)
+- 수익: GLove 플랫폼 **100%** (`platform_revenue/glove_bot`)
+- 노출 조건: `community.category === '주식'`일 때만 설정 메뉴 노출
+
+### 12.2 서비스 흐름
+
+```
+장갑 대장 ──▶ [관리 탭: 🤖 정보봇]  (category='주식'일 때만 노출)
+              ├─ 키워드 설정 (최대 5개, 예: "삼성전자", "005930")
+              ├─ 소스 선택 (뉴스 / DART 공시 / 주가알림 / 정부정책)
+              ├─ 주가 알림 임계값 (±5%, 10%, 15%, 20%, 25%, 30%)
+              └─ [💰 정보봇 시작하기 — 월 20볼]
+                    ├─ 땡스볼 20볼 즉시 차감 (platform_revenue 100%)
+                    ├─ 30일간 활성화
+                    ├─ 만료 3일 전 대장에게 알림
+                    └─ 만료 시 자동 중지 (수동 갱신)
+
+장갑 멤버 ──▶ [소곤소곤 탭]
+              └─ 🤖 봇 게시글이 일반 글 사이에 자동 노출 (무료)
+```
+
+### 12.3 Firestore 데이터 모델
+
+```typescript
+// communities/{id} 문서에 infoBot 필드 추가
+interface CommunityInfoBot {
+  enabled: boolean;
+  keywords: string[];                  // 최대 5개
+  stockCode?: string;                  // 종목코드 (예: "005930")
+  corpCode?: string;                   // DART 고유번호
+  sources: InfoBotSource[];            // 활성화된 소스
+  priceAlertThresholds: number[];      // [5, 10, 15, 20, 25, 30]
+  activatedAt: FirestoreTimestamp;
+  expiresAt: FirestoreTimestamp;       // activatedAt + 30일
+  activatedBy: string;                 // 결제한 대장 uid
+  totalPaid: number;                   // 누적 결제 총액
+}
+
+type InfoBotSource = 'news' | 'dart' | 'report' | 'price' | 'policy';
+
+// 결제 이력: glove_bot_payments/{communityId}_{timestamp}
+interface GloveBotPayment {
+  communityId: string;
+  payerUid: string;
+  payerNickname: string;
+  amount: number;
+  activatedAt: FirestoreTimestamp;
+  expiresAt: FirestoreTimestamp;
+  sources: InfoBotSource[];
+  keywords: string[];
+}
+
+// 중복 방지: glove_bot_dedup/{communityId}/items/{hash}
+interface BotDedupItem {
+  sourceType: InfoBotSource;
+  externalId: string;
+  postedAt: FirestoreTimestamp;
+  // TTL: 30일 후 자동 삭제
+}
+
+// 봇 게시글 추가 필드 (community_posts 문서에 병합)
+interface BotPostFields {
+  isBot: true;
+  botSource: InfoBotSource;
+  linkUrl?: string;
+  botIcon?: string;                    // 📰/📋/📈/🏛️
+}
+```
+
+### 12.4 Cloud Functions
+
+```
+functions/
+  gloveBot.js
+  ├─ activateInfoBot      (onCall)      대장 전용: 땡스볼 차감 + 봇 활성화
+  │                                     검증: community.category === '주식' + creatorId === uid
+  ├─ deactivateInfoBot    (onCall)      대장 전용: 즉시 중지 (환불 없음)
+  ├─ updateInfoBot        (onCall)      대장 전용: 키워드/소스/임계값 수정 (활성 중 무료)
+  ├─ checkBotExpiry       (onSchedule)  매일 1회: 만료 봇 비활성화 + 대장 알림
+  │
+  gloveBotFetcher.js
+  ├─ fetchBotNews         (onSchedule)  매 30분: 네이버 뉴스 API → community_posts
+  ├─ fetchBotDart         (onSchedule)  매 30분: DART 공시 API → community_posts
+  ├─ fetchBotPrice        (onSchedule)  매 5분: 주가 변동 체크 → 임계값 초과 시 게시
+  └─ fetchBotPolicy       (onSchedule)  매 1시간: 정부 정책 RSS → community_posts
+```
+
+### 12.5 데이터 소스
+
+| 소스 | API | 무료 여부 | 갱신 주기 |
+|------|-----|-----------|-----------|
+| 뉴스 기사 | 네이버 뉴스 검색 API | 무료 (일 25,000건) | 30분 |
+| DART 공시 | DART OpenAPI (`opendart.fss.or.kr`) | 무료 (API키 발급) | 30분 |
+| 주가 변동 | 한국투자증권 KIS Developers API | 무료 (등록 필요) | 5분 |
+| 정부 정책 | 정책브리핑 RSS (`korea.kr`) | 무료 | 1시간 |
+
+### 12.6 접근 제어
+
+| 위치 | 조건 | 비고 |
+|------|------|------|
+| `CreateCommunityModal` | `category === '주식'`일 때만 정보봇 설정 섹션 표시 | 개설 시 |
+| `CommunityAdminPanel` | `community.category === '주식'`일 때만 정보봇 관리 블록 렌더 | 수정 시 |
+| `activateInfoBot` (서버) | category 검증 — 주식 아니면 `HttpsError('failed-precondition')` | 서버 가드 |
+
+### 12.7 가격 정책
+
+| 항목 | 값 |
+|------|-----|
+| 월간 이용료 | **20볼** (대장 1인 결제) |
+| 수익 배분 | 플랫폼 **100%** |
+| 결제 단위 | 30일 선불, 자동 갱신 없음 |
+| 중도 해지 | 환불 없음, 남은 기간까지 유지 |
+| 키워드/소스 변경 | **무료** (활성 중 언제든) |
+
+### 12.8 구현 우선순위
+
+| Phase | 작업 | 난이도 | 선결 조건 |
+|-------|------|--------|-----------|
+| 1 | `activateInfoBot` + 관리 UI + 뉴스 봇 | 🟡 중 | 네이버 API 키 |
+| 2 | DART 공시 봇 | 🟡 중 | DART API 키 |
+| 3 | 주가 변동 알림 | 🟡 중 | 증권 API 등록 |
+| 4 | 정부 정책 RSS | 🟢 하 | 없음 |
+| 5 | 만료 알림 + 갱신 UX | 🟢 하 | Phase 1 이후 |
+
+### 12.9 선결 과제
+
+1. **네이버 API 키**: https://developers.naver.com → 애플리케이션 등록 → 검색 API 선택 → Client ID/Secret 발급
+2. **DART API 키**: https://opendart.fss.or.kr → 인증키 신청
+3. **증권 API**: https://apiportal.koreainvestment.com → 계정 등록 → API 키 발급
+4. **Blaze 플랜 확인**: onSchedule + 외부 HTTP 호출 필요 (마라톤 전령이 이미 사용 중이면 OK)
