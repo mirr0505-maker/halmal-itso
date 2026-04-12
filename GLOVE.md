@@ -1,6 +1,6 @@
 # 🧤 우리들의 장갑 — 설계 및 구현 문서 (GLOVE.md)
 
-> 최종 갱신: 2026-04-09 v1.5 (Phase 8 알림 + 승급 조건 설정)  |  연계 파일: `blueprint.md` §8
+> 최종 갱신: 2026-04-12 v1.6 (대표 이미지 + 채팅 바탕화면)  |  연계 파일: `blueprint.md` §8
 
 ---
 
@@ -48,6 +48,8 @@ export interface Community {
   memberCount: number;           // increment 비정규화
   postCount: number;             // increment 비정규화
   coverColor?: string;           // 대표 색상 (8색 팔레트)
+  thumbnailUrl?: string;         // 🧤 대표 이미지 (R2 업로드, 미설정 시 coverColor 폴백)
+  chatBgUrl?: string;            // 🧤 채팅방 바탕화면 이미지 (R2 업로드, 미설정 시 bg-slate-50)
   createdAt: any;
   // 가입 조건
   joinType?: JoinType;           // 가입 방식 (미설정 시 'open')
@@ -391,6 +393,8 @@ match /community_posts/{id} {
 | 2026-04-08 | Phase 7 Step 6 | Firestore Rules 정식화, 페이징(스크롤 기반 30개씩), soft delete(본인+관리자), GLOVE.md Phase 7 반영 |
 | 2026-04-09 | Phase 8 | 가입 승인/거절/신청 알림(4타입), 댓글 알림, 모든 가입 새내기(pinky) 시작 |
 | 2026-04-09 | Phase 8+ | 2단계 자동 승급(pinky→ring→middle), promotionRules 설정 UI(관리탭+멤버탭), MemberPromotionPanel |
+| 2026-04-12 | 대표 이미지 | `thumbnailUrl` — 커뮤니티 카드/헤더에 대표 이미지 표시 (R2 업로드, 개설+관리탭). 미설정 시 coverColor 폴백. CommunityList/MyCommunityList/CommunityView/MyPage 4곳 반영 |
+| 2026-04-12 | 채팅 바탕화면 | `chatBgUrl` — 채팅 메시지 영역 배경 이미지 (R2 업로드, 개설+관리탭). linear-gradient 60% 흰색 오버레이로 가독성 확보. 미설정 시 기존 bg-slate-50 유지 |
 
 ---
 
