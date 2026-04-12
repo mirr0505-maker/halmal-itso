@@ -1,8 +1,9 @@
 // src/components/CommunityAdminPanel.tsx — 🚀 다섯 손가락 Phase 3: 관리 탭 패널
 // 승인 대기 처리 + 장갑 설정 수정 + 공지 고정 + 장갑 폐쇄 (thumb/index 전용)
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { db } from '../firebase';
-import { doc, updateDoc, collection, getDocs, query, where, writeBatch } from 'firebase/firestore';
+import { doc, updateDoc, deleteField, collection, getDocs, query, where, writeBatch } from 'firebase/firestore';
+import { uploadToR2 } from '../uploadToR2';
 import type { Community, CommunityMember, FingerRole, PromotionRules } from '../types';
 import { DEFAULT_PROMOTION_RULES } from '../types';
 import JoinAnswersDisplay from './JoinAnswersDisplay';
@@ -31,6 +32,11 @@ const CommunityAdminPanel = ({ community, myFinger, pendingMembers, onApprove, o
   const [editCategory, setEditCategory] = useState(community.category);
   const [editColor, setEditColor] = useState(community.coverColor ?? '#3b82f6');
   const [isSaving, setIsSaving] = useState(false);
+  // 🧤 대표 이미지 수정
+  const [newThumbnailFile, setNewThumbnailFile] = useState<File | null>(null);
+  const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(community.thumbnailUrl || null);
+  const [removeThumbnail, setRemoveThumbnail] = useState(false);
+  const thumbnailInputRef = useRef<HTMLInputElement>(null);
   const [isClosing, setIsClosing] = useState(false);
   // 🚀 승급 조건 설정
   const rules = community.promotionRules ?? DEFAULT_PROMOTION_RULES;
@@ -44,11 +50,22 @@ const CommunityAdminPanel = ({ community, myFinger, pendingMembers, onApprove, o
     if (!editName.trim()) { alert('커뮤니티 이름을 입력해주세요.'); return; }
     setIsSaving(true);
     try {
+      // 🧤 대표 이미지 R2 업로드 (새 파일이 있을 때만)
+      let thumbnailUpdate: Record<string, unknown> = {};
+      if (newThumbnailFile) {
+        const ext = newThumbnailFile.name.split('.').pop() || 'jpg';
+        const filePath = `uploads/${community.creatorId}/community_thumb_${Date.now()}.${ext}`;
+        const url = await uploadToR2(newThumbnailFile, filePath);
+        if (url) thumbnailUpdate = { thumbnailUrl: url };
+      } else if (removeThumbnail) {
+        thumbnailUpdate = { thumbnailUrl: deleteField() };
+      }
       await updateDoc(doc(db, 'communities', community.id), {
         name: editName.trim(),
         description: editDesc.trim(),
         category: editCategory,
         coverColor: editColor,
+        ...thumbnailUpdate,
       });
       alert('설정이 저장되었습니다.');
     } finally { setIsSaving(false); }
@@ -155,6 +172,41 @@ const CommunityAdminPanel = ({ community, myFinger, pendingMembers, onApprove, o
                   className={`w-6 h-6 rounded-full border-2 transition-all ${editColor === c.value ? 'border-slate-900 scale-110' : 'border-transparent'}`} title={c.label} />
               ))}
             </div>
+          </div>
+          {/* 🧤 대표 이미지 */}
+          <div>
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">대표 이미지</label>
+            <input
+              ref={thumbnailInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                if (file.size > 5 * 1024 * 1024) { alert('이미지는 5MB 이하만 업로드할 수 있습니다.'); return; }
+                setNewThumbnailFile(file);
+                setThumbnailPreview(URL.createObjectURL(file));
+                setRemoveThumbnail(false);
+              }}
+            />
+            {thumbnailPreview && !removeThumbnail ? (
+              <div className="relative w-full h-28 rounded-lg overflow-hidden border border-slate-200">
+                <img src={thumbnailPreview} alt="대표 이미지" className="w-full h-full object-cover" />
+                <div className="absolute top-1.5 right-1.5 flex gap-1">
+                  <button type="button" onClick={() => thumbnailInputRef.current?.click()}
+                    className="w-6 h-6 bg-black/50 text-white rounded-full text-[11px] flex items-center justify-center hover:bg-black/70">✎</button>
+                  <button type="button" onClick={() => { setNewThumbnailFile(null); setThumbnailPreview(null); setRemoveThumbnail(true); if (thumbnailInputRef.current) thumbnailInputRef.current.value = ''; }}
+                    className="w-6 h-6 bg-black/50 text-white rounded-full text-[11px] flex items-center justify-center hover:bg-red-600">×</button>
+                </div>
+              </div>
+            ) : (
+              <button type="button" onClick={() => thumbnailInputRef.current?.click()}
+                className="w-full h-16 border-2 border-dashed border-slate-200 rounded-lg flex items-center justify-center gap-2 hover:border-blue-300 transition-all">
+                <span className="text-[14px]">📷</span>
+                <span className="text-[10px] font-bold text-slate-400">이미지 선택 (5MB 이하)</span>
+              </button>
+            )}
           </div>
           <button onClick={handleSaveSettings} disabled={isSaving}
             className={`w-full py-2 rounded-lg text-[13px] font-black transition-all ${isSaving ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-slate-900 text-white hover:bg-blue-600'}`}>

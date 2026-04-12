@@ -73,8 +73,14 @@ const CommunityList = ({ communities, currentUserData, joinedCommunityIds, onCom
                 onClick={() => onCommunityClick(community)}
                 className="border border-slate-100 rounded-xl overflow-hidden cursor-pointer hover:border-blue-300 hover:shadow-lg transition-all group bg-white"
               >
-                {/* 색상 바 */}
-                <div className="h-2 w-full" style={{ backgroundColor: community.coverColor || '#3b82f6' }} />
+                {/* 🧤 대표 이미지 또는 색상 바 */}
+                {community.thumbnailUrl ? (
+                  <div className="h-28 w-full bg-slate-100 overflow-hidden">
+                    <img src={community.thumbnailUrl} alt="" className="w-full h-full object-cover" />
+                  </div>
+                ) : (
+                  <div className="h-2 w-full" style={{ backgroundColor: community.coverColor || '#3b82f6' }} />
+                )}
                 <div className="px-4 py-3">
                   <div className="flex items-start justify-between gap-2 mb-1">
                     <div className="min-w-0">

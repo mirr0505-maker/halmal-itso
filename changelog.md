@@ -27,6 +27,14 @@
 - [x] **EpisodeReader 점세개 메뉴**: 공개프로필/신고(disabled) + 작가 수정·다시공개·삭제
 - [x] **차분 톤다운**: 잉크병 전 화면(작품/회차/폼/댓글) slate 계열 통일, 글자 크기 축소, 본문 typography RootPostCard와 동일(text-[15px] leading-[1.8])
 
+### 🧤 우리들의 장갑 — 커뮤니티 대표 이미지 (2026-04-12)
+- [x] `Community` 인터페이스에 `thumbnailUrl?: string` 추가 (`types.ts`)
+- [x] `CreateCommunityModal` — 대표 이미지 업로드 옵션 (R2, 5MB 제한, 미리보기 카드 연동)
+- [x] `CommunityAdminPanel` — 관리 탭에서 대표 이미지 변경/삭제
+- [x] `CommunityList` — 카드에 썸네일 영역 (없으면 기존 coverColor 바 폴백)
+- [x] `useGloveActions` — `thumbnailUrl` Firestore 저장 전달
+- [x] `GLOVE.md` — 활성 뱃지/Presence를 장기 숙제로 등록
+
 ### ✅ 완료된 핵심 기능 (2026-03-25 갱신)
 - [x] **Tiptap 프리미엄 에디터**: 스티키 툴바, 이미지 R2 업로드(드래그&드롭/붙여넣기), 마크다운 호환 스타일.
 - [x] **상세 뷰 리뉴얼**: 콤팩트한 2컬럼 레이아웃, 카테고리별 맞춤형 탭 UI(동의/반대/질문 등).

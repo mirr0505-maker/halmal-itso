@@ -42,7 +42,7 @@ export function useGloveActions({
   // GLOVE_CREATE_MIN_LEVEL 상수를 바꾸면 개설 레벨 조건 일괄 변경
   const handleCreateCommunity = async (data: {
     name: string; description: string; category: string;
-    isPrivate: boolean; coverColor?: string;
+    isPrivate: boolean; coverColor?: string; thumbnailUrl?: string;
     joinType?: string; minLevel?: number; password?: string; joinQuestion?: string;
     joinForm?: import('../types').JoinForm;
   }) => {
@@ -58,6 +58,7 @@ export function useGloveActions({
       category: data.category,
       isPrivate: data.isPrivate,
       coverColor: data.coverColor || '',
+      ...(data.thumbnailUrl ? { thumbnailUrl: data.thumbnailUrl } : {}),
       creatorId: userData.uid,
       creatorNickname: userData.nickname,
       creatorLevel: calculateLevel(userData.exp || 0),

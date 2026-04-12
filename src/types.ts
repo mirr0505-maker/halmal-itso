@@ -355,6 +355,7 @@ export interface Community {
   memberCount: number;           // increment 비정규화 (Firestore 읽기 비용 절감)
   postCount: number;             // increment 비정규화
   coverColor?: string;           // 커뮤니티 대표 색상 (미지정 시 기본값)
+  thumbnailUrl?: string;          // 🧤 커뮤니티 대표 이미지 (R2 업로드, 미설정 시 coverColor 폴백)
   createdAt: FirestoreTimestamp;
   // 🚀 다섯 손가락 Phase 1 — 가입 조건 설정
   joinType?: JoinType;           // 가입 방식 (미설정 시 'open'으로 취급)

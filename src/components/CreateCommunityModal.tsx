@@ -1,7 +1,8 @@
 // src/components/CreateCommunityModal.tsx — 장갑 나누기: 커뮤니티 개설 폼
 // 🚀 개설 조건: Lv3 이상 (GLOVE_CREATE_MIN_LEVEL, App.tsx에서 검증)
 import type { UserData, JoinForm, StandardFieldKey, SharesUnit, CustomQuestion } from '../types';
-import { useState } from 'react';
+import { useState, useRef } from 'react';
+import { uploadToR2 } from '../uploadToR2';
 import { getDefaultJoinForm, getRemainingSlots, STANDARD_FIELD_LABELS, generateCustomQuestionId } from '../utils/joinForm';
 
 const CATEGORIES = ['주식', '부동산', '코인', '취미', '스포츠', '게임', '독서', '요리', '반려동물', '여행', '음악', '개발', '기타'];
@@ -30,7 +31,7 @@ interface Props {
   userData: UserData;
   onSubmit: (data: {
     name: string; description: string; category: string;
-    isPrivate: boolean; coverColor?: string;
+    isPrivate: boolean; coverColor?: string; thumbnailUrl?: string;
     joinType?: string; minLevel?: number;
     password?: string; joinQuestion?: string;
     joinForm?: JoinForm;
@@ -38,12 +39,16 @@ interface Props {
   onClose: () => void;
 }
 
-const CreateCommunityModal = ({ userData: _userData, onSubmit, onClose }: Props) => {
+const CreateCommunityModal = ({ userData, onSubmit, onClose }: Props) => {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState('취미');
   const [coverColor, setCoverColor] = useState('#3b82f6');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // 🧤 대표 이미지 (썸네일)
+  const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
+  const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(null);
+  const thumbnailInputRef = useRef<HTMLInputElement>(null);
   // 🚀 다섯 손가락 Phase 1 — 가입 조건 상태
   const [joinType, setJoinType] = useState<'open' | 'approval' | 'password'>('open');
   const [minLevel, setMinLevel] = useState(1);
@@ -97,6 +102,14 @@ const CreateCommunityModal = ({ userData: _userData, onSubmit, onClose }: Props)
     if (isSubmitting) return;
     setIsSubmitting(true);
     try {
+      // 🧤 대표 이미지 R2 업로드 (선택 사항)
+      let thumbnailUrl: string | undefined;
+      if (thumbnailFile && userData.uid) {
+        const ext = thumbnailFile.name.split('.').pop() || 'jpg';
+        const filePath = `uploads/${userData.uid}/community_thumb_${Date.now()}.${ext}`;
+        const url = await uploadToR2(thumbnailFile, filePath);
+        if (url) thumbnailUrl = url;
+      }
       // 🚀 승인제일 때만 joinForm 저장 (Firestore 문서 깨끗하게 유지)
       const cleanedJoinForm = joinType === 'approval' ? {
         ...joinForm,
@@ -104,7 +117,7 @@ const CreateCommunityModal = ({ userData: _userData, onSubmit, onClose }: Props)
       } : undefined;
       await onSubmit({
         name: name.trim(), description: description.trim(), category,
-        isPrivate: joinType !== 'open', coverColor,
+        isPrivate: joinType !== 'open', coverColor, thumbnailUrl,
         joinType, minLevel,
         password: joinType === 'password' ? password.trim() : undefined,
         joinQuestion: joinType === 'approval' ? joinQuestion.trim() : undefined,
@@ -194,6 +207,44 @@ const CreateCommunityModal = ({ userData: _userData, onSubmit, onClose }: Props)
                 />
               ))}
             </div>
+          </div>
+
+          {/* 🧤 대표 이미지 (선택) */}
+          <div>
+            <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest block mb-1.5">대표 이미지 (선택)</label>
+            <input
+              ref={thumbnailInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                if (file.size > 5 * 1024 * 1024) { alert('이미지는 5MB 이하만 업로드할 수 있습니다.'); return; }
+                setThumbnailFile(file);
+                setThumbnailPreview(URL.createObjectURL(file));
+              }}
+            />
+            {thumbnailPreview ? (
+              <div className="relative w-full h-32 rounded-lg overflow-hidden border border-slate-200">
+                <img src={thumbnailPreview} alt="미리보기" className="w-full h-full object-cover" />
+                <button
+                  type="button"
+                  onClick={() => { setThumbnailFile(null); setThumbnailPreview(null); if (thumbnailInputRef.current) thumbnailInputRef.current.value = ''; }}
+                  className="absolute top-1.5 right-1.5 w-6 h-6 bg-black/50 text-white rounded-full text-[13px] leading-none flex items-center justify-center hover:bg-black/70"
+                >×</button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => thumbnailInputRef.current?.click()}
+                className="w-full h-24 border-2 border-dashed border-slate-200 rounded-lg flex flex-col items-center justify-center gap-1 hover:border-blue-300 hover:bg-blue-50/30 transition-all"
+              >
+                <span className="text-[18px]">📷</span>
+                <span className="text-[11px] font-bold text-slate-400">클릭하여 이미지 선택</span>
+                <span className="text-[9px] text-slate-300">5MB 이하 · 미설정 시 대표 색상 표시</span>
+              </button>
+            )}
           </div>
 
           {/* 🚀 가입 방식 선택 (3종) */}
@@ -418,7 +469,13 @@ const CreateCommunityModal = ({ userData: _userData, onSubmit, onClose }: Props)
         {/* 미리보기 */}
         <div className="px-6 pb-2">
           <div className="rounded-xl overflow-hidden border border-slate-100">
-            <div className="h-2 w-full" style={{ backgroundColor: coverColor }} />
+            {thumbnailPreview ? (
+              <div className="h-20 w-full bg-slate-100">
+                <img src={thumbnailPreview} alt="" className="w-full h-full object-cover" />
+              </div>
+            ) : (
+              <div className="h-2 w-full" style={{ backgroundColor: coverColor }} />
+            )}
             <div className="px-4 py-3">
               <div className="flex items-center gap-2">
                 <span className="text-[13px] font-black text-slate-900">{name || '커뮤니티 이름'}</span>

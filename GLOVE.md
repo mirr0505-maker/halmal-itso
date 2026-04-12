@@ -404,3 +404,4 @@ match /community_posts/{id} {
 - [ ] **알림 51명+ 장갑 대응**: Cloud Functions(Blaze 플랜 업그레이드 후) 또는 알림 배치 처리
 - [ ] **성향 제한**: 특정 칭호(블루 기여자 이상 등) 보유자만 가입 가능 설정
 - [ ] **투표(Poll) 기능**: 중지 이상 멤버 전용 투표 생성 권한
+- [ ] **활성 뱃지 / Presence**: 커뮤니티 카드에 "현재 N명 접속 중" 또는 "🔴 Live" 표시. Firebase Presence(RTDB) 또는 커스텀 heartbeat 방식 필요 — 비용 대비 효과 검토 후 진행
