@@ -37,6 +37,11 @@ const CommunityAdminPanel = ({ community, myFinger, pendingMembers, onApprove, o
   const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(community.thumbnailUrl || null);
   const [removeThumbnail, setRemoveThumbnail] = useState(false);
   const thumbnailInputRef = useRef<HTMLInputElement>(null);
+  // 🧤 채팅 바탕화면 수정
+  const [newChatBgFile, setNewChatBgFile] = useState<File | null>(null);
+  const [chatBgPreview, setChatBgPreview] = useState<string | null>(community.chatBgUrl || null);
+  const [removeChatBg, setRemoveChatBg] = useState(false);
+  const chatBgInputRef = useRef<HTMLInputElement>(null);
   const [isClosing, setIsClosing] = useState(false);
   // 🚀 승급 조건 설정
   const rules = community.promotionRules ?? DEFAULT_PROMOTION_RULES;
@@ -60,12 +65,23 @@ const CommunityAdminPanel = ({ community, myFinger, pendingMembers, onApprove, o
       } else if (removeThumbnail) {
         thumbnailUpdate = { thumbnailUrl: deleteField() };
       }
+      // 🧤 채팅 바탕화면 R2 업로드
+      let chatBgUpdate: Record<string, unknown> = {};
+      if (newChatBgFile) {
+        const ext = newChatBgFile.name.split('.').pop() || 'jpg';
+        const filePath = `uploads/${community.creatorId}/community_chatbg_${Date.now()}.${ext}`;
+        const url = await uploadToR2(newChatBgFile, filePath);
+        if (url) chatBgUpdate = { chatBgUrl: url };
+      } else if (removeChatBg) {
+        chatBgUpdate = { chatBgUrl: deleteField() };
+      }
       await updateDoc(doc(db, 'communities', community.id), {
         name: editName.trim(),
         description: editDesc.trim(),
         category: editCategory,
         coverColor: editColor,
         ...thumbnailUpdate,
+        ...chatBgUpdate,
       });
       alert('설정이 저장되었습니다.');
     } finally { setIsSaving(false); }
@@ -205,6 +221,43 @@ const CommunityAdminPanel = ({ community, myFinger, pendingMembers, onApprove, o
                 className="w-full h-16 border-2 border-dashed border-slate-200 rounded-lg flex items-center justify-center gap-2 hover:border-blue-300 transition-all">
                 <span className="text-[14px]">📷</span>
                 <span className="text-[10px] font-bold text-slate-400">이미지 선택 (5MB 이하)</span>
+              </button>
+            )}
+          </div>
+          {/* 🧤 채팅 바탕화면 */}
+          <div>
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">채팅 바탕화면</label>
+            <input
+              ref={chatBgInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                if (file.size > 5 * 1024 * 1024) { alert('이미지는 5MB 이하만 업로드할 수 있습니다.'); return; }
+                setNewChatBgFile(file);
+                setChatBgPreview(URL.createObjectURL(file));
+                setRemoveChatBg(false);
+              }}
+            />
+            {chatBgPreview && !removeChatBg ? (
+              <div className="relative w-full h-24 rounded-lg overflow-hidden border border-slate-200">
+                <img src={chatBgPreview} alt="채팅 바탕화면" className="w-full h-full object-cover" />
+                <div className="absolute inset-0 bg-white/50" />
+                <p className="absolute bottom-1.5 left-0 right-0 text-center text-[9px] font-bold text-slate-500">채팅 배경 미리보기</p>
+                <div className="absolute top-1.5 right-1.5 flex gap-1">
+                  <button type="button" onClick={() => chatBgInputRef.current?.click()}
+                    className="w-6 h-6 bg-black/50 text-white rounded-full text-[11px] flex items-center justify-center hover:bg-black/70">✎</button>
+                  <button type="button" onClick={() => { setNewChatBgFile(null); setChatBgPreview(null); setRemoveChatBg(true); if (chatBgInputRef.current) chatBgInputRef.current.value = ''; }}
+                    className="w-6 h-6 bg-black/50 text-white rounded-full text-[11px] flex items-center justify-center hover:bg-red-600">×</button>
+                </div>
+              </div>
+            ) : (
+              <button type="button" onClick={() => chatBgInputRef.current?.click()}
+                className="w-full h-14 border-2 border-dashed border-slate-200 rounded-lg flex items-center justify-center gap-2 hover:border-blue-300 transition-all">
+                <span className="text-[14px]">💬</span>
+                <span className="text-[10px] font-bold text-slate-400">채팅 배경 이미지 선택</span>
               </button>
             )}
           </div>

@@ -31,7 +31,7 @@ interface Props {
   userData: UserData;
   onSubmit: (data: {
     name: string; description: string; category: string;
-    isPrivate: boolean; coverColor?: string; thumbnailUrl?: string;
+    isPrivate: boolean; coverColor?: string; thumbnailUrl?: string; chatBgUrl?: string;
     joinType?: string; minLevel?: number;
     password?: string; joinQuestion?: string;
     joinForm?: JoinForm;
@@ -49,6 +49,10 @@ const CreateCommunityModal = ({ userData, onSubmit, onClose }: Props) => {
   const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
   const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(null);
   const thumbnailInputRef = useRef<HTMLInputElement>(null);
+  // 🧤 채팅 바탕화면 이미지
+  const [chatBgFile, setChatBgFile] = useState<File | null>(null);
+  const [chatBgPreview, setChatBgPreview] = useState<string | null>(null);
+  const chatBgInputRef = useRef<HTMLInputElement>(null);
   // 🚀 다섯 손가락 Phase 1 — 가입 조건 상태
   const [joinType, setJoinType] = useState<'open' | 'approval' | 'password'>('open');
   const [minLevel, setMinLevel] = useState(1);
@@ -110,6 +114,14 @@ const CreateCommunityModal = ({ userData, onSubmit, onClose }: Props) => {
         const url = await uploadToR2(thumbnailFile, filePath);
         if (url) thumbnailUrl = url;
       }
+      // 🧤 채팅 바탕화면 R2 업로드 (선택 사항)
+      let chatBgUrl: string | undefined;
+      if (chatBgFile && userData.uid) {
+        const ext = chatBgFile.name.split('.').pop() || 'jpg';
+        const filePath = `uploads/${userData.uid}/community_chatbg_${Date.now()}.${ext}`;
+        const url = await uploadToR2(chatBgFile, filePath);
+        if (url) chatBgUrl = url;
+      }
       // 🚀 승인제일 때만 joinForm 저장 (Firestore 문서 깨끗하게 유지)
       const cleanedJoinForm = joinType === 'approval' ? {
         ...joinForm,
@@ -117,7 +129,7 @@ const CreateCommunityModal = ({ userData, onSubmit, onClose }: Props) => {
       } : undefined;
       await onSubmit({
         name: name.trim(), description: description.trim(), category,
-        isPrivate: joinType !== 'open', coverColor, thumbnailUrl,
+        isPrivate: joinType !== 'open', coverColor, thumbnailUrl, chatBgUrl,
         joinType, minLevel,
         password: joinType === 'password' ? password.trim() : undefined,
         joinQuestion: joinType === 'approval' ? joinQuestion.trim() : undefined,
@@ -243,6 +255,46 @@ const CreateCommunityModal = ({ userData, onSubmit, onClose }: Props) => {
                 <span className="text-[18px]">📷</span>
                 <span className="text-[11px] font-bold text-slate-400">클릭하여 이미지 선택</span>
                 <span className="text-[9px] text-slate-300">5MB 이하 · 미설정 시 대표 색상 표시</span>
+              </button>
+            )}
+          </div>
+
+          {/* 🧤 채팅 바탕화면 (선택) */}
+          <div>
+            <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest block mb-1.5">채팅 바탕화면 (선택)</label>
+            <input
+              ref={chatBgInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                if (file.size > 5 * 1024 * 1024) { alert('이미지는 5MB 이하만 업로드할 수 있습니다.'); return; }
+                setChatBgFile(file);
+                setChatBgPreview(URL.createObjectURL(file));
+              }}
+            />
+            {chatBgPreview ? (
+              <div className="relative w-full h-32 rounded-lg overflow-hidden border border-slate-200">
+                <img src={chatBgPreview} alt="바탕화면 미리보기" className="w-full h-full object-cover" />
+                <div className="absolute inset-0 bg-white/50" />
+                <p className="absolute bottom-2 left-0 right-0 text-center text-[9px] font-bold text-slate-500">채팅 메시지가 이 위에 표시됩니다</p>
+                <button
+                  type="button"
+                  onClick={() => { setChatBgFile(null); setChatBgPreview(null); if (chatBgInputRef.current) chatBgInputRef.current.value = ''; }}
+                  className="absolute top-1.5 right-1.5 w-6 h-6 bg-black/50 text-white rounded-full text-[13px] leading-none flex items-center justify-center hover:bg-black/70"
+                >×</button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => chatBgInputRef.current?.click()}
+                className="w-full h-20 border-2 border-dashed border-slate-200 rounded-lg flex flex-col items-center justify-center gap-1 hover:border-blue-300 hover:bg-blue-50/30 transition-all"
+              >
+                <span className="text-[18px]">💬</span>
+                <span className="text-[11px] font-bold text-slate-400">채팅방 배경 이미지 선택</span>
+                <span className="text-[9px] text-slate-300">예: 삼성전자 로고, BTS 사진 등</span>
               </button>
             )}
           </div>

@@ -435,6 +435,12 @@ const CommunityChatPanel = ({ community, currentUser, members, allUsers = {} }: 
       <div
         ref={messagesContainerRef}
         className={`flex-1 overflow-y-auto px-4 py-3 space-y-2.5 transition-colors ${isDragging ? 'bg-emerald-50/50' : ''}`}
+        style={community.chatBgUrl ? {
+          backgroundImage: `linear-gradient(rgba(255,255,255,0.6), rgba(255,255,255,0.6)), url(${community.chatBgUrl})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundAttachment: 'local',
+        } : undefined}
         onScroll={trackScroll}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
