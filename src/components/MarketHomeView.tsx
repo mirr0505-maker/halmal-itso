@@ -56,10 +56,18 @@ const MarketHomeView = ({ currentUserData, allUsers }: Props) => {
 
   return (
     <div className="w-full max-w-[860px] mx-auto pb-20 animate-in fade-in">
-      {/* 헤더 — 한 줄: 탭 + 판매글 작성 */}
-      <div className="sticky top-[48px] z-10 bg-white/95 backdrop-blur-sm border-b border-slate-100 -mx-4 px-4 pb-3 pt-2">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-1.5">
+      {/* 헤더 — 우리들의 장갑 패턴: 좌측 제목+설명 / 우측 탭+버튼 */}
+      <div className="sticky top-[48px] z-10 bg-white/95 backdrop-blur-sm -mx-4 px-4">
+        <div className="flex items-center justify-between border-b border-slate-200 h-[44px] gap-3">
+          {/* 좌: 타이틀 */}
+          <div className="flex items-center gap-1.5 shrink-0">
+            <span className="text-slate-600 font-black text-[15px]">#</span>
+            <h2 className="text-[14px] font-[1000] text-slate-900 tracking-tighter whitespace-nowrap">강변 시장</h2>
+            <div className="w-px h-3 bg-slate-200 mx-1.5 hidden md:block" />
+            <p className="text-[11px] font-bold text-slate-400 hidden md:block whitespace-nowrap">크리에이터가 지식·감성·정보를 판매하는 크리에이터 이코노미</p>
+          </div>
+          {/* 우: 탭 + 판매글 작성 */}
+          <div className="flex items-center gap-1.5 shrink-0">
             {([
               { id: 'stall', label: '가판대', desc: '단건 판매' },
               { id: 'subscription', label: '단골장부', desc: '구독 상점' },
@@ -69,21 +77,23 @@ const MarketHomeView = ({ currentUserData, allUsers }: Props) => {
                 onClick={() => setActiveTab(tab.id)}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border transition-all ${
                   activeTab === tab.id
-                    ? 'bg-slate-900 border-slate-900 text-white'
+                    ? 'bg-slate-50 border-slate-300 text-slate-800'
                     : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'
                 }`}
               >
-                <span className="text-[12px] font-[1000]">{tab.label}</span>
-                <span className={`text-[10px] font-bold hidden md:inline ${activeTab === tab.id ? 'text-slate-400' : 'text-slate-300'}`}>{tab.desc}</span>
+                <span className="text-[12px] font-[1000] whitespace-nowrap">{tab.label}</span>
+                <span className={`text-[10px] font-bold hidden md:inline whitespace-nowrap ${activeTab === tab.id ? 'text-slate-500' : 'text-slate-300'}`}>{tab.desc}</span>
               </button>
             ))}
+            {userLevel >= 3 && (
+              <button className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-700 text-white border border-slate-900 transition-all">
+                <svg className="w-3 h-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4" /></svg>
+                <span className="text-[11px] font-[1000] whitespace-nowrap hidden md:inline">판매글 작성</span>
+              </button>
+            )}
           </div>
-          {userLevel >= 3 && (
-            <button className="px-3 py-1.5 rounded-lg bg-slate-900 text-white text-[11px] font-[1000] hover:bg-slate-700 transition-colors">
-              + 판매글 작성
-            </button>
-          )}
         </div>
+        <div className="h-3" />
 
         {/* 가판대 카테고리 필터 */}
         {activeTab === 'stall' && (
