@@ -13,9 +13,10 @@ interface Props {
   currentUserData: UserData | null;
   allUsers: Record<string, UserData>;
   onBack: () => void;
+  onEdit?: (item: MarketItem, content: string) => void;
 }
 
-const MarketItemDetail = ({ itemId, currentUserData, allUsers, onBack }: Props) => {
+const MarketItemDetail = ({ itemId, currentUserData, allUsers, onBack, onEdit }: Props) => {
   const [item, setItem] = useState<MarketItem | null>(null);
   const [purchase, setPurchase] = useState<MarketPurchase | null>(null);
   const [privateContent, setPrivateContent] = useState<string | null>(null);
@@ -112,7 +113,13 @@ const MarketItemDetail = ({ itemId, currentUserData, allUsers, onBack }: Props) 
   return (
     <div className="w-full max-w-[800px] mx-auto px-4 py-6">
       {/* 상단 */}
-      <button onClick={onBack} className="text-[12px] text-slate-500 hover:text-slate-900 font-bold mb-4 transition-colors">← 목록으로</button>
+      <div className="flex items-center justify-between mb-4">
+        <button onClick={onBack} className="text-[12px] text-slate-500 hover:text-slate-900 font-bold transition-colors">← 목록으로</button>
+        {isAuthor && onEdit && privateContent && (
+          <button onClick={() => onEdit(item, privateContent)}
+            className="text-[11px] font-[1000] text-slate-500 hover:text-blue-600 transition-colors">수정</button>
+        )}
+      </div>
 
       {/* 표지 */}
       {item.coverImageUrl && (

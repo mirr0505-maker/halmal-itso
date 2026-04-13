@@ -2,10 +2,10 @@
 // 제목 + 티저(미리보기) + 본문(private_data) + 가격 + 카테고리 + 태그 + 표지 이미지
 import { useState } from 'react';
 import { db } from '../firebase';
-import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { uploadToR2 } from '../uploadToR2';
 import { calculateLevel } from '../utils';
-import type { UserData, MarketCategory } from '../types';
+import type { UserData, MarketCategory, MarketItem } from '../types';
 import TiptapEditor from './TiptapEditor';
 
 // 황금알을 낳는 거위와 동일한 분야 체계
@@ -20,20 +20,27 @@ const INFO_GROUPS: { label: string; items: string[] }[] = [
 
 interface Props {
   currentUserData: UserData;
+  editingItem?: MarketItem | null;       // 수정 모드: 기존 아이템 전달
+  editingContent?: string | null;        // 수정 모드: 기존 본문 (private_data)
   onSuccess: (itemId: string) => void;
   onCancel: () => void;
 }
 
-const MarketItemEditor = ({ currentUserData, onSuccess, onCancel }: Props) => {
-  const [title, setTitle] = useState('');
-  const [content, setContent] = useState('');
-  const [category, setCategory] = useState<MarketCategory>('주식');
-  const [activeGroup, setActiveGroup] = useState(0);
-  const [price, setPrice] = useState(10);
+const MarketItemEditor = ({ currentUserData, editingItem, editingContent, onSuccess, onCancel }: Props) => {
+  const isEdit = !!editingItem;
+  const [title, setTitle] = useState(editingItem?.title || '');
+  const [content, setContent] = useState(editingContent || '');
+  const [category, setCategory] = useState<MarketCategory>(editingItem?.category || '주식');
+  const [activeGroup, setActiveGroup] = useState(() => {
+    if (!editingItem?.category) return 0;
+    const idx = INFO_GROUPS.findIndex(g => g.items.includes(editingItem.category));
+    return idx >= 0 ? idx : 0;
+  });
+  const [price, setPrice] = useState(editingItem?.price || 10);
   const [tagInput, setTagInput] = useState('');
-  const [tags, setTags] = useState<string[]>([]);
+  const [tags, setTags] = useState<string[]>(editingItem?.tags || []);
   const [coverFile, setCoverFile] = useState<File | null>(null);
-  const [coverPreview, setCoverPreview] = useState<string | null>(null);
+  const [coverPreview, setCoverPreview] = useState<string | null>(editingItem?.coverImageUrl || null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -71,7 +78,7 @@ const MarketItemEditor = ({ currentUserData, onSuccess, onCancel }: Props) => {
     setError(null);
 
     try {
-      // 표지 이미지 R2 업로드
+      // 표지 이미지 R2 업로드 (새 파일이 있을 때만)
       let coverImageUrl: string | undefined;
       if (coverFile) {
         const ext = coverFile.name.split('.').pop() || 'jpg';
@@ -80,39 +87,57 @@ const MarketItemEditor = ({ currentUserData, onSuccess, onCancel }: Props) => {
         if (url) coverImageUrl = url;
       }
 
-      const timestamp = Date.now();
-      const itemId = `mkt_${timestamp}_${currentUserData.uid}`;
+      if (isEdit && editingItem) {
+        // 수정 모드 — 기존 문서 업데이트
+        const itemId = editingItem.id;
+        await updateDoc(doc(db, 'market_items', itemId), {
+          title: title.trim(),
+          previewContent: previewContent.trim(),
+          category,
+          tags,
+          price,
+          ...(coverImageUrl ? { coverImageUrl } : {}),
+          updatedAt: serverTimestamp(),
+        });
+        // 본문도 업데이트
+        await setDoc(doc(db, 'market_items', itemId, 'private_data', 'content'), {
+          body: content,
+          updatedAt: serverTimestamp(),
+        });
+        onSuccess(itemId);
+      } else {
+        // 신규 작성
+        const timestamp = Date.now();
+        const itemId = `mkt_${timestamp}_${currentUserData.uid}`;
 
-      // market_items 문서 생성
-      await setDoc(doc(db, 'market_items', itemId), {
-        id: itemId,
-        authorId: currentUserData.uid,
-        authorNickname: currentUserData.nickname,
-        authorLevel: userLevel,
-        title: title.trim(),
-        previewContent: previewContent.trim(),
-        category,
-        tags,
-        price,
-        coverImageUrl: coverImageUrl || null,
-        purchaseCount: 0,
-        ratingAvg: 0,
-        ratingCount: 0,
-        status: 'active',
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      });
+        await setDoc(doc(db, 'market_items', itemId), {
+          id: itemId,
+          authorId: currentUserData.uid,
+          authorNickname: currentUserData.nickname,
+          authorLevel: userLevel,
+          title: title.trim(),
+          previewContent: previewContent.trim(),
+          category,
+          tags,
+          price,
+          coverImageUrl: coverImageUrl || null,
+          purchaseCount: 0,
+          ratingAvg: 0,
+          ratingCount: 0,
+          status: 'active',
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        });
 
-      // 본문은 private_data 서브문서에 분리 저장 (Rules로 미구매자 차단)
-      await setDoc(doc(db, 'market_items', itemId, 'private_data', 'content'), {
-        body: content,
-        updatedAt: serverTimestamp(),
-      });
-
-      onSuccess(itemId);
+        await setDoc(doc(db, 'market_items', itemId, 'private_data', 'content'), {
+          body: content,
+          updatedAt: serverTimestamp(),
+        });
+        onSuccess(itemId);
+      }
     } catch (err) {
-      console.error('[MarketItemEditor] 작성 실패:', err);
-      setError('판매글 작성 중 오류가 발생했습니다.');
+      console.error('[MarketItemEditor] 실패:', err);
+      setError(isEdit ? '수정 중 오류가 발생했습니다.' : '판매글 작성 중 오류가 발생했습니다.');
     } finally {
       setSubmitting(false);
     }
@@ -125,7 +150,7 @@ const MarketItemEditor = ({ currentUserData, onSuccess, onCancel }: Props) => {
         <button onClick={onCancel} className="text-[12px] text-slate-500 hover:text-slate-900 font-bold transition-colors">
           ← 취소
         </button>
-        <h1 className="text-[14px] font-[1000] text-slate-700">판매글 작성</h1>
+        <h1 className="text-[14px] font-[1000] text-slate-700">{isEdit ? '판매글 수정' : '판매글 작성'}</h1>
         <div className="w-12" />
       </div>
 
@@ -244,7 +269,7 @@ const MarketItemEditor = ({ currentUserData, onSuccess, onCancel }: Props) => {
           </button>
           <button type="button" onClick={handleSubmit} disabled={submitting}
             className="flex-1 px-4 py-2.5 bg-slate-900 hover:bg-slate-700 disabled:opacity-50 text-white rounded-lg text-[12px] font-[1000] transition-colors">
-            {submitting ? '등록 중...' : '판매글 등록'}
+            {submitting ? (isEdit ? '수정 중...' : '등록 중...') : (isEdit ? '수정 완료' : '판매글 등록')}
           </button>
         </div>
       </div>

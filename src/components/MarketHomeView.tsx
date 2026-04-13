@@ -38,6 +38,8 @@ const MarketHomeView = ({ currentUserData, allUsers }: Props) => {
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [selectedShopId, setSelectedShopId] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
+  const [editingItem, setEditingItem] = useState<MarketItem | null>(null);
+  const [editingContent, setEditingContent] = useState<string | null>(null);
   const [isCreatingShop, setIsCreatingShop] = useState(false);
   const [isDashboard, setIsDashboard] = useState(false);
   // 목록 리로드 트리거
@@ -69,7 +71,9 @@ const MarketHomeView = ({ currentUserData, allUsers }: Props) => {
 
   // 아이템 상세뷰
   if (selectedItemId) {
-    return <MarketItemDetail itemId={selectedItemId} currentUserData={currentUserData} allUsers={allUsers} onBack={() => setSelectedItemId(null)} />;
+    return <MarketItemDetail itemId={selectedItemId} currentUserData={currentUserData} allUsers={allUsers}
+      onBack={() => setSelectedItemId(null)}
+      onEdit={(item, content) => { setSelectedItemId(null); setEditingItem(item); setEditingContent(content); setIsEditing(true); }} />;
   }
 
   // 상점 상세뷰
@@ -80,7 +84,9 @@ const MarketHomeView = ({ currentUserData, allUsers }: Props) => {
 
   // 판매글 작성
   if (isEditing && currentUserData) {
-    return <MarketItemEditor currentUserData={currentUserData} onSuccess={() => { setIsEditing(false); setReloadKey(k => k + 1); }} onCancel={() => setIsEditing(false)} />;
+    return <MarketItemEditor currentUserData={currentUserData} editingItem={editingItem} editingContent={editingContent}
+      onSuccess={() => { setIsEditing(false); setEditingItem(null); setEditingContent(null); setReloadKey(k => k + 1); }}
+      onCancel={() => { setIsEditing(false); setEditingItem(null); setEditingContent(null); }} />;
   }
 
   // 상점 개설
