@@ -10,6 +10,7 @@ import MarketItemDetail from './MarketItemDetail';
 import MarketItemEditor from './MarketItemEditor';
 import MarketShopDetail from './MarketShopDetail';
 import MarketShopEditor from './MarketShopEditor';
+import MarketDashboard from './MarketDashboard';
 
 interface Props {
   currentUserData: UserData | null;
@@ -38,6 +39,7 @@ const MarketHomeView = ({ currentUserData, allUsers }: Props) => {
   const [selectedShopId, setSelectedShopId] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [isCreatingShop, setIsCreatingShop] = useState(false);
+  const [isDashboard, setIsDashboard] = useState(false);
   // 목록 리로드 트리거
   const [reloadKey, setReloadKey] = useState(0);
 
@@ -86,6 +88,12 @@ const MarketHomeView = ({ currentUserData, allUsers }: Props) => {
     return <MarketShopEditor currentUserData={currentUserData} onSuccess={() => { setIsCreatingShop(false); setReloadKey(k => k + 1); }} onCancel={() => setIsCreatingShop(false)} />;
   }
 
+  // 대시보드
+  if (isDashboard && currentUserData) {
+    return <MarketDashboard currentUserData={currentUserData} onBack={() => setIsDashboard(false)}
+      onItemClick={(id) => { setIsDashboard(false); setSelectedItemId(id); }} />;
+  }
+
   return (
     <div className="w-full pb-4 animate-in fade-in">
       {/* 헤더 — 잉크병/장갑 패턴: sticky top-0, 전체 폭 */}
@@ -117,6 +125,12 @@ const MarketHomeView = ({ currentUserData, allUsers }: Props) => {
                 <span className={`text-[10px] font-bold hidden md:inline whitespace-nowrap ${activeTab === tab.id ? 'text-blue-400' : 'text-slate-300'}`}>{tab.desc}</span>
               </button>
             ))}
+            {userLevel >= 3 && (
+              <button onClick={() => setIsDashboard(true)}
+                className="px-3 py-1.5 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 text-[11px] font-[1000] whitespace-nowrap transition-all">
+                내 상점
+              </button>
+            )}
             {userLevel >= (activeTab === 'subscription' ? 5 : 3) && (
               <button onClick={() => activeTab === 'subscription' ? setIsCreatingShop(true) : setIsEditing(true)}
                 className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-blue-600 text-white border border-slate-900 hover:border-blue-600 transition-all">
