@@ -8,14 +8,14 @@ import { calculateLevel } from '../utils';
 import type { UserData, MarketCategory } from '../types';
 import TiptapEditor from './TiptapEditor';
 
-const CATEGORIES: { id: MarketCategory; label: string }[] = [
-  { id: 'stock', label: '주식' },
-  { id: 'coin', label: '코인' },
-  { id: 'realestate', label: '부동산' },
-  { id: 'life', label: '생활정보' },
-  { id: 'selfdev', label: '자기계발' },
-  { id: 'essay', label: '창작/에세이' },
-  { id: 'etc', label: '기타' },
+// 황금알을 낳는 거위와 동일한 분야 체계
+const INFO_GROUPS: { label: string; items: string[] }[] = [
+  { label: '금융·투자', items: ['주식', '코인', '부동산', '재테크', '금융'] },
+  { label: '경제·경영', items: ['경제', '경영', '창업', '세금', '정책'] },
+  { label: '사회·정치', items: ['정치', '사회', '글로벌'] },
+  { label: '지식·학문', items: ['IT', '컴퓨터', '과학', '교육', '외국어', '역사', '철학', '인문', '문학', '종교'] },
+  { label: '엔터·문화', items: ['게임', '애니메이션', '방송', '영화', '음악', '문화예술'] },
+  { label: '라이프',   items: ['여행', '스포츠', '반려동물', '취미', '생활', '패션미용', '건강', '육아'] },
 ];
 
 interface Props {
@@ -27,7 +27,8 @@ interface Props {
 const MarketItemEditor = ({ currentUserData, onSuccess, onCancel }: Props) => {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
-  const [category, setCategory] = useState<MarketCategory>('stock');
+  const [category, setCategory] = useState<MarketCategory>('주식');
+  const [activeGroup, setActiveGroup] = useState(0);
   const [price, setPrice] = useState(10);
   const [tagInput, setTagInput] = useState('');
   const [tags, setTags] = useState<string[]>([]);
@@ -137,17 +138,26 @@ const MarketItemEditor = ({ currentUserData, onSuccess, onCancel }: Props) => {
             className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:border-slate-500" />
         </div>
 
-        {/* 카테고리 */}
+        {/* 카테고리 — 황금알 그룹 방식 */}
         <div>
-          <label className="block text-[12px] font-[1000] text-slate-600 mb-1.5">카테고리</label>
-          <div className="flex flex-wrap gap-1.5">
-            {CATEGORIES.map(c => (
-              <button key={c.id} type="button" onClick={() => setCategory(c.id)}
-                className={`px-3 py-1 rounded-full text-[11px] font-[1000] border transition-all ${
-                  category === c.id ? 'bg-slate-700 text-white border-slate-700' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'
-                }`}>{c.label}</button>
+          <label className="block text-[12px] font-[1000] text-slate-600 mb-1.5">분야</label>
+          <div className="flex gap-1.5 mb-2 flex-wrap">
+            {INFO_GROUPS.map((g, i) => (
+              <button key={g.label} type="button" onClick={() => setActiveGroup(i)}
+                className={`px-2.5 py-1 rounded-full text-[10px] font-[1000] border transition-all ${
+                  activeGroup === i ? 'bg-slate-700 text-white border-slate-700' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'
+                }`}>{g.label}</button>
             ))}
           </div>
+          <div className="flex flex-wrap gap-1.5">
+            {INFO_GROUPS[activeGroup].items.map(item => (
+              <button key={item} type="button" onClick={() => setCategory(item)}
+                className={`px-3 py-1 rounded-full text-[11px] font-bold border transition-all ${
+                  category === item ? 'bg-slate-900 text-white border-slate-900' : 'bg-slate-50 text-slate-500 border-slate-200 hover:border-slate-400'
+                }`}>{item}</button>
+            ))}
+          </div>
+          {category && <p className="text-[10px] font-bold text-slate-400 mt-1">선택: {category}</p>}
         </div>
 
         {/* 가격 */}

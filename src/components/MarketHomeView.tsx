@@ -17,20 +17,20 @@ interface Props {
   allUsers: Record<string, UserData>;
 }
 
-const MARKET_CATEGORIES: { id: string; label: string }[] = [
-  { id: 'all', label: '전체' },
-  { id: 'stock', label: '주식' },
-  { id: 'coin', label: '코인' },
-  { id: 'realestate', label: '부동산' },
-  { id: 'life', label: '생활정보' },
-  { id: 'selfdev', label: '자기계발' },
-  { id: 'essay', label: '창작/에세이' },
-  { id: 'etc', label: '기타' },
+// 황금알을 낳는 거위와 동일한 분야 체계
+const INFO_GROUPS: { label: string; items: string[] }[] = [
+  { label: '금융·투자', items: ['주식', '코인', '부동산', '재테크', '금융'] },
+  { label: '경제·경영', items: ['경제', '경영', '창업', '세금', '정책'] },
+  { label: '사회·정치', items: ['정치', '사회', '글로벌'] },
+  { label: '지식·학문', items: ['IT', '컴퓨터', '과학', '교육', '외국어', '역사', '철학', '인문', '문학', '종교'] },
+  { label: '엔터·문화', items: ['게임', '애니메이션', '방송', '영화', '음악', '문화예술'] },
+  { label: '라이프',   items: ['여행', '스포츠', '반려동물', '취미', '생활', '패션미용', '건강', '육아'] },
 ];
 
 const MarketHomeView = ({ currentUserData, allUsers }: Props) => {
   const [activeTab, setActiveTab] = useState<'stall' | 'subscription'>('stall');
   const [selectedCategory, setSelectedCategory] = useState('all');
+  const [filterGroup, setFilterGroup] = useState<number | null>(null);
   const [items, setItems] = useState<MarketItem[]>([]);
   const [shops, setShops] = useState<MarketShop[]>([]);
   const [loading, setLoading] = useState(true);
@@ -142,22 +142,33 @@ const MarketHomeView = ({ currentUserData, allUsers }: Props) => {
         </div>
       </div>
 
-      {/* 카테고리 필터 — sticky 바깥 */}
+      {/* 카테고리 필터 — 그룹탭 + 세부항목 */}
       {activeTab === 'stall' && (
-        <div className="flex items-center gap-1.5 px-1 pt-3 pb-2 flex-wrap">
-          {MARKET_CATEGORIES.map(cat => (
-            <button
-              key={cat.id}
-              onClick={() => setSelectedCategory(cat.id)}
-              className={`shrink-0 px-3 py-1 rounded-full text-[11px] font-[1000] transition-all ${
-                selectedCategory === cat.id
-                  ? 'bg-slate-700 text-white'
-                  : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
-              }`}
-            >
-              {cat.label}
-            </button>
-          ))}
+        <div className="px-1 pt-3 pb-1">
+          {/* 전체 + 그룹탭 */}
+          <div className="flex items-center gap-1.5 flex-wrap mb-2">
+            <button onClick={() => setSelectedCategory('all')}
+              className={`shrink-0 px-3 py-1 rounded-full text-[10px] font-[1000] border transition-all ${
+                selectedCategory === 'all' ? 'bg-slate-700 text-white border-slate-700' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'
+              }`}>전체</button>
+            {INFO_GROUPS.map((g, i) => (
+              <button key={g.label} onClick={() => { setFilterGroup(i); setSelectedCategory(g.items[0]); }}
+                className={`shrink-0 px-2.5 py-1 rounded-full text-[10px] font-[1000] border transition-all ${
+                  filterGroup === i && selectedCategory !== 'all' ? 'bg-slate-700 text-white border-slate-700' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'
+                }`}>{g.label}</button>
+            ))}
+          </div>
+          {/* 세부 항목 */}
+          {selectedCategory !== 'all' && filterGroup !== null && (
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {INFO_GROUPS[filterGroup].items.map(item => (
+                <button key={item} onClick={() => setSelectedCategory(item)}
+                  className={`shrink-0 px-3 py-1 rounded-full text-[11px] font-bold border transition-all ${
+                    selectedCategory === item ? 'bg-slate-900 text-white border-slate-900' : 'bg-slate-50 text-slate-500 border-slate-200 hover:border-slate-400'
+                  }`}>{item}</button>
+              ))}
+            </div>
+          )}
         </div>
       )}
 

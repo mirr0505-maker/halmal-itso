@@ -434,8 +434,8 @@ export interface CommunityInfoBot {
 // 🏪 강변 시장 (Riverside Market) — 크리에이터 이코노미
 // ════════════════════════════════════════════════════════════
 
-// 강변 시장 카테고리
-export type MarketCategory = 'stock' | 'coin' | 'realestate' | 'life' | 'selfdev' | 'essay' | 'etc';
+// 강변 시장 카테고리 — 황금알을 낳는 거위 INFO_GROUPS와 동일 체계
+export type MarketCategory = string;
 
 // 가판대 단건 판매글
 export interface MarketItem {
