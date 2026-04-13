@@ -372,13 +372,15 @@ function InfoBotPanel({ community, isActive, daysLeft }: { community: Community;
     { id: 'policy', icon: '🏛️', label: '정부 정책' },
   ];
   // Phase 1에서는 news만 활성, 나머지는 "준비 중"
-  const AVAILABLE_SOURCES: InfoBotSource[] = ['news'];
+  // Phase 1: news, Phase 2: dart 활성화. price/policy는 준비 중.
+  const AVAILABLE_SOURCES: InfoBotSource[] = ['news', 'dart'];
 
   const bot = community.infoBot;
   const [keywords, setKeywords] = useState<string[]>(bot?.keywords || []);
   const [newKeyword, setNewKeyword] = useState('');
   const [sources, setSources] = useState<InfoBotSource[]>(bot?.sources || ['news']);
   const [stockCode, setStockCode] = useState(bot?.stockCode || '');
+  const [corpCode, setCorpCode] = useState(bot?.corpCode || '');
   const [isProcessing, setIsProcessing] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
@@ -390,13 +392,15 @@ function InfoBotPanel({ community, isActive, daysLeft }: { community: Community;
   };
 
   const handleActivate = async () => {
-    if (keywords.length === 0) { setMessage('키워드를 1개 이상 입력해주세요.'); return; }
+    if (sources.includes('news') && keywords.length === 0) { setMessage('뉴스 소스를 선택하려면 키워드를 1개 이상 입력해주세요.'); return; }
+    if (sources.includes('dart') && !corpCode.trim()) { setMessage('DART 공시 소스를 선택하려면 DART 고유번호를 입력해주세요.'); return; }
+    if (sources.length === 0) { setMessage('최소 1개 소스를 선택해주세요.'); return; }
     if (!window.confirm('정보봇을 활성화하면 20볼이 차감됩니다. 진행하시겠습니까?')) return;
     setIsProcessing(true);
     setMessage(null);
     try {
       const fn = httpsCallable(functions, 'activateInfoBot');
-      await fn({ communityId: community.id, keywords, sources, stockCode: stockCode || null, corpCode: null, priceAlertThresholds: [5, 10, 15, 20, 25, 30] });
+      await fn({ communityId: community.id, keywords, sources, stockCode: stockCode || null, corpCode: corpCode || null, priceAlertThresholds: [5, 10, 15, 20, 25, 30] });
       setMessage('✅ 정보봇이 활성화되었습니다! (30일간)');
     } catch (err: unknown) {
       const e = err as { message?: string };
@@ -423,7 +427,7 @@ function InfoBotPanel({ community, isActive, daysLeft }: { community: Community;
     setMessage(null);
     try {
       const fn = httpsCallable(functions, 'updateInfoBot');
-      await fn({ communityId: community.id, keywords, sources, stockCode: stockCode || null });
+      await fn({ communityId: community.id, keywords, sources, stockCode: stockCode || null, corpCode: corpCode || null });
       setMessage('✅ 설정이 수정되었습니다.');
     } catch (err: unknown) {
       const e = err as { message?: string };
@@ -463,12 +467,21 @@ function InfoBotPanel({ community, isActive, daysLeft }: { community: Community;
           )}
         </div>
 
-        {/* 종목코드 */}
-        <div>
-          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">종목코드 (선택)</label>
-          <input type="text" value={stockCode} onChange={(e) => setStockCode(e.target.value)} maxLength={10}
-            placeholder="예: 005930"
-            className="w-32 border border-slate-200 rounded-lg px-2.5 py-1.5 text-[12px] font-bold outline-none focus:border-blue-400" />
+        {/* 종목코드 + DART 고유번호 */}
+        <div className="flex gap-3">
+          <div>
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">종목코드</label>
+            <input type="text" value={stockCode} onChange={(e) => setStockCode(e.target.value)} maxLength={10}
+              placeholder="예: 005930"
+              className="w-28 border border-slate-200 rounded-lg px-2.5 py-1.5 text-[12px] font-bold outline-none focus:border-blue-400" />
+          </div>
+          <div>
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">DART 고유번호</label>
+            <input type="text" value={corpCode} onChange={(e) => setCorpCode(e.target.value)} maxLength={10}
+              placeholder="예: 00126380"
+              className="w-28 border border-slate-200 rounded-lg px-2.5 py-1.5 text-[12px] font-bold outline-none focus:border-blue-400" />
+            <p className="text-[9px] text-slate-300 mt-0.5">DART 공시 조회용</p>
+          </div>
         </div>
 
         {/* 소스 선택 */}

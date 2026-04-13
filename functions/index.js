@@ -409,7 +409,7 @@ const { sendThanksball } = require("./thanksball");
 const { syncAdBids, updateAdMetrics } = require("./adTriggers");
 const { unlockEpisode, createEpisode, onEpisodeCreate, onInkwellPostDelete } = require("./inkwell");
 const { activateInfoBot, deactivateInfoBot, updateInfoBot } = require("./gloveBot");
-const { fetchBotNews } = require("./gloveBotFetcher");
+const { fetchBotNews, fetchBotDart } = require("./gloveBotFetcher");
 
 exports.registerKanbuPromo = registerKanbuPromo;
 exports.adAuction = adAuction;
@@ -429,3 +429,4 @@ exports.activateInfoBot = activateInfoBot;
 exports.deactivateInfoBot = deactivateInfoBot;
 exports.updateInfoBot = updateInfoBot;
 exports.fetchBotNews = fetchBotNews;
+exports.fetchBotDart = fetchBotDart;

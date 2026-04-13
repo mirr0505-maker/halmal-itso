@@ -495,6 +495,19 @@ const CreateCommunityModal = ({ userData, onSubmit, onClose }: Props) => {
             </div>
           )}
 
+          {/* 🤖 정보봇 안내 — 주식 카테고리 전용 */}
+          {category === '주식' && (
+            <div className="p-3 bg-emerald-50/50 border border-emerald-200 rounded-xl">
+              <p className="text-[11px] font-[1000] text-emerald-700 mb-1">🤖 정보봇 사용 가능</p>
+              <p className="text-[10px] font-bold text-emerald-600/80 leading-relaxed">
+                주식 장갑은 정보봇을 활성화할 수 있습니다.
+                뉴스·DART 공시 등을 자동으로 소곤소곤에 게시합니다.
+                <br />
+                장갑 개설 후 <strong>관리 탭 → 🤖 정보봇</strong>에서 설정하세요. (월 20볼)
+              </p>
+            </div>
+          )}
+
           {/* 🚀 최소 가입 레벨 셀렉터 */}
           <div>
             <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest block mb-1.5">최소 가입 레벨</label>
