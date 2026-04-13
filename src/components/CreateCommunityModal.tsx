@@ -31,7 +31,7 @@ interface Props {
   userData: UserData;
   onSubmit: (data: {
     name: string; description: string; category: string;
-    isPrivate: boolean; coverColor?: string; thumbnailUrl?: string; chatBgUrl?: string;
+    isPrivate: boolean; coverColor?: string; thumbnailUrl?: string; chatBgUrl?: string; displayBadgeKey?: string;
     joinType?: string; minLevel?: number;
     password?: string; joinQuestion?: string;
     joinForm?: JoinForm;
@@ -58,6 +58,8 @@ const CreateCommunityModal = ({ userData, onSubmit, onClose }: Props) => {
   const [minLevel, setMinLevel] = useState(1);
   const [password, setPassword] = useState('');
   const [joinQuestion, setJoinQuestion] = useState('');
+  // 🧤 닉네임 배지 필드 — 채팅/댓글에서 닉네임 옆에 표시할 가입 답변
+  const [displayBadgeKey, setDisplayBadgeKey] = useState('');
   // 🚀 Phase 6 — 가입 폼 빌더 상태
   const [joinForm, setJoinForm] = useState<JoinForm>(getDefaultJoinForm());
 
@@ -130,6 +132,7 @@ const CreateCommunityModal = ({ userData, onSubmit, onClose }: Props) => {
       await onSubmit({
         name: name.trim(), description: description.trim(), category,
         isPrivate: joinType !== 'open', coverColor, thumbnailUrl, chatBgUrl,
+        displayBadgeKey: displayBadgeKey || undefined,
         joinType, minLevel,
         password: joinType === 'password' ? password.trim() : undefined,
         joinQuestion: joinType === 'approval' ? joinQuestion.trim() : undefined,
@@ -492,6 +495,30 @@ const CreateCommunityModal = ({ userData, onSubmit, onClose }: Props) => {
                   표준 필드를 비활성화하면 추가 질문 슬롯이 생깁니다
                 </p>
               )}
+
+              {/* 🧤 닉네임 배지 필드 선택 */}
+              <div className="mt-4 pt-3 border-t border-blue-200">
+                <p className="text-[10px] font-[1000] text-slate-600 mb-2">🏷️ 닉네임 배지 (채팅/댓글에 표시)</p>
+                <p className="text-[9px] font-bold text-slate-400 mb-2">가입 답변 중 하나를 선택하면 닉네임 옆에 표시됩니다</p>
+                <div className="flex flex-col gap-1">
+                  <label className="flex items-center gap-2 text-[11px] font-bold text-slate-600 cursor-pointer">
+                    <input type="radio" name="badgeKey" value="" checked={displayBadgeKey === ''} onChange={() => setDisplayBadgeKey('')} className="w-3 h-3" />
+                    사용 안 함
+                  </label>
+                  {joinForm.standardFields.filter(f => f.enabled).map(f => (
+                    <label key={f.key} className="flex items-center gap-2 text-[11px] font-bold text-slate-600 cursor-pointer">
+                      <input type="radio" name="badgeKey" value={f.key} checked={displayBadgeKey === f.key} onChange={() => setDisplayBadgeKey(f.key)} className="w-3 h-3" />
+                      {STANDARD_FIELD_LABELS[f.key]} {f.key === 'shares' && '(K단위)'}
+                    </label>
+                  ))}
+                  {joinForm.customQuestions.filter(q => q.label.trim()).map(q => (
+                    <label key={q.id} className="flex items-center gap-2 text-[11px] font-bold text-slate-600 cursor-pointer">
+                      <input type="radio" name="badgeKey" value={q.id} checked={displayBadgeKey === q.id} onChange={() => setDisplayBadgeKey(q.id)} className="w-3 h-3" />
+                      {q.label}
+                    </label>
+                  ))}
+                </div>
+              </div>
             </div>
           )}
 

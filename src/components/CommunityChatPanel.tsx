@@ -19,11 +19,76 @@ interface Props {
 
 const REACTION_EMOJIS = ['👍', '❤️', '😂', '🔥', '🤔', '💯'] as const;
 
+// 🧤 finger 역할 한글 라벨
+const FINGER_LABEL: Record<string, string> = {
+  thumb: '개설자', index: '부관리', middle: '핵심멤버', ring: '멤버', pinky: '새내기',
+};
+
+// 🧤 닉네임 배지 값 포맷 (숫자 → K단위)
+function formatBadgeValue(value: unknown): string {
+  if (value === undefined || value === null || value === '') return '';
+  if (typeof value === 'object' && value !== null && 'value' in value) {
+    // shares 타입: { value: number, unit: string, label?: string }
+    const v = (value as { value: number }).value;
+    if (typeof v === 'number') {
+      if (v >= 1000) return `${(v / 1000).toFixed(v % 1000 === 0 ? 0 : 1)}K`;
+      return String(v);
+    }
+  }
+  if (typeof value === 'number') {
+    if (value >= 1000) return `${(value / 1000).toFixed(value % 1000 === 0 ? 0 : 1)}K`;
+    return String(value);
+  }
+  return String(value).slice(0, 10);
+}
+
+// 🧤 채팅 작성자 라인 — 닉네임 · finger역할 · Lv · 배지값
+function ChatAuthorLine({ message, community, members }: { message: ChatMessage; community: Community; members: CommunityMember[] }) {
+  const finger = message.authorFinger || 'ring';
+  const fingerLabel = FINGER_LABEL[finger] || '멤버';
+
+  // displayBadgeKey에 해당하는 가입 답변 값 조회
+  let badgeValue = '';
+  if (community.displayBadgeKey) {
+    const member = members.find(m => m.userId === message.author_id);
+    if (member?.joinAnswers) {
+      const key = community.displayBadgeKey;
+      if (key.startsWith('custom_')) {
+        // 커스텀 질문 답변
+        const ans = member.joinAnswers.custom?.find(a => a.questionId === key);
+        if (ans) badgeValue = formatBadgeValue(ans.answer);
+      } else if (key === 'shares' && member.joinAnswers.standard?.shares) {
+        badgeValue = formatBadgeValue(member.joinAnswers.standard.shares);
+      } else if (key === 'name' && member.joinAnswers.standard?.name) {
+        badgeValue = member.joinAnswers.standard.name;
+      } else if (key === 'region' && member.joinAnswers.standard?.region) {
+        badgeValue = String(member.joinAnswers.standard.region);
+      }
+    }
+  }
+
+  return (
+    <div className="flex items-center gap-1 mb-0.5 px-1 flex-wrap">
+      <span className="text-[11px] font-[1000] text-slate-700">{message.author}</span>
+      <span className="text-[8px] font-[1000] text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">{fingerLabel}</span>
+      <span className="text-[9px] font-bold text-slate-300">Lv{message.authorLevel}</span>
+      {badgeValue && (
+        <span className="text-[9px] font-[1000] text-blue-500 bg-blue-50 px-1.5 py-0.5 rounded">{badgeValue}</span>
+      )}
+      {message.authorVerified && (
+        <VerifiedBadgeComponent verified={message.authorVerified} size="sm" showDate={false} />
+      )}
+    </div>
+  );
+}
+
 // 🚀 메시지 한 개 렌더링
-function ChatMessageItem({ message, currentUid, isAdmin, onReply, onToggleReaction, reactionPickerFor, setReactionPickerFor, onImageClick, onSendThanksball, onDelete }: {
+function ChatMessageItem({ message, currentUid, isAdmin, community, members, onReply, onToggleReaction, reactionPickerFor, setReactionPickerFor, onImageClick, onSendThanksball, onDelete }: {
   message: ChatMessage;
   currentUid: string;
   isAdmin: boolean;
+  community: Community;
+  members: CommunityMember[];
   onReply: (msg: ChatMessage) => void;
   onToggleReaction: (msg: ChatMessage, emoji: string) => void;
   reactionPickerFor: string | null;
@@ -54,13 +119,7 @@ function ChatMessageItem({ message, currentUid, isAdmin, onReply, onToggleReacti
       <div className={`max-w-[75%] flex flex-col ${isMine ? 'items-end' : 'items-start'}`}>
         {/* 작성자 정보 (내 메시지는 생략) */}
         {!isMine && (
-          <div className="flex items-center gap-1.5 mb-0.5 px-1">
-            <span className="text-[11px] font-[1000] text-slate-700">{message.author}</span>
-            <span className="text-[9px] font-bold text-slate-300">Lv{message.authorLevel}</span>
-            {message.authorVerified && (
-              <VerifiedBadgeComponent verified={message.authorVerified} size="sm" showDate={false} />
-            )}
-          </div>
+          <ChatAuthorLine message={message} community={community} members={members} />
         )}
 
         {/* 🚀 답장 인용 미리보기 */}
@@ -474,6 +533,8 @@ const CommunityChatPanel = ({ community, currentUser, members, allUsers = {} }: 
             message={msg}
             currentUid={currentUser!.uid}
             isAdmin={!!isAdmin}
+            community={community}
+            members={members}
             onReply={(m) => setReplyTarget(m)}
             onToggleReaction={handleToggleReaction}
             reactionPickerFor={reactionPickerFor}

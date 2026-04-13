@@ -371,6 +371,9 @@ export interface Community {
   promotionRules?: PromotionRules;
   // 🚀 Phase 6 — 가입 폼 빌더 (joinType='approval'일 때 활성)
   joinForm?: JoinForm;
+  // 🧤 닉네임 배지 — 가입 답변 중 채팅/댓글 닉네임 옆에 표시할 필드 키
+  // 예: 'shares' → 주식수(K단위), 'custom_xxx' → 커스텀 질문 답변
+  displayBadgeKey?: string;
 }
 
 export interface CommunityMember {
