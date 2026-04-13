@@ -55,9 +55,9 @@ const MarketHomeView = ({ currentUserData, allUsers }: Props) => {
   const userLevel = currentUserData ? calculateLevel(currentUserData.exp || 0) : 0;
 
   return (
-    <div className="w-full max-w-[860px] mx-auto pb-20 animate-in fade-in">
-      {/* 헤더 — 잉크병/장갑 패턴: sticky top-0, #타이틀 + 설명 + 탭 */}
-      <div className="sticky top-0 z-30 bg-[#F8FAFC]/80 backdrop-blur-md pt-2 -mx-4 px-4">
+    <div className="w-full pb-20 animate-in fade-in">
+      {/* 헤더 — 잉크병/장갑 패턴: sticky top-0, 전체 폭 */}
+      <div className="sticky top-0 z-30 bg-[#F8FAFC]/80 backdrop-blur-md pt-2">
         <div className="flex items-center justify-between border-b border-slate-200 h-[44px] gap-3">
           {/* 좌: 타이틀 */}
           <div className="flex items-center gap-1.5 shrink-0">
