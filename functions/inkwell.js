@@ -246,6 +246,17 @@ exports.onInkwellPostDelete = onDocumentDeleted(
     const postId = event.params.postId;
     console.log(`[잉크병] 회차 삭제 감지: ${postId} (${postData.episodeTitle || postData.title || ""})`);
 
+    // 🖋️ series.totalEpisodes 차감 — 작품 정보에 표시되는 회차 수 동기화
+    if (postData.seriesId) {
+      try {
+        await db.collection("series").doc(postData.seriesId).update({
+          totalEpisodes: FieldValue.increment(-1),
+        });
+      } catch (err) {
+        console.error(`[잉크병] ${postId} totalEpisodes 차감 실패:`, err);
+      }
+    }
+
     try {
       // collectionGroup('items') + where('postId') 쿼리 — COLLECTION_GROUP 인덱스 필요
       const notificationsSnap = await db
@@ -342,6 +353,17 @@ exports.createEpisode = onCall(
     const previewText = content.replace(/<[^>]+>/g, "").trim().slice(0, 200);
 
     // 🔒 트랜잭션: series 읽기 → episodeNumber 결정 → post 생성 → 카운터 증가 (원자적)
+    // 실제 posts에서 max(episodeNumber) 조회 — 삭제된 회차 번호는 건너뛰기
+    // (totalEpisodes 카운터만 사용하면 삭제 시 카운터 차감 후 번호 재사용으로 영수증 충돌 발생 가능)
+    const existingSnap = await db.collection("posts")
+      .where("seriesId", "==", seriesId)
+      .where("category", "==", "magic_inkwell")
+      .orderBy("episodeNumber", "desc")
+      .limit(1)
+      .get();
+    const maxEpisodeNumber = existingSnap.empty ? 0 : (existingSnap.docs[0].data().episodeNumber || 0);
+    const episodeNumberFromPosts = maxEpisodeNumber + 1;
+
     const newPostId = await db.runTransaction(async (tx) => {
       const seriesRef = db.collection("series").doc(seriesId);
       const seriesSnap = await tx.get(seriesRef);
@@ -355,8 +377,8 @@ exports.createEpisode = onCall(
         throw new HttpsError("permission-denied", "작품의 작가만 회차를 작성할 수 있습니다.");
       }
 
-      // episodeNumber 결정 — 서버측 totalEpisodes 기준 (레이스 컨디션 차단)
-      const episodeNumber = (series.totalEpisodes || 0) + 1;
+      // episodeNumber — 트랜잭션 밖 조회값 사용 (max+1)
+      const episodeNumber = episodeNumberFromPosts;
 
       // 유료/무료 자동 판정
       const freeLimit = series.freeEpisodeLimit || 0;
