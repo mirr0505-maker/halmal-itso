@@ -209,7 +209,7 @@ const CommunityAdminPanel = ({ community, myFinger, pendingMembers, onApprove, o
               }}
             />
             {thumbnailPreview && !removeThumbnail ? (
-              <div className="relative w-2/3 aspect-[16/9] rounded-lg overflow-hidden border border-slate-200">
+              <div className="relative w-2/3 mx-auto aspect-[16/9] rounded-lg overflow-hidden border border-slate-200">
                 <img src={thumbnailPreview} alt="대표 이미지" className="w-full h-full object-cover" />
                 <div className="absolute top-1.5 right-1.5 flex gap-1">
                   <button type="button" onClick={() => thumbnailInputRef.current?.click()}
@@ -220,7 +220,7 @@ const CommunityAdminPanel = ({ community, myFinger, pendingMembers, onApprove, o
               </div>
             ) : (
               <button type="button" onClick={() => thumbnailInputRef.current?.click()}
-                className="w-2/3 aspect-[16/9] border-2 border-dashed border-slate-200 rounded-lg flex items-center justify-center gap-2 hover:border-blue-300 transition-all">
+                className="w-2/3 mx-auto aspect-[16/9] border-2 border-dashed border-slate-200 rounded-lg flex items-center justify-center gap-2 hover:border-blue-300 transition-all">
                 <span className="text-[14px]">📷</span>
                 <span className="text-[10px] font-bold text-slate-400">이미지 선택 (5MB 이하)</span>
               </button>
@@ -244,7 +244,7 @@ const CommunityAdminPanel = ({ community, myFinger, pendingMembers, onApprove, o
               }}
             />
             {chatBgPreview && !removeChatBg ? (
-              <div className="relative w-2/3 aspect-[16/9] rounded-lg overflow-hidden border border-slate-200">
+              <div className="relative w-2/3 mx-auto aspect-[16/9] rounded-lg overflow-hidden border border-slate-200">
                 <img src={chatBgPreview} alt="채팅 바탕화면" className="w-full h-full object-cover" />
                 <div className="absolute inset-0 bg-white/50" />
                 <p className="absolute bottom-1.5 left-0 right-0 text-center text-[9px] font-bold text-slate-500">채팅 배경 미리보기</p>
@@ -257,14 +257,14 @@ const CommunityAdminPanel = ({ community, myFinger, pendingMembers, onApprove, o
               </div>
             ) : (
               <button type="button" onClick={() => chatBgInputRef.current?.click()}
-                className="w-2/3 aspect-[16/9] border-2 border-dashed border-slate-200 rounded-lg flex items-center justify-center gap-2 hover:border-blue-300 transition-all">
+                className="w-2/3 mx-auto aspect-[16/9] border-2 border-dashed border-slate-200 rounded-lg flex items-center justify-center gap-2 hover:border-blue-300 transition-all">
                 <span className="text-[14px]">💬</span>
                 <span className="text-[10px] font-bold text-slate-400">채팅 배경 이미지 선택</span>
               </button>
             )}
           </div>
           <button onClick={handleSaveSettings} disabled={isSaving}
-            className={`w-2/3 py-2 rounded-lg text-[13px] font-black transition-all ${isSaving ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-slate-900 text-white hover:bg-blue-600'}`}>
+            className={`w-2/3 mx-auto block py-2 rounded-lg text-[13px] font-black transition-all ${isSaving ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-slate-900 text-white hover:bg-blue-600'}`}>
             {isSaving ? '저장 중...' : '설정 저장'}
           </button>
         </div>
@@ -330,7 +330,7 @@ const CommunityAdminPanel = ({ community, myFinger, pendingMembers, onApprove, o
               alert('승급 조건이 저장되었습니다.');
             } finally { setIsSavingPromo(false); }
           }} disabled={isSavingPromo}
-            className={`w-2/3 py-2 rounded-lg text-[13px] font-black transition-all ${isSavingPromo ? 'bg-slate-100 text-slate-400' : 'bg-slate-900 text-white hover:bg-blue-600'}`}>
+            className={`w-2/3 mx-auto block py-2 rounded-lg text-[13px] font-black transition-all ${isSavingPromo ? 'bg-slate-100 text-slate-400' : 'bg-slate-900 text-white hover:bg-blue-600'}`}>
             {isSavingPromo ? '저장 중...' : '승급 조건 저장'}
           </button>
         </div>
@@ -375,7 +375,7 @@ const CommunityAdminPanel = ({ community, myFinger, pendingMembers, onApprove, o
           <p className="text-[12px] font-black text-red-500 mb-1">🗑️ 장갑 폐쇄</p>
           <p className="text-[11px] font-bold text-slate-400 mb-3">폐쇄하면 모든 멤버십 데이터가 삭제됩니다. 게시글은 별도 보관됩니다.</p>
           <button onClick={handleCloseCommunity} disabled={isClosing}
-            className="w-full py-2 rounded-lg text-[12px] font-black border border-red-300 text-red-500 hover:bg-red-50 transition-colors disabled:opacity-50">
+            className="w-2/3 mx-auto block py-2 rounded-lg text-[12px] font-black border border-red-300 text-red-500 hover:bg-red-50 transition-colors disabled:opacity-50">
             {isClosing ? '폐쇄 중...' : '이 장갑 폐쇄하기'}
           </button>
         </div>
@@ -427,7 +427,7 @@ function BadgeKeySelector({ community }: { community: Community }) {
       ))}
       {msg && <p className={`text-[10px] font-bold ${msg.startsWith('✅') ? 'text-emerald-600' : 'text-red-500'}`}>{msg}</p>}
       <button onClick={handleSave} disabled={saving}
-        className="mt-1 w-2/3 py-1.5 rounded-lg text-[12px] font-black bg-slate-900 text-white hover:bg-blue-600 transition-all disabled:opacity-50">
+        className="mt-1 w-2/3 mx-auto block py-1.5 rounded-lg text-[12px] font-black bg-slate-900 text-white hover:bg-blue-600 transition-all disabled:opacity-50">
         {saving ? '저장 중...' : '배지 설정 저장'}
       </button>
     </div>
