@@ -36,6 +36,19 @@
 - [x] `useGloveActions` — `thumbnailUrl` / `chatBgUrl` Firestore 저장 전달
 - [x] `GLOVE.md` — 활성 뱃지/Presence를 장기 숙제로 등록
 
+### 🤖 장갑 정보봇 Phase 1-2 + 소곤소곤 개선 + 닉네임 배지 (2026-04-13)
+- [x] **정보봇 Phase 1**: `activateInfoBot`/`deactivateInfoBot`/`updateInfoBot` + `fetchBotNews` (Google News RSS, 매 30분). 주식 장갑 전용, 대장 월 20볼 결제, 플랫폼 100% 수익
+- [x] **정보봇 Phase 2**: `fetchBotDart` (DART OpenAPI, 매 30분). `dartCorpMap.js` — 종목코드→DART 고유번호 자동 매핑 (3,957개 상장 기업). 관리 탭 종목코드 입력 → [조회] 자동 매핑
+- [x] **소곤소곤 피드**: 카드 하단 땡스볼 보내기 버튼 (ThanksballModal)
+- [x] **소곤소곤 상세글**: 우상단 ⋮ 메뉴 (공개프로필/신고하기 disabled)
+- [x] **소곤소곤 댓글**: 우측 ⋮ 메뉴 (본인 외, 공개프로필/신고하기 disabled)
+- [x] **채팅 액션 버튼**: 원형 배경 + 호버 색상 (↩ ⚾ +)
+- [x] **외부 링크 새 탭**: DOMPurify `ADD_ATTR: ['target']` — 봇 게시글 원문 보기 새 탭
+- [x] **닉네임 배지**: `displayBadgeKey` — 채팅 닉네임 옆 finger 역할 + 가입 답변(K단위) 표시. 개설 시 폼 빌더 + 관리 탭 설정
+- [x] **모바일 나의 장갑**: 탭 2개→3개 (소곤소곤/장갑찾기/나의장갑). 사이드바 desktop-only 문제 해결
+- [x] **이미지 비율 통일**: 모든 대표 이미지 `aspect-[16/9]`, 관리 탭 w-2/3 mx-auto 중앙 정렬
+- [x] **정보봇 남은 시간**: D-N일 / 24시간 미만 시 N시간
+
 ### ✅ 완료된 핵심 기능 (2026-03-25 갱신)
 - [x] **Tiptap 프리미엄 에디터**: 스티키 툴바, 이미지 R2 업로드(드래그&드롭/붙여넣기), 마크다운 호환 스타일.
 - [x] **상세 뷰 리뉴얼**: 콤팩트한 2컬럼 레이아웃, 카테고리별 맞춤형 탭 UI(동의/반대/질문 등).

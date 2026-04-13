@@ -1,6 +1,6 @@
 # 🧤 우리들의 장갑 — 설계 및 구현 문서 (GLOVE.md)
 
-> 최종 갱신: 2026-04-12 v1.6 (대표 이미지 + 채팅 바탕화면)  |  연계 파일: `blueprint.md` §8
+> 최종 갱신: 2026-04-13 v1.7 (정보봇 Phase 1-2 + 닉네임 배지 + 소곤소곤 개선)  |  연계 파일: `blueprint.md` §8
 
 ---
 
@@ -395,6 +395,11 @@ match /community_posts/{id} {
 | 2026-04-09 | Phase 8+ | 2단계 자동 승급(pinky→ring→middle), promotionRules 설정 UI(관리탭+멤버탭), MemberPromotionPanel |
 | 2026-04-12 | 대표 이미지 | `thumbnailUrl` — 커뮤니티 카드/헤더에 대표 이미지 표시 (R2 업로드, 개설+관리탭). 미설정 시 coverColor 폴백. CommunityList/MyCommunityList/CommunityView/MyPage 4곳 반영 |
 | 2026-04-12 | 채팅 바탕화면 | `chatBgUrl` — 채팅 메시지 영역 배경 이미지 (R2 업로드, 개설+관리탭). linear-gradient 60% 흰색 오버레이로 가독성 확보. 미설정 시 기존 bg-slate-50 유지 |
+| 2026-04-13 | 정보봇 Phase 1 | 뉴스 봇 (Google News RSS → community_posts 자동 게시). `activateInfoBot`/`deactivateInfoBot`/`updateInfoBot` Cloud Functions. CommunityAdminPanel 정보봇 UI (주식 장갑 전용). 소곤소곤 피드 🤖 봇 뱃지 |
+| 2026-04-13 | 정보봇 Phase 2 | DART 공시 봇 (`fetchBotDart`). `dartCorpMap.js` 종목코드→고유번호 자동 매핑 (`syncDartCorpMap`/`triggerSyncDartCorpMap`/`lookupCorpCode`). 3,957개 상장 기업 매핑 |
+| 2026-04-13 | 소곤소곤 개선 | 피드 카드 땡스볼 보내기 버튼 + 상세글/댓글 ⋮ 메뉴 (공개프로필/신고하기). 채팅 액션 버튼 원형 배경. 외부 링크 새 탭 열기 (DOMPurify target 허용) |
+| 2026-04-13 | 닉네임 배지 | `displayBadgeKey` — 채팅에서 닉네임 · finger역할(개설자/멤버/새내기) · Lv · 가입 답변(K단위) 표시. 개설 시 폼 빌더 + 관리 탭에서 설정 |
+| 2026-04-13 | 모바일 나의 장갑 | 탭 3개 (소곤소곤/장갑찾기/나의장갑). 모바일에서 가입 장갑 목록 접근 가능 |
 
 ---
 

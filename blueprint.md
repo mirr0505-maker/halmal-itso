@@ -185,7 +185,10 @@
 | `posts/{postId}/private_data/content` | 🖋️ 잉크병 유료 회차 본문 분리 저장 | 고정 `content` |
 | `unlocked_episodes` | 🖋️ 잉크병 회차 구매 영수증 (Cloud Function만 write) | `{postId}_{uid}` |
 | `series_subscriptions` | 🖋️ 잉크병 작품 구독 (깐부) | `{seriesId}_{uid}` |
-| `platform_revenue` | 🖋️ 잉크병 플랫폼 수수료 누적 (Rules 전면 차단, Admin SDK 전용) | 고정 `inkwell` |
+| `platform_revenue` | 🖋️ 잉크병 플랫폼 수수료 누적 (Rules 전면 차단, Admin SDK 전용) | 고정 `inkwell` / `glove_bot` |
+| `glove_bot_payments` | 🤖 정보봇 결제 이력 (대장 본인만 read, Cloud Function만 write) | `{communityId}_{timestamp}` |
+| `glove_bot_dedup` | 🤖 정보봇 중복 방지 (서브컬렉션 items, Cloud Function 전용) | `{communityId}/items/{hash}` |
+| `dart_corp_map` | 🤖 DART 종목코드→고유번호 매핑 (로그인 유저 read, Cloud Function만 write) | `{stockCode}` (6자리) |
 
 - **commentCount 비정규화**: 댓글 작성 시 `posts/{postId}` 문서에 `increment(1)` 누적 → 홈 피드 쿼리에서 Firestore 읽기 비용 절감.
 - **per-topic 구독**: `selectedTopic` 변경 시에만 `comments` where `rootId == selectedTopic.id` 구독 (전체 구독 비용 절감).
@@ -410,6 +413,11 @@ interface KanbuChat {
   - 🖋️ `createEpisode`: 잉크병 회차 생성 트랜잭션 (서버측 episodeNumber 결정, 레이스 컨디션 차단)
   - 🖋️ `onEpisodeCreate`: 잉크병 새 회차 발행 트리거 — 구독자 `new_episode` 알림 발송 (카운터 증가는 `createEpisode`가 담당)
   - 🖋️ `onInkwellPostDelete`: 잉크병 회차 삭제 시 고아 알림 + `unlocked_episodes` 영수증 cleanup (collectionGroup)
+  - 🤖 `activateInfoBot` / `deactivateInfoBot` / `updateInfoBot`: 정보봇 활성화(월 20볼) / 중지 / 설정 수정. 주식 장갑 전용, 대장(thumb)만 사용
+  - 🤖 `fetchBotNews`: Google News RSS → community_posts 자동 게시 (매 30분 스케줄)
+  - 🤖 `fetchBotDart`: DART OpenAPI → community_posts 공시 자동 게시 (매 30분 스케줄)
+  - 🤖 `syncDartCorpMap` / `triggerSyncDartCorpMap`: DART corpCode.xml → dart_corp_map 매핑 (월 1회 스케줄 + 수동)
+  - 🤖 `lookupCorpCode`: 종목코드 → DART 고유번호 즉시 조회 (onCall)
   - 배포: `firebase deploy --only functions`
   - 로그: `firebase functions:log`
 - **향후 구현 가능 (Blaze)**:
