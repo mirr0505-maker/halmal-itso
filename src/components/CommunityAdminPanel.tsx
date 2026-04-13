@@ -118,7 +118,7 @@ const CommunityAdminPanel = ({ community, myFinger, pendingMembers, onApprove, o
   };
 
   return (
-    <div className="flex flex-col gap-4 mt-4 max-w-md mx-auto">
+    <div className="flex flex-col gap-4 mt-4">
       {/* 승인 대기 섹션 */}
       {pendingMembers.length > 0 && (
         <div className="bg-white border border-slate-100 rounded-xl overflow-hidden shadow-sm">
@@ -264,7 +264,7 @@ const CommunityAdminPanel = ({ community, myFinger, pendingMembers, onApprove, o
             )}
           </div>
           <button onClick={handleSaveSettings} disabled={isSaving}
-            className={`w-full py-2 rounded-lg text-[13px] font-black transition-all ${isSaving ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-slate-900 text-white hover:bg-blue-600'}`}>
+            className={`w-2/3 py-2 rounded-lg text-[13px] font-black transition-all ${isSaving ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-slate-900 text-white hover:bg-blue-600'}`}>
             {isSaving ? '저장 중...' : '설정 저장'}
           </button>
         </div>
@@ -330,7 +330,7 @@ const CommunityAdminPanel = ({ community, myFinger, pendingMembers, onApprove, o
               alert('승급 조건이 저장되었습니다.');
             } finally { setIsSavingPromo(false); }
           }} disabled={isSavingPromo}
-            className={`w-full py-2 rounded-lg text-[13px] font-black transition-all ${isSavingPromo ? 'bg-slate-100 text-slate-400' : 'bg-slate-900 text-white hover:bg-blue-600'}`}>
+            className={`w-2/3 py-2 rounded-lg text-[13px] font-black transition-all ${isSavingPromo ? 'bg-slate-100 text-slate-400' : 'bg-slate-900 text-white hover:bg-blue-600'}`}>
             {isSavingPromo ? '저장 중...' : '승급 조건 저장'}
           </button>
         </div>
@@ -427,7 +427,7 @@ function BadgeKeySelector({ community }: { community: Community }) {
       ))}
       {msg && <p className={`text-[10px] font-bold ${msg.startsWith('✅') ? 'text-emerald-600' : 'text-red-500'}`}>{msg}</p>}
       <button onClick={handleSave} disabled={saving}
-        className="mt-1 w-full py-1.5 rounded-lg text-[12px] font-black bg-slate-900 text-white hover:bg-blue-600 transition-all disabled:opacity-50">
+        className="mt-1 w-2/3 py-1.5 rounded-lg text-[12px] font-black bg-slate-900 text-white hover:bg-blue-600 transition-all disabled:opacity-50">
         {saving ? '저장 중...' : '배지 설정 저장'}
       </button>
     </div>
