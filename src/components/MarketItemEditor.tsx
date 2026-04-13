@@ -26,7 +26,6 @@ interface Props {
 
 const MarketItemEditor = ({ currentUserData, onSuccess, onCancel }: Props) => {
   const [title, setTitle] = useState('');
-  const [previewContent, setPreviewContent] = useState('');
   const [content, setContent] = useState('');
   const [category, setCategory] = useState<MarketCategory>('stock');
   const [price, setPrice] = useState(10);
@@ -61,9 +60,10 @@ const MarketItemEditor = ({ currentUserData, onSuccess, onCancel }: Props) => {
 
   const handleSubmit = async () => {
     if (!title.trim()) { setError('제목을 입력해주세요.'); return; }
-    if (!previewContent.trim()) { setError('미리보기 내용을 입력해주세요.'); return; }
     const isEmpty = !content || content.trim() === '' || content === '<p></p>';
     if (isEmpty) { setError('본문을 작성해주세요.'); return; }
+    // 본문에서 HTML 태그 제거 후 앞 200자를 미리보기로 자동 추출
+    const previewContent = content.replace(/<[^>]+>/g, '').trim().slice(0, 200);
     if (price < 1 || price > 100) { setError('가격은 1~100볼 사이로 설정해주세요.'); return; }
 
     setSubmitting(true);
@@ -207,19 +207,10 @@ const MarketItemEditor = ({ currentUserData, onSuccess, onCancel }: Props) => {
           )}
         </div>
 
-        {/* 미리보기 (티저) */}
+        {/* 본문 — 하나만 작성, 앞 200자가 자동으로 미리보기 */}
         <div>
-          <label className="block text-[12px] font-[1000] text-slate-600 mb-1.5">미리보기 내용 <span className="text-red-500">*</span></label>
-          <p className="text-[10px] text-slate-400 mb-1">구매 전 공개되는 내용입니다. 본문의 30% 정도를 작성하세요.</p>
-          <textarea value={previewContent} onChange={(e) => setPreviewContent(e.target.value)} maxLength={500} rows={4}
-            placeholder="구매자를 유도할 미리보기 내용을 작성하세요"
-            className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:border-slate-500 resize-none" />
-          <p className="text-[10px] text-slate-300 text-right mt-0.5">{previewContent.length}/500</p>
-        </div>
-
-        {/* 본문 (유료 콘텐츠) */}
-        <div>
-          <label className="block text-[12px] font-[1000] text-slate-600 mb-1.5">본문 (구매자만 열람) <span className="text-red-500">*</span></label>
+          <label className="block text-[12px] font-[1000] text-slate-600 mb-1.5">본문 <span className="text-red-500">*</span></label>
+          <p className="text-[10px] text-slate-400 mb-1">앞부분 200자가 미구매자에게 미리보기로 공개됩니다. 나머지는 구매 후 열람.</p>
           <div className="border border-slate-300 rounded-lg overflow-hidden">
             <TiptapEditor
               content={content}
