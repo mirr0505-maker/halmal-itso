@@ -53,9 +53,9 @@ export const MENU_MESSAGES: Record<string, { title: string, description: string,
     description: "이미지 한장으로 전하는, 원본글 요약이나 짧은 메세지 (원본글 링크, 이미지 상세 내용 포함)"
   },
   market: {
-    emoji: "🛒",
-    title: "마켓",
-    description: "해당 레벨 충족 시 유료로 판매 가능한 고급 분석 글들"
+    emoji: "🏪",
+    title: "강변 시장",
+    description: "크리에이터가 지식·감성·정보를 판매하는 크리에이터 이코노미"
   },
   my_story: {
     emoji: "📝",

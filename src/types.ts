@@ -430,6 +430,74 @@ export interface CommunityInfoBot {
   totalPaid: number;                   // 누적 결제 총액
 }
 
+// ════════════════════════════════════════════════════════════
+// 🏪 강변 시장 (Riverside Market) — 크리에이터 이코노미
+// ════════════════════════════════════════════════════════════
+
+// 강변 시장 카테고리
+export type MarketCategory = 'stock' | 'coin' | 'realestate' | 'life' | 'selfdev' | 'essay' | 'etc';
+
+// 가판대 단건 판매글
+export interface MarketItem {
+  id: string;                        // mkt_{timestamp}_{uid}
+  authorId: string;
+  authorNickname: string;
+  authorLevel: number;               // 작성 당시 레벨 (Lv3+)
+  title: string;
+  previewContent: string;            // 티저 본문 (30%)
+  category: MarketCategory;
+  tags: string[];                    // 최대 5개
+  price: number;                     // 땡스볼 1~100
+  coverImageUrl?: string;            // 표지 이미지 (R2)
+  purchaseCount: number;
+  ratingAvg: number;
+  ratingCount: number;
+  status: 'active' | 'hidden' | 'deleted';
+  createdAt: FirestoreTimestamp;
+  updatedAt?: FirestoreTimestamp;
+}
+
+// 가판대 구매 영수증
+export interface MarketPurchase {
+  itemId: string;
+  userId: string;
+  authorId: string;
+  pricePaid: number;                 // 구매자 결제 총액
+  platformFee: number;               // 플랫폼 수수료
+  creatorEarned: number;             // 크리에이터 수령액
+  feeRate: number;                   // 적용된 수수료율 (감사 추적)
+  rating?: number;                   // 별점 1~5 (구매 후 선택)
+  review?: string;                   // 한 줄 평 (선택)
+  reviewedAt?: FirestoreTimestamp;
+  purchasedAt: FirestoreTimestamp;
+}
+
+// 단골장부 상점
+export interface MarketShop {
+  id: string;                        // creator_{uid}
+  creatorId: string;
+  shopName: string;
+  shopDescription: string;           // 200자 이내
+  coverImageUrl?: string;
+  subscriptionPrice: number;         // 30일 이용권 가격 (땡스볼)
+  subscriberCount: number;
+  totalRevenue: number;
+  status: 'active' | 'hidden';
+  createdAt: FirestoreTimestamp;
+}
+
+// 단골장부 구독
+export interface MarketSubscription {
+  creatorId: string;
+  subscriberId: string;
+  shopId: string;
+  pricePaid: number;
+  startedAt: FirestoreTimestamp;
+  expiresAt: FirestoreTimestamp;      // startedAt + 30일
+  isActive: boolean;
+  renewCount: number;
+}
+
 // 🚀 멤버 승급 조건 (Community에 임베드)
 export interface PromotionRules {
   // 새내기(pinky) → 멤버(ring)

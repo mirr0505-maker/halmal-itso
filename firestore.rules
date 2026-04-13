@@ -321,6 +321,73 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // ════════════════════════════════════════════════════════════
+    // 🏪 강변 시장 (Riverside Market)
+    // ════════════════════════════════════════════════════════════
+
+    // 가판대 아이템 — 전체 읽기, 작성자만 수정
+    match /market_items/{itemId} {
+      allow read: if true;
+      allow create: if request.auth != null
+        && request.auth.uid == request.resource.data.authorId;
+      allow update: if request.auth != null
+        && request.auth.uid == resource.data.authorId;
+      allow delete: if false;
+
+      // 본문은 구매자 또는 작성자만 읽기
+      match /private_data/content {
+        allow read: if request.auth != null
+          && (
+            request.auth.uid == get(/databases/$(database)/documents/market_items/$(itemId)).data.authorId
+            || exists(/databases/$(database)/documents/market_purchases/$(itemId + '_' + request.auth.uid))
+          );
+        allow write: if request.auth != null
+          && request.auth.uid == get(/databases/$(database)/documents/market_items/$(itemId)).data.authorId;
+      }
+    }
+
+    // 구매 영수증 — 구매자/판매자만 읽기, 쓰기는 Cloud Function 전용 (리뷰만 구매자 수정 허용)
+    match /market_purchases/{purchaseId} {
+      allow get: if request.auth != null
+        && purchaseId.matches('.*_' + request.auth.uid + '$');
+      allow list: if request.auth != null
+        && (resource.data.userId == request.auth.uid
+          || resource.data.authorId == request.auth.uid);
+      allow create: if false;
+      allow update: if request.auth != null
+        && resource.data.userId == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['rating', 'review', 'reviewedAt']);
+    }
+
+    // 단골장부 상점 — 전체 읽기, 본인만 수정
+    match /market_shops/{shopId} {
+      allow read: if true;
+      allow create: if request.auth != null
+        && request.auth.uid == request.resource.data.creatorId;
+      allow update: if request.auth != null
+        && request.auth.uid == resource.data.creatorId;
+      allow delete: if false;
+    }
+
+    // 단골장부 구독 — Cloud Function 전용
+    match /market_subscriptions/{subId} {
+      allow get: if request.auth != null
+        && subId.matches('.*_' + request.auth.uid + '$');
+      allow list: if request.auth != null
+        && (resource.data.subscriberId == request.auth.uid
+          || resource.data.creatorId == request.auth.uid);
+      allow create: if false;
+      allow update: if false;
+    }
+
+    // 광고 수익 — Cloud Function 전용
+    match /market_ad_revenues/{recordId} {
+      allow read: if request.auth != null
+        && resource.data.creatorId == request.auth.uid;
+      allow write: if false;
+    }
+
     // 작품 구독 (깐부) — 본인 구독만 관리
     // 복합 ID: {seriesId}_{userId}
     // 🔒 read는 docId 패턴(`*_{uid}`)으로 본인 문서만 허용 (문서 미존재 상태에서도 권한 평가 가능)

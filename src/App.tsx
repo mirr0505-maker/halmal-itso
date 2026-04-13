@@ -68,6 +68,7 @@ const FriendsView = lazy(() => import('./components/FriendsView'));
 const AdvertiserRegister = lazy(() => import('./components/advertiser/AdvertiserRegister'));
 // 🖋️ 마르지 않는 잉크병 — 사이드 메뉴 진입 화면 (회차/작품 2탭) + 상세/본문/생성 폼
 const InkwellHomeView = lazy(() => import('./components/InkwellHomeView'));
+const MarketHomeView = lazy(() => import('./components/MarketHomeView'));
 const SeriesDetail = lazy(() => import('./components/SeriesDetail'));
 const EpisodeReader = lazy(() => import('./components/EpisodeReader'));
 const CreateSeries = lazy(() => import('./components/CreateSeries'));
@@ -497,14 +498,11 @@ function App() {
     }
 
     if (activeMenu === 'market') {
-      const marketPosts = allRootPosts.filter(p => p.category === "마켓");
       return (
-        <div className="w-full animate-in fade-in">
-          {marketPosts.length > 0
-            ? <OneCutList posts={marketPosts} allPosts={allRootPosts} onTopicClick={handleViewPost} onLikeClick={handleLike} currentNickname={userData?.nickname} allUsers={allUsers} followerCounts={followerCounts} commentCounts={commentCounts} onShareCount={handleShareCount} onEditClick={(post) => { setEditingPost(post); setIsCreateOpen(true); }} onAuthorClick={setPublicProfileNick} />
-            : <div className="py-40 text-center text-slate-300 font-black text-sm">기록된 글이 없어요</div>
-          }
-        </div>
+        <MarketHomeView
+          currentUserData={userData}
+          allUsers={allUsers}
+        />
       );
     }
 
