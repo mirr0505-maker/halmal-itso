@@ -6,6 +6,8 @@ import { db } from '../firebase';
 import { collection, query, where, orderBy, limit, getDocs } from 'firebase/firestore';
 import type { MarketItem, MarketShop, UserData } from '../types';
 import { calculateLevel } from '../utils';
+import MarketItemDetail from './MarketItemDetail';
+import MarketItemEditor from './MarketItemEditor';
 
 interface Props {
   currentUserData: UserData | null;
@@ -29,6 +31,9 @@ const MarketHomeView = ({ currentUserData, allUsers }: Props) => {
   const [items, setItems] = useState<MarketItem[]>([]);
   const [shops, setShops] = useState<MarketShop[]>([]);
   const [loading, setLoading] = useState(true);
+  // 상세뷰 / 작성 모드
+  const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
 
   // 가판대 아이템 조회
   useEffect(() => {
@@ -53,6 +58,16 @@ const MarketHomeView = ({ currentUserData, allUsers }: Props) => {
   }, [activeTab]);
 
   const userLevel = currentUserData ? calculateLevel(currentUserData.exp || 0) : 0;
+
+  // 상세뷰 모드
+  if (selectedItemId) {
+    return <MarketItemDetail itemId={selectedItemId} currentUserData={currentUserData} allUsers={allUsers} onBack={() => setSelectedItemId(null)} />;
+  }
+
+  // 작성 모드
+  if (isEditing && currentUserData) {
+    return <MarketItemEditor currentUserData={currentUserData} onSuccess={() => { setIsEditing(false); }} onCancel={() => setIsEditing(false)} />;
+  }
 
   return (
     <div className="w-full pb-4 animate-in fade-in">
@@ -86,7 +101,7 @@ const MarketHomeView = ({ currentUserData, allUsers }: Props) => {
               </button>
             ))}
             {userLevel >= 3 && (
-              <button className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-blue-600 text-white border border-slate-900 hover:border-blue-600 transition-all">
+              <button onClick={() => setIsEditing(true)} className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-blue-600 text-white border border-slate-900 hover:border-blue-600 transition-all">
                 <svg className="w-3 h-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4" /></svg>
                 <span className="text-[11px] font-[1000] whitespace-nowrap">판매글 작성</span>
               </button>
@@ -128,7 +143,9 @@ const MarketHomeView = ({ currentUserData, allUsers }: Props) => {
           ) : (
             <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-3">
               {items.map(item => (
-                <MarketItemCard key={item.id} item={item} allUsers={allUsers} />
+                <div key={item.id} onClick={() => setSelectedItemId(item.id)}>
+                  <MarketItemCard item={item} allUsers={allUsers} />
+                </div>
               ))}
             </div>
           )
