@@ -34,6 +34,8 @@ const MarketHomeView = ({ currentUserData, allUsers }: Props) => {
   // 상세뷰 / 작성 모드
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
+  // 목록 리로드 트리거
+  const [reloadKey, setReloadKey] = useState(0);
 
   // 가판대 아이템 조회
   useEffect(() => {
@@ -45,7 +47,7 @@ const MarketHomeView = ({ currentUserData, allUsers }: Props) => {
     getDocs(q).then(snap => {
       setItems(snap.docs.map(d => ({ id: d.id, ...d.data() } as MarketItem)));
     }).catch(() => setItems([])).finally(() => setLoading(false));
-  }, [activeTab, selectedCategory]);
+  }, [activeTab, selectedCategory, reloadKey]);
 
   // 단골장부 상점 조회
   useEffect(() => {
@@ -66,7 +68,7 @@ const MarketHomeView = ({ currentUserData, allUsers }: Props) => {
 
   // 작성 모드
   if (isEditing && currentUserData) {
-    return <MarketItemEditor currentUserData={currentUserData} onSuccess={() => { setIsEditing(false); }} onCancel={() => setIsEditing(false)} />;
+    return <MarketItemEditor currentUserData={currentUserData} onSuccess={() => { setIsEditing(false); setReloadKey(k => k + 1); }} onCancel={() => setIsEditing(false)} />;
   }
 
   return (
