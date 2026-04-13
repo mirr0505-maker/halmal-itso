@@ -24,10 +24,9 @@ exports.adAuction = onRequest(
           if (!ad.targetSlots?.includes(slotPosition)) return false;
           if (ad.targetCategories?.length > 0 && !ad.targetCategories.includes(postCategory)) return false;
           // 🚀 지역 매칭 (Phase 5 Step 1)
-          // - targetRegions 비어있으면 전국 타겟 (통과)
-          // - viewerRegion 비어있으면 지역 무관 (통과)
-          // - 둘 다 있으면 포함 여부 확인
           if (ad.targetRegions?.length > 0 && viewerRegion && !ad.targetRegions.includes(viewerRegion)) return false;
+          // 🏪 크리에이터 지면 타겟팅 — 특정 크리에이터 지면에만 노출
+          if (ad.targetCreatorId && ad.targetCreatorId !== postAuthorId) return false;
           if (ad.totalSpent >= ad.totalBudget) return false;
           return true;
         })

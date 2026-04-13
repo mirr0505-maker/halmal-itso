@@ -347,3 +347,108 @@ exports.checkSubscriptionExpiry = onSchedule(
     console.log(`[강변시장] 구독 만료 처리: ${deactivatedCount}건 비활성화, ${soonExpiring.size}건 알림 체크`);
   }
 );
+
+// ════════════════════════════════════════════════════════════
+// 🚀 processMarketAdRevenue — 강변 시장 광고 수익 일별 정산
+// ════════════════════════════════════════════════════════════
+// 매일 자정 실행: 어제 adEvents 중 market_items 작성자에 대한 이벤트 집계
+// → market_ad_revenues에 아이템별 기록 + 크리에이터 수익 지급
+// 수수료: 기존 revenue.js의 creatorRate와 별개 — 강변 시장은 고정 70/30
+const MARKET_AD_CREATOR_RATE = 0.70;
+
+exports.processMarketAdRevenue = onSchedule(
+  { schedule: "every day 00:05", region: "asia-northeast3", timeoutSeconds: 120 },
+  async () => {
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const dateStr = yesterday.toISOString().slice(0, 10);
+    const yyyymmdd = dateStr.replace(/-/g, "");
+    console.log(`[강변시장 광고] ${dateStr} 정산 시작`);
+
+    const startOfDay = new Date(dateStr + "T00:00:00+09:00");
+    const endOfDay = new Date(dateStr + "T23:59:59+09:00");
+
+    // 어제 adEvents 중 postId가 mkt_ 로 시작하는 것만 (강변 시장 아이템)
+    const eventsSnap = await db.collection("adEvents")
+      .where("createdAt", ">=", Timestamp.fromDate(startOfDay))
+      .where("createdAt", "<=", Timestamp.fromDate(endOfDay))
+      .where("isSuspicious", "==", false)
+      .get();
+
+    if (eventsSnap.empty) {
+      console.log("[강변시장 광고] 이벤트 없음 — 스킵");
+      return;
+    }
+
+    // mkt_ 아이템만 필터 → 아이템별 집계
+    const itemMap = {};
+    eventsSnap.docs.forEach(d => {
+      const ev = d.data();
+      if (!ev.postId || !ev.postId.startsWith("mkt_")) return;
+      if (!itemMap[ev.postId]) {
+        itemMap[ev.postId] = { creatorId: ev.postAuthorId, events: [] };
+      }
+      itemMap[ev.postId].events.push(ev);
+    });
+
+    if (Object.keys(itemMap).length === 0) {
+      console.log("[강변시장 광고] 강변 시장 관련 이벤트 없음 — 스킵");
+      return;
+    }
+
+    let totalCreatorPaid = 0;
+
+    for (const [itemId, data] of Object.entries(itemMap)) {
+      let gross = 0;
+      data.events.forEach(ev => {
+        if (ev.eventType === "impression" && ev.bidType === "cpm") gross += ev.bidAmount / 1000;
+        else if (ev.eventType === "click" && ev.bidType === "cpc") gross += ev.bidAmount;
+      });
+
+      if (gross <= 0) continue;
+
+      const creatorShare = Math.floor(gross * MARKET_AD_CREATOR_RATE);
+      const platformShare = Math.floor(gross) - creatorShare;
+      const recordId = `${itemId}_${yyyymmdd}`;
+
+      // market_ad_revenues 기록
+      await db.collection("market_ad_revenues").doc(recordId).set({
+        itemId,
+        creatorId: data.creatorId,
+        date: yyyymmdd,
+        adRevenueBalls: Math.floor(gross),
+        creatorShare,
+        platformShare,
+        settled: true,
+        settledAt: Timestamp.now(),
+      });
+
+      // 크리에이터에게 수익 지급
+      if (creatorShare > 0 && data.creatorId) {
+        await db.collection("users").doc(data.creatorId).update({
+          ballReceived: FieldValue.increment(creatorShare),
+          marketTotalEarned: FieldValue.increment(creatorShare),
+        });
+
+        // 아이템 누적 광고 수익 갱신
+        await db.collection("market_items").doc(itemId).update({
+          adRevenueTotal: FieldValue.increment(creatorShare),
+        });
+
+        // 크리에이터에게 정산 알림
+        await db.collection("notifications").doc(data.creatorId).collection("items").add({
+          type: "market_ad_revenue",
+          amount: creatorShare,
+          itemId,
+          date: dateStr,
+          createdAt: Timestamp.now(),
+          read: false,
+        });
+
+        totalCreatorPaid += creatorShare;
+      }
+    }
+
+    console.log(`[강변시장 광고] ${dateStr} 정산 완료 — 아이템 ${Object.keys(itemMap).length}개, 크리에이터 지급 ${totalCreatorPaid}볼`);
+  }
+);
