@@ -118,7 +118,7 @@ const CommunityAdminPanel = ({ community, myFinger, pendingMembers, onApprove, o
   };
 
   return (
-    <div className="flex flex-col gap-4 mt-4">
+    <div className="flex flex-col gap-4 mt-4 max-w-md mx-auto">
       {/* 승인 대기 섹션 */}
       {pendingMembers.length > 0 && (
         <div className="bg-white border border-slate-100 rounded-xl overflow-hidden shadow-sm">
