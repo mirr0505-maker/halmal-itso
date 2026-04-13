@@ -270,18 +270,22 @@ const CommunityAdminPanel = ({ community, myFinger, pendingMembers, onApprove, o
         </div>
       </div>
 
-      {/* 🧤 닉네임 배지 설정 — 승인제 장갑만 */}
-      {(community.joinType === 'approval') && community.joinForm && (
-        <div className="bg-white border border-slate-100 rounded-xl overflow-hidden shadow-sm">
-          <div className="px-5 py-3 border-b border-slate-100">
-            <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest">🏷️ 닉네임 배지</p>
-          </div>
-          <div className="px-5 py-4">
-            <p className="text-[9px] font-bold text-slate-400 mb-2">가입 답변 중 하나를 선택하면 채팅/댓글에서 닉네임 옆에 표시됩니다</p>
-            <BadgeKeySelector community={community} />
-          </div>
+      {/* 🧤 닉네임 배지 설정 */}
+      <div className="bg-white border border-slate-100 rounded-xl overflow-hidden shadow-sm">
+        <div className="px-5 py-3 border-b border-slate-100">
+          <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest">🏷️ 닉네임 배지</p>
         </div>
-      )}
+        <div className="px-5 py-4">
+          {community.joinForm ? (
+            <>
+              <p className="text-[9px] font-bold text-slate-400 mb-2">가입 답변 중 하나를 선택하면 채팅/댓글에서 닉네임 옆에 표시됩니다</p>
+              <BadgeKeySelector community={community} />
+            </>
+          ) : (
+            <p className="text-[10px] font-bold text-slate-400 italic">승인제(가입 폼)를 설정하면 배지 필드를 선택할 수 있습니다</p>
+          )}
+        </div>
+      </div>
 
       {/* 🚀 멤버 승급 조건 설정 */}
       <div className="bg-white border border-slate-100 rounded-xl overflow-hidden shadow-sm">
