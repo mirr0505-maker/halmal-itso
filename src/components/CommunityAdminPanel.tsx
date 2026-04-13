@@ -8,6 +8,7 @@ import { uploadToR2 } from '../uploadToR2';
 import type { Community, CommunityMember, FingerRole, PromotionRules, InfoBotSource } from '../types';
 import { DEFAULT_PROMOTION_RULES } from '../types';
 import JoinAnswersDisplay from './JoinAnswersDisplay';
+import { STANDARD_FIELD_LABELS } from '../utils/joinForm';
 
 const COVER_COLORS = [
   { value: '#3b82f6', label: '블루' }, { value: '#10b981', label: '에메랄드' },
@@ -269,6 +270,19 @@ const CommunityAdminPanel = ({ community, myFinger, pendingMembers, onApprove, o
         </div>
       </div>
 
+      {/* 🧤 닉네임 배지 설정 — 승인제 장갑만 */}
+      {(community.joinType === 'approval') && community.joinForm && (
+        <div className="bg-white border border-slate-100 rounded-xl overflow-hidden shadow-sm">
+          <div className="px-5 py-3 border-b border-slate-100">
+            <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest">🏷️ 닉네임 배지</p>
+          </div>
+          <div className="px-5 py-4">
+            <p className="text-[9px] font-bold text-slate-400 mb-2">가입 답변 중 하나를 선택하면 채팅/댓글에서 닉네임 옆에 표시됩니다</p>
+            <BadgeKeySelector community={community} />
+          </div>
+        </div>
+      )}
+
       {/* 🚀 멤버 승급 조건 설정 */}
       <div className="bg-white border border-slate-100 rounded-xl overflow-hidden shadow-sm">
         <div className="px-5 py-3 border-b border-slate-100">
@@ -365,6 +379,56 @@ const CommunityAdminPanel = ({ community, myFinger, pendingMembers, onApprove, o
     </div>
   );
 };
+
+// 🧤 닉네임 배지 필드 선택 (관리 탭용)
+function BadgeKeySelector({ community }: { community: Community }) {
+  const [selected, setSelected] = useState(community.displayBadgeKey || '');
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState('');
+
+  const form = community.joinForm;
+  if (!form) return null;
+
+  const enabledFields = form.standardFields.filter(f => f.enabled);
+  const customQs = form.customQuestions?.filter(q => q.label?.trim()) || [];
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await updateDoc(doc(db, 'communities', community.id), {
+        displayBadgeKey: selected || null,
+      });
+      setMsg('✅ 저장되었습니다.');
+    } catch { setMsg('저장에 실패했습니다.'); }
+    finally { setSaving(false); }
+  };
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      <label className="flex items-center gap-2 text-[11px] font-bold text-slate-600 cursor-pointer">
+        <input type="radio" name="adminBadgeKey" value="" checked={selected === ''} onChange={() => setSelected('')} className="w-3 h-3" />
+        사용 안 함
+      </label>
+      {enabledFields.map(f => (
+        <label key={f.key} className="flex items-center gap-2 text-[11px] font-bold text-slate-600 cursor-pointer">
+          <input type="radio" name="adminBadgeKey" value={f.key} checked={selected === f.key} onChange={() => setSelected(f.key)} className="w-3 h-3" />
+          {STANDARD_FIELD_LABELS[f.key]} {f.key === 'shares' && '(K단위)'}
+        </label>
+      ))}
+      {customQs.map(q => (
+        <label key={q.id} className="flex items-center gap-2 text-[11px] font-bold text-slate-600 cursor-pointer">
+          <input type="radio" name="adminBadgeKey" value={q.id} checked={selected === q.id} onChange={() => setSelected(q.id)} className="w-3 h-3" />
+          {q.label}
+        </label>
+      ))}
+      {msg && <p className={`text-[10px] font-bold ${msg.startsWith('✅') ? 'text-emerald-600' : 'text-red-500'}`}>{msg}</p>}
+      <button onClick={handleSave} disabled={saving}
+        className="mt-1 w-full py-1.5 rounded-lg text-[12px] font-black bg-slate-900 text-white hover:bg-blue-600 transition-all disabled:opacity-50">
+        {saving ? '저장 중...' : '배지 설정 저장'}
+      </button>
+    </div>
+  );
+}
 
 // 🤖 정보봇 관리 패널 (주식 장갑 전용, 대장만 사용)
 function InfoBotPanel({ community, isActive, daysLeft, hoursLeft }: { community: Community; isActive: boolean; daysLeft: number; hoursLeft: number }) {
