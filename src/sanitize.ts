@@ -3,8 +3,9 @@
 import DOMPurify from 'dompurify';
 
 /** HTML 문자열을 정화하여 악성 스크립트 제거 후 반환 */
+// target="_blank"과 rel="noopener" 허용 — 외부 링크가 새 탭에서 열리도록
 export const sanitizeHtml = (dirty: string): string =>
-  DOMPurify.sanitize(dirty);
+  DOMPurify.sanitize(dirty, { ADD_ATTR: ['target'] });
 
 /** HTML 문자열에서 순수 텍스트만 추출 (안전한 DOMParser 사용) */
 export const extractText = (html: string): string => {
