@@ -42,6 +42,8 @@ const CommunityPostDetail = ({ post, currentUserData, allUsers = {}, followerCou
   // 🚀 땡스볼 (글 + 댓글)
   const [thanksballTarget, setThanksballTarget] = useState<{ docId: string; recipient: string } | null>(null);
   const [postThanksballOpen, setPostThanksballOpen] = useState(false);
+  const [postMenuOpen, setPostMenuOpen] = useState(false);
+  const [commentMenuId, setCommentMenuId] = useState<string | null>(null);
 
   const isPostAuthor = currentUserData && livePost.author_id === currentUserData.uid;
 
@@ -177,7 +179,26 @@ const CommunityPostDetail = ({ post, currentUserData, allUsers = {}, followerCou
         {/* 헤더 */}
         <div className="sticky top-0 bg-white flex items-center justify-between px-6 py-3 border-b border-slate-100 z-10">
           <span className="text-[12px] font-bold text-slate-400">{livePost.communityName}</span>
-          <button onClick={onClose} className="text-slate-300 hover:text-slate-500 text-[20px] leading-none">×</button>
+          <div className="flex items-center gap-2">
+            {/* ⋮ 점세개 메뉴 */}
+            <div className="relative">
+              <button onClick={() => setPostMenuOpen(prev => !prev)} className="text-slate-300 hover:text-slate-500 text-[18px] leading-none px-1">⋮</button>
+              {postMenuOpen && (
+                <div className="absolute right-0 top-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg py-1 w-36 z-20"
+                  onMouseLeave={() => setPostMenuOpen(false)}>
+                  <button onClick={() => { setPostMenuOpen(false); /* 공개프로필은 추후 연결 */ }}
+                    className="w-full text-left px-3 py-2 text-[12px] font-bold text-slate-600 hover:bg-slate-50 whitespace-nowrap">
+                    👤 공개프로필 보기
+                  </button>
+                  <button disabled
+                    className="w-full text-left px-3 py-2 text-[12px] font-bold text-slate-300 whitespace-nowrap cursor-not-allowed">
+                    🚨 신고하기
+                  </button>
+                </div>
+              )}
+            </div>
+            <button onClick={onClose} className="text-slate-300 hover:text-slate-500 text-[20px] leading-none">×</button>
+          </div>
         </div>
         {/* 본문 */}
         <div className="px-6 py-5">
@@ -332,6 +353,26 @@ const CommunityPostDetail = ({ post, currentUserData, allUsers = {}, followerCou
                         className={`transition-colors ${cIsPinned ? 'text-amber-500' : 'text-slate-300 hover:text-amber-400'}`}>
                         <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>
                       </button>
+                    )}
+                    {/* ⋮ 점세개 (공개프로필/신고) */}
+                    {!cIsMine && (
+                      <div className="relative">
+                        <button onClick={() => setCommentMenuId(commentMenuId === c.id ? null : c.id)}
+                          className="text-slate-300 hover:text-slate-500 text-[14px] leading-none px-0.5">⋮</button>
+                        {commentMenuId === c.id && (
+                          <div className="absolute right-0 top-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg py-1 w-36 z-20"
+                            onMouseLeave={() => setCommentMenuId(null)}>
+                            <button onClick={() => setCommentMenuId(null)}
+                              className="w-full text-left px-3 py-2 text-[11px] font-bold text-slate-600 hover:bg-slate-50 whitespace-nowrap">
+                              👤 공개프로필 보기
+                            </button>
+                            <button disabled
+                              className="w-full text-left px-3 py-2 text-[11px] font-bold text-slate-300 whitespace-nowrap cursor-not-allowed">
+                              🚨 신고하기
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     )}
                   </div>
                 </div>
