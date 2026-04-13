@@ -56,40 +56,33 @@ const MarketHomeView = ({ currentUserData, allUsers }: Props) => {
 
   return (
     <div className="w-full max-w-[860px] mx-auto pb-20 animate-in fade-in">
-      {/* 헤더 */}
+      {/* 헤더 — 한 줄: 탭 + 판매글 작성 */}
       <div className="sticky top-[48px] z-10 bg-white/95 backdrop-blur-sm border-b border-slate-100 -mx-4 px-4 pb-3 pt-2">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <h2 className="text-[14px] font-[1000] text-slate-900 tracking-tight">강변 시장</h2>
-            <span className="text-[10px] font-bold text-slate-400">크리에이터 이코노미</span>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1.5">
+            {([
+              { id: 'stall', label: '가판대', desc: '단건 판매' },
+              { id: 'subscription', label: '단골장부', desc: '구독 상점' },
+            ] as const).map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border transition-all ${
+                  activeTab === tab.id
+                    ? 'bg-slate-900 border-slate-900 text-white'
+                    : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'
+                }`}
+              >
+                <span className="text-[12px] font-[1000]">{tab.label}</span>
+                <span className={`text-[10px] font-bold hidden md:inline ${activeTab === tab.id ? 'text-slate-400' : 'text-slate-300'}`}>{tab.desc}</span>
+              </button>
+            ))}
           </div>
-          {/* 글쓰기 버튼 — Lv3+ */}
           {userLevel >= 3 && (
             <button className="px-3 py-1.5 rounded-lg bg-slate-900 text-white text-[11px] font-[1000] hover:bg-slate-700 transition-colors">
               + 판매글 작성
             </button>
           )}
-        </div>
-
-        {/* 탭 */}
-        <div className="flex gap-1.5">
-          {([
-            { id: 'stall', label: '가판대', desc: '단건 판매' },
-            { id: 'subscription', label: '단골장부', desc: '구독 상점' },
-          ] as const).map(tab => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border transition-all ${
-                activeTab === tab.id
-                  ? 'bg-slate-900 border-slate-900 text-white'
-                  : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'
-              }`}
-            >
-              <span className="text-[12px] font-[1000]">{tab.label}</span>
-              <span className={`text-[10px] font-bold hidden md:inline ${activeTab === tab.id ? 'text-slate-400' : 'text-slate-300'}`}>{tab.desc}</span>
-            </button>
-          ))}
         </div>
 
         {/* 가판대 카테고리 필터 */}

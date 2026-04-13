@@ -1095,7 +1095,7 @@ function App() {
         {!(selectedTopic || isCreateOpen) && (
           (activeMenu === 'home' || activeMenu === 'onecut') ? (
             <SubNavbar activeTab={activeTab} onTabClick={setActiveTab} showTabs={true} />
-          ) : (MENU_MESSAGES[activeMenu] && activeMenu !== 'giant_tree' && activeMenu !== 'kanbu_room' && activeMenu !== 'friends' && activeMenu !== 'inkwell') ? (
+          ) : (MENU_MESSAGES[activeMenu] && activeMenu !== 'giant_tree' && activeMenu !== 'kanbu_room' && activeMenu !== 'friends' && activeMenu !== 'inkwell' && activeMenu !== 'market') ? (
             <CategoryHeader menuInfo={MENU_MESSAGES[activeMenu]} />
           ) : null
         )}
