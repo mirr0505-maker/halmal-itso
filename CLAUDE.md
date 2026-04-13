@@ -38,8 +38,9 @@
 - Firestore 자동 생성 ID 금지 → `topic_timestamp_uid` / `comment_timestamp_uid` 형식 사용
   - **예외**: `notifications/{uid}/items`, `sentBalls/{uid}/items`, `giant_trees/{id}/leaves` — 보조 데이터는 `addDoc` 자동 ID 허용
 - 실시간 리스너: `onSnapshot` (App.tsx 또는 개별 컴포넌트에서 관리)
-- 컬렉션: `posts`, `comments`, `users`, `kanbu_rooms`, `notifications`, `sentBalls`, `communities`, `community_posts`, `community_memberships`, `community_post_comments`, `giant_trees`, `marathon_dedup`
+- 컬렉션: `posts`, `comments`, `users`, `kanbu_rooms`, `notifications`, `sentBalls`, `communities`, `community_posts`, `community_memberships`, `community_post_comments`, `giant_trees`, `marathon_dedup`, `series`, `unlocked_episodes`, `series_subscriptions`, `platform_revenue`, `glove_bot_payments`, `glove_bot_dedup`, `dart_corp_map`
 - **Firestore Security Rules 차단 필드**: `ballBalance`, `promoEnabled`, `promoExpireAt`, `promoPlan`, `promoUpdatedAt` — 클라이언트 직접 수정 불가, 반드시 Cloud Function 경유
+- **Rules read/write 전면 차단 컬렉션**: `platform_revenue`, `glove_bot_payments`(대장 본인 read만 허용), `glove_bot_dedup` — Admin SDK / Cloud Function 전용
 
 ### Cloud Functions (서울 리전, `functions/` 디렉토리)
 - `index.js` — 진입점 (fetchMarathonNews + 분리 모듈 re-export)
@@ -48,6 +49,11 @@
 - `kanbuPromo.js` — `registerKanbuPromo`: 깐부 홍보 카드 등록 (Lv2+, 기간제)
 - `auction.js` / `revenue.js` / `fraud.js` / `settlement.js` — ADSMARKET 광고 시스템
 - `contentLength.js` — `validateContentLength`: 신포도와 여우 100자 제한
+- `inkwell.js` — `unlockEpisode`(유료 회차 결제, 수수료 11%), `createEpisode`(서버측 episodeNumber), `onEpisodeCreate`(구독자 알림), `onInkwellPostDelete`(고아 알림+영수증 cleanup)
+- `gloveBot.js` — `activateInfoBot`/`deactivateInfoBot`/`updateInfoBot`: 정보봇 활성화·중지·수정 (주식 장갑 전용, 대장 월 20볼)
+- `gloveBotFetcher.js` — `fetchBotNews`(Google News RSS), `fetchBotDart`(DART 공시): 매 30분 스케줄
+- `dartCorpMap.js` — `syncDartCorpMap`(월 1회)/`triggerSyncDartCorpMap`(수동): DART 종목코드→고유번호 매핑. `lookupCorpCode`: 조회
+- `adTriggers.js` — `syncAdBids`/`updateAdMetrics`: ADSMARKET 광고 트리거
 - 배포: `firebase deploy --only functions`
 
 ### Cloudflare R2 이미지 업로드
@@ -104,7 +110,9 @@
 | `CommunityPostDetail.tsx` | 별도 파일(CommunityView에서 추출). 자체 onSnapshot(글+댓글). 댓글: 좋아요/땡스볼/수정/삭제/고정. 작성자 카드 RootPostCard 패턴. CommunityFeed에서도 재사용. 상세글 우상단+댓글 우측 ⋮ 메뉴(공개프로필/신고하기). |
 | `CommunityChatPanel.tsx` | 실시간 채팅 (onSnapshot limit 50 + 페이징 30). 답장/이모지 6종/이미지+문서 첨부/땡스볼/soft delete. 50명 한도 가드. 읽지 않은 메시지 카운트(chatLastReadAt). `chatBgUrl` 있으면 배경 이미지 + linear-gradient 60% 흰색 오버레이. |
 | `CommunityFeed.tsx` | 소곤소곤 피드. 글 클릭 → CommunityPostDetail 모달 직접 오픈 + 멤버 lazy load. 피드 카드 하단 땡스볼 버튼(ThanksballModal). 🤖 봇 게시글 뱃지 표시. |
-| `CreateCommunityModal.tsx` | 승인제(approval) 선택 시 가입 폼 빌더 표시. `joinForm` state + 표준 필드 토글 + 커스텀 질문 5개 슬롯 제한. 대표 이미지(`thumbnailUrl`) + 채팅 바탕화면(`chatBgUrl`) R2 업로드 옵션. |
+| `CreateCommunityModal.tsx` | 승인제(approval) 선택 시 가입 폼 빌더 표시. `joinForm` state + 표준 필드 토글 + 커스텀 질문 5개 슬롯 제한. 대표 이미지(`thumbnailUrl`) + 채팅 바탕화면(`chatBgUrl`) R2 업로드 옵션. 주식 카테고리 정보봇 안내. 닉네임 배지(`displayBadgeKey`) 라디오 선택. |
+| `CommunityAdminPanel.tsx` | 관리 탭 (설정수정/대표이미지/채팅배경/닉네임배지/승급조건/정보봇/폐쇄). 정보봇 UI는 `category='주식'` + 대장(thumb) 전용. DART 매핑 동기화 버튼. 이미지/버튼 `w-2/3 mx-auto` 중앙 정렬. |
+| `MyCommunityList.tsx` | 나의 장갑 목록. `compact=true`: 사이드바 소형(컬러도트/썸네일). `compact=false`: 메인 탭 카드 그리드. |
 | `JoinCommunityModal.tsx` | joinForm 있으면 폼 빌더 모드, 없으면 레거시 모드. `validateJoinAnswers`로 필수 항목 검증. |
 | `InkwellHomeView.tsx` | 🖋️ 잉크병 사이드 메뉴 진입 화면. glove 패턴 sticky 헤더 + 2탭 (📖 회차 / 📚 작품). `activeTab`은 부모(App.tsx `inkwellTab`)에서 관리 — SeriesDetail 진입 후 복귀 시 탭 유지. |
 | `SeriesDetail.tsx` | 🖋️ 작품 상세 (표지·시놉시스·구독·목차·작가 통계). 작가 본인만 `[✏️ 작품 수정][🗑️ 작품 삭제]` + 작가 통계 박스(차분 슬레이트). 회차가 있으면 삭제 불가 → 비공개 전환(`status: 'deleted'`)으로 폴백. 목차는 `visibleEpisodes`로 `isHidden` 필터 (작가는 모두 표시). |
