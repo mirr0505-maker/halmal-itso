@@ -10,7 +10,8 @@
 - **changelog.md** — 구현 완료 기능 이력 (blueprint.md 섹션 8 분리). 과거 구현 확인 시 참조.
 - **GIANTTREE.md** — 거대 나무 상세 설계서 (blueprint.md 섹션 10 분리). 전파 시스템·잎사귀·시든 가지 등.
 - **INKWELL.md** — 🖋️ 마르지 않는 잉크병 상세 설계서 (blueprint.md 섹션 11 분리). 연재 시스템·부분 유료화·구독·답글·안전 정책 등.
-- **GLOVE.md** — 우리들의 장갑(커뮤니티) 상세 설계서.
+- **GLOVE.md** — 우리들의 장갑(커뮨니티) 상세 설계서.
+- **MARKET.md** — 🏪 강변 시장 설계서. 가판대(단건 판매) + 단골장부(구독 상점) + 광고 수익 쉐어.
 - **ADSMARKET.md** — ADSMARKET 광고 시스템 상세 설계서.
 - **GEMINI.md** — 범용 AI 개발 원칙 (코드 품질, Firebase 규칙 등).
 - **src/types.ts** — TypeScript 인터페이스 전체. 새 타입 추가 시 여기에만 작성.
@@ -38,7 +39,7 @@
 - Firestore 자동 생성 ID 금지 → `topic_timestamp_uid` / `comment_timestamp_uid` 형식 사용
   - **예외**: `notifications/{uid}/items`, `sentBalls/{uid}/items`, `giant_trees/{id}/leaves` — 보조 데이터는 `addDoc` 자동 ID 허용
 - 실시간 리스너: `onSnapshot` (App.tsx 또는 개별 컴포넌트에서 관리)
-- 컬렉션: `posts`, `comments`, `users`, `kanbu_rooms`, `notifications`, `sentBalls`, `communities`, `community_posts`, `community_memberships`, `community_post_comments`, `giant_trees`, `marathon_dedup`, `series`, `unlocked_episodes`, `series_subscriptions`, `platform_revenue`, `glove_bot_payments`, `glove_bot_dedup`, `dart_corp_map`
+- 컬렉션: `posts`, `comments`, `users`, `kanbu_rooms`, `notifications`, `sentBalls`, `communities`, `community_posts`, `community_memberships`, `community_post_comments`, `giant_trees`, `marathon_dedup`, `series`, `unlocked_episodes`, `series_subscriptions`, `platform_revenue`, `glove_bot_payments`, `glove_bot_dedup`, `dart_corp_map`, `market_items`, `market_purchases`, `market_shops`, `market_subscriptions`, `market_ad_revenues`
 - **Firestore Security Rules 차단 필드**: `ballBalance`, `promoEnabled`, `promoExpireAt`, `promoPlan`, `promoUpdatedAt` — 클라이언트 직접 수정 불가, 반드시 Cloud Function 경유
 - **Rules read/write 전면 차단 컬렉션**: `platform_revenue`, `glove_bot_payments`(대장 본인 read만 허용), `glove_bot_dedup` — Admin SDK / Cloud Function 전용
 
@@ -54,6 +55,7 @@
 - `gloveBotFetcher.js` — `fetchBotNews`(Google News RSS), `fetchBotDart`(DART 공시): 매 30분 스케줄
 - `dartCorpMap.js` — `syncDartCorpMap`(월 1회)/`triggerSyncDartCorpMap`(수동): DART 종목코드→고유번호 매핑. `lookupCorpCode`: 조회
 - `adTriggers.js` — `syncAdBids`/`updateAdMetrics`: ADSMARKET 광고 트리거
+- `market.js` — `purchaseMarketItem`(가판대 구매, 레벨별 수수료 30/25/20%), `subscribeMarketShop`(단골장부 구독), `checkSubscriptionExpiry`(매일 09:00 만료 체크+알림+차감)
 - 배포: `firebase deploy --only functions`
 
 ### Cloudflare R2 이미지 업로드
@@ -125,6 +127,11 @@
 | `SubscribeButton.tsx` | 🖋️ 작품 구독 토글 + 구독자 수 표시. `series_subscriptions/{seriesId}_{uid}` 단일 문서 onSnapshot. 작가 본인은 비활성. `subscriberCount`는 Rules 카운터 화이트리스트 포함. |
 | `SeriesGrid.tsx` / `SeriesCard.tsx` / `EpisodeListItem.tsx` | 🖋️ 작품 카탈로그 / 작품 카드 / 회차 목록 1줄. 차분 톤 통일. |
 | `InkwellSummaryCards.tsx` | 🖋️ 작가 KPI 요약 카드 (마이페이지 나의 연재작 탭 상단). |
+| `MarketHomeView.tsx` | 🏪 강변 시장 메인. 가판대/단골장부 2탭 + 카테고리 필터. sticky 헤더(잉크병/장갑 패턴). 탭별 버튼 분기(판매글 작성 Lv3+ / 상점 개설 Lv5+). |
+| `MarketItemEditor.tsx` | 🏪 가판대 판매글 작성. 제목/티저/본문(Tiptap)/가격(1~100)/카테고리/태그/표지. 본문은 `private_data/content` 분리 저장. |
+| `MarketItemDetail.tsx` | 🏪 가판대 상세뷰. 미구매: 티저+페이월. 구매: 전체 본문+별점+한줄평 리뷰. `purchaseMarketItem` callable. |
+| `MarketShopEditor.tsx` | 🏪 단골장부 상점 개설. 이름/소개/가격(10~200)/표지. Lv5+만. |
+| `MarketShopDetail.tsx` | 🏪 단골장부 상세. 구독 버튼 + 크리에이터 판매글 목록. `subscribeMarketShop` callable. |
 
 ---
 

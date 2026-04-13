@@ -189,6 +189,11 @@
 | `glove_bot_payments` | 🤖 정보봇 결제 이력 (대장 본인만 read, Cloud Function만 write) | `{communityId}_{timestamp}` |
 | `glove_bot_dedup` | 🤖 정보봇 중복 방지 (서브컬렉션 items, Cloud Function 전용) | `{communityId}/items/{hash}` |
 | `dart_corp_map` | 🤖 DART 종목코드→고유번호 매핑 (로그인 유저 read, Cloud Function만 write) | `{stockCode}` (6자리) |
+| `market_items` | 🏪 강변 시장 가판대 판매글 (전체 read, 작성자만 write) | `mkt_{timestamp}_{uid}` |
+| `market_purchases` | 🏪 구매 영수증 (Cloud Function만 write, 구매자/판매자만 read) | `{itemId}_{userId}` |
+| `market_shops` | 🏪 단골장부 상점 (전체 read, 본인만 write) | `creator_{uid}` |
+| `market_subscriptions` | 🏪 단골장부 구독 (Cloud Function만 write) | `{creatorId}_{subscriberId}` |
+| `market_ad_revenues` | 🏪 광고 수익 일별 기록 (Cloud Function만 write) | `{itemId}_{YYYYMMDD}` |
 
 - **commentCount 비정규화**: 댓글 작성 시 `posts/{postId}` 문서에 `increment(1)` 누적 → 홈 피드 쿼리에서 Firestore 읽기 비용 절감.
 - **per-topic 구독**: `selectedTopic` 변경 시에만 `comments` where `rootId == selectedTopic.id` 구독 (전체 구독 비용 절감).
@@ -314,7 +319,7 @@ interface KanbuChat {
 | `kanbu_room` | 깐부방 | (subcollection) | 깐부가 개설한 방 목록, 방별 게시판+실시간 채팅. Lv3 이상 개설. Firestore: `kanbu_rooms/{roomId}/chats` |
 | `glove` | 우리들의 장갑 | (커뮤니티) | 다섯 손가락 운영 체제 (thumb·index·middle·ring·pinky). 가입방식 3종(open·approval·password), minLevel 제한, 공지 고정, 알림 opt-in, 중지 자동 산정. 대표 이미지(`thumbnailUrl`) + 채팅 바탕화면(`chatBgUrl`) R2 업로드. 자세한 내용 → `GLOVE.md` |
 | `marathon_herald` | 마라톤의 전령 | 마라톤의 전령 | 뉴스 속보 봇 전용 채널. 속보 키워드(속보·단독·지진·폭발·테러·비상계엄 6개) 포함 기사만 Firestore 저장. `newsType: 'breaking'`→🚨 속보(빨간 pulse 배지). 좋아요 임계값 없이 즉시 노출. 홈 새글 피드에도 포함. 댓글: pandora 공감/의심 2컬럼. 원본 기사 `linkUrl` → RootPostCard [🔗 바로가기] 버튼. Cloud Functions 매 10분 자동 등록, 분대별 1개 언론사 순차 수집(MBC·연합뉴스TV·연합뉴스·경향신문·동아일보·뉴시스). |
-| `market` | 마켓 | 마켓 | OneCutList 그리드 레이아웃, 게시글 없을 시 "기록된 글이 없어요" |
+| `market` | 강변 시장 | 크리에이터 이코노미 | 가판대(단건 판매 Lv3+) + 단골장부(구독 상점 Lv5+). 레벨별 수수료(30/25/20%). 자세한 내용 → `MARKET.md` |
 | `exile_place` | 유배·귀양지 | 유배·귀양지 | 제재 유저 전용 소통 공간, 주제 없음 |
 | `ranking` | 랭킹 | (UI 전용) | 좋아요·땡스볼·조회수 × 유저·글 6개 뷰. `RankingView.tsx`. 사이드바 내정보 위 배치. |
 
@@ -418,6 +423,9 @@ interface KanbuChat {
   - 🤖 `fetchBotDart`: DART OpenAPI → community_posts 공시 자동 게시 (매 30분 스케줄)
   - 🤖 `syncDartCorpMap` / `triggerSyncDartCorpMap`: DART corpCode.xml → dart_corp_map 매핑 (월 1회 스케줄 + 수동)
   - 🤖 `lookupCorpCode`: 종목코드 → DART 고유번호 즉시 조회 (onCall)
+  - 🏪 `purchaseMarketItem`: 강변 시장 가판대 구매 트랜잭션 (레벨별 수수료 30/25/20%)
+  - 🏪 `subscribeMarketShop`: 단골장부 구독 트랜잭션
+  - 🏪 `checkSubscriptionExpiry`: 매일 09:00 구독 만료 체크 + 알림 + subscriberCount 차감
   - 배포: `firebase deploy --only functions`
   - 로그: `firebase functions:log`
 - **향후 구현 가능 (Blaze)**:
