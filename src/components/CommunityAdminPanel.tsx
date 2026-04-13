@@ -500,6 +500,23 @@ function InfoBotPanel({ community, isActive, daysLeft }: { community: Community;
               ✅ {corpName} (DART: {corpCode})
             </p>
           )}
+          {/* DART 매핑 동기화 — 최초 1회 또는 신규 상장 반영 시 */}
+          <button type="button" disabled={lookupLoading}
+            onClick={async () => {
+              if (!window.confirm('DART 전체 상장 기업 매핑을 동기화합니다. 1~2분 소요될 수 있습니다.')) return;
+              setLookupLoading(true);
+              try {
+                const fn = httpsCallable(functions, 'triggerSyncDartCorpMap');
+                const res = await fn({});
+                const data = res.data as { count: number };
+                setMessage(`✅ DART 매핑 동기화 완료 — ${data.count}개 기업`);
+              } catch {
+                setMessage('DART 매핑 동기화에 실패했습니다.');
+              } finally { setLookupLoading(false); }
+            }}
+            className="text-[9px] font-bold text-slate-400 hover:text-blue-500 mt-1 underline underline-offset-2">
+            🔄 DART 매핑 동기화 (최초 1회)
+          </button>
         </div>
 
         {/* 소스 선택 */}

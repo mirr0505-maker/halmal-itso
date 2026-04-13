@@ -17,7 +17,7 @@ const db = getFirestore();
 // 응답: ZIP 파일 → 내부 CORPCODE.xml → 전체 기업 목록
 // 저장: dart_corp_map/{stock_code} = { corpCode, corpName, stockCode, modifyDate }
 exports.syncDartCorpMap = onSchedule(
-  { schedule: "1 of month 03:00", region: "asia-northeast3", timeoutSeconds: 300 },
+  { schedule: "1 of month 03:00", region: "asia-northeast3", timeoutSeconds: 300, memory: "1GiB" },
   async () => {
     const DART_API_KEY = process.env.DART_API_KEY;
     if (!DART_API_KEY || DART_API_KEY.includes("넣으세요")) {
@@ -69,10 +69,12 @@ exports.syncDartCorpMap = onSchedule(
       let batchCount = 0;
 
       for (const corp of corpList) {
-        const stockCode = String(corp.stock_code || "").trim();
-        if (!stockCode) continue; // 비상장 제외
+        // DART XML에서 stock_code가 숫자로 파싱될 수 있음 → 6자리 0-padding 필수
+        const rawStockCode = corp.stock_code;
+        const stockCode = rawStockCode ? String(rawStockCode).trim().padStart(6, "0") : "";
+        if (!stockCode || stockCode === "000000") continue; // 비상장 제외
 
-        const corpCode = String(corp.corp_code || "").trim();
+        const corpCode = String(corp.corp_code || "").trim().padStart(8, "0");
         const corpName = String(corp.corp_name || "").trim();
         if (!corpCode || !corpName) continue;
 
@@ -111,7 +113,7 @@ exports.syncDartCorpMap = onSchedule(
 // 🚀 triggerSyncDartCorpMap — 수동 동기화 트리거 (onCall, 테스트/초기 세팅용)
 // ════════════════════════════════════════════════════════════
 exports.triggerSyncDartCorpMap = onCall(
-  { region: "asia-northeast3", timeoutSeconds: 300 },
+  { region: "asia-northeast3", timeoutSeconds: 300, memory: "1GiB" },
   async (request) => {
     if (!request.auth) throw new HttpsError("unauthenticated", "로그인이 필요합니다.");
 
@@ -142,15 +144,29 @@ exports.triggerSyncDartCorpMap = onCall(
     if (!items) throw new HttpsError("internal", "XML 파싱 실패");
     const corpList = Array.isArray(items) ? items : [items];
 
+    // 🔍 디버그: 삼성전자 데이터 확인
+    const samsungSample = corpList.find(c => String(c.corp_name || "").includes("삼성전자"));
+    if (samsungSample) {
+      console.log("[DART] 삼성전자 샘플:", JSON.stringify({
+        corp_code: samsungSample.corp_code,
+        corp_name: samsungSample.corp_name,
+        stock_code: samsungSample.stock_code,
+        stock_code_type: typeof samsungSample.stock_code,
+        stock_code_raw: `[${samsungSample.stock_code}]`,
+      }));
+    }
+
     let savedCount = 0;
     const BATCH_SIZE = 400;
     let batch = db.batch();
     let batchCount = 0;
 
     for (const corp of corpList) {
-      const stockCode = String(corp.stock_code || "").trim();
-      if (!stockCode) continue;
-      const corpCode = String(corp.corp_code || "").trim();
+      // DART XML에서 stock_code가 숫자로 파싱될 수 있음 → 6자리 0-padding 필수
+      const rawStockCode = corp.stock_code;
+      const stockCode = rawStockCode ? String(rawStockCode).trim().padStart(6, "0") : "";
+      if (!stockCode || stockCode === "000000") continue;
+      const corpCode = String(corp.corp_code || "").trim().padStart(8, "0");
       const corpName = String(corp.corp_name || "").trim();
       if (!corpCode || !corpName) continue;
 
