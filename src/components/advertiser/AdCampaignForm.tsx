@@ -23,6 +23,8 @@ const AdCampaignForm = ({ advertiserId, advertiserName, onBack }: Props) => {
     landingUrl: '', imageUrl: '',
     targetCategories: [] as string[],
     targetSlots: ['bottom'] as ('top' | 'middle' | 'bottom')[],
+    targetCreatorId: '',            // 🏪 크리에이터 지면 타겟팅 (비워두면 전체)
+    targetCreatorNickname: '',      // UI 표시용
     bidType: 'cpm' as 'cpm' | 'cpc',
     bidAmount: 1000, dailyBudget: 10000, totalBudget: 100000,
   });
@@ -75,6 +77,7 @@ const AdCampaignForm = ({ advertiserId, advertiserName, onBack }: Props) => {
       const adId = `ad_${Date.now()}_${advertiserId}`;
       await setDoc(doc(db, 'ads', adId), {
         ...form,
+        targetCreatorId: form.targetCreatorId || null,
         id: adId,
         advertiserId,
         advertiserName,
@@ -158,6 +161,39 @@ const AdCampaignForm = ({ advertiserId, advertiserName, onBack }: Props) => {
                 </button>
               ))}
             </div>
+          </div>
+
+          {/* 🏪 크리에이터 지면 타겟팅 */}
+          <div>
+            <p className="text-[10px] font-bold text-slate-500 mb-2">크리에이터 타겟팅 (선택)</p>
+            <p className="text-[9px] font-bold text-slate-400 mb-1.5">특정 크리에이터의 콘텐츠에만 광고를 노출합니다. 비워두면 전체 노출.</p>
+            <div className="flex gap-1.5">
+              <input value={form.targetCreatorNickname} onChange={e => update('targetCreatorNickname', e.target.value)}
+                placeholder="크리에이터 닉네임 (미입력 시 전체)"
+                className="flex-1 border border-slate-200 rounded-xl px-3 py-2 text-[12px] font-bold outline-none focus:border-violet-400" />
+              <button type="button"
+                onClick={async () => {
+                  const nickname = form.targetCreatorNickname.trim();
+                  if (!nickname) { update('targetCreatorId', ''); return; }
+                  // 닉네임으로 유저 조회
+                  const { collection: col, query: q, where: w, getDocs } = await import('firebase/firestore');
+                  const snap = await getDocs(q(col(db, 'users'), w('nickname', '==', nickname)));
+                  if (snap.empty) { alert('해당 닉네임의 크리에이터를 찾을 수 없습니다.'); return; }
+                  const uid = snap.docs[0].id;
+                  update('targetCreatorId', uid);
+                  alert(`크리에이터 확인: ${nickname} (${uid.slice(0, 8)}...)`);
+                }}
+                className="px-3 py-2 bg-violet-600 text-white rounded-xl text-[11px] font-bold hover:bg-violet-700">
+                확인
+              </button>
+            </div>
+            {form.targetCreatorId && (
+              <div className="flex items-center gap-2 mt-1.5">
+                <span className="text-[10px] font-bold text-violet-600">타겟: {form.targetCreatorNickname}</span>
+                <button onClick={() => { update('targetCreatorId', ''); update('targetCreatorNickname', ''); }}
+                  className="text-[9px] font-bold text-slate-400 hover:text-rose-500">해제</button>
+              </div>
+            )}
           </div>
         </div>
 
