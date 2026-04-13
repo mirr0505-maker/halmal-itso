@@ -93,30 +93,29 @@ const MarketHomeView = ({ currentUserData, allUsers }: Props) => {
             )}
           </div>
         </div>
-        <div className="h-3" />
-
-        {/* 가판대 카테고리 필터 */}
-        {activeTab === 'stall' && (
-          <div className="flex items-center gap-1.5 mt-2 overflow-x-auto">
-            {MARKET_CATEGORIES.map(cat => (
-              <button
-                key={cat.id}
-                onClick={() => setSelectedCategory(cat.id)}
-                className={`shrink-0 px-3 py-1 rounded-full text-[11px] font-[1000] transition-all ${
-                  selectedCategory === cat.id
-                    ? 'bg-slate-700 text-white'
-                    : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
-                }`}
-              >
-                {cat.label}
-              </button>
-            ))}
-          </div>
-        )}
       </div>
 
+      {/* 카테고리 필터 — sticky 바깥 */}
+      {activeTab === 'stall' && (
+        <div className="flex items-center gap-1.5 px-1 pt-3 pb-2 overflow-x-auto">
+          {MARKET_CATEGORIES.map(cat => (
+            <button
+              key={cat.id}
+              onClick={() => setSelectedCategory(cat.id)}
+              className={`shrink-0 px-3 py-1 rounded-full text-[11px] font-[1000] transition-all ${
+                selectedCategory === cat.id
+                  ? 'bg-slate-700 text-white'
+                  : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+              }`}
+            >
+              {cat.label}
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* 콘텐츠 */}
-      <div className="mt-4">
+      <div className={activeTab === 'stall' ? 'mt-1' : 'mt-4'}>
         {loading ? (
           <div className="py-40 text-center text-slate-300 text-[12px] font-bold">불러오는 중...</div>
         ) : activeTab === 'stall' ? (
