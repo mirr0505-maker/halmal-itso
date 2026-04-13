@@ -327,7 +327,10 @@ exports.createEpisode = onCall(
   async (request) => {
     if (!request.auth) throw new HttpsError("unauthenticated", "로그인이 필요합니다.");
     const authorUid = request.auth.uid;
-    const authorNickname = request.auth.token?.name || "익명";
+    // 닉네임 조회 — users/{uid}.nickname 우선, Auth token.name 폴백
+    // (Auth display name이 비어있으면 "익명"으로 저장되던 버그 수정)
+    const authorSnapForName = await db.collection("users").doc(authorUid).get();
+    const authorNickname = authorSnapForName.data()?.nickname || request.auth.token?.name || "익명";
 
     const {
       seriesId,
