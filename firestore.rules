@@ -295,10 +295,10 @@ service cloud.firestore {
       allow write: if false;
     }
 
-    // 🚀 플랫폼 수수료 누적 — 클라이언트 일체 차단 (Cloud Function 전용)
-    // 추후 관리자 페이지에서 Admin SDK로 조회
+    // 🚀 플랫폼 수수료 누적 — 로그인 유저 읽기 허용 (관리자 UI), 쓰기는 Cloud Function 전용
+    // 실제 접근 제어는 AdAdminPage의 isAdmin 체크 (닉네임 화이트리스트)
     match /platform_revenue/{docId} {
-      allow read: if false;
+      allow read: if request.auth != null;
       allow write: if false;
     }
 

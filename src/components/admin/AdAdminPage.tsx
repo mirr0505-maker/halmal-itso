@@ -1,8 +1,9 @@
-// src/components/admin/AdAdminPage.tsx — 광고 관리자 페이지 (4탭)
-// 🚀 광고 검수 + 정산 승인 + 부정행위 알림 + 세무 Export
+// src/components/admin/AdAdminPage.tsx — 광고 관리자 페이지 (5탭)
+// 🚀 플랫폼 수익 + 광고 검수 + 정산 승인 + 부정행위 알림 + 세무 Export
 import { useState } from 'react';
 import type { UserData } from '../../types';
 import { PLATFORM_ADMIN_NICKNAMES } from '../../constants';
+import PlatformRevenueDashboard from './PlatformRevenueDashboard';
 import AdReviewQueue from './AdReviewQueue';
 import SettlementQueue from './SettlementQueue';
 import FraudAlerts from './FraudAlerts';
@@ -13,9 +14,10 @@ interface Props {
   onBack?: () => void;
 }
 
-type AdminTab = 'review' | 'settlement' | 'fraud' | 'tax';
+type AdminTab = 'revenue' | 'review' | 'settlement' | 'fraud' | 'tax';
 
 const TABS: { id: AdminTab; label: string }[] = [
+  { id: 'revenue',    label: '💵 플랫폼 수익' },
   { id: 'review',     label: '📋 광고 검수' },
   { id: 'settlement', label: '💰 정산' },
   { id: 'fraud',      label: '🚨 부정행위' },
@@ -23,7 +25,7 @@ const TABS: { id: AdminTab; label: string }[] = [
 ];
 
 const AdAdminPage = ({ currentUser, onBack }: Props) => {
-  const [tab, setTab] = useState<AdminTab>('review');
+  const [tab, setTab] = useState<AdminTab>('revenue');
 
   // 🚀 관리자 권한 체크 — 닉네임 화이트리스트 (MVP)
   const isAdmin = !!currentUser && PLATFORM_ADMIN_NICKNAMES.includes(currentUser.nickname);
@@ -68,6 +70,7 @@ const AdAdminPage = ({ currentUser, onBack }: Props) => {
 
       {/* 탭 콘텐츠 */}
       <div>
+        {tab === 'revenue' && <PlatformRevenueDashboard />}
         {tab === 'review' && <AdReviewQueue />}
         {tab === 'settlement' && <SettlementQueue />}
         {tab === 'fraud' && <FraudAlerts />}
