@@ -426,6 +426,7 @@ interface KanbuChat {
   - 🏪 `purchaseMarketItem`: 강변 시장 가판대 구매 트랜잭션 (레벨별 수수료 30/25/20%)
   - 🏪 `subscribeMarketShop`: 단골장부 구독 트랜잭션
   - 🏪 `checkSubscriptionExpiry`: 매일 09:00 구독 만료 체크 + 알림 + subscriberCount 차감
+  - 🏪 `processMarketAdRevenue`: 매일 00:05 강변 시장 광고 수익 일별 정산 (크리에이터 70%/플랫폼 30%)
   - 배포: `firebase deploy --only functions`
   - 로그: `firebase functions:log`
 - **향후 구현 가능 (Blaze)**:

@@ -132,6 +132,7 @@
 | `MarketItemDetail.tsx` | 🏪 가판대 상세뷰. 미구매: 티저+페이월. 구매: 전체 본문+별점+한줄평 리뷰. `purchaseMarketItem` callable. |
 | `MarketShopEditor.tsx` | 🏪 단골장부 상점 개설. 이름/소개/가격(10~200)/표지. Lv5+만. |
 | `MarketShopDetail.tsx` | 🏪 단골장부 상세. 구독 버튼 + 크리에이터 판매글 목록. `subscribeMarketShop` callable. |
+| `MarketDashboard.tsx` | 🏪 크리에이터 대시보드. 수익 현황(판매/광고/총판매) + 판매글 관리(숨김/복귀) + 단골장부 구독자. |
 
 ---
 

@@ -6,6 +6,9 @@
 - [x] **Phase 1**: 사이드메뉴 마켓→강변 시장 변경, types.ts 타입 정의, Firestore Rules + 복합 인덱스, MarketHomeView (가판대/단골장부 2탭 + 카테고리 필터, 잉크병/장갑 패턴 sticky 헤더)
 - [x] **Phase 2**: 가판대 CRUD — MarketItemEditor (제목/티저/본문/가격/카테고리/태그/표지), MarketItemDetail (페이월+구매+별점리뷰), purchaseMarketItem Cloud Function (레벨별 수수료 30/25/20%)
 - [x] **Phase 3**: 단골장부 — MarketShopEditor (개설), MarketShopDetail (구독+판매글목록), subscribeMarketShop Cloud Function, checkSubscriptionExpiry 스케줄러 (만료 3일 전 알림 + 자동 비활성화 + subscriberCount 차감)
+- [x] **Phase 4**: 광고 수익 쉐어 — processMarketAdRevenue (매일 00:05, 크리에이터 70%/플랫폼 30%), adAuction에 targetCreatorId 필터, 광고주 캠페인 폼에 크리에이터 타겟팅 UI
+- [x] **Phase 5**: 크리에이터 대시보드 (MarketDashboard: 수익현황/판매글관리/단골장부), 판매글 수정 기능 (MarketItemEditor 수정 모드)
+- [x] **추가**: 카테고리를 황금알 INFO_GROUPS 38개 항목으로 통일, 미리보기 자동 추출 (앞 200자), 플랫폼 수익 대시보드 (관리자 전용, PlatformRevenueDashboard)
 
 ### 🖋️ 마르지 않는 잉크병 (2026-04-11 v38 — Phase 1~5 완료)
 > 상세 설계: [INKWELL.md](./INKWELL.md)

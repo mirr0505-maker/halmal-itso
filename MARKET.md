@@ -1,7 +1,7 @@
 # 🏪 강변 시장 (Riverside Market) — 기획 설계서
 
 > halmal-itso(글러브) 크리에이터 이코노미 메뉴
-> 버전: v1.0 | 작성일: 2026-04-13
+> 버전: v1.1 | 최종 갱신: 2026-04-13 (Phase 1~5 완료)
 
 ---
 
@@ -37,7 +37,7 @@
 - 단일 게시글을 땡스볼로 잠금 해제
 - 심층 분석 리포트, 템플릿, 고가치 정보에 특화
 - 가격: 땡스볼 1~100개 (작성자 자율)
-- 티저(previewContent): 본문 30% 미리보기 + 페이월 오버레이
+- 티저(previewContent): 본문 앞 200자 자동 추출 (별도 작성 불필요) + 페이월 오버레이
 - 구매 후: 전체 본문 열람 + 별점(1~5) + 한 줄 평
 
 ### 2-B. 단골장부 (월간 구독)
@@ -63,7 +63,7 @@
 
 ### 4-1. market_items (가판대 단건 판매글)
 - ID: `mkt_{timestamp}_{uid}`
-- 주요 필드: authorId, title, previewContent, category, tags, price, purchaseCount, ratingAvg, ratingCount, status
+- 주요 필드: authorId, title, previewContent, category(황금알 INFO_GROUPS 38개 항목), tags, price, purchaseCount, ratingAvg, ratingCount, status
 - 서브컬렉션: `private_data/content` (본문 분리 저장, Rules로 미구매자 차단)
 
 ### 4-2. market_purchases (구매 내역)
@@ -98,13 +98,20 @@
 
 ## 6. 개발 로드맵
 
-| Phase | 목표 | 난이도 |
-|-------|------|--------|
-| 1 | 기반 인프라 (타입/Rules/메뉴 변경/기본 UI) | 중 |
-| 2 | 가판대 CRUD + 구매 + 페이월 | 중~상 |
-| 3 | 단골장부 구독 시스템 | 중~상 |
-| 4 | 광고 수익 쉐어 | 상 |
-| 5 | 크리에이터 대시보드 + 최종 검증 | 중 |
+| Phase | 목표 | 상태 |
+|-------|------|------|
+| 1 | 기반 인프라 (타입/Rules/메뉴 변경/기본 UI) | ✅ 완료 |
+| 2 | 가판대 CRUD + 구매 + 페이월 + 리뷰 | ✅ 완료 |
+| 3 | 단골장부 구독 시스템 + 만료 스케줄러 | ✅ 완료 |
+| 4 | 광고 수익 쉐어 + 크리에이터 타겟팅 | ✅ 완료 |
+| 5 | 크리에이터 대시보드 + 판매글 수정 | ✅ 완료 |
+
+### 추가 구현 (2026-04-13)
+- 카테고리를 황금알 INFO_GROUPS 6그룹 38개 항목으로 통일
+- 미리보기 자동 추출 (본문 앞 200자, 별도 작성 불필요)
+- 판매글 수정 기능 (MarketItemEditor 수정 모드)
+- 광고주 캠페인 폼에 크리에이터 지면 타겟팅 UI (targetCreatorId)
+- 관리자 페이지에 플랫폼 수익 대시보드 탭 (platform_revenue 3문서 조회)
 
 ---
 
