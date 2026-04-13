@@ -410,6 +410,7 @@ const { syncAdBids, updateAdMetrics } = require("./adTriggers");
 const { unlockEpisode, createEpisode, onEpisodeCreate, onInkwellPostDelete } = require("./inkwell");
 const { activateInfoBot, deactivateInfoBot, updateInfoBot } = require("./gloveBot");
 const { fetchBotNews, fetchBotDart } = require("./gloveBotFetcher");
+const { syncDartCorpMap, triggerSyncDartCorpMap, lookupCorpCode } = require("./dartCorpMap");
 
 exports.registerKanbuPromo = registerKanbuPromo;
 exports.adAuction = adAuction;
@@ -430,3 +431,6 @@ exports.deactivateInfoBot = deactivateInfoBot;
 exports.updateInfoBot = updateInfoBot;
 exports.fetchBotNews = fetchBotNews;
 exports.fetchBotDart = fetchBotDart;
+exports.syncDartCorpMap = syncDartCorpMap;
+exports.triggerSyncDartCorpMap = triggerSyncDartCorpMap;
+exports.lookupCorpCode = lookupCorpCode;

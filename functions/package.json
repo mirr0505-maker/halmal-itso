@@ -13,10 +13,10 @@
   },
   "main": "index.js",
   "dependencies": {
+    "adm-zip": "^0.5.17",
+    "fast-xml-parser": "^4.3.6",
     "firebase-admin": "^12.1.0",
-    "firebase-functions": "^4.9.0",
-    "fast-xml-parser": "^4.3.6"
+    "firebase-functions": "^4.9.0"
   },
-  "devDependencies": {},
   "private": true
 }

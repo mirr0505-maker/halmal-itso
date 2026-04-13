@@ -315,6 +315,12 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // 🤖 DART 종목코드 → 고유번호 매핑 — 로그인 유저 조회 가능, 쓰기는 Cloud Function 전용
+    match /dart_corp_map/{stockCode} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+
     // 작품 구독 (깐부) — 본인 구독만 관리
     // 복합 ID: {seriesId}_{userId}
     // 🔒 read는 docId 패턴(`*_{uid}`)으로 본인 문서만 허용 (문서 미존재 상태에서도 권한 평가 가능)

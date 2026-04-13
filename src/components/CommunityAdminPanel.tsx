@@ -381,6 +381,8 @@ function InfoBotPanel({ community, isActive, daysLeft }: { community: Community;
   const [sources, setSources] = useState<InfoBotSource[]>(bot?.sources || ['news']);
   const [stockCode, setStockCode] = useState(bot?.stockCode || '');
   const [corpCode, setCorpCode] = useState(bot?.corpCode || '');
+  const [corpName, setCorpName] = useState('');
+  const [lookupLoading, setLookupLoading] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
@@ -467,21 +469,37 @@ function InfoBotPanel({ community, isActive, daysLeft }: { community: Community;
           )}
         </div>
 
-        {/* 종목코드 + DART 고유번호 */}
-        <div className="flex gap-3">
-          <div>
-            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">종목코드</label>
-            <input type="text" value={stockCode} onChange={(e) => setStockCode(e.target.value)} maxLength={10}
-              placeholder="예: 005930"
+        {/* 종목코드 입력 → DART 고유번호 자동 조회 */}
+        <div>
+          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">종목코드</label>
+          <div className="flex gap-1.5">
+            <input type="text" value={stockCode}
+              onChange={(e) => { setStockCode(e.target.value); setCorpCode(''); setCorpName(''); }}
+              maxLength={10} placeholder="예: 005930"
               className="w-28 border border-slate-200 rounded-lg px-2.5 py-1.5 text-[12px] font-bold outline-none focus:border-blue-400" />
+            <button type="button" disabled={!stockCode.trim() || lookupLoading}
+              onClick={async () => {
+                setLookupLoading(true);
+                setCorpName(''); setCorpCode('');
+                try {
+                  const fn = httpsCallable(functions, 'lookupCorpCode');
+                  const res = await fn({ stockCode: stockCode.trim() });
+                  const data = res.data as { corpCode: string; corpName: string };
+                  setCorpCode(data.corpCode);
+                  setCorpName(data.corpName);
+                } catch {
+                  setMessage('종목코드를 찾을 수 없습니다. 매핑 동기화가 필요할 수 있습니다.');
+                } finally { setLookupLoading(false); }
+              }}
+              className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-[11px] font-black hover:bg-blue-700 disabled:opacity-50">
+              {lookupLoading ? '...' : '조회'}
+            </button>
           </div>
-          <div>
-            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">DART 고유번호</label>
-            <input type="text" value={corpCode} onChange={(e) => setCorpCode(e.target.value)} maxLength={10}
-              placeholder="예: 00126380"
-              className="w-28 border border-slate-200 rounded-lg px-2.5 py-1.5 text-[12px] font-bold outline-none focus:border-blue-400" />
-            <p className="text-[9px] text-slate-300 mt-0.5">DART 공시 조회용</p>
-          </div>
+          {corpCode && (
+            <p className="text-[10px] font-bold text-emerald-600 mt-1">
+              ✅ {corpName} (DART: {corpCode})
+            </p>
+          )}
         </div>
 
         {/* 소스 선택 */}
