@@ -46,7 +46,8 @@
 - 30일 이용권 (자동 결제 없이 수동 갱신)
 - Lv5 이상 크리에이터만 개설 가능
 - 만료 3일 전 알림 + 만료 시 잠금 복귀
-- VIP 혜택: 단골손님 배지, 깐부방 우선 입장
+- VIP 혜택: 단골손님 배지, 깐부방 우선 입장, **구독 크리에이터 글 광고 제거(Ad-free)**
+  - Why: 유료 구독자는 광고 제거를 기대함. 크리에이터는 광고 수익 감소보다 고정 구독료(땡스볼)가 단가 훨씬 높아 납득 가능
 
 ---
 
@@ -89,7 +90,7 @@
 |------|--------|------|
 | `purchaseMarketItem` | onCall | 가판대 단건 구매 트랜잭션 |
 | `subscribeMarketShop` | onCall | 단골장부 구독 트랜잭션 |
-| `checkSubscriptionExpiry` | onSchedule (매일 09:00) | 만료 체크 + 알림 |
+| `checkSubscriptionExpiry` | onSchedule (매일 09:00) | 만료 체크 + 알림 발송 + market_shops.subscriberCount 차감 동기화 |
 | `processMarketAdRevenue` | onSchedule (매일 00:00) | 광고 수익 일별 정산 |
 | `onMarketItemDelete` | onDocumentDeleted | 소프트 딜리트 + 고아 정리 |
 
@@ -119,5 +120,6 @@
 ## 8. 운영 정책
 
 - Lv3 미만: 판매 불가 (독자는 제한 없음)
-- 환불: 단건 구매 환불 없음, 구독 7일 이내+열람 없으면 가능
+- **환불**: 단건 구매 환불 없음 (티저로 사전 판단). **단골장부 구독은 원칙적으로 환불 불가** (결제 후 24시간 이내 + 1회 한정 예외 환불은 운영자 재량)
+  - Why: 열람 이력 추적(read_history) 구현은 DB Write 비용 과다 — MVP 단계에서는 심플한 정책이 CS 방어에 유리
 - 콘텐츠 신고 3회: 판매 자격 정지
