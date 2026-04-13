@@ -2,6 +2,7 @@
 // 🚀 purchaseMarketItem: 가판대 단건 구매 (땡스볼 차감 → 크리에이터 지급 → 영수증)
 // 🔒 클라이언트에서 ballBalance·market_purchases 직접 수정 차단 → Admin SDK 처리
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
+const { onSchedule } = require("firebase-functions/v2/scheduler");
 const { getFirestore, FieldValue, Timestamp } = require("firebase-admin/firestore");
 
 const db = getFirestore();
@@ -159,5 +160,190 @@ exports.purchaseMarketItem = onCall(
     });
 
     return { success: true, amount: price, alreadyPurchased: false };
+  }
+);
+
+// 30일 밀리초
+const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
+
+// ════════════════════════════════════════════════════════════
+// 🚀 subscribeMarketShop — 단골장부 구독 (onCall v2)
+// ════════════════════════════════════════════════════════════
+exports.subscribeMarketShop = onCall(
+  { region: "asia-northeast3" },
+  async (request) => {
+    if (!request.auth) throw new HttpsError("unauthenticated", "로그인이 필요합니다.");
+    const subscriberUid = request.auth.uid;
+    const { shopId } = request.data || {};
+
+    if (typeof shopId !== "string" || !shopId.trim()) {
+      throw new HttpsError("invalid-argument", "shopId가 필요합니다.");
+    }
+
+    // 상점 조회
+    const shopRef = db.collection("market_shops").doc(shopId);
+    const shopSnap = await shopRef.get();
+    if (!shopSnap.exists) throw new HttpsError("not-found", "상점을 찾을 수 없습니다.");
+    const shop = shopSnap.data();
+
+    if (shop.status !== "active") {
+      throw new HttpsError("failed-precondition", "운영 중인 상점이 아닙니다.");
+    }
+
+    // 본인 구독 차단
+    if (shop.creatorId === subscriberUid) {
+      throw new HttpsError("failed-precondition", "본인 상점은 구독할 수 없습니다.");
+    }
+
+    const price = typeof shop.subscriptionPrice === "number" ? shop.subscriptionPrice : 0;
+    if (price <= 0) throw new HttpsError("failed-precondition", "유효한 가격이 아닙니다.");
+
+    const subscriberRef = db.collection("users").doc(subscriberUid);
+    const subscriberSnapForName = await subscriberRef.get();
+    const subscriberNickname = subscriberSnapForName.data()?.nickname || "익명";
+
+    const subId = `${shop.creatorId}_${subscriberUid}`;
+    const subRef = db.collection("market_subscriptions").doc(subId);
+    const creatorRef = db.collection("users").doc(shop.creatorId);
+    const now = Timestamp.now();
+    const expiresAt = Timestamp.fromMillis(now.toMillis() + THIRTY_DAYS_MS);
+
+    let alreadyActive = false;
+
+    await db.runTransaction(async (tx) => {
+      // 기존 활성 구독 체크
+      const existingSub = await tx.get(subRef);
+      if (existingSub.exists && existingSub.data().isActive) {
+        // 만료 전이면 기간 연장
+        const currentExpiry = existingSub.data().expiresAt;
+        if (currentExpiry && currentExpiry.toMillis() > now.toMillis()) {
+          alreadyActive = true;
+          return;
+        }
+      }
+
+      // 구독자 잔액 확인
+      const subscriberSnap = await tx.get(subscriberRef);
+      if (!subscriberSnap.exists) throw new HttpsError("not-found", "사용자를 찾을 수 없습니다.");
+      const balance = subscriberSnap.data().ballBalance || 0;
+      if (balance < price) throw new HttpsError("failed-precondition", "땡스볼이 부족합니다.");
+
+      // 크리에이터 레벨 → 수수료
+      const creatorLevel = shop.creatorLevel || 5;
+      const feeRate = getFeeRate(creatorLevel);
+      const platformFee = Math.floor(price * feeRate);
+      const creatorEarned = price - platformFee;
+
+      // 구독자: 잔액 차감
+      tx.update(subscriberRef, {
+        ballBalance: balance - price,
+        ballSpent: FieldValue.increment(price),
+      });
+
+      // 크리에이터: 수익 지급
+      tx.set(creatorRef, {
+        ballReceived: FieldValue.increment(creatorEarned),
+        marketTotalEarned: FieldValue.increment(creatorEarned),
+      }, { merge: true });
+
+      // 플랫폼 수익
+      tx.set(db.collection("platform_revenue").doc("market"), {
+        totalFee: FieldValue.increment(platformFee),
+        totalGross: FieldValue.increment(price),
+        lastUpdatedAt: now,
+      }, { merge: true });
+
+      // 구독 문서 생성/갱신
+      const renewCount = existingSub.exists ? (existingSub.data().renewCount || 0) + 1 : 0;
+      tx.set(subRef, {
+        creatorId: shop.creatorId,
+        subscriberId: subscriberUid,
+        shopId,
+        pricePaid: price,
+        startedAt: now,
+        expiresAt,
+        isActive: true,
+        renewCount,
+        notified3Days: false,
+      });
+
+      // 상점 구독자 수 증가 (신규 구독만)
+      if (!existingSub.exists || !existingSub.data().isActive) {
+        tx.update(shopRef, { subscriberCount: FieldValue.increment(1) });
+      }
+
+      // 상점 누적 수익
+      tx.update(shopRef, { totalRevenue: FieldValue.increment(creatorEarned) });
+    });
+
+    if (alreadyActive) {
+      return { success: true, alreadyActive: true };
+    }
+
+    // 알림: 크리에이터에게 새 구독자
+    await db.collection("notifications").doc(shop.creatorId).collection("items").add({
+      type: "market_sub_new",
+      fromNickname: subscriberNickname,
+      amount: price,
+      shopId,
+      shopName: shop.shopName || null,
+      createdAt: Timestamp.now(),
+      read: false,
+    });
+
+    return { success: true, expiresAt: expiresAt.toMillis(), alreadyActive: false };
+  }
+);
+
+// ════════════════════════════════════════════════════════════
+// 🚀 checkSubscriptionExpiry — 만료 체크 + 알림 + subscriberCount 차감
+// ════════════════════════════════════════════════════════════
+exports.checkSubscriptionExpiry = onSchedule(
+  { schedule: "every day 09:00", region: "asia-northeast3", timeoutSeconds: 120 },
+  async () => {
+    const now = Timestamp.now();
+    const threeDaysLater = Timestamp.fromMillis(now.toMillis() + 3 * 24 * 60 * 60 * 1000);
+
+    // 1. 만료 3일 전 알림 (아직 알림 안 보낸 건)
+    const soonExpiring = await db.collection("market_subscriptions")
+      .where("isActive", "==", true)
+      .where("expiresAt", "<=", threeDaysLater)
+      .get();
+
+    for (const doc of soonExpiring.docs) {
+      const sub = doc.data();
+      if (sub.notified3Days) continue;
+      if (sub.expiresAt.toMillis() <= now.toMillis()) continue; // 이미 만료된 건 아래에서 처리
+
+      // 만료 예정 알림
+      await db.collection("notifications").doc(sub.subscriberId).collection("items").add({
+        type: "market_sub_expiring",
+        shopId: sub.shopId,
+        expiresAt: sub.expiresAt,
+        createdAt: Timestamp.now(),
+        read: false,
+      });
+      await doc.ref.update({ notified3Days: true });
+    }
+
+    // 2. 만료 처리
+    const expired = await db.collection("market_subscriptions")
+      .where("isActive", "==", true)
+      .where("expiresAt", "<=", now)
+      .get();
+
+    let deactivatedCount = 0;
+    for (const doc of expired.docs) {
+      const sub = doc.data();
+      await doc.ref.update({ isActive: false });
+
+      // subscriberCount 차감
+      const shopRef = db.collection("market_shops").doc(sub.shopId);
+      await shopRef.update({ subscriberCount: FieldValue.increment(-1) });
+
+      deactivatedCount++;
+    }
+
+    console.log(`[강변시장] 구독 만료 처리: ${deactivatedCount}건 비활성화, ${soonExpiring.size}건 알림 체크`);
   }
 );

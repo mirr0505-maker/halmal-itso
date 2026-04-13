@@ -411,7 +411,7 @@ const { unlockEpisode, createEpisode, onEpisodeCreate, onInkwellPostDelete } = r
 const { activateInfoBot, deactivateInfoBot, updateInfoBot } = require("./gloveBot");
 const { fetchBotNews, fetchBotDart } = require("./gloveBotFetcher");
 const { syncDartCorpMap, triggerSyncDartCorpMap, lookupCorpCode } = require("./dartCorpMap");
-const { purchaseMarketItem } = require("./market");
+const { purchaseMarketItem, subscribeMarketShop, checkSubscriptionExpiry } = require("./market");
 
 exports.registerKanbuPromo = registerKanbuPromo;
 exports.adAuction = adAuction;
@@ -436,3 +436,5 @@ exports.syncDartCorpMap = syncDartCorpMap;
 exports.triggerSyncDartCorpMap = triggerSyncDartCorpMap;
 exports.lookupCorpCode = lookupCorpCode;
 exports.purchaseMarketItem = purchaseMarketItem;
+exports.subscribeMarketShop = subscribeMarketShop;
+exports.checkSubscriptionExpiry = checkSubscriptionExpiry;

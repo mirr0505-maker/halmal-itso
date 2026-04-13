@@ -8,6 +8,8 @@ import type { MarketItem, MarketShop, UserData } from '../types';
 import { calculateLevel } from '../utils';
 import MarketItemDetail from './MarketItemDetail';
 import MarketItemEditor from './MarketItemEditor';
+import MarketShopDetail from './MarketShopDetail';
+import MarketShopEditor from './MarketShopEditor';
 
 interface Props {
   currentUserData: UserData | null;
@@ -33,7 +35,9 @@ const MarketHomeView = ({ currentUserData, allUsers }: Props) => {
   const [loading, setLoading] = useState(true);
   // 상세뷰 / 작성 모드
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
+  const [selectedShopId, setSelectedShopId] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
+  const [isCreatingShop, setIsCreatingShop] = useState(false);
   // 목록 리로드 트리거
   const [reloadKey, setReloadKey] = useState(0);
 
@@ -57,18 +61,29 @@ const MarketHomeView = ({ currentUserData, allUsers }: Props) => {
       .then(snap => {
         setShops(snap.docs.map(d => ({ id: d.id, ...d.data() } as MarketShop)));
       }).catch(() => setShops([])).finally(() => setLoading(false));
-  }, [activeTab]);
+  }, [activeTab, reloadKey]);
 
   const userLevel = currentUserData ? calculateLevel(currentUserData.exp || 0) : 0;
 
-  // 상세뷰 모드
+  // 아이템 상세뷰
   if (selectedItemId) {
     return <MarketItemDetail itemId={selectedItemId} currentUserData={currentUserData} allUsers={allUsers} onBack={() => setSelectedItemId(null)} />;
   }
 
-  // 작성 모드
+  // 상점 상세뷰
+  if (selectedShopId) {
+    return <MarketShopDetail shopId={selectedShopId} currentUserData={currentUserData} allUsers={allUsers}
+      onBack={() => setSelectedShopId(null)} onItemClick={(id) => { setSelectedShopId(null); setSelectedItemId(id); }} />;
+  }
+
+  // 판매글 작성
   if (isEditing && currentUserData) {
     return <MarketItemEditor currentUserData={currentUserData} onSuccess={() => { setIsEditing(false); setReloadKey(k => k + 1); }} onCancel={() => setIsEditing(false)} />;
+  }
+
+  // 상점 개설
+  if (isCreatingShop && currentUserData) {
+    return <MarketShopEditor currentUserData={currentUserData} onSuccess={() => { setIsCreatingShop(false); setReloadKey(k => k + 1); }} onCancel={() => setIsCreatingShop(false)} />;
   }
 
   return (
@@ -102,10 +117,11 @@ const MarketHomeView = ({ currentUserData, allUsers }: Props) => {
                 <span className={`text-[10px] font-bold hidden md:inline whitespace-nowrap ${activeTab === tab.id ? 'text-blue-400' : 'text-slate-300'}`}>{tab.desc}</span>
               </button>
             ))}
-            {userLevel >= 3 && (
-              <button onClick={() => setIsEditing(true)} className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-blue-600 text-white border border-slate-900 hover:border-blue-600 transition-all">
+            {userLevel >= (activeTab === 'subscription' ? 5 : 3) && (
+              <button onClick={() => activeTab === 'subscription' ? setIsCreatingShop(true) : setIsEditing(true)}
+                className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-blue-600 text-white border border-slate-900 hover:border-blue-600 transition-all">
                 <svg className="w-3 h-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4" /></svg>
-                <span className="text-[11px] font-[1000] whitespace-nowrap">판매글 작성</span>
+                <span className="text-[11px] font-[1000] whitespace-nowrap">{activeTab === 'subscription' ? '상점 개설' : '판매글 작성'}</span>
               </button>
             )}
           </div>
@@ -161,7 +177,9 @@ const MarketHomeView = ({ currentUserData, allUsers }: Props) => {
           ) : (
             <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-3">
               {shops.map(shop => (
-                <MarketShopCard key={shop.id} shop={shop} allUsers={allUsers} />
+                <div key={shop.id} onClick={() => setSelectedShopId(shop.id)}>
+                  <MarketShopCard shop={shop} allUsers={allUsers} />
+                </div>
               ))}
             </div>
           )
