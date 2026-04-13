@@ -302,6 +302,19 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // 🤖 정보봇 결제 이력 — Cloud Function 전용 (대장 본인 조회만 허용)
+    match /glove_bot_payments/{docId} {
+      allow read: if request.auth != null
+        && resource.data.payerUid == request.auth.uid;
+      allow write: if false;
+    }
+
+    // 🤖 정보봇 중복 방지 — Cloud Function 전용
+    match /glove_bot_dedup/{communityId}/items/{hash} {
+      allow read: if false;
+      allow write: if false;
+    }
+
     // 작품 구독 (깐부) — 본인 구독만 관리
     // 복합 ID: {seriesId}_{userId}
     // 🔒 read는 docId 패턴(`*_{uid}`)으로 본인 문서만 허용 (문서 미존재 상태에서도 권한 평가 가능)

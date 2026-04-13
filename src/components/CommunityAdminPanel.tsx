@@ -1,10 +1,11 @@
 // src/components/CommunityAdminPanel.tsx — 🚀 다섯 손가락 Phase 3: 관리 탭 패널
 // 승인 대기 처리 + 장갑 설정 수정 + 공지 고정 + 장갑 폐쇄 (thumb/index 전용)
 import { useState, useRef } from 'react';
-import { db } from '../firebase';
+import { db, functions } from '../firebase';
 import { doc, updateDoc, deleteField, collection, getDocs, query, where, writeBatch } from 'firebase/firestore';
+import { httpsCallable } from 'firebase/functions';
 import { uploadToR2 } from '../uploadToR2';
-import type { Community, CommunityMember, FingerRole, PromotionRules } from '../types';
+import type { Community, CommunityMember, FingerRole, PromotionRules, InfoBotSource } from '../types';
 import { DEFAULT_PROMOTION_RULES } from '../types';
 import JoinAnswersDisplay from './JoinAnswersDisplay';
 
@@ -328,6 +329,25 @@ const CommunityAdminPanel = ({ community, myFinger, pendingMembers, onApprove, o
         </div>
       )}
 
+      {/* 🤖 정보봇 — 주식 장갑 전용 */}
+      {isOwner && community.category === '주식' && (() => {
+        const bot = community.infoBot;
+        const isActive = bot?.enabled && bot?.expiresAt && (bot.expiresAt as unknown as { toMillis?: () => number }).toMillis
+          ? (bot.expiresAt as unknown as { toMillis: () => number }).toMillis() > Date.now()
+          : false;
+        const daysLeft = isActive && bot?.expiresAt
+          ? Math.ceil(((bot.expiresAt as unknown as { toMillis: () => number }).toMillis() - Date.now()) / (1000 * 60 * 60 * 24))
+          : 0;
+
+        return (
+          <InfoBotPanel
+            community={community}
+            isActive={isActive}
+            daysLeft={daysLeft}
+          />
+        );
+      })()}
+
       {/* 장갑 폐쇄 — thumb 전용 */}
       {isOwner && (
         <div className="bg-white border border-red-100 rounded-xl px-5 py-4">
@@ -342,5 +362,178 @@ const CommunityAdminPanel = ({ community, myFinger, pendingMembers, onApprove, o
     </div>
   );
 };
+
+// 🤖 정보봇 관리 패널 (주식 장갑 전용, 대장만 사용)
+function InfoBotPanel({ community, isActive, daysLeft }: { community: Community; isActive: boolean; daysLeft: number }) {
+  const ALL_SOURCES: { id: InfoBotSource; icon: string; label: string }[] = [
+    { id: 'news', icon: '📰', label: '뉴스 기사' },
+    { id: 'dart', icon: '📋', label: 'DART 공시' },
+    { id: 'price', icon: '📈', label: '주가 변동 알림' },
+    { id: 'policy', icon: '🏛️', label: '정부 정책' },
+  ];
+  // Phase 1에서는 news만 활성, 나머지는 "준비 중"
+  const AVAILABLE_SOURCES: InfoBotSource[] = ['news'];
+
+  const bot = community.infoBot;
+  const [keywords, setKeywords] = useState<string[]>(bot?.keywords || []);
+  const [newKeyword, setNewKeyword] = useState('');
+  const [sources, setSources] = useState<InfoBotSource[]>(bot?.sources || ['news']);
+  const [stockCode, setStockCode] = useState(bot?.stockCode || '');
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+
+  const addKeyword = () => {
+    const k = newKeyword.trim();
+    if (!k || keywords.length >= 5 || keywords.includes(k)) return;
+    setKeywords(prev => [...prev, k]);
+    setNewKeyword('');
+  };
+
+  const handleActivate = async () => {
+    if (keywords.length === 0) { setMessage('키워드를 1개 이상 입력해주세요.'); return; }
+    if (!window.confirm('정보봇을 활성화하면 20볼이 차감됩니다. 진행하시겠습니까?')) return;
+    setIsProcessing(true);
+    setMessage(null);
+    try {
+      const fn = httpsCallable(functions, 'activateInfoBot');
+      await fn({ communityId: community.id, keywords, sources, stockCode: stockCode || null, corpCode: null, priceAlertThresholds: [5, 10, 15, 20, 25, 30] });
+      setMessage('✅ 정보봇이 활성화되었습니다! (30일간)');
+    } catch (err: unknown) {
+      const e = err as { message?: string };
+      setMessage(e.message || '활성화에 실패했습니다.');
+    } finally { setIsProcessing(false); }
+  };
+
+  const handleDeactivate = async () => {
+    if (!window.confirm('정보봇을 중지하시겠습니까? 남은 기간에 대한 환불은 없습니다.')) return;
+    setIsProcessing(true);
+    try {
+      const fn = httpsCallable(functions, 'deactivateInfoBot');
+      await fn({ communityId: community.id });
+      setMessage('⏹ 정보봇이 중지되었습니다.');
+    } catch (err: unknown) {
+      const e = err as { message?: string };
+      setMessage(e.message || '중지에 실패했습니다.');
+    } finally { setIsProcessing(false); }
+  };
+
+  const handleUpdate = async () => {
+    if (keywords.length === 0) { setMessage('키워드를 1개 이상 입력해주세요.'); return; }
+    setIsProcessing(true);
+    setMessage(null);
+    try {
+      const fn = httpsCallable(functions, 'updateInfoBot');
+      await fn({ communityId: community.id, keywords, sources, stockCode: stockCode || null });
+      setMessage('✅ 설정이 수정되었습니다.');
+    } catch (err: unknown) {
+      const e = err as { message?: string };
+      setMessage(e.message || '수정에 실패했습니다.');
+    } finally { setIsProcessing(false); }
+  };
+
+  return (
+    <div className="bg-white border border-slate-100 rounded-xl overflow-hidden shadow-sm">
+      <div className="px-5 py-3 border-b border-slate-100 flex items-center justify-between">
+        <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest">🤖 정보봇</p>
+        {isActive && (
+          <span className="text-[10px] font-[1000] text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
+            ✅ 활성 · D-{daysLeft}일
+          </span>
+        )}
+      </div>
+      <div className="px-5 py-4 flex flex-col gap-3">
+        {/* 키워드 */}
+        <div>
+          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">검색 키워드 (최대 5개)</label>
+          <div className="flex flex-wrap gap-1.5 mb-2">
+            {keywords.map((k, i) => (
+              <span key={i} className="flex items-center gap-1 bg-blue-50 text-blue-700 text-[11px] font-bold px-2 py-0.5 rounded-full">
+                {k}
+                <button type="button" onClick={() => setKeywords(prev => prev.filter((_, idx) => idx !== i))} className="text-blue-400 hover:text-red-500">×</button>
+              </span>
+            ))}
+          </div>
+          {keywords.length < 5 && (
+            <div className="flex gap-1.5">
+              <input type="text" value={newKeyword} onChange={(e) => setNewKeyword(e.target.value)} maxLength={30}
+                placeholder="예: 삼성전자" onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addKeyword(); } }}
+                className="flex-1 border border-slate-200 rounded-lg px-2.5 py-1.5 text-[12px] font-bold outline-none focus:border-blue-400" />
+              <button type="button" onClick={addKeyword} className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-[11px] font-black hover:bg-blue-700">추가</button>
+            </div>
+          )}
+        </div>
+
+        {/* 종목코드 */}
+        <div>
+          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">종목코드 (선택)</label>
+          <input type="text" value={stockCode} onChange={(e) => setStockCode(e.target.value)} maxLength={10}
+            placeholder="예: 005930"
+            className="w-32 border border-slate-200 rounded-lg px-2.5 py-1.5 text-[12px] font-bold outline-none focus:border-blue-400" />
+        </div>
+
+        {/* 소스 선택 */}
+        <div>
+          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">정보 소스</label>
+          <div className="flex flex-col gap-1.5">
+            {ALL_SOURCES.map(s => {
+              const available = AVAILABLE_SOURCES.includes(s.id);
+              const checked = sources.includes(s.id);
+              return (
+                <label key={s.id} className={`flex items-center gap-2 px-3 py-2 rounded-lg border transition-all ${
+                  !available ? 'border-slate-100 bg-slate-50 opacity-50 cursor-not-allowed' :
+                  checked ? 'border-blue-200 bg-blue-50' : 'border-slate-200 bg-white hover:border-blue-200 cursor-pointer'
+                }`}>
+                  <input type="checkbox" checked={checked} disabled={!available}
+                    onChange={(e) => {
+                      if (e.target.checked) setSources(prev => [...prev, s.id]);
+                      else setSources(prev => prev.filter(x => x !== s.id));
+                    }}
+                    className="w-3.5 h-3.5 rounded" />
+                  <span className="text-[12px] font-bold text-slate-700">{s.icon} {s.label}</span>
+                  {!available && <span className="text-[9px] font-bold text-slate-400 ml-auto">준비 중</span>}
+                </label>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* 상태 메시지 */}
+        {message && (
+          <div className={`p-2.5 rounded-lg text-[11px] font-bold ${message.startsWith('✅') || message.startsWith('⏹') ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600'}`}>
+            {message}
+          </div>
+        )}
+
+        {/* 누적 정보 (활성 상태일 때) */}
+        {isActive && bot && (
+          <div className="text-[10px] font-bold text-slate-400">
+            누적 결제: {bot.totalPaid || 0}볼
+          </div>
+        )}
+
+        {/* 액션 버튼 */}
+        <div className="flex gap-2">
+          {isActive ? (
+            <>
+              <button onClick={handleUpdate} disabled={isProcessing}
+                className="flex-1 py-2 rounded-lg text-[12px] font-black bg-slate-900 text-white hover:bg-blue-600 transition-all disabled:opacity-50">
+                {isProcessing ? '처리 중...' : '설정 수정'}
+              </button>
+              <button onClick={handleDeactivate} disabled={isProcessing}
+                className="px-4 py-2 rounded-lg text-[12px] font-black border border-red-300 text-red-500 hover:bg-red-50 transition-all disabled:opacity-50">
+                중지
+              </button>
+            </>
+          ) : (
+            <button onClick={handleActivate} disabled={isProcessing || keywords.length === 0}
+              className="w-full py-2.5 rounded-lg text-[12px] font-black bg-blue-600 text-white hover:bg-blue-700 transition-all disabled:opacity-50">
+              {isProcessing ? '처리 중...' : '💰 정보봇 시작하기 — 월 20볼'}
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default CommunityAdminPanel;

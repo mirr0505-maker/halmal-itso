@@ -358,6 +358,8 @@ export interface Community {
   thumbnailUrl?: string;          // 🧤 커뮤니티 대표 이미지 (R2 업로드, 미설정 시 coverColor 폴백)
   chatBgUrl?: string;             // 🧤 채팅방 바탕화면 이미지 (R2 업로드, 미설정 시 bg-slate-50)
   createdAt: FirestoreTimestamp;
+  // 🤖 정보봇 (category='주식' 장갑 전용)
+  infoBot?: CommunityInfoBot;
   // 🚀 다섯 손가락 Phase 1 — 가입 조건 설정
   joinType?: JoinType;           // 가입 방식 (미설정 시 'open'으로 취급)
   minLevel?: number;             // 최소 가입 레벨 (미설정 시 1)
@@ -407,6 +409,22 @@ export interface CommunityPost {
   isBlinded?: boolean;           // 관리자 블라인드 처리
   thanksballTotal?: number;      // 받은 땡스볼 총수
   pinnedCommentId?: string;      // 작성자가 고정한 댓글 ID
+}
+
+// 🤖 정보봇 설정 (category='주식' 장갑 전용, 대장이 월 20볼 결제)
+export type InfoBotSource = 'news' | 'dart' | 'report' | 'price' | 'policy';
+
+export interface CommunityInfoBot {
+  enabled: boolean;
+  keywords: string[];                  // 매칭 키워드 (최대 5개)
+  stockCode?: string;                  // 종목코드 (예: "005930")
+  corpCode?: string;                   // DART 고유번호
+  sources: InfoBotSource[];            // 활성화된 소스
+  priceAlertThresholds: number[];      // 주가 변동 알림 임계값 [5, 10, 15, 20, 25, 30]
+  activatedAt: FirestoreTimestamp;
+  expiresAt: FirestoreTimestamp;       // activatedAt + 30일
+  activatedBy: string;                 // 결제한 대장 uid
+  totalPaid: number;                   // 누적 결제 총액
 }
 
 // 🚀 멤버 승급 조건 (Community에 임베드)

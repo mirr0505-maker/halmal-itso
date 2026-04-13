@@ -91,9 +91,16 @@ const CommunityFeed = ({ currentUserData, joinedCommunityIds, allUsers, communit
           <div key={post.id}
             onClick={() => handlePostClick(post)}
             className="bg-white border border-slate-100 rounded-xl px-5 py-4 hover:border-blue-200 hover:shadow-md transition-all group cursor-pointer">
-            {/* 커뮤니티명 배지 */}
+            {/* 커뮤니티명 배지 + 봇 뱃지 */}
             <div className="flex items-center gap-2 mb-2">
               <span className="text-[10px] font-[1000] text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">🧤 {post.communityName}</span>
+              {(post as CommunityPost & { isBot?: boolean; botSource?: string }).isBot && (
+                <span className="text-[9px] font-[1000] text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-full">
+                  🤖 {(post as CommunityPost & { botSource?: string }).botSource === 'news' ? '뉴스' :
+                      (post as CommunityPost & { botSource?: string }).botSource === 'dart' ? '공시' :
+                      (post as CommunityPost & { botSource?: string }).botSource === 'price' ? '주가' : '정보봇'}
+                </span>
+              )}
               <span className="text-[10px] font-bold text-slate-300">{formatTime(post.createdAt)}</span>
             </div>
             {post.title && (

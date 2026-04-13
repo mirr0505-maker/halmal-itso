@@ -408,6 +408,8 @@ const { testChargeBall } = require("./testCharge");
 const { sendThanksball } = require("./thanksball");
 const { syncAdBids, updateAdMetrics } = require("./adTriggers");
 const { unlockEpisode, createEpisode, onEpisodeCreate, onInkwellPostDelete } = require("./inkwell");
+const { activateInfoBot, deactivateInfoBot, updateInfoBot } = require("./gloveBot");
+const { fetchBotNews } = require("./gloveBotFetcher");
 
 exports.registerKanbuPromo = registerKanbuPromo;
 exports.adAuction = adAuction;
@@ -423,3 +425,7 @@ exports.unlockEpisode = unlockEpisode;
 exports.createEpisode = createEpisode;
 exports.onEpisodeCreate = onEpisodeCreate;
 exports.onInkwellPostDelete = onInkwellPostDelete;
+exports.activateInfoBot = activateInfoBot;
+exports.deactivateInfoBot = deactivateInfoBot;
+exports.updateInfoBot = updateInfoBot;
+exports.fetchBotNews = fetchBotNews;
