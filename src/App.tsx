@@ -521,24 +521,28 @@ function App() {
                 <p className="text-[11px] font-bold text-slate-400 hidden md:block whitespace-nowrap">관심사가 같은 사람들이 모이는 따뜻한 커뮤니티</p>
               </div>
               {/* 우: 탭 2개 + 장갑 만들기 버튼 */}
-              <div className="flex items-center gap-1.5 shrink-0">
-                {([{ id: 'feed', label: '💬 소곤소곤', desc: '가입 장갑 피드' }, { id: 'list', label: '🧤 장갑 찾기', desc: '전체 커뮤니티' }, { id: 'mine', label: '❤️ 나의 장갑', desc: '가입한 장갑' }] as const).map(tab => (
+              <div className="flex items-center gap-1 shrink-0">
+                {([
+                  { id: 'feed', label: '소곤소곤', desc: '가입 장갑 피드', mobileOnly: false },
+                  { id: 'list', label: '장갑 찾기', desc: '전체 커뮤니티', mobileOnly: false },
+                  { id: 'mine', label: '나의 장갑', desc: '가입한 장갑', mobileOnly: true },
+                ] as const).map(tab => (
                   <button
                     key={tab.id}
                     onClick={() => { setGloveSubTab(tab.id); setSelectedCommunity(null); }}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border transition-all ${
+                    className={`${tab.mobileOnly ? 'md:hidden' : ''} flex items-center gap-1 px-2 py-1.5 rounded-lg border transition-all ${
                       gloveSubTab === tab.id
                         ? 'bg-blue-50 border-blue-200 text-blue-700'
                         : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'
                     }`}
                   >
-                    <span className="text-[12px] font-[1000] whitespace-nowrap">{tab.label}</span>
+                    <span className="text-[11px] font-[1000] whitespace-nowrap">{tab.label}</span>
                     <span className={`text-[10px] font-bold hidden md:inline whitespace-nowrap ${gloveSubTab === tab.id ? 'text-blue-400' : 'text-slate-300'}`}>{tab.desc}</span>
                   </button>
                 ))}
                 <button
                   onClick={() => setIsCreateCommunityOpen(true)}
-                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-blue-600 text-white border border-slate-900 hover:border-blue-600 transition-all"
+                  className="flex items-center gap-0.5 px-2 py-1.5 rounded-lg bg-slate-900 hover:bg-blue-600 text-white border border-slate-900 hover:border-blue-600 transition-all"
                 >
                   <svg className="w-3 h-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4" /></svg>
                   <span className="text-[11px] font-[1000] whitespace-nowrap hidden md:inline">장갑 만들기</span>
@@ -591,15 +595,17 @@ function App() {
               <div className="sticky top-[60px]">
                 <div className="bg-white border border-slate-100 rounded-2xl overflow-hidden">
                   <div className="px-4 py-3 border-b border-slate-100 flex items-center gap-2">
-                    <span className="text-[13px] font-[1000] text-slate-900">❤️ 나의 아늑한 장갑</span>
+                    <span className="text-[13px] font-[1000] text-slate-900">나의 장갑</span>
                   </div>
-                  <MyCommunityList
-                    communities={communities}
-                    joinedCommunityIds={joinedCommunityIds}
-                    onCommunityClick={(c) => { setSelectedCommunity(c); }}
-                    onLeave={handleLeaveCommunity}
-                    compact={true}
-                  />
+                  <div className="p-3">
+                    <MyCommunityList
+                      communities={communities}
+                      joinedCommunityIds={joinedCommunityIds}
+                      onCommunityClick={(c) => { setSelectedCommunity(c); }}
+                      onLeave={handleLeaveCommunity}
+                      compact={false}
+                    />
+                  </div>
                 </div>
               </div>
             </div>

@@ -48,8 +48,8 @@ const MyCommunityList = ({ communities, joinedCommunityIds, onCommunityClick, on
   }
 
   return (
-    <div className="w-full pb-20">
-      <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-3">
+    <div className="w-full">
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-2">
         {myCommunities.map(community => {
           const isOwner = joinedCommunityIds.includes(community.id); // owner 판별은 creatorId로
           return (
