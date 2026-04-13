@@ -56,8 +56,8 @@ const MarketHomeView = ({ currentUserData, allUsers }: Props) => {
 
   return (
     <div className="w-full max-w-[860px] mx-auto pb-20 animate-in fade-in">
-      {/* 헤더 — 우리들의 장갑 패턴: 좌측 제목+설명 / 우측 탭+버튼 */}
-      <div className="sticky top-[48px] z-10 bg-white/95 backdrop-blur-sm -mx-4 px-4">
+      {/* 헤더 — 잉크병/장갑 패턴: sticky top-0, #타이틀 + 설명 + 탭 */}
+      <div className="sticky top-0 z-30 bg-[#F8FAFC]/80 backdrop-blur-md pt-2 -mx-4 px-4">
         <div className="flex items-center justify-between border-b border-slate-200 h-[44px] gap-3">
           {/* 좌: 타이틀 */}
           <div className="flex items-center gap-1.5 shrink-0">
