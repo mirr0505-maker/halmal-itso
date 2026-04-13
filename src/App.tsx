@@ -143,7 +143,7 @@ function App() {
   const [isCreateRoomOpen, setIsCreateRoomOpen] = useState(false);
   // 🚀 우리들의 따뜻한 장갑: 커뮤니티 상태
   // 🚀 장갑찾기가 기본 탭 (사용자가 커뮤니티를 발견하도록 유도)
-  const [gloveSubTab, setGloveSubTab] = useState<'feed' | 'list'>('list');
+  const [gloveSubTab, setGloveSubTab] = useState<'feed' | 'mine' | 'list'>('list');
   const [selectedCommunity, setSelectedCommunity] = useState<Community | null>(null);
   const [isCreateCommunityOpen, setIsCreateCommunityOpen] = useState(false);
   const [selectedFriend, setSelectedFriend] = useState<string | null>(null);
@@ -524,7 +524,7 @@ function App() {
               </div>
               {/* 우: 탭 2개 + 장갑 만들기 버튼 */}
               <div className="flex items-center gap-1.5 shrink-0">
-                {([{ id: 'feed', label: '💬 소곤소곤', desc: '가입 장갑 피드' }, { id: 'list', label: '🧤 장갑 찾기', desc: '전체 커뮤니티' }] as const).map(tab => (
+                {([{ id: 'feed', label: '💬 소곤소곤', desc: '가입 장갑 피드' }, { id: 'mine', label: '❤️ 나의 장갑', desc: '가입한 장갑' }, { id: 'list', label: '🧤 장갑 찾기', desc: '전체 커뮤니티' }] as const).map(tab => (
                   <button
                     key={tab.id}
                     onClick={() => { setGloveSubTab(tab.id); setSelectedCommunity(null); }}
@@ -570,6 +570,13 @@ function App() {
                   communities={communities}
                   followerCounts={followerCounts}
                   onCommunityClick={setSelectedCommunity}
+                />
+              ) : gloveSubTab === 'mine' ? (
+                <MyCommunityList
+                  communities={communities}
+                  joinedCommunityIds={joinedCommunityIds}
+                  onCommunityClick={setSelectedCommunity}
+                  onLeave={handleLeaveCommunity}
                 />
               ) : (
                 <CommunityList

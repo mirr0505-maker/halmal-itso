@@ -9,7 +9,7 @@ interface GloveActionDeps {
   userData: UserData | null;
   setJoinedCommunityIds: Dispatch<SetStateAction<string[]>>;
   setIsCreateCommunityOpen: Dispatch<SetStateAction<boolean>>;
-  setGloveSubTab: Dispatch<SetStateAction<'feed' | 'list'>>;
+  setGloveSubTab: Dispatch<SetStateAction<'feed' | 'mine' | 'list'>>;
   setIsCreateRoomOpen: Dispatch<SetStateAction<boolean>>;
 }
 
