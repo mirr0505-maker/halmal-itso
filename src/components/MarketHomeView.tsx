@@ -55,7 +55,7 @@ const MarketHomeView = ({ currentUserData, allUsers }: Props) => {
   const userLevel = currentUserData ? calculateLevel(currentUserData.exp || 0) : 0;
 
   return (
-    <div className="w-full pb-20 animate-in fade-in">
+    <div className="w-full pb-4 animate-in fade-in">
       {/* 헤더 — 잉크병/장갑 패턴: sticky top-0, 전체 폭 */}
       <div className="sticky top-0 z-30 bg-[#F8FAFC]/80 backdrop-blur-md pt-2">
         <div className="flex items-center justify-between border-b border-slate-200 h-[44px] gap-3">
@@ -117,11 +117,11 @@ const MarketHomeView = ({ currentUserData, allUsers }: Props) => {
       {/* 콘텐츠 */}
       <div className={activeTab === 'stall' ? 'mt-1' : 'mt-4'}>
         {loading ? (
-          <div className="py-40 text-center text-slate-300 text-[12px] font-bold">불러오는 중...</div>
+          <div className="py-20 text-center text-slate-300 text-[12px] font-bold">불러오는 중...</div>
         ) : activeTab === 'stall' ? (
           // 가판대 목록
           items.length === 0 ? (
-            <div className="py-40 text-center">
+            <div className="py-20 text-center">
               <p className="text-slate-400 font-[1000] text-[13px]">아직 판매글이 없습니다</p>
               <p className="text-slate-300 font-bold text-[11px] mt-1">첫 번째 판매글을 작성해보세요</p>
             </div>
@@ -135,7 +135,7 @@ const MarketHomeView = ({ currentUserData, allUsers }: Props) => {
         ) : (
           // 단골장부 목록
           shops.length === 0 ? (
-            <div className="py-40 text-center">
+            <div className="py-20 text-center">
               <p className="text-slate-400 font-[1000] text-[13px]">아직 개설된 상점이 없습니다</p>
               <p className="text-slate-300 font-bold text-[11px] mt-1">Lv5 이상이면 단골장부를 개설할 수 있습니다</p>
             </div>
