@@ -238,7 +238,7 @@ const CreateCommunityModal = ({ userData, onSubmit, onClose }: Props) => {
               }}
             />
             {thumbnailPreview ? (
-              <div className="relative w-full h-32 rounded-lg overflow-hidden border border-slate-200">
+              <div className="relative w-full aspect-[16/9] rounded-lg overflow-hidden border border-slate-200">
                 <img src={thumbnailPreview} alt="미리보기" className="w-full h-full object-cover" />
                 <button
                   type="button"
@@ -276,7 +276,7 @@ const CreateCommunityModal = ({ userData, onSubmit, onClose }: Props) => {
               }}
             />
             {chatBgPreview ? (
-              <div className="relative w-full h-32 rounded-lg overflow-hidden border border-slate-200">
+              <div className="relative w-full aspect-[16/9] rounded-lg overflow-hidden border border-slate-200">
                 <img src={chatBgPreview} alt="바탕화면 미리보기" className="w-full h-full object-cover" />
                 <div className="absolute inset-0 bg-white/50" />
                 <p className="absolute bottom-2 left-0 right-0 text-center text-[9px] font-bold text-slate-500">채팅 메시지가 이 위에 표시됩니다</p>
@@ -535,7 +535,7 @@ const CreateCommunityModal = ({ userData, onSubmit, onClose }: Props) => {
         <div className="px-6 pb-2">
           <div className="rounded-xl overflow-hidden border border-slate-100">
             {thumbnailPreview ? (
-              <div className="h-20 w-full bg-slate-100">
+              <div className="aspect-[16/9] w-full bg-slate-100">
                 <img src={thumbnailPreview} alt="" className="w-full h-full object-cover" />
               </div>
             ) : (

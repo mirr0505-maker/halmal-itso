@@ -118,16 +118,16 @@ function ChatMessageItem({ message, currentUid, isAdmin, onReply, onToggleReacti
           <div className="flex flex-col items-center gap-0.5 shrink-0">
             <span className="text-[9px] text-slate-300">{timeStr}</span>
             {!message.deleted && (
-              <div className="flex items-center gap-0.5">
+              <div className="flex items-center gap-1">
                 {!isMine && (
-                  <button onClick={() => onReply(message)} className="text-[14px] text-slate-300 hover:text-emerald-500 px-0.5" title="답장">↩</button>
+                  <button onClick={() => onReply(message)} className="w-7 h-7 flex items-center justify-center rounded-full bg-slate-100 hover:bg-emerald-100 text-slate-400 hover:text-emerald-600 text-[13px] transition-colors" title="답장">↩</button>
                 )}
                 {!isMine && (
-                  <button onClick={() => onSendThanksball(message)} className="text-[13px] text-slate-300 hover:text-amber-500 px-0.5" title="땡스볼">⚾</button>
+                  <button onClick={() => onSendThanksball(message)} className="w-7 h-7 flex items-center justify-center rounded-full bg-slate-100 hover:bg-amber-100 text-slate-400 hover:text-amber-600 text-[13px] transition-colors" title="땡스볼">⚾</button>
                 )}
                 <div className="relative">
                   <button onClick={() => setReactionPickerFor(reactionPickerFor === message.id ? null : message.id)}
-                    className="text-[18px] font-[1000] text-slate-300 hover:text-amber-500 px-0.5 leading-none" title="반응">+</button>
+                    className="w-7 h-7 flex items-center justify-center rounded-full bg-slate-100 hover:bg-blue-100 text-slate-400 hover:text-blue-600 text-[15px] font-[1000] transition-colors" title="반응">+</button>
                   {reactionPickerFor === message.id && (
                     <div
                       className="absolute z-20 bg-white border border-slate-200 rounded-full shadow-lg px-1.5 py-1 flex gap-0.5 bottom-full mb-1 left-1/2 -translate-x-1/2"

@@ -723,8 +723,14 @@ const MyPage = ({
                               key={c.id}
                               className={`rounded-2xl border overflow-hidden transition-all ${isBanned ? 'border-rose-200 bg-rose-50/30' : 'border-slate-100 bg-white hover:border-teal-200 hover:shadow-sm'}`}
                             >
-                              {/* 상단 컬러바 */}
-                              <div className="h-1 w-full" style={{ backgroundColor: c.coverColor || '#14b8a6' }} />
+                              {/* 상단 썸네일 또는 컬러바 */}
+                              {c.thumbnailUrl ? (
+                                <div className="aspect-[16/9] w-full bg-slate-100 overflow-hidden">
+                                  <img src={c.thumbnailUrl} alt="" className="w-full h-full object-cover" />
+                                </div>
+                              ) : (
+                                <div className="h-1 w-full" style={{ backgroundColor: c.coverColor || '#14b8a6' }} />
+                              )}
 
                               <div className="p-4">
                                 {/* 헤더 행: 이름 + 역할 배지 */}

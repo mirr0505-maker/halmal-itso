@@ -424,7 +424,13 @@ const CommunityView = ({ community, currentUserData, allUsers, followerCounts = 
     <div className="w-full max-w-[860px] mx-auto pb-20 animate-in fade-in">
       {/* 커뮤니티 헤더 */}
       <div className="rounded-xl overflow-hidden border border-slate-100 mb-4 bg-white shadow-sm">
-        <div className="h-3 w-full" style={{ backgroundColor: community.coverColor || '#3b82f6' }} />
+        {community.thumbnailUrl ? (
+          <div className="aspect-[16/9] max-h-48 w-full bg-slate-100 overflow-hidden">
+            <img src={community.thumbnailUrl} alt="" className="w-full h-full object-cover" />
+          </div>
+        ) : (
+          <div className="h-3 w-full" style={{ backgroundColor: community.coverColor || '#3b82f6' }} />
+        )}
         <div className="px-5 py-4">
           <div className="flex items-center justify-between">
             <button

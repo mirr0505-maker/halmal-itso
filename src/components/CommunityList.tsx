@@ -75,7 +75,7 @@ const CommunityList = ({ communities, currentUserData, joinedCommunityIds, onCom
               >
                 {/* 🧤 대표 이미지 또는 색상 바 */}
                 {community.thumbnailUrl ? (
-                  <div className="h-28 w-full bg-slate-100 overflow-hidden">
+                  <div className="aspect-[16/9] w-full bg-slate-100 overflow-hidden">
                     <img src={community.thumbnailUrl} alt="" className="w-full h-full object-cover" />
                   </div>
                 ) : (

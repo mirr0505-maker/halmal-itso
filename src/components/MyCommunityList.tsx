@@ -32,7 +32,11 @@ const MyCommunityList = ({ communities, joinedCommunityIds, onCommunityClick, on
             onClick={() => onCommunityClick(community)}
             className="w-full flex items-center gap-2.5 px-4 py-2 hover:bg-slate-50 transition-colors text-left group"
           >
-            <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: community.coverColor || '#3b82f6' }} />
+            {community.thumbnailUrl ? (
+              <img src={community.thumbnailUrl} alt="" className="w-6 h-6 rounded-md object-cover shrink-0" />
+            ) : (
+              <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: community.coverColor || '#3b82f6' }} />
+            )}
             <div className="flex-1 min-w-0">
               <p className="text-[12px] font-[1000] text-slate-700 group-hover:text-blue-600 truncate">{community.name}</p>
               <p className="text-[10px] font-bold text-slate-300 leading-none mt-0.5">멤버 {community.memberCount}명</p>
@@ -54,7 +58,13 @@ const MyCommunityList = ({ communities, joinedCommunityIds, onCommunityClick, on
               onClick={() => onCommunityClick(community)}
               className="border border-slate-100 rounded-xl overflow-hidden cursor-pointer hover:border-blue-300 hover:shadow-lg transition-all group bg-white"
             >
-              <div className="h-2 w-full" style={{ backgroundColor: community.coverColor || '#3b82f6' }} />
+              {community.thumbnailUrl ? (
+                <div className="aspect-[16/9] w-full bg-slate-100 overflow-hidden">
+                  <img src={community.thumbnailUrl} alt="" className="w-full h-full object-cover" />
+                </div>
+              ) : (
+                <div className="h-2 w-full" style={{ backgroundColor: community.coverColor || '#3b82f6' }} />
+              )}
               <div className="px-4 py-3">
                 <div className="flex items-start gap-2 mb-1">
                   <div className="flex-1 min-w-0">

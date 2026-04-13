@@ -208,7 +208,7 @@ const CommunityAdminPanel = ({ community, myFinger, pendingMembers, onApprove, o
               }}
             />
             {thumbnailPreview && !removeThumbnail ? (
-              <div className="relative w-full h-28 rounded-lg overflow-hidden border border-slate-200">
+              <div className="relative w-2/3 aspect-[16/9] rounded-lg overflow-hidden border border-slate-200">
                 <img src={thumbnailPreview} alt="대표 이미지" className="w-full h-full object-cover" />
                 <div className="absolute top-1.5 right-1.5 flex gap-1">
                   <button type="button" onClick={() => thumbnailInputRef.current?.click()}
@@ -219,7 +219,7 @@ const CommunityAdminPanel = ({ community, myFinger, pendingMembers, onApprove, o
               </div>
             ) : (
               <button type="button" onClick={() => thumbnailInputRef.current?.click()}
-                className="w-full h-16 border-2 border-dashed border-slate-200 rounded-lg flex items-center justify-center gap-2 hover:border-blue-300 transition-all">
+                className="w-2/3 aspect-[16/9] border-2 border-dashed border-slate-200 rounded-lg flex items-center justify-center gap-2 hover:border-blue-300 transition-all">
                 <span className="text-[14px]">📷</span>
                 <span className="text-[10px] font-bold text-slate-400">이미지 선택 (5MB 이하)</span>
               </button>
@@ -243,7 +243,7 @@ const CommunityAdminPanel = ({ community, myFinger, pendingMembers, onApprove, o
               }}
             />
             {chatBgPreview && !removeChatBg ? (
-              <div className="relative w-full h-24 rounded-lg overflow-hidden border border-slate-200">
+              <div className="relative w-2/3 aspect-[16/9] rounded-lg overflow-hidden border border-slate-200">
                 <img src={chatBgPreview} alt="채팅 바탕화면" className="w-full h-full object-cover" />
                 <div className="absolute inset-0 bg-white/50" />
                 <p className="absolute bottom-1.5 left-0 right-0 text-center text-[9px] font-bold text-slate-500">채팅 배경 미리보기</p>
@@ -256,7 +256,7 @@ const CommunityAdminPanel = ({ community, myFinger, pendingMembers, onApprove, o
               </div>
             ) : (
               <button type="button" onClick={() => chatBgInputRef.current?.click()}
-                className="w-full h-14 border-2 border-dashed border-slate-200 rounded-lg flex items-center justify-center gap-2 hover:border-blue-300 transition-all">
+                className="w-2/3 aspect-[16/9] border-2 border-dashed border-slate-200 rounded-lg flex items-center justify-center gap-2 hover:border-blue-300 transition-all">
                 <span className="text-[14px]">💬</span>
                 <span className="text-[10px] font-bold text-slate-400">채팅 배경 이미지 선택</span>
               </button>
@@ -335,15 +335,18 @@ const CommunityAdminPanel = ({ community, myFinger, pendingMembers, onApprove, o
         const isActive = bot?.enabled && bot?.expiresAt && (bot.expiresAt as unknown as { toMillis?: () => number }).toMillis
           ? (bot.expiresAt as unknown as { toMillis: () => number }).toMillis() > Date.now()
           : false;
-        const daysLeft = isActive && bot?.expiresAt
-          ? Math.ceil(((bot.expiresAt as unknown as { toMillis: () => number }).toMillis() - Date.now()) / (1000 * 60 * 60 * 24))
+        const msLeft = isActive && bot?.expiresAt
+          ? (bot.expiresAt as unknown as { toMillis: () => number }).toMillis() - Date.now()
           : 0;
+        const daysLeft = Math.ceil(msLeft / (1000 * 60 * 60 * 24));
+        const hoursLeft = Math.ceil(msLeft / (1000 * 60 * 60));
 
         return (
           <InfoBotPanel
             community={community}
             isActive={isActive}
             daysLeft={daysLeft}
+            hoursLeft={hoursLeft}
           />
         );
       })()}
@@ -364,7 +367,9 @@ const CommunityAdminPanel = ({ community, myFinger, pendingMembers, onApprove, o
 };
 
 // 🤖 정보봇 관리 패널 (주식 장갑 전용, 대장만 사용)
-function InfoBotPanel({ community, isActive, daysLeft }: { community: Community; isActive: boolean; daysLeft: number }) {
+function InfoBotPanel({ community, isActive, daysLeft, hoursLeft }: { community: Community; isActive: boolean; daysLeft: number; hoursLeft: number }) {
+  // 남은 시간 표시: 1일 이상이면 D-N일, 24시간 미만이면 N시간
+  const remainLabel = daysLeft >= 1 ? `D-${daysLeft}일` : `${Math.max(1, hoursLeft)}시간`;
   const ALL_SOURCES: { id: InfoBotSource; icon: string; label: string }[] = [
     { id: 'news', icon: '📰', label: '뉴스 기사' },
     { id: 'dart', icon: '📋', label: 'DART 공시' },
@@ -443,7 +448,7 @@ function InfoBotPanel({ community, isActive, daysLeft }: { community: Community;
         <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest">🤖 정보봇</p>
         {isActive && (
           <span className="text-[10px] font-[1000] text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
-            ✅ 활성 · D-{daysLeft}일
+            ✅ 활성 · {remainLabel}
           </span>
         )}
       </div>
