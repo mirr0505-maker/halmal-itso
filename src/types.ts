@@ -29,7 +29,35 @@ export interface UserData {
   ballReceived?: number;  // 누적 받은 볼
   createdAt?: FirestoreTimestamp;        // 가입일 (Firestore Timestamp)
   nicknameChangedAt?: FirestoreTimestamp; // 닉네임 변경일 (30일 쿨다운)
+  // 🏚️ 놀부의 텅 빈 곳간 (유배귀양지) — Phase 1
+  strikeCount?: number;              // 누적 유배 횟수 (기본 0, 영구 보존)
+  sanctionStatus?: SanctionStatus;   // 유배 상태 (미설정 시 'active')
+  sanctionExpiresAt?: FirestoreTimestamp | null;  // 속죄금 결제 가능 시점 (반성 기간 만료)
+  requiredBail?: number;             // 필요 속죄금 (볼)
+  sanctionReason?: string;           // 관리자 입력 사유
+  sanctionedAt?: FirestoreTimestamp; // 유배 시작 시각
+  sanctionedBy?: string;             // 처분 관리자 UID
+  phoneVerified?: boolean;           // 휴대폰 인증 여부
+  phoneHash?: string | null;         // sha256(phoneNumber) — 블랙리스트 매칭용
+  phoneVerifiedAt?: FirestoreTimestamp | null;
 }
+
+// 🏚️ 유배 상태
+export type SanctionStatus = 'active' | 'exiled_lv1' | 'exiled_lv2' | 'exiled_lv3' | 'banned';
+
+// 🏚️ 단계별 유배 정책 (클라이언트/서버 공통)
+export interface SanctionPolicy {
+  level: 1 | 2 | 3;
+  status: SanctionStatus;
+  reflectionDays: number;   // 반성 기간 (일)
+  bailAmount: number;       // 속죄금 (볼)
+}
+
+export const SANCTION_POLICIES: SanctionPolicy[] = [
+  { level: 1, status: 'exiled_lv1', reflectionDays: 3,  bailAmount: 10 },
+  { level: 2, status: 'exiled_lv2', reflectionDays: 7,  bailAmount: 50 },
+  { level: 3, status: 'exiled_lv3', reflectionDays: 30, bailAmount: 300 },
+];
 
 export interface AuthorInfo {
   level: number;

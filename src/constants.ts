@@ -110,8 +110,8 @@ export const MENU_MESSAGES: Record<string, { title: string, description: string,
   },
   exile_place: {
     emoji: "🏚️",
-    title: "유배·귀양지",
-    description: "본문이나 댓글에서, '욕설, 생명경시, 차별적표현, 비윤리, 반국가, 음란물, 불법정보, 광고글, 사기 등' 해당 작성자 격리 공간"
+    title: "놀부의 텅 빈 곳간 (유배귀양지)",
+    description: "심술을 부리다 벌을 받은 놀부가 곳간에 갇혀 반성하는 공간 — 속죄금 + 반성기간 + 깐부리셋의 삼중 장벽"
   }
 };
 

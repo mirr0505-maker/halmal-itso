@@ -171,7 +171,7 @@ const Sidebar = ({ activeMenu, setActiveMenu, kanbuRoomCount = 0, currentNicknam
 
   const exileMenu: MenuItem = {
     id: 'exile_place',
-    label: '유배·귀양지',
+    label: '놀부의 텅 빈 곳간',
     description: '격리공간',
     icon: (
       <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">

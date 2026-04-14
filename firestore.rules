@@ -449,5 +449,46 @@ service cloud.firestore {
       allow update: if isAdmin();
       allow create, delete: if false;
     }
+
+    // ════════════════════════════════════════════════════════════
+    // 🏚️ 놀부의 텅 빈 곳간 (유배귀양지) — Phase 1
+    // ════════════════════════════════════════════════════════════
+
+    // 유배 이력 — 본인만 read, Cloud Function 전용 write
+    match /bail_history/{docId} {
+      allow read: if request.auth != null && resource.data.uid == request.auth.uid;
+      allow write: if false;
+    }
+    match /release_history/{docId} {
+      allow read: if request.auth != null && resource.data.uid == request.auth.uid;
+      allow write: if false;
+    }
+
+    // 사약 블랙리스트 — 전면 차단 (Cloud Function 전용)
+    match /banned_phones/{phoneHash} {
+      allow read: if false;
+      allow write: if false;
+    }
+
+    // 감사 로그 — 관리자만 read
+    match /sanction_log/{docId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
+    // 유배지 게시글 — 전체 read (관전), 쓰기는 Cloud Function 전용 (Phase 2에서 확장)
+    match /exile_posts/{postId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null
+        && request.auth.uid == request.resource.data.uid
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.sanctionStatus in ['exiled_lv1', 'exiled_lv2', 'exiled_lv3'];
+      allow update, delete: if false;
+    }
+    match /exile_comments/{commentId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null
+        && request.auth.uid == request.resource.data.uid;
+      allow update, delete: if false;
+    }
   }
 }
