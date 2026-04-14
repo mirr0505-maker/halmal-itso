@@ -9,6 +9,15 @@
 - [x] **Step D** — 라우팅 가드: useEffect 감지로 유배자 자동 강제 이동, Sidebar isExiled prop (유배지+내정보만 노출), SayakScreen (banned 유저 전용 전체화면 10초 카운트다운 → 강제 로그아웃)
 - [x] **테스트 계정**: 불량깐부1~3호 (Lv3/4/5) 추가, 헤더 검색창 축소 (200px, 32h)
 
+### 🏚️ 놀부의 텅 빈 곳간 Phase 2 (2026-04-14)
+
+- [x] `ExileBoard` — exile_posts 게시판 (유배자 본인 단계 작성, 닉네임 자동 익명화 "곳간 거주자 #NNNN", 500자 제한)
+- [x] 일반 유저 관전 뷰 — 3탭 전체 열람, 관전자 안내 문구 (거친 표현 주의 등)
+- [x] `PublicProfile`: 유배 배지 ("🏚️ 수감 중 · N범") + 사약 배지 ("☠️ 사약")
+- [x] `MyPage`: 유배자 상단 경고 배너 (처분 사유 + 곳간 이동 안내)
+- [x] `sendThanksball` 서버 가드: 유배자/사약자 송금 차단 (수신 허용)
+- [x] Firestore 인덱스: `exile_posts` level+createdAt DESC
+
 ### 🏪 강변 시장 Phase 1~3 (2026-04-13)
 > 상세 설계: [MARKET.md](./MARKET.md)
 
