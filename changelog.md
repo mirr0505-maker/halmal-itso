@@ -9,6 +9,15 @@
 - [x] **Step D** — 라우팅 가드: useEffect 감지로 유배자 자동 강제 이동, Sidebar isExiled prop (유배지+내정보만 노출), SayakScreen (banned 유저 전용 전체화면 10초 카운트다운 → 강제 로그아웃)
 - [x] **테스트 계정**: 불량깐부1~3호 (Lv3/4/5) 추가, 헤더 검색창 축소 (200px, 32h)
 
+### 🏚️ 놀부의 텅 빈 곳간 관리자 강화 + 이의 제기 (2026-04-14)
+
+- [x] **플랫폼 수익 대시보드** 확장: `platform_revenue/penalty`(속죄금 소각) + `platform_revenue/sayak_seized`(사약 몰수) 카드 + 수익 구조 요약에 유배 항목 추가
+- [x] **현재 유배자 목록** (ExileManagement 내): `sanctionStatus in [exiled_lv1~3, banned]` 실시간 구독, 단계별 컬러 배지, 90일 초과 경고, 반성기간 남은 일수 표시
+- [x] **이의 제기 채널** (`appeals` 컬렉션):
+  • 유배자: `AppealForm` — 1000자 제한, 1회 제출 후 검토 대기
+  • 관리자: `AppealReview` 탭 — 대기/전체 필터, 인용/기각 + 사유 입력, 대상자 알림 발송
+  • Firestore Rules + 인덱스 2건
+
 ### 🏚️ 놀부의 텅 빈 곳간 Phase 3 일부 (2026-04-14)
 
 - [x] **문제 글 soft delete**: `sendToExile` postId 파라미터 → isHiddenByExile 플래그 + 피드 필터링 (App.tsx basePosts/onecutAll)

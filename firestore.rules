@@ -476,6 +476,18 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // 이의 제기 — 본인 작성/조회, 관리자 모두 조회 + 상태 변경
+    match /appeals/{appealId} {
+      allow read: if request.auth != null
+        && (resource.data.uid == request.auth.uid || isAdmin());
+      allow create: if request.auth != null
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.status == 'pending';
+      allow update: if isAdmin()
+        && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['status', 'adminReply', 'reviewedAt', 'reviewedBy']);
+    }
+
     // 유배지 게시글 — 전체 read (관전), 쓰기는 Cloud Function 전용 (Phase 2에서 확장)
     match /exile_posts/{postId} {
       allow read: if request.auth != null;

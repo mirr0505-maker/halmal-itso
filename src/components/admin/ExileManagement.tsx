@@ -2,7 +2,7 @@
 // 신고 목록 + 유배 보내기 버튼
 import { useState, useEffect } from 'react';
 import { db, functions } from '../../firebase';
-import { collection, query, orderBy, limit, onSnapshot } from 'firebase/firestore';
+import { collection, query, where, orderBy, limit, onSnapshot } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 
 interface Report {
@@ -14,6 +14,17 @@ interface Report {
   postId?: string;
   createdAt?: { toDate: () => Date };
   status?: string;
+}
+
+interface ExiledUser {
+  uid: string;
+  nickname: string;
+  sanctionStatus: string;
+  strikeCount?: number;
+  requiredBail?: number;
+  sanctionReason?: string;
+  sanctionedAt?: { toDate?: () => Date; toMillis?: () => number };
+  sanctionExpiresAt?: { toDate?: () => Date; toMillis?: () => number };
 }
 
 const ExileManagement = () => {
@@ -29,6 +40,21 @@ const ExileManagement = () => {
       setReports(snap.docs.map(d => ({ id: d.id, ...d.data() } as Report)));
       setLoading(false);
     }, () => setLoading(false));
+    return unsub;
+  }, []);
+
+  // 🏚️ 현재 유배자 목록 실시간 구독
+  const [exiledUsers, setExiledUsers] = useState<ExiledUser[]>([]);
+  useEffect(() => {
+    const q = query(
+      collection(db, 'users'),
+      where('sanctionStatus', 'in', ['exiled_lv1', 'exiled_lv2', 'exiled_lv3', 'banned']),
+      orderBy('sanctionedAt', 'desc'),
+      limit(100)
+    );
+    const unsub = onSnapshot(q, (snap) => {
+      setExiledUsers(snap.docs.map(d => ({ uid: d.id, ...d.data() } as ExiledUser)));
+    }, (err) => console.error('[ExiledUsers]', err));
     return unsub;
   }, []);
 
@@ -89,6 +115,61 @@ const ExileManagement = () => {
           message.startsWith('⚖️') || message.startsWith('☠️') ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600'
         }`}>{message}</div>
       )}
+
+      {/* 🏚️ 현재 유배자 목록 */}
+      <div className="bg-white border border-slate-100 rounded-xl p-4">
+        <div className="flex items-center justify-between mb-3">
+          <p className="text-[11px] font-[1000] text-slate-700">🏚️ 현재 유배 중 ({exiledUsers.filter(u => u.sanctionStatus !== 'banned').length}명) + ☠️ 사약 ({exiledUsers.filter(u => u.sanctionStatus === 'banned').length}명)</p>
+        </div>
+        {exiledUsers.length === 0 ? (
+          <p className="text-[11px] font-bold text-slate-300 py-4 text-center">유배 중인 유저가 없습니다</p>
+        ) : (
+          <div className="space-y-1.5">
+            {exiledUsers.map(u => {
+              const statusLabel = u.sanctionStatus === 'exiled_lv1' ? '1차 곳간' :
+                u.sanctionStatus === 'exiled_lv2' ? '2차 무인도' :
+                u.sanctionStatus === 'exiled_lv3' ? '3차 절해고도' : '☠️ 사약';
+              const statusColor = u.sanctionStatus === 'banned' ? 'text-rose-600 bg-rose-50' :
+                u.sanctionStatus === 'exiled_lv3' ? 'text-red-600 bg-red-50' :
+                u.sanctionStatus === 'exiled_lv2' ? 'text-orange-600 bg-orange-50' :
+                'text-yellow-700 bg-yellow-50';
+              const expiresAt = u.sanctionExpiresAt?.toMillis?.() || 0;
+              const sanctionedAt = u.sanctionedAt?.toMillis?.() || 0;
+              const isOverdue = sanctionedAt > 0 && (Date.now() - sanctionedAt) > 90 * 24 * 60 * 60 * 1000;
+              const daysLeft = expiresAt > 0 ? Math.ceil((expiresAt - Date.now()) / (1000 * 60 * 60 * 24)) : 0;
+              const daysSince = sanctionedAt > 0 ? Math.floor((Date.now() - sanctionedAt) / (1000 * 60 * 60 * 24)) : 0;
+
+              return (
+                <div key={u.uid} className="flex items-center justify-between px-3 py-2 border border-slate-100 rounded-lg hover:bg-slate-50">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5 mb-0.5">
+                      <span className="text-[12px] font-[1000] text-slate-800">{u.nickname}</span>
+                      <span className={`text-[9px] font-[1000] px-1.5 py-0.5 rounded-full ${statusColor}`}>{statusLabel}</span>
+                      {u.strikeCount && u.strikeCount > 0 && (
+                        <span className="text-[9px] font-bold text-slate-400">{u.strikeCount}범</span>
+                      )}
+                      {isOverdue && u.sanctionStatus !== 'banned' && (
+                        <span className="text-[9px] font-[1000] text-white bg-rose-600 px-1.5 py-0.5 rounded-full">90일 초과</span>
+                      )}
+                    </div>
+                    <p className="text-[10px] font-bold text-slate-400 truncate">
+                      {u.sanctionReason || '사유 없음'}
+                    </p>
+                    <p className="text-[9px] font-bold text-slate-300 mt-0.5">
+                      {daysSince > 0 && `유배 ${daysSince}일 경과`}
+                      {daysLeft > 0 && ` · 반성 기간 ${daysLeft}일 남음`}
+                      {u.requiredBail ? ` · 속죄금 ${u.requiredBail}볼` : ''}
+                    </p>
+                  </div>
+                  <div className="shrink-0 ml-2 text-[9px] font-mono text-slate-300">
+                    {u.uid.slice(0, 6)}...
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
 
       {reports.length === 0 ? (
         <p className="py-10 text-center text-slate-400 font-bold text-[12px]">접수된 신고가 없습니다</p>

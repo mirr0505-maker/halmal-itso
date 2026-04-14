@@ -139,7 +139,9 @@
 | `ExileMainPage.tsx` | 🏚️ 유배자 메인. 3탭(놀부곳간/무인도/절해고도, 내 단계만 활성, 관전자는 3탭 모두 열람) + 상태카드 + 반성기간 카운트다운 + 속죄금 결제(`releaseFromExile`). |
 | `ExileBoard.tsx` | 🏚️ 유배지 게시판. 본인 단계만 글 작성 가능, 닉네임 자동 익명화(`곳간 거주자 #NNNN`), 외부 공유 금지. |
 | `SayakScreen.tsx` | ☠️ 사약 처분 전용 전체화면. `sanctionStatus === 'banned'` 시 다른 UI 렌더 전에 이 화면만. 10초 카운트다운 → 강제 로그아웃. |
-| `admin/ExileManagement.tsx` | 🏚️ 관리자 유배 관리 탭. 신고 목록 실시간 + [유배 보내기] 버튼 + 수동 UID 입력. `sendToExile` callable. |
+| `admin/ExileManagement.tsx` | 🏚️ 관리자 유배 관리 탭. 신고 목록 + 현재 유배자 목록(단계별 배지/90일 초과 경고) + [유배 보내기] + 수동 UID 입력 + ☠️ 직권 사약. |
+| `admin/AppealReview.tsx` | ⚖️ 이의 제기 검토 탭. 대기/전체 필터 + 인용(해제 권고)/기각 + 대상자 알림 발송. |
+| `admin/PlatformRevenueDashboard.tsx` | 💵 플랫폼 수익 대시보드. 잉크병/강변시장/정보봇 + 유배 시스템(속죄금 소각 + 사약 몰수) 카드. |
 | `Sidebar.tsx` | `isExiled` prop — 유배자는 유배지+내정보만 노출. `activeMenu` 강제 이동은 App.tsx useEffect 가드. |
 
 ---

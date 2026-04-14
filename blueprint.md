@@ -198,8 +198,9 @@
 | `release_history` | 🏚️ 해금 이력 (본인만 read) | `release_{timestamp}_{uid}` |
 | `banned_phones` | 🏚️ 사약 블랙리스트 (Cloud Function 전용) | `{phoneHash}` |
 | `sanction_log` | 🏚️ 유배·사약 감사 로그 (관리자만 read) | `log_{timestamp}_{targetUid}` |
-| `exile_posts` | 🏚️ 유배지 게시글 (Phase 2 확장) | 자동 ID |
-| `exile_comments` | 🏚️ 유배지 댓글 (Phase 2 확장) | 자동 ID |
+| `exile_posts` | 🏚️ 유배지 게시글 | 자동 ID |
+| `exile_comments` | 🏚️ 유배지 댓글 | 자동 ID |
+| `appeals` | ⚖️ 유배 이의 제기 (본인+관리자 read, 관리자만 update) | 자동 ID |
 
 - **commentCount 비정규화**: 댓글 작성 시 `posts/{postId}` 문서에 `increment(1)` 누적 → 홈 피드 쿼리에서 Firestore 읽기 비용 절감.
 - **per-topic 구독**: `selectedTopic` 변경 시에만 `comments` where `rootId == selectedTopic.id` 구독 (전체 구독 비용 절감).

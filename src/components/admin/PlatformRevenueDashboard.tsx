@@ -11,10 +11,17 @@ interface RevenueDoc {
   lastUpdatedAt?: unknown;
 }
 
+interface SayakSeizedDoc {
+  totalAmount: number;
+  totalSayakCount?: number;
+}
+
 const PlatformRevenueDashboard = () => {
   const [inkwell, setInkwell] = useState<RevenueDoc | null>(null);
   const [market, setMarket] = useState<RevenueDoc | null>(null);
   const [gloveBot, setGloveBot] = useState<RevenueDoc | null>(null);
+  const [penalty, setPenalty] = useState<RevenueDoc | null>(null);
+  const [sayakSeized, setSayakSeized] = useState<SayakSeizedDoc | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -22,10 +29,14 @@ const PlatformRevenueDashboard = () => {
       getDoc(doc(db, 'platform_revenue', 'inkwell')),
       getDoc(doc(db, 'platform_revenue', 'market')),
       getDoc(doc(db, 'platform_revenue', 'glove_bot')),
-    ]).then(([inkSnap, mktSnap, botSnap]) => {
+      getDoc(doc(db, 'platform_revenue', 'penalty')),
+      getDoc(doc(db, 'platform_revenue', 'sayak_seized')),
+    ]).then(([inkSnap, mktSnap, botSnap, penSnap, syzSnap]) => {
       if (inkSnap.exists()) setInkwell(inkSnap.data() as RevenueDoc);
       if (mktSnap.exists()) setMarket(mktSnap.data() as RevenueDoc);
       if (botSnap.exists()) setGloveBot(botSnap.data() as RevenueDoc);
+      if (penSnap.exists()) setPenalty({ totalFee: (penSnap.data() as { totalAmount?: number }).totalAmount || 0 });
+      if (syzSnap.exists()) setSayakSeized(syzSnap.data() as SayakSeizedDoc);
     }).catch(err => console.error('[PlatformRevenue]', err))
       .finally(() => setLoading(false));
   }, []);
@@ -35,7 +46,10 @@ const PlatformRevenueDashboard = () => {
   const inkFee = inkwell?.totalFee || 0;
   const mktFee = market?.totalFee || 0;
   const botFee = gloveBot?.totalFee || 0;
-  const totalFee = inkFee + mktFee + botFee;
+  const penFee = penalty?.totalFee || 0;
+  const syzFee = sayakSeized?.totalAmount || 0;
+  const syzCount = sayakSeized?.totalSayakCount || 0;
+  const totalFee = inkFee + mktFee + botFee + penFee + syzFee;
 
   const inkGross = inkwell?.totalGross || 0;
   const mktGross = market?.totalGross || 0;
@@ -73,6 +87,23 @@ const PlatformRevenueDashboard = () => {
         </div>
       </div>
 
+      {/* 🏚️ 유배 시스템 수익 */}
+      <div>
+        <p className="text-[11px] font-[1000] text-slate-600 mb-2">🏚️ 유배 시스템 (페널티 기반)</p>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+            <p className="text-[10px] font-[1000] text-amber-700 mb-2">속죄금 소각 (penalty)</p>
+            <p className="text-[20px] font-[1000] text-amber-900">{formatKoreanNumber(penFee)}</p>
+            <p className="text-[9px] font-bold text-amber-600 mt-1">유배자 해금 시 지불 → 소각</p>
+          </div>
+          <div className="bg-rose-50 border border-rose-200 rounded-xl p-4">
+            <p className="text-[10px] font-[1000] text-rose-700 mb-2">사약 자산 몰수 (sayak_seized)</p>
+            <p className="text-[20px] font-[1000] text-rose-900">{formatKoreanNumber(syzFee)}</p>
+            <p className="text-[9px] font-bold text-rose-600 mt-1">사약 {syzCount}건 — 잔액 전액 회수</p>
+          </div>
+        </div>
+      </div>
+
       {/* 수익 구조 요약 */}
       <div className="bg-slate-50 border border-slate-100 rounded-xl p-4">
         <p className="text-[11px] font-[1000] text-slate-600 mb-2">수익 구조</p>
@@ -92,6 +123,14 @@ const PlatformRevenueDashboard = () => {
           <div className="flex justify-between">
             <span>정보봇 월간 이용료</span>
             <span>플랫폼 100% (20볼/월)</span>
+          </div>
+          <div className="flex justify-between">
+            <span>🏚️ 속죄금 (유배 해금)</span>
+            <span>플랫폼 100% 소각 (단계별 10/50/300볼)</span>
+          </div>
+          <div className="flex justify-between">
+            <span>🩸 사약 자산 몰수</span>
+            <span>플랫폼 100% 회수 (잔액 전액)</span>
           </div>
         </div>
       </div>

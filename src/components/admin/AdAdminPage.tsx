@@ -9,13 +9,14 @@ import SettlementQueue from './SettlementQueue';
 import FraudAlerts from './FraudAlerts';
 import TaxReportExport from './TaxReportExport';
 import ExileManagement from './ExileManagement';
+import AppealReview from './AppealReview';
 
 interface Props {
   currentUser: UserData | null;
   onBack?: () => void;
 }
 
-type AdminTab = 'revenue' | 'review' | 'settlement' | 'fraud' | 'tax' | 'exile';
+type AdminTab = 'revenue' | 'review' | 'settlement' | 'fraud' | 'tax' | 'exile' | 'appeal';
 
 const TABS: { id: AdminTab; label: string }[] = [
   { id: 'revenue',    label: '💵 플랫폼 수익' },
@@ -24,6 +25,7 @@ const TABS: { id: AdminTab; label: string }[] = [
   { id: 'fraud',      label: '🚨 부정행위' },
   { id: 'tax',        label: '📊 세무' },
   { id: 'exile',      label: '🏚️ 유배 관리' },
+  { id: 'appeal',     label: '⚖️ 이의 제기' },
 ];
 
 const AdAdminPage = ({ currentUser, onBack }: Props) => {
@@ -78,6 +80,7 @@ const AdAdminPage = ({ currentUser, onBack }: Props) => {
         {tab === 'fraud' && <FraudAlerts />}
         {tab === 'tax' && <TaxReportExport />}
         {tab === 'exile' && <ExileManagement />}
+        {tab === 'appeal' && <AppealReview />}
       </div>
     </div>
   );
