@@ -521,7 +521,8 @@ function App() {
     // 🏚️ 놀부의 텅 빈 곳간 (유배귀양지)
     // 유배자: 본인 상태 + 속죄금 결제 화면 + 본인 단계 게시판
     // 일반 유저: 관전 뷰 — 3탭 게시판 전부 열람
-    if (activeMenu === 'exile_place') {
+    // ⚠️ selectedTopic이 있으면 상세보기(DiscussionView)로 넘겨야 하므로 selectedTopic 없을 때만 ExileMainPage 렌더
+    if (activeMenu === 'exile_place' && !selectedTopic) {
       if (!userData) return <div className="py-20 text-center text-slate-400 text-[12px] font-bold">로그인이 필요합니다</div>;
       return <ExileMainPage
         currentUserData={userData}
