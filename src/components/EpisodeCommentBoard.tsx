@@ -224,10 +224,10 @@ const EpisodeCommentBoard = ({ episodeId, authorId, comments, currentUserUid, cu
               </p>
             )}
 
-            {/* 액션 버튼 영역 — 수정 모드일 땐 숨김 */}
+            {/* 액션 버튼 영역 — 일반 댓글 UI와 동일 패턴 (SVG 하트 + ⚾) */}
             {editingCommentId !== comment.id && (
-              <div className="flex items-center gap-3 text-xs">
-                {/* 좋아요 */}
+              <div className="flex items-center gap-2 text-[11px]">
+                {/* 좋아요 — SVG 하트 */}
                 {(() => {
                   const isMine = !!(currentUserUid && comment.author_id === currentUserUid);
                   const isLiked = !!(currentUserNickname && comment.likedBy?.includes(currentUserNickname));
@@ -235,44 +235,44 @@ const EpisodeCommentBoard = ({ episodeId, authorId, comments, currentUserUid, cu
                     <button
                       onClick={() => handleLikeClick(comment)}
                       disabled={isMine}
-                      className={`flex items-center gap-1 transition-colors font-bold ${
+                      className={`flex items-center gap-1 font-bold transition-colors ${
                         isMine
                           ? 'text-slate-300 cursor-not-allowed'
                           : isLiked
-                            ? 'text-rose-500 hover:text-rose-600'
-                            : 'text-slate-400 hover:text-rose-500'
+                            ? 'text-rose-500'
+                            : 'text-slate-300 hover:text-rose-400'
                       }`}
                     >
-                      <span>{isLiked ? '❤️' : '🤍'}</span>
-                      <span>{comment.likes || 0}</span>
+                      <svg className={`w-3 h-3 ${isLiked ? 'fill-current' : 'fill-none'}`} stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+                      {comment.likes || 0}
                     </button>
                   );
                 })()}
 
-                {/* 땡스볼 */}
+                {/* 땡스볼 — ⚾ */}
                 {comment.author_id !== currentUserUid && onThanksballClick && (
                   <button
                     onClick={() => onThanksballClick(comment)}
-                    className="flex items-center gap-1 text-slate-400 hover:text-amber-500 transition-colors font-bold"
+                    className="flex items-center gap-0.5 font-bold text-slate-300 hover:text-amber-500 transition-colors"
                   >
-                    <span>🏀</span>
-                    <span>{comment.thanksballTotal || 0}</span>
+                    <span className="text-[13px] leading-none">⚾</span>
+                    {(comment.thanksballTotal || 0) > 0 && <span className="text-amber-400">{comment.thanksballTotal}</span>}
                   </button>
                 )}
                 {comment.author_id === currentUserUid && (comment.thanksballTotal || 0) > 0 && (
-                  <span className="flex items-center gap-1 text-slate-400 font-bold">
-                    <span>🏀</span>
-                    <span>{comment.thanksballTotal}</span>
+                  <span className="flex items-center gap-0.5 font-bold text-amber-400">
+                    <span className="text-[13px] leading-none">⚾</span>
+                    {comment.thanksballTotal}
                   </span>
                 )}
 
-                {/* 🖋️ Phase 5-D: 답글 쓰기 — 원댓글에만 (depth 1 제한) */}
+                {/* 답글 — 원댓글에만 */}
                 {!isReply && currentUserUid && (
                   <button
                     onClick={() => setReplyingToCommentId(replyingToCommentId === comment.id ? null : comment.id)}
-                    className="text-slate-400 hover:text-blue-500 font-bold transition-colors"
+                    className="text-[10px] font-bold text-slate-300 hover:text-blue-500 transition-colors"
                   >
-                    💬 답글
+                    답글
                   </button>
                 )}
 
@@ -280,9 +280,9 @@ const EpisodeCommentBoard = ({ episodeId, authorId, comments, currentUserUid, cu
                 {canEditComment(comment) && (
                   <button
                     onClick={() => handleStartEdit(comment)}
-                    className="text-slate-400 hover:text-blue-500 font-bold transition-colors"
+                    className="text-[10px] font-bold text-slate-300 hover:text-blue-500 transition-colors"
                   >
-                    ✏️ 수정
+                    수정
                   </button>
                 )}
 
@@ -290,9 +290,9 @@ const EpisodeCommentBoard = ({ episodeId, authorId, comments, currentUserUid, cu
                 {canDeleteComment(comment) && (
                   <button
                     onClick={() => handleDeleteComment(comment)}
-                    className="text-slate-400 hover:text-red-500 font-bold transition-colors"
+                    className="text-[10px] font-bold text-slate-300 hover:text-red-500 transition-colors"
                   >
-                    🗑️ {comment.author_id !== currentUserUid && authorId === currentUserUid ? '삭제(작가)' : '삭제'}
+                    {comment.author_id !== currentUserUid && authorId === currentUserUid ? '삭제(작가)' : '삭제'}
                   </button>
                 )}
               </div>
