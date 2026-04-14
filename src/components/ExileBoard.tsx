@@ -22,6 +22,8 @@ interface Props {
   currentUserData: UserData | null;
   level: 1 | 2 | 3;          // 이 보드가 속한 탭 (1/2/3차)
   isExiledHere: boolean;     // 현재 유저가 이 탭에 해당하는 유배자인지 (쓰기 권한)
+  composeOpen?: boolean;     // 글 작성 모달 열림 상태 (상위에서 제어)
+  onCloseCompose?: () => void;
 }
 
 // 닉네임 익명화 — UID의 숫자 부분만 추출해서 4자리
@@ -41,7 +43,7 @@ function formatRelativeTime(ts?: { toDate?: () => Date; seconds: number }): stri
   return d.toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' });
 }
 
-const ExileBoard = ({ currentUserData, level, isExiledHere }: Props) => {
+const ExileBoard = ({ currentUserData, level, isExiledHere, composeOpen, onCloseCompose }: Props) => {
   const [posts, setPosts] = useState<ExilePost[]>([]);
   const [loading, setLoading] = useState(true);
   const [content, setContent] = useState('');
@@ -95,29 +97,48 @@ const ExileBoard = ({ currentUserData, level, isExiledHere }: Props) => {
 
   const levelLabel = level === 1 ? '놀부의 곳간' : level === 2 ? '무인도 귀양지' : '절해고도';
 
+  // 작성 모달 제출 시 성공하면 상위 onCloseCompose 호출
+  const handleModalSubmit = async () => {
+    await handleSubmit();
+    if (!error && content.trim() === '') onCloseCompose?.();
+  };
+
   return (
     <div className="space-y-3">
-      {/* 글 작성 폼 — 해당 유배자만 */}
-      {isExiledHere && currentUserData && (
-        <div className="bg-white border border-slate-200 rounded-xl p-4">
-          <p className="text-[10px] font-[1000] text-slate-400 uppercase tracking-widest mb-2">반성의 글을 남기시오</p>
-          <textarea
-            value={content}
-            onChange={(e) => { setContent(e.target.value); if (error) setError(null); }}
-            maxLength={500}
-            rows={3}
-            placeholder={`${levelLabel}에서 반성의 글을 남겨보세요. 외부로 공유되지 않습니다.`}
-            className="w-full px-3 py-2 border border-slate-200 rounded-lg text-[12px] focus:outline-none focus:border-slate-400 resize-none placeholder:text-[11px]"
-          />
-          {error && <p className="text-[11px] font-bold text-red-500 mt-1">{error}</p>}
-          <div className="flex items-center justify-between mt-2">
-            <span className="text-[10px] font-bold text-slate-300">{content.length}/500</span>
-            <button
-              onClick={handleSubmit}
-              disabled={submitting || !content.trim()}
-              className="px-4 py-1.5 bg-slate-900 hover:bg-slate-700 disabled:opacity-50 text-white rounded-lg text-[11px] font-[1000] transition-colors">
-              {submitting ? '작성 중...' : '글 남기기'}
-            </button>
+      {/* 글 작성 모달 — 상위에서 composeOpen 제어 */}
+      {composeOpen && isExiledHere && currentUserData && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4" onClick={onCloseCompose}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+              <h2 className="text-[14px] font-[1000] text-slate-800">반성의 글 남기기</h2>
+              <button onClick={onCloseCompose} className="text-slate-300 hover:text-slate-500 text-[20px] leading-none">×</button>
+            </div>
+            <div className="px-5 py-4">
+              <p className="text-[10px] font-bold text-slate-400 mb-2">
+                {levelLabel}에서 익명(곳간 거주자 #NNNN)으로 게시됩니다. 외부 공유 불가.
+              </p>
+              <textarea
+                value={content}
+                onChange={(e) => { setContent(e.target.value); if (error) setError(null); }}
+                maxLength={500}
+                rows={6}
+                autoFocus
+                placeholder="반성의 글을 남겨보세요..."
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-[12px] focus:outline-none focus:border-slate-400 resize-none placeholder:text-[11px]"
+              />
+              {error && <p className="text-[11px] font-bold text-red-500 mt-1">{error}</p>}
+              <div className="flex items-center justify-between mt-3">
+                <span className="text-[10px] font-bold text-slate-300">{content.length}/500</span>
+                <div className="flex gap-1.5">
+                  <button onClick={onCloseCompose}
+                    className="px-4 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg text-[11px] font-[1000] transition-colors">취소</button>
+                  <button onClick={handleModalSubmit} disabled={submitting || !content.trim()}
+                    className="px-4 py-1.5 bg-slate-900 hover:bg-slate-700 disabled:opacity-50 text-white rounded-lg text-[11px] font-[1000] transition-colors">
+                    {submitting ? '작성 중...' : '글 남기기'}
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       )}

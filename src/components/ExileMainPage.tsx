@@ -35,6 +35,7 @@ const ExileMainPage = ({ currentUserData, onReleased }: Props) => {
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [remainingSec, setRemainingSec] = useState(0);
+  const [composeOpen, setComposeOpen] = useState(false);
 
   // 반성 기간 카운트다운
   useEffect(() => {
@@ -109,7 +110,7 @@ const ExileMainPage = ({ currentUserData, onReleased }: Props) => {
             <div className="w-px h-3 bg-slate-200 mx-1.5 hidden md:block" />
             <p className="text-[11px] font-bold text-slate-400 hidden md:block whitespace-nowrap">심술을 부린 대가로 이곳에 갇혔습니다 — 반성하고 속죄금을 바쳐 나가시오</p>
           </div>
-          {/* 우: 3탭 */}
+          {/* 우: 3탭 + 글 작성 */}
           <div className="flex items-center gap-1 shrink-0">
             {TABS.map(tab => {
               const isMyLevel = tab.level === myLevel;
@@ -133,6 +134,14 @@ const ExileMainPage = ({ currentUserData, onReleased }: Props) => {
                 </button>
               );
             })}
+            {/* + 글 작성 — 유배자 본인만 + 본인 단계 탭일 때 */}
+            {myLevel && myLevel === activeTab && (
+              <button onClick={() => setComposeOpen(true)}
+                className="flex items-center gap-0.5 px-2 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-700 text-white border border-slate-900 transition-all">
+                <svg className="w-3 h-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4" /></svg>
+                <span className="text-[11px] font-[1000] whitespace-nowrap hidden md:inline">글 작성</span>
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -148,14 +157,13 @@ const ExileMainPage = ({ currentUserData, onReleased }: Props) => {
             <p>• 외부 공유는 금지되어 있습니다.</p>
           </div>}
 
-          {/* 🏚️ 이의 제기 (유배자 본인만) */}
-          {myLevel && <AppealForm currentUserData={currentUserData} />}
-
-          {/* 🏚️ 유배지 게시판 — 현재 탭 기준 */}
+          {/* 🏚️ 유배지 게시판 — 현재 탭 기준 (글 작성 모달은 헤더 [글 작성] 버튼이 제어) */}
           <ExileBoard
             currentUserData={currentUserData}
             level={activeTab}
             isExiledHere={myLevel === activeTab}
+            composeOpen={composeOpen}
+            onCloseCompose={() => setComposeOpen(false)}
           />
         </div>
 
@@ -229,6 +237,11 @@ const ExileMainPage = ({ currentUserData, onReleased }: Props) => {
                     </p>
                   </div>
                 </div>
+              </div>
+
+              {/* ⚖️ 이의 제기 — 내 상태 카드 아래 별도 영역 */}
+              <div className="mt-3">
+                <AppealForm currentUserData={currentUserData} />
               </div>
             </div>
           </div>
