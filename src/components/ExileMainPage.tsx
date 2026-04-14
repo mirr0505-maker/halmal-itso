@@ -5,12 +5,17 @@ import { useState, useEffect } from 'react';
 import { db, functions } from '../firebase';
 import { addDoc, collection, query, where, orderBy, getDocs, serverTimestamp } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
-import type { UserData, SanctionStatus } from '../types';
+import type { Post, UserData, SanctionStatus } from '../types';
 import { formatKoreanNumber } from '../utils';
 import ExileBoard from './ExileBoard';
 
 interface Props {
   currentUserData: UserData;
+  allRootPosts: Post[];                 // 상위에서 유배 카테고리 필터된 글 전달
+  allUsers: Record<string, UserData>;
+  onTopicClick: (post: Post) => void;
+  onLikeClick?: (e: React.MouseEvent, postId: string) => void;
+  onOpenCreate: () => void;             // + 글 작성 — App.tsx의 setIsCreateOpen
   onReleased?: () => void;
 }
 
@@ -29,13 +34,12 @@ const TABS = [
   { level: 3 as const, label: '절해고도',     days: 30, bail: 300 },
 ];
 
-const ExileMainPage = ({ currentUserData, onReleased }: Props) => {
+const ExileMainPage = ({ currentUserData, allRootPosts, allUsers, onTopicClick, onLikeClick, onOpenCreate, onReleased }: Props) => {
   const myLevel = statusToLevel(currentUserData.sanctionStatus);
   const [activeTab, setActiveTab] = useState<1 | 2 | 3>(myLevel || 1);
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [remainingSec, setRemainingSec] = useState(0);
-  const [composeOpen, setComposeOpen] = useState(false);
 
   // 반성 기간 카운트다운
   useEffect(() => {
@@ -136,7 +140,7 @@ const ExileMainPage = ({ currentUserData, onReleased }: Props) => {
             })}
             {/* + 글 작성 — 유배자 본인만 + 본인 단계 탭일 때 */}
             {myLevel && myLevel === activeTab && (
-              <button onClick={() => setComposeOpen(true)}
+              <button onClick={onOpenCreate}
                 className="flex items-center gap-0.5 px-2 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-700 text-white border border-slate-900 transition-all">
                 <svg className="w-3 h-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4" /></svg>
                 <span className="text-[11px] font-[1000] whitespace-nowrap hidden md:inline">글 작성</span>
@@ -157,13 +161,14 @@ const ExileMainPage = ({ currentUserData, onReleased }: Props) => {
             <p>• 외부 공유는 금지되어 있습니다.</p>
           </div>}
 
-          {/* 🏚️ 유배지 게시판 — 현재 탭 기준 (글 작성 모달은 헤더 [글 작성] 버튼이 제어) */}
+          {/* 🏚️ 유배지 게시판 — 현재 탭 기준 */}
           <ExileBoard
-            currentUserData={currentUserData}
+            posts={allRootPosts.filter(p => p.category === '유배·귀양지' && (p.exileLevel || 1) === activeTab && !p.isHiddenByExile)}
             level={activeTab}
-            isExiledHere={myLevel === activeTab}
-            composeOpen={composeOpen}
-            onCloseCompose={() => setComposeOpen(false)}
+            allUsers={allUsers}
+            onTopicClick={onTopicClick}
+            onLikeClick={onLikeClick}
+            currentNickname={currentUserData.nickname}
           />
         </div>
 

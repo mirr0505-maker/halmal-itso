@@ -142,6 +142,7 @@ export interface Post {
   isHidden?: boolean;  // 비공개 전환된 회차 (구매자 있을 때 삭제 대신 사용)
   isHiddenByExile?: boolean;  // 🏚️ 유배 처분으로 숨김 처리된 글 (피드에서 제외)
   hiddenByExileAt?: FirestoreTimestamp;
+  exileLevel?: 1 | 2 | 3;  // 🏚️ 유배지 글 탭 식별 (category='유배·귀양지'와 함께)
 }
 
 // ════════════════════════════════════════════════════════

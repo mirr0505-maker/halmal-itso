@@ -15,12 +15,18 @@ interface Props {
 }
 
 const CreateExile = ({ userData, editingPost, onSubmit, onClose }: Props) => {
+  // 🏚️ 유배자 본인 단계 자동 주입 (exileLevel 필드로 어느 탭에 속하는 글인지 식별)
+  const myExileLevel = userData.sanctionStatus === 'exiled_lv1' ? 1 :
+    userData.sanctionStatus === 'exiled_lv2' ? 2 :
+    userData.sanctionStatus === 'exiled_lv3' ? 3 : null;
   const [postData, setPostData] = useState<Partial<Post>>({
     title: editingPost?.title || '',
     content: editingPost?.content || '',
     category: '유배·귀양지',
     tags: editingPost?.tags || ['', '', '', '', ''],
     isOneCut: false,
+    // 🏚️ 유배지 글 식별 필드
+    exileLevel: myExileLevel || editingPost?.exileLevel,
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploading, setIsUploading] = useState(false);

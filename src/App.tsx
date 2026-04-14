@@ -520,10 +520,17 @@ function App() {
 
     // 🏚️ 놀부의 텅 빈 곳간 (유배귀양지)
     // 유배자: 본인 상태 + 속죄금 결제 화면 + 본인 단계 게시판
-    // 일반 유저: 관전 뷰 — 3탭 게시판 전부 열람 (익명 닉네임)
+    // 일반 유저: 관전 뷰 — 3탭 게시판 전부 열람
     if (activeMenu === 'exile_place') {
       if (!userData) return <div className="py-20 text-center text-slate-400 text-[12px] font-bold">로그인이 필요합니다</div>;
-      return <ExileMainPage currentUserData={userData} />;
+      return <ExileMainPage
+        currentUserData={userData}
+        allRootPosts={allRootPosts}
+        allUsers={allUsers}
+        onTopicClick={handleViewPost}
+        onLikeClick={handleLike}
+        onOpenCreate={() => setIsCreateOpen(true)}
+      />;
     }
 
     // 🚀 우리들의 장갑: 커뮤니티 라우팅 — 2탭(소곤소곤·장갑찾기) + 우측 내 장갑 사이드바
@@ -873,7 +880,7 @@ function App() {
       const status = authorData?.sanctionStatus;
       return !!(status && (status.startsWith('exiled_') || status === 'banned'));
     };
-    let basePosts = allRootPosts.filter(p => !p.isOneCut && p.category !== 'magic_inkwell' && !p.isHiddenByExile && !isAuthorExiled(p));
+    let basePosts = allRootPosts.filter(p => !p.isOneCut && p.category !== 'magic_inkwell' && p.category !== '유배·귀양지' && !p.isHiddenByExile && !isAuthorExiled(p));
 
     if (activeMenu !== 'home' && MENU_MESSAGES[activeMenu]) {
       const menuInfo = MENU_MESSAGES[activeMenu];
