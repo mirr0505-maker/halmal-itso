@@ -132,9 +132,46 @@ const ExileManagement = () => {
         <summary className="text-[11px] font-[1000] text-slate-600 cursor-pointer">수동 유배 (UID 직접 입력)</summary>
         <ManualExileForm onSubmit={handleExile} processing={processing} />
       </details>
+
+      {/* 직권 사약 — 중대 사안 */}
+      <details className="bg-rose-50 border border-rose-200 rounded-xl p-4">
+        <summary className="text-[11px] font-[1000] text-rose-700 cursor-pointer">☠️ 직권 사약 (중대 사안, 4차 건너뛰고 즉시 영구밴)</summary>
+        <ManualSayakForm processing={processing} setProcessing={setProcessing} setMessage={setMessage} />
+      </details>
     </div>
   );
 };
+
+function ManualSayakForm({ processing, setProcessing, setMessage }: { processing: string | null; setProcessing: (v: string | null) => void; setMessage: (v: string | null) => void }) {
+  const [uid, setUid] = useState('');
+  const [reason, setReason] = useState('');
+  const handleSayak = async () => {
+    if (!uid.trim()) return;
+    if (!window.confirm(`⚠️ 직권 사약 처분합니다.\n\n대상 UID: ${uid}\n사유: ${reason}\n\n되돌릴 수 없습니다. 진행하시겠습니까?`)) return;
+    setProcessing(uid);
+    setMessage(null);
+    try {
+      const fn = httpsCallable(functions, 'executeSayak');
+      await fn({ targetUid: uid.trim(), reason: reason || '관리자 직권 사약' });
+      setMessage(`☠️ 직권 사약 처분 완료 (${uid.slice(0, 8)}...)`);
+    } catch (err: unknown) {
+      const e = err as { message?: string };
+      setMessage(`❌ 실패: ${e.message || ''}`);
+    } finally { setProcessing(null); }
+  };
+  return (
+    <div className="mt-3 space-y-2">
+      <input value={uid} onChange={(e) => setUid(e.target.value)} placeholder="대상 UID"
+        className="w-full border border-rose-200 rounded px-3 py-2 text-[12px]" />
+      <input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="사유 (필수)"
+        className="w-full border border-rose-200 rounded px-3 py-2 text-[12px]" />
+      <button onClick={handleSayak} disabled={!uid.trim() || !reason.trim() || processing === uid}
+        className="w-full py-2 bg-rose-700 hover:bg-rose-800 text-white rounded text-[11px] font-[1000] disabled:opacity-50">
+        ☠️ 사약 내리기
+      </button>
+    </div>
+  );
+}
 
 function ManualExileForm({ onSubmit, processing }: { onSubmit: (uid: string, nickname: string, reason: string, postId?: string) => void; processing: string | null }) {
   const [uid, setUid] = useState('');

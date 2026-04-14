@@ -874,13 +874,16 @@ function App() {
 - [x] 공개 프로필 "🏚️ 수감 중 · N범" 배지 + "☠️ 사약" 배지
 - [x] 내 정보 페이지 상단 경고 배너 (처분 사유 + 곳간 이동 안내)
 
-### Phase 3 — 강화 기능
+### Phase 3 — 강화 기능 (일부 완료 2026-04-14)
 
-- [ ] 사약 시스템 + 연출
-- [ ] `executeSayak` Cloud Function
-- [ ] `checkAutoSayak` 스케줄러
-- [ ] Firebase Phone Auth 연동
-- [ ] `banned_phones` 블랙리스트
+- [x] 사약 시스템 + SayakScreen 연출 (Phase 1에서 이미 완성)
+- [x] `executeSayak` Cloud Function — 자산 몰수 + 모든 글 soft delete + banned_phones 등록 + 깐부 리셋 + 감사 로그
+- [x] `checkAutoSayak` 스케줄러 — 매일 04:00, 유배 90일 경과 자동 사약
+- [x] 문제 글 soft delete (`isHiddenByExile`) + 피드 필터링 (Step 3a)
+- [x] `sendToExile` postId 파라미터로 신고 대상 글 자동 숨김
+- [x] 관리자 [☠️ 직권 사약] UI
+- [ ] Firebase Phone Auth 연동 (별도 발급 필요)
+- [ ] `banned_phones` 블랙리스트 가입 차단 (Phone Auth 선결)
 
 ### Phase 4 — 완성도
 

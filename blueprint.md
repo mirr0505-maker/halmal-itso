@@ -435,6 +435,8 @@ interface KanbuChat {
   - 🏪 `processMarketAdRevenue`: 매일 00:05 강변 시장 광고 수익 일별 정산 (크리에이터 70%/플랫폼 30%)
   - 🏚️ `sendToExile`: 관리자 전용 유배 처분 (strikeCount +1, 1/2/3차 단계 자동 판정, 4차 자동 사약)
   - 🏚️ `releaseFromExile`: 본인 해금 (속죄금 차감/소각 + 깐부 양방향 리셋 + 상태 해제)
+  - 🩸 `executeSayak`: 직권 사약 (자산 몰수 → platform_revenue/sayak_seized + 모든 글 soft delete + banned_phones 등록)
+  - 🩸 `checkAutoSayak`: 매일 04:00 — 유배 90일 미납 유저 자동 사약
   - 배포: `firebase deploy --only functions`
   - 로그: `firebase functions:log`
 - **향후 구현 가능 (Blaze)**:

@@ -58,7 +58,7 @@
 - `dartCorpMap.js` — `syncDartCorpMap`(월 1회)/`triggerSyncDartCorpMap`(수동): DART 종목코드→고유번호 매핑. `lookupCorpCode`: 조회
 - `adTriggers.js` — `syncAdBids`/`updateAdMetrics`: ADSMARKET 광고 트리거
 - `market.js` — `purchaseMarketItem`(가판대 구매, 레벨별 수수료 30/25/20%), `subscribeMarketShop`(단골장부 구독), `checkSubscriptionExpiry`(매일 09:00 만료 체크+알림+차감)
-- `storehouse.js` — `sendToExile`(관리자 전용, strikeCount +1 + 단계 자동 판정, 4차 자동 사약), `releaseFromExile`(본인, 속죄금 차감/소각 + 깐부 리셋)
+- `storehouse.js` — `sendToExile`(관리자 전용, strikeCount +1 + 단계 자동 판정, 4차 자동 사약 + postId 지정 시 글 숨김), `releaseFromExile`(본인, 속죄금 차감/소각 + 깐부 리셋), `executeSayak`(직권 사약, 자산 몰수 + 모든 글 숨김 + banned_phones), `checkAutoSayak`(매일 04:00 스케줄, 90일 미납 자동 사약)
 - 배포: `firebase deploy --only functions`
 
 ### Cloudflare R2 이미지 업로드

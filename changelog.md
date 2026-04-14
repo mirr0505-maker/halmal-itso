@@ -9,6 +9,14 @@
 - [x] **Step D** — 라우팅 가드: useEffect 감지로 유배자 자동 강제 이동, Sidebar isExiled prop (유배지+내정보만 노출), SayakScreen (banned 유저 전용 전체화면 10초 카운트다운 → 강제 로그아웃)
 - [x] **테스트 계정**: 불량깐부1~3호 (Lv3/4/5) 추가, 헤더 검색창 축소 (200px, 32h)
 
+### 🏚️ 놀부의 텅 빈 곳간 Phase 3 일부 (2026-04-14)
+
+- [x] **문제 글 soft delete**: `sendToExile` postId 파라미터 → isHiddenByExile 플래그 + 피드 필터링 (App.tsx basePosts/onecutAll)
+- [x] `executeSayak` Cloud Function: 자산 몰수(platform_revenue/sayak_seized) + 모든 글 일괄 숨김 + banned_phones 등록 + 깐부 양방향 제거 + 감사 로그
+- [x] `checkAutoSayak` 스케줄러: 매일 04:00 — 유배 90일 경과 유저 자동 사약
+- [x] 관리자 ☠️ 직권 사약 UI (4차 건너뛰고 즉시 영구밴)
+- [ ] Phone Auth + banned_phones 가입 차단 (Phase 3 잔여 — 별도 API 발급 필요)
+
 ### 🏚️ 놀부의 텅 빈 곳간 Phase 2 (2026-04-14)
 
 - [x] `ExileBoard` — exile_posts 게시판 (유배자 본인 단계 작성, 닉네임 자동 익명화 "곳간 거주자 #NNNN", 500자 제한)

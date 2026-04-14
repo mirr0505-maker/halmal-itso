@@ -3,6 +3,7 @@
 // 🚀 releaseFromExile: 본인이 속죄금 지불하고 해금 — 속죄금 소각 + 깐부 리셋 + 깐부방 탈퇴
 // 🔒 users.sanctionStatus/strikeCount는 Cloud Function 전용 (Rules로 클라이언트 수정 차단)
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
+const { onSchedule } = require("firebase-functions/v2/scheduler");
 const { getFirestore, FieldValue, Timestamp } = require("firebase-admin/firestore");
 
 const db = getFirestore();
@@ -279,5 +280,150 @@ exports.releaseFromExile = onCall(
     }
 
     return { success: true, strikeLevel, atonementFeePaid, kkanbusRemovedCount };
+  }
+);
+
+// ════════════════════════════════════════════════════════════
+// 🩸 executeSayak — 사약 처분 (관리자 직권 or 자동 사약에서 호출)
+// ════════════════════════════════════════════════════════════
+// 처리:
+//   ① sanctionStatus = 'banned'
+//   ② 자산 전액 → platform_revenue/sayak_seized로 회수
+//   ③ 보유 phoneHash → banned_phones 블랙리스트 등록
+//   ④ 모든 게시물/커뮤니티글 soft delete (isHiddenByExile)
+//   ⑤ 깐부 관계 양방향 제거
+//   ⑥ sanction_log 감사 기록
+exports.executeSayak = onCall(
+  { region: "asia-northeast3", timeoutSeconds: 120 },
+  async (request) => {
+    if (!request.auth) throw new HttpsError("unauthenticated", "로그인이 필요합니다.");
+    const adminUid = request.auth.uid;
+    const { targetUid, reason } = request.data || {};
+
+    if (!(await verifyAdmin(adminUid))) {
+      throw new HttpsError("permission-denied", "관리자만 사약을 내릴 수 있습니다.");
+    }
+    if (typeof targetUid !== "string" || !targetUid.trim()) {
+      throw new HttpsError("invalid-argument", "targetUid가 필요합니다.");
+    }
+
+    await runSayakLogic(targetUid, reason || "관리자 직권 사약", adminUid);
+    return { success: true };
+  }
+);
+
+// 재사용 가능한 사약 로직 — checkAutoSayak에서도 호출
+async function runSayakLogic(targetUid, reason, adminUid) {
+  const targetRef = db.collection("users").doc(targetUid);
+  const targetSnap = await targetRef.get();
+  if (!targetSnap.exists) throw new Error(`user not found: ${targetUid}`);
+  const target = targetSnap.data();
+  const now = Timestamp.now();
+
+  // 1. sanctionStatus → banned + 자산 몰수 준비
+  const seizedAmount = target.ballBalance || 0;
+  await targetRef.update({
+    sanctionStatus: "banned",
+    sanctionReason: reason,
+    sanctionedAt: now,
+    sanctionedBy: adminUid || null,
+    sanctionExpiresAt: null,
+    requiredBail: 0,
+    ballBalance: 0,
+    friendList: [],
+    subscriberCount: 0,
+  });
+
+  // 2. 몰수된 자산 → platform_revenue/sayak_seized
+  if (seizedAmount > 0) {
+    await db.collection("platform_revenue").doc("sayak_seized").set({
+      totalAmount: FieldValue.increment(seizedAmount),
+      totalSayakCount: FieldValue.increment(1),
+      lastUpdatedAt: now,
+    }, { merge: true });
+  }
+
+  // 3. phoneHash → banned_phones 등록
+  if (target.phoneHash) {
+    await db.collection("banned_phones").doc(target.phoneHash).set({
+      phoneHash: target.phoneHash,
+      bannedAt: now,
+      originalUid: targetUid,
+      reason: "sayak",
+    });
+  }
+
+  // 4. 모든 글 soft delete
+  let hiddenCount = 0;
+  for (const col of ["posts", "community_posts"]) {
+    const snap = await db.collection(col).where("author_id", "==", targetUid).get();
+    const batch = db.batch();
+    snap.docs.forEach(d => batch.update(d.ref, { isHiddenByExile: true, hiddenByExileAt: now }));
+    if (!snap.empty) await batch.commit();
+    hiddenCount += snap.size;
+  }
+
+  // 5. 깐부 관계 양방향 제거
+  if (target.nickname) {
+    const reverseQuery = await db.collection("users").where("friendList", "array-contains", target.nickname).get();
+    const batch = db.batch();
+    reverseQuery.docs.forEach(d => batch.update(d.ref, { friendList: FieldValue.arrayRemove(target.nickname) }));
+    if (!reverseQuery.empty) await batch.commit();
+  }
+
+  // 6. 감사 로그
+  await db.collection("sanction_log").doc(`sayak_${Date.now()}_${targetUid}`).set({
+    type: "sayak",
+    targetUid,
+    targetNickname: target.nickname || null,
+    adminUid: adminUid || "AUTO",
+    reason,
+    seizedAmount,
+    hiddenPostsCount: hiddenCount,
+    createdAt: now,
+  });
+
+  // 7. 대상자 알림
+  await db.collection("notifications").doc(targetUid).collection("items").add({
+    type: "sayak_sentenced",
+    reason,
+    status: "banned",
+    createdAt: now,
+    read: false,
+  });
+
+  console.log(`[executeSayak] ${targetUid} (${target.nickname}) — 몰수 ${seizedAmount}볼, 숨김 ${hiddenCount}건`);
+}
+
+// ════════════════════════════════════════════════════════════
+// 🩸 checkAutoSayak — 매일 새벽 4시: 무기한 유배 90일 경과 자동 사약
+// ════════════════════════════════════════════════════════════
+exports.checkAutoSayak = onSchedule(
+  { schedule: "every day 04:00", region: "asia-northeast3", timeoutSeconds: 300 },
+  async () => {
+    const now = Timestamp.now();
+    const ninetyDaysAgo = Timestamp.fromMillis(now.toMillis() - 90 * 24 * 60 * 60 * 1000);
+
+    // 90일 전에 유배 처분된 유저 중 아직 해금 안 한 유저
+    const candidates = await db.collection("users")
+      .where("sanctionStatus", "in", ["exiled_lv1", "exiled_lv2", "exiled_lv3"])
+      .where("sanctionedAt", "<=", ninetyDaysAgo)
+      .get();
+
+    if (candidates.empty) {
+      console.log("[checkAutoSayak] 자동 사약 대상 없음");
+      return;
+    }
+
+    let processed = 0;
+    for (const doc of candidates.docs) {
+      try {
+        await runSayakLogic(doc.id, "AUTO_SAYAK_90D_UNPAID", null);
+        processed++;
+      } catch (err) {
+        console.error(`[checkAutoSayak] ${doc.id} 실패:`, err);
+      }
+    }
+    console.log(`[checkAutoSayak] ${processed}/${candidates.size}건 자동 사약 처리`);
   }
 );
