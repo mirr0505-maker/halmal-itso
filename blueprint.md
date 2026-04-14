@@ -194,6 +194,12 @@
 | `market_shops` | 🏪 단골장부 상점 (전체 read, 본인만 write) | `creator_{uid}` |
 | `market_subscriptions` | 🏪 단골장부 구독 (Cloud Function만 write) | `{creatorId}_{subscriberId}` |
 | `market_ad_revenues` | 🏪 광고 수익 일별 기록 (Cloud Function만 write) | `{itemId}_{YYYYMMDD}` |
+| `bail_history` | 🏚️ 속죄금 결제 이력 (본인만 read) | `bail_{timestamp}_{uid}` |
+| `release_history` | 🏚️ 해금 이력 (본인만 read) | `release_{timestamp}_{uid}` |
+| `banned_phones` | 🏚️ 사약 블랙리스트 (Cloud Function 전용) | `{phoneHash}` |
+| `sanction_log` | 🏚️ 유배·사약 감사 로그 (관리자만 read) | `log_{timestamp}_{targetUid}` |
+| `exile_posts` | 🏚️ 유배지 게시글 (Phase 2 확장) | 자동 ID |
+| `exile_comments` | 🏚️ 유배지 댓글 (Phase 2 확장) | 자동 ID |
 
 - **commentCount 비정규화**: 댓글 작성 시 `posts/{postId}` 문서에 `increment(1)` 누적 → 홈 피드 쿼리에서 Firestore 읽기 비용 절감.
 - **per-topic 구독**: `selectedTopic` 변경 시에만 `comments` where `rootId == selectedTopic.id` 구독 (전체 구독 비용 절감).
@@ -427,6 +433,8 @@ interface KanbuChat {
   - 🏪 `subscribeMarketShop`: 단골장부 구독 트랜잭션
   - 🏪 `checkSubscriptionExpiry`: 매일 09:00 구독 만료 체크 + 알림 + subscriberCount 차감
   - 🏪 `processMarketAdRevenue`: 매일 00:05 강변 시장 광고 수익 일별 정산 (크리에이터 70%/플랫폼 30%)
+  - 🏚️ `sendToExile`: 관리자 전용 유배 처분 (strikeCount +1, 1/2/3차 단계 자동 판정, 4차 자동 사약)
+  - 🏚️ `releaseFromExile`: 본인 해금 (속죄금 차감/소각 + 깐부 양방향 리셋 + 상태 해제)
   - 배포: `firebase deploy --only functions`
   - 로그: `firebase functions:log`
 - **향후 구현 가능 (Blaze)**:

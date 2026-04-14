@@ -853,15 +853,17 @@ function App() {
 
 ## 14. 구현 우선순위 (Implementation Phases)
 
-### Phase 1 — MVP (필수)
+### Phase 1 — MVP (필수) ✅ 완료 (2026-04-14)
 
-- [ ] `users` 컬렉션 확장 필드 추가
-- [ ] Firestore Rules 작성
-- [ ] `sendToExile` / `releaseFromExile` Cloud Function
-- [ ] 라우팅 가드
-- [ ] 유배귀양지 메인 페이지 (3탭)
-- [ ] 상태 카드 + 속죄금 결제 버튼
-- [ ] 관리자 대시보드의 [유배 보내기] 버튼
+- [x] `users` 컬렉션 확장 필드 추가 (types.ts `UserData` + `SANCTION_POLICIES`)
+- [x] Firestore Rules 작성 (bail_history/release_history/banned_phones/sanction_log/exile_posts/exile_comments)
+- [x] `sendToExile` / `releaseFromExile` Cloud Function (`functions/storehouse.js`)
+- [x] 라우팅 가드 (App.tsx useEffect + Sidebar `isExiled`)
+- [x] 유배귀양지 메인 페이지 3탭 (`ExileMainPage.tsx`)
+- [x] 상태 카드 + 반성 기간 카운트다운 + 속죄금 결제 버튼
+- [x] 관리자 대시보드 [유배 보내기] 탭 (`admin/ExileManagement.tsx`)
+- [x] 사약 화면 (`SayakScreen.tsx`) — 10초 카운트다운 + 강제 로그아웃
+- [x] 테스트 계정: 불량깐부1~3호 (Lv3/4/5)
 
 ### Phase 2 — 핵심 기능
 

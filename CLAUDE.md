@@ -40,9 +40,10 @@
 - Firestore 자동 생성 ID 금지 → `topic_timestamp_uid` / `comment_timestamp_uid` 형식 사용
   - **예외**: `notifications/{uid}/items`, `sentBalls/{uid}/items`, `giant_trees/{id}/leaves` — 보조 데이터는 `addDoc` 자동 ID 허용
 - 실시간 리스너: `onSnapshot` (App.tsx 또는 개별 컴포넌트에서 관리)
-- 컬렉션: `posts`, `comments`, `users`, `kanbu_rooms`, `notifications`, `sentBalls`, `communities`, `community_posts`, `community_memberships`, `community_post_comments`, `giant_trees`, `marathon_dedup`, `series`, `unlocked_episodes`, `series_subscriptions`, `platform_revenue`, `glove_bot_payments`, `glove_bot_dedup`, `dart_corp_map`, `market_items`, `market_purchases`, `market_shops`, `market_subscriptions`, `market_ad_revenues`
+- 컬렉션: `posts`, `comments`, `users`, `kanbu_rooms`, `notifications`, `sentBalls`, `communities`, `community_posts`, `community_memberships`, `community_post_comments`, `giant_trees`, `marathon_dedup`, `series`, `unlocked_episodes`, `series_subscriptions`, `platform_revenue`, `glove_bot_payments`, `glove_bot_dedup`, `dart_corp_map`, `market_items`, `market_purchases`, `market_shops`, `market_subscriptions`, `market_ad_revenues`, `bail_history`, `release_history`, `banned_phones`, `sanction_log`, `exile_posts`, `exile_comments`
 - **Firestore Security Rules 차단 필드**: `ballBalance`, `promoEnabled`, `promoExpireAt`, `promoPlan`, `promoUpdatedAt` — 클라이언트 직접 수정 불가, 반드시 Cloud Function 경유
-- **Rules read/write 전면 차단 컬렉션**: `platform_revenue`, `glove_bot_payments`(대장 본인 read만 허용), `glove_bot_dedup` — Admin SDK / Cloud Function 전용
+- **Rules read/write 전면 차단 컬렉션**: `platform_revenue`, `glove_bot_payments`(대장 본인 read만 허용), `glove_bot_dedup`, `banned_phones`, `sanction_log`(관리자만 read), `bail_history`/`release_history`(본인만 read) — Admin SDK / Cloud Function 전용
+- **🏚️ sanction 필드**: `sanctionStatus`, `strikeCount`, `requiredBail`, `sanctionExpiresAt`, `phoneVerified`, `phoneHash` — 클라이언트 직접 수정 불가, 반드시 Cloud Function(`sendToExile`/`releaseFromExile`) 경유
 
 ### Cloud Functions (서울 리전, `functions/` 디렉토리)
 - `index.js` — 진입점 (fetchMarathonNews + 분리 모듈 re-export)
@@ -57,6 +58,7 @@
 - `dartCorpMap.js` — `syncDartCorpMap`(월 1회)/`triggerSyncDartCorpMap`(수동): DART 종목코드→고유번호 매핑. `lookupCorpCode`: 조회
 - `adTriggers.js` — `syncAdBids`/`updateAdMetrics`: ADSMARKET 광고 트리거
 - `market.js` — `purchaseMarketItem`(가판대 구매, 레벨별 수수료 30/25/20%), `subscribeMarketShop`(단골장부 구독), `checkSubscriptionExpiry`(매일 09:00 만료 체크+알림+차감)
+- `storehouse.js` — `sendToExile`(관리자 전용, strikeCount +1 + 단계 자동 판정, 4차 자동 사약), `releaseFromExile`(본인, 속죄금 차감/소각 + 깐부 리셋)
 - 배포: `firebase deploy --only functions`
 
 ### Cloudflare R2 이미지 업로드
@@ -134,6 +136,10 @@
 | `MarketShopEditor.tsx` | 🏪 단골장부 상점 개설. 이름/소개/가격(10~200)/표지. Lv5+만. |
 | `MarketShopDetail.tsx` | 🏪 단골장부 상세. 구독 버튼 + 크리에이터 판매글 목록. `subscribeMarketShop` callable. |
 | `MarketDashboard.tsx` | 🏪 크리에이터 대시보드. 수익 현황(판매/광고/총판매) + 판매글 관리(숨김/복귀) + 단골장부 구독자. |
+| `ExileMainPage.tsx` | 🏚️ 유배자 메인. 3탭(놀부곳간/무인도/절해고도, 내 단계만 활성) + 상태카드 + 반성기간 카운트다운 + 속죄금 결제(`releaseFromExile`). |
+| `SayakScreen.tsx` | ☠️ 사약 처분 전용 전체화면. `sanctionStatus === 'banned'` 시 다른 UI 렌더 전에 이 화면만. 10초 카운트다운 → 강제 로그아웃. |
+| `admin/ExileManagement.tsx` | 🏚️ 관리자 유배 관리 탭. 신고 목록 실시간 + [유배 보내기] 버튼 + 수동 UID 입력. `sendToExile` callable. |
+| `Sidebar.tsx` | `isExiled` prop — 유배자는 유배지+내정보만 노출. `activeMenu` 강제 이동은 App.tsx useEffect 가드. |
 
 ---
 

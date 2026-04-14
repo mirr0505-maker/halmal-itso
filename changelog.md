@@ -1,5 +1,14 @@
 ## 8. 현재 구현 상태 (2026-03-24 기준, 코드 실측)
 
+### 🏚️ 놀부의 텅 빈 곳간 Phase 1 MVP (2026-04-14)
+> 상세 설계: [STOREHOUSE.md](./STOREHOUSE.md)
+
+- [x] **Step A** — 기반 인프라: STOREHOUSE.md 신설, 사이드메뉴 "놀부의 텅 빈 곳간" 이름 변경, types.ts에 SanctionStatus/SANCTION_POLICIES + UserData sanction 필드, firestore.rules (bail_history/release_history/banned_phones/sanction_log/exile_posts/exile_comments)
+- [x] **Step B** — Cloud Functions + 관리자 UI: `sendToExile` (strikeCount +1, 단계 자동 판정, 4차 자동 사약), `releaseFromExile` (속죄금 차감/소각 + 깐부 양방향 리셋), ExileManagement.tsx (신고 목록 + 유배 보내기 + 수동 UID 입력), AdAdminPage 🏚️ 유배 관리 탭
+- [x] **Step C** — 유배자 메인: ExileMainPage (3탭, 본인 단계만 활성), 상태 카드 + 반성 기간 실시간 카운트다운 + 속죄금 결제 버튼
+- [x] **Step D** — 라우팅 가드: useEffect 감지로 유배자 자동 강제 이동, Sidebar isExiled prop (유배지+내정보만 노출), SayakScreen (banned 유저 전용 전체화면 10초 카운트다운 → 강제 로그아웃)
+- [x] **테스트 계정**: 불량깐부1~3호 (Lv3/4/5) 추가, 헤더 검색창 축소 (200px, 32h)
+
 ### 🏪 강변 시장 Phase 1~3 (2026-04-13)
 > 상세 설계: [MARKET.md](./MARKET.md)
 
