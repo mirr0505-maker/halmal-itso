@@ -195,7 +195,7 @@ const EpisodeCommentBoard = ({ episodeId, authorId, comments, currentUserUid, cu
                   maxLength={500}
                   rows={3}
                   autoFocus
-                  className="w-full px-2 py-1.5 border border-blue-300 rounded text-[12px] resize-none focus:outline-none focus:border-blue-500"
+                  className="w-full px-2 py-1.5 border border-blue-300 rounded text-[15px] leading-[1.8] resize-none focus:outline-none focus:border-blue-500"
                 />
                 <div className="flex items-center justify-between mt-1">
                   <span className="text-[10px] text-slate-500 font-bold">{editContent.length}/500</span>
@@ -219,7 +219,7 @@ const EpisodeCommentBoard = ({ episodeId, authorId, comments, currentUserUid, cu
                 {editError && <p className="text-[10px] text-red-500 mt-1 font-bold">{editError}</p>}
               </div>
             ) : (
-              <p className="text-[12px] text-slate-700 whitespace-pre-wrap break-words mb-2 leading-relaxed">
+              <p className="text-[15px] leading-[1.8] text-slate-700 whitespace-pre-wrap break-words mb-2">
                 {comment.content}
               </p>
             )}

@@ -92,7 +92,7 @@ const EpisodeCommentForm = ({ episodeId, currentUserUid, currentUserNickname, on
         maxLength={500}
         rows={3}
         placeholder={placeholder || '이 회차에 대한 감상을 남겨보세요...'}
-        className="w-full px-3 py-2 border border-slate-200 rounded text-[12px] resize-none focus:outline-none focus:border-blue-500"
+        className="w-full px-3 py-2 border border-slate-200 rounded text-[15px] leading-[1.8] resize-none focus:outline-none focus:border-blue-500"
       />
       <div className="flex items-center justify-between mt-2">
         <span className="text-[10px] text-slate-500 font-bold">{content.length}/500</span>

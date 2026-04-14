@@ -605,7 +605,7 @@ const EpisodeReader = ({ postId, currentUserUid, currentUserNickname, onBack, on
           {episode.authorNote && (
             <div className="mb-6 p-3 bg-slate-50 border border-slate-200 rounded-lg">
               <div className="text-[11px] font-[1000] text-slate-600 mb-1">📝 작가의 말</div>
-              <p className="text-[12px] text-slate-600 whitespace-pre-wrap">{episode.authorNote}</p>
+              <p className="text-[15px] leading-[1.8] text-slate-600 whitespace-pre-wrap">{episode.authorNote}</p>
             </div>
           )}
 
