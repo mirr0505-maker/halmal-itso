@@ -186,7 +186,7 @@ const EditEpisode = ({ postId, currentUserUid, onSuccess, onCancel }: EditEpisod
       <div className="space-y-6">
         {/* 회차 제목 */}
         <div>
-          <label className="block text-[11px] font-[1000] text-slate-600 mb-2">
+          <label className="block text-[12px] font-[1000] text-slate-600 mb-2">
             회차 제목 <span className="text-red-500">*</span>
           </label>
           <input
@@ -194,13 +194,13 @@ const EditEpisode = ({ postId, currentUserUid, onSuccess, onCancel }: EditEpisod
             value={episodeTitle}
             onChange={(e) => setEpisodeTitle(e.target.value)}
             maxLength={50}
-            className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:border-blue-500"
+            className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:border-blue-500 placeholder:text-[11px] placeholder:font-normal placeholder:text-slate-300"
           />
         </div>
 
         {/* 본문 — Tiptap */}
         <div>
-          <label className="block text-[11px] font-[1000] text-slate-600 mb-2">
+          <label className="block text-[12px] font-[1000] text-slate-600 mb-2">
             본문 <span className="text-red-500">*</span>
           </label>
           <div className="border border-slate-300 rounded-lg overflow-hidden">
@@ -215,13 +215,13 @@ const EditEpisode = ({ postId, currentUserUid, onSuccess, onCancel }: EditEpisod
 
         {/* 작가의 말 */}
         <div>
-          <label className="block text-[11px] font-[1000] text-slate-600 mb-2">작가의 말 (선택)</label>
+          <label className="block text-[12px] font-[1000] text-slate-600 mb-2">작가의 말 (선택)</label>
           <textarea
             value={authorNote}
             onChange={(e) => setAuthorNote(e.target.value)}
             maxLength={300}
             rows={3}
-            className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:border-blue-500 resize-none"
+            className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:border-blue-500 resize-none placeholder:text-[11px] placeholder:font-normal placeholder:text-slate-300"
           />
           <p className="text-xs text-slate-400 mt-1 font-bold">{authorNote.length}/300</p>
         </div>
