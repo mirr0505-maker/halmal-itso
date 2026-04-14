@@ -359,8 +359,8 @@ exports.createEpisode = onCall(
     // 실제 posts에서 max(episodeNumber) 조회 — 삭제된 회차 번호는 건너뛰기
     // (totalEpisodes 카운터만 사용하면 삭제 시 카운터 차감 후 번호 재사용으로 영수증 충돌 발생 가능)
     const existingSnap = await db.collection("posts")
-      .where("seriesId", "==", seriesId)
       .where("category", "==", "magic_inkwell")
+      .where("seriesId", "==", seriesId)
       .orderBy("episodeNumber", "desc")
       .limit(1)
       .get();
