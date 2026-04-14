@@ -47,7 +47,7 @@
 
 ### Cloud Functions (서울 리전, `functions/` 디렉토리)
 - `index.js` — 진입점 (fetchMarathonNews + 분리 모듈 re-export)
-- `thanksball.js` — `sendThanksball`: 땡스볼 전송 (잔액 차감·수신자 누적·알림). posts.author_id 우선 조회로 수신자 UID 확보.
+- `thanksball.js` — `sendThanksball`: 땡스볼 전송 (잔액 차감·수신자 누적·알림). posts.author_id 우선 조회로 수신자 UID 확보. 수신자 `ballReceived`(평판 누적) + `ballBalance`(실사용 잔액) **동시 증가** — 받은 땡스볼은 되쓰기/유배 속죄금으로 사용 가능.
 - `testCharge.js` — `testChargeBall`: 테스트용 볼 충전
 - `kanbuPromo.js` — `registerKanbuPromo`: 깐부 홍보 카드 등록 (Lv2+, 기간제)
 - `auction.js` / `revenue.js` / `fraud.js` / `settlement.js` — ADSMARKET 광고 시스템
@@ -98,7 +98,7 @@
 
 | 파일 | 주의 |
 |------|------|
-| `App.tsx` | 전역 상태·리스너 중심. props drilling이 많으므로 함부로 리팩터링 금지. |
+| `App.tsx` | 전역 상태·리스너 중심. props drilling이 많으므로 함부로 리팩터링 금지. 헤더 `+ 새 글` 버튼은 `activeMenu === 'exile_place' && !isExiled`일 때 `setActiveMenu('home')` 선행(비유배자가 유배글 폼 진입 방지). |
 | `TiptapEditor.tsx` | 스티키 툴바 + 버블 메뉴 로직 손대지 않기. 커서 위치 유지 로직 보호. |
 | `CreatePostBox.tsx` | 카테고리 목록에서 "한컷" 제외 유지. |
 | `DiscussionView.tsx` | `CATEGORY_RULES` 객체 — 카테고리별 댓글 규칙 정의. 임의 변경 금지. 🏚️ 유배·귀양지는 `boardType: 'pandora'` (좌/우 지그재그 + 각 컬럼 하단 인라인 입력) + `hideAttachment: true`. |
@@ -136,7 +136,7 @@
 | `MarketShopEditor.tsx` | 🏪 단골장부 상점 개설. 이름/소개/가격(10~200)/표지. Lv5+만. |
 | `MarketShopDetail.tsx` | 🏪 단골장부 상세. 구독 버튼 + 크리에이터 판매글 목록. `subscribeMarketShop` callable. |
 | `MarketDashboard.tsx` | 🏪 크리에이터 대시보드. 수익 현황(판매/광고/총판매) + 판매글 관리(숨김/복귀) + 단골장부 구독자. |
-| `ExileMainPage.tsx` | 🏚️ 유배자 메인. 3탭(놀부곳간/무인도/절해고도, 내 단계만 활성, 관전자는 3탭 모두 열람) + 상태카드 + 반성기간 카운트다운 + 속죄금 결제(`releaseFromExile`). |
+| `ExileMainPage.tsx` | 🏚️ 유배자 메인. 3탭(놀부곳간/무인도/절해고도, 내 단계만 활성, 관전자는 3탭 모두 열람) + 상태카드 + 반성기간 카운트다운 + 속죄금 결제(`releaseFromExile`). 헤더 서브타이틀 간결화, 관전자 안내 배너 제거(2026-04-14). |
 | `ExileBoard.tsx` | 🏚️ 유배지 게시판. 본인 단계만 글 작성 가능, 닉네임 자동 익명화(`곳간 거주자 #NNNN`), 외부 공유 금지. |
 | `utils.ts — anonymizeExileNickname` | 🏚️ uid FNV-1a 해시 → `곳간 거주자 #NNNN` 결정적 변환. `useFirestoreActions`의 `handlePostSubmit`/`handleInlineReply`/`handleCommentSubmit`에서 유배글·유배댓글 저장 시 `author` 필드 치환(`author_id`는 실제 uid 유지). |
 | `SayakScreen.tsx` | ☠️ 사약 처분 전용 전체화면. `sanctionStatus === 'banned'` 시 다른 UI 렌더 전에 이 화면만. 10초 카운트다운 → 강제 로그아웃. |
@@ -167,6 +167,7 @@
 | friend (깐부글) | 좋아요 3개 이상 + 팔로우 유저 (시간 제한 없음) |
 | 카테고리 뷰 | 좋아요 3개 이상 |
 | RelatedPostsSidebar | 2시간 경과 + 좋아요 3개 이상 (등록글 기준 동일) |
+| RelatedPostsSidebar (🏚️ 유배·귀양지) | 좋아요·시간 필터 스킵, `isHiddenByExile`만 제외. 사이드바 제목 "게시글 더보기" |
 
 ---
 

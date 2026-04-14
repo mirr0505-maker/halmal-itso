@@ -244,6 +244,11 @@
 - 자연스럽게 탈출 자금으로 집중됨
 - 담합/자금세탁 경로 원천 차단
 
+**구현 보강 (2026-04-15):**
+- `functions/thanksball.js` `sendThanksball` 트랜잭션이 수신자의 `ballReceived`(평판 누적)만 증가시키고 `ballBalance`(실사용 잔액)를 빠뜨리던 버그 수정 → 두 필드 동시 증가
+- 효과: 유배자가 받은 땡스볼로 즉시 속죄금(`releaseFromExile`의 ballBalance 차감) 결제 가능. 일반 유저 간 전송도 되쓰기 가능으로 정상 동작
+- 과거 누적분은 소급 반영 없음. 적용 이후 신규 전송분부터 즉시 반영
+
 ### 2.6 유배글 상세 & 댓글 화면 (Detail View)
 
 **레이아웃 (2026-04-14 변경):**
@@ -273,6 +278,30 @@
 - **공유 버튼 제거** — STOREHOUSE.md §3.3 Sandbox Policy에 따라 상세글 우상단 공유 버튼 숨김
 - **이미지/링크 첨부 숨김** — `hideAttachment: true`로 유해 콘텐츠 확산 차단
 - **레거시 CommentExile.tsx** — pandora 분기에서 자동 비활성화. 파일은 존속하되 실제 미사용 (향후 정리 가능)
+
+### 2.7 사이드바(관련 글) 정책 — "게시글 더보기"
+
+- **기본 정책(일반 카테고리):** `DiscussionView.tsx`의 `relatedPosts` 필터가 "좋아요 3+ & 1시간 경과"(CLAUDE.md 등록글 기준)를 요구하며 제목은 **"등록글 더보기"**
+- **유배·귀양지 전용 완화 (2026-04-15):**
+  - 곳간(lv1)/귀양지(lv2)/절해고도(lv3) 3단계 모두 적용
+  - 좋아요·시간 필터 **스킵** — 트래픽이 적어 기본 정책 적용 시 사이드바가 빈 상태로 유지되는 UX 문제 해결
+  - `isHiddenByExile`(문제글 soft-delete)은 **계속 제외** — 처분 후 숨김 글이 사이드바로 부활하지 않도록 방어
+  - 사이드바 제목을 **"게시글 더보기"**로 표기하여 기준 차이 명시 ("등록글"은 CLAUDE.md 고유 용어이므로 기준 다를 때 오용 방지)
+- **구현:** `DiscussionView.tsx` `isExile` 분기 + `RelatedPostsSidebar.tsx` `title` prop
+
+### 2.8 글작성 진입 가드 — 비유배자의 곳간 체류 중 "+ 새 글"
+
+- **문제:** 비유배 유저가 관전 목적으로 곳간(`activeMenu === 'exile_place'`)에 체류 중 헤더의 보라색 `+ 새 글` 버튼을 누르면 `CREATE_MENU_COMPONENTS['exile_place'] = CreateExile`이 렌더되어 유배글 작성 폼으로 진입
+- **수정 (2026-04-14):** `App.tsx` 헤더 버튼 `onClick`에 가드 추가
+  - `activeMenu === 'exile_place' && !isExiled` → `setActiveMenu('home')` 먼저 호출 후 `setIsCreateOpen(true)` → 홈 카테고리 선택 화면으로 진입
+  - 유배자는 App.tsx 라우팅 가드(`useEffect`)가 즉시 `exile_place`로 복귀시키므로 `CreateExile` 폼 그대로 유지
+- **모바일 중앙 + 버튼은 이미 `setActiveMenu('home')` 선행 → 영향 없음**
+- **`ExileMainPage` 헤더의 "+ 글 작성" 버튼은 `myLevel && myLevel === activeTab` 조건으로 유배자에게만 노출 → 영향 없음**
+
+### 2.9 헤더·관전자 안내 문구 간소화 (2026-04-14)
+
+- **헤더 서브타이틀:** `"유배·귀양지, 사회적으로 비난 받을 글로 인하여 여기에 갇혔습니다. 반성하고 속죄하시오"` → `"유배·귀양지, 사회적으로 비난 받을 글로 인하여 여기에 갇혔습니다."` ("반성하고 속죄하시오" 제거)
+- **관전자 안내 배너 전체 제거** — 기존에 비유배 유저 진입 시 표시되던 3줄 안내(거친 표현/익명화/외부 공유 금지)는 모두 삭제. 안내 내용은 그대로 유효하며 STOREHOUSE.md에서 문서적으로 보존(§3, §11.3, §11.4)
 
 ---
 

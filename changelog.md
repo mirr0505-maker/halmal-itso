@@ -1,5 +1,13 @@
 ## 8. 현재 구현 상태 (2026-03-24 기준, 코드 실측)
 
+### 🏚️ 놀부 곳간 후속 정비 (2026-04-14 ~ 2026-04-15)
+> 설계 반영: [STOREHOUSE.md §2.5 / §2.7 / §2.8 / §2.9](./STOREHOUSE.md)
+
+- [x] **비유배자 + 새 글 가드** (2026-04-14) — `App.tsx` 헤더 `+ 새 글` `onClick`에 분기 추가: `activeMenu === 'exile_place' && !isExiled`이면 `setActiveMenu('home')` 선행 후 `setIsCreateOpen(true)` → 홈 카테고리 선택 화면 진입. 유배자는 라우팅 가드가 exile_place로 즉시 복귀시키므로 CreateExile 폼 유지
+- [x] **헤더·관전자 문구 정리** (2026-04-14) — `ExileMainPage` 서브타이틀에서 "반성하고 속죄하시오" 제거, 비유배자 진입 시 표시되던 3줄 안내 배너(거친 표현/익명화/외부 공유 금지) 전체 제거. 안내 내용은 문서(STOREHOUSE.md §3·§11.3·§11.4)에서 유지
+- [x] **받은 땡스볼 ballBalance 반영** (2026-04-15) — `functions/thanksball.js` `sendThanksball` 트랜잭션이 수신자 `ballReceived`만 증가시키고 `ballBalance`는 빠뜨려 받은 땡스볼을 영원히 쓸 수 없던 버그. 두 필드 동시 증가로 수정 → 유배자 속죄금 결제(`releaseFromExile`의 ballBalance 차감) 정상 동작. 과거 누적분 소급 없음, 신규 전송부터 적용
+- [x] **유배지 사이드바 필터 완화 + 제목 변경** (2026-04-15) — 3단계(곳간/귀양지/절해고도) 공통 트래픽 부족 문제 해결. `DiscussionView.tsx`에서 `rootPost.category === '유배·귀양지'`일 때 좋아요·시간 필터 스킵, `isHiddenByExile`만 제외. `RelatedPostsSidebar.tsx`에 `title` prop 신설 → 유배글 상세뷰에서만 "게시글 더보기" 표시(기타 카테고리는 "등록글 더보기" 유지)
+
 ### 🏚️ 놀부 곳간 상세글 화면 정비 (2026-04-14)
 > 설계 반영: [STOREHOUSE.md §2.6 / §3.3 / §11.4.1](./STOREHOUSE.md)
 
