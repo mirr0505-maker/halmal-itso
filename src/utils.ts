@@ -178,3 +178,18 @@ export const calculateWithholdingTax = (
   const taxAmount = Math.floor(grossAmount * taxRate);
   return { taxAmount, netAmount: grossAmount - taxAmount, taxRate };
 };
+
+// 🏚️ 유배자 익명 닉네임 생성 — uid 기반 결정적 해시 → "곳간 거주자 #NNNN"
+// Why: STOREHOUSE.md §11.4 — 유배자는 타인에게 익명으로만 인지되어야 함.
+//      동일 uid는 항상 동일 번호가 생성되므로 "유배 중 일관성 유지" 요건 충족.
+//      author_id는 실제 uid로 저장되어 본인 식별·관리자 추적은 유지됨.
+export const anonymizeExileNickname = (uid: string): string => {
+  // FNV-1a 32bit 해시 → 4자리 숫자(0000~9999)로 압축
+  let hash = 2166136261;
+  for (let i = 0; i < uid.length; i++) {
+    hash ^= uid.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  const num = Math.abs(hash) % 10000;
+  return `곳간 거주자 #${String(num).padStart(4, '0')}`;
+};

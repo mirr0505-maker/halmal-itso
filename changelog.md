@@ -1,5 +1,20 @@
 ## 8. 현재 구현 상태 (2026-03-24 기준, 코드 실측)
 
+### 🏚️ 놀부 곳간 상세글 화면 정비 (2026-04-14)
+> 설계 반영: [STOREHOUSE.md §2.6 / §3.3 / §11.4.1](./STOREHOUSE.md)
+
+- [x] **상세글 우상단 공유 버튼 제거** — `RootPostCard.tsx`에서 `post.category === '유배·귀양지'` 분기로 숨김 (Sandbox Policy §3 준수)
+- [x] **닉네임 자동 익명화 구현** — 기존 미구현 상태 해결
+  • `utils.ts` `anonymizeExileNickname(uid)` 추가 — FNV-1a 32bit 해시 → `곳간 거주자 #NNNN` 결정적 변환
+  • `useFirestoreActions.ts`의 `handlePostSubmit`/`handleInlineReply`/`handleCommentSubmit` 3개 핸들러에서 유배글·유배댓글 저장 시 `author` 필드 치환
+  • `author_id`는 실제 uid 유지 → 본인 수정/삭제 권한 및 관리자 추적 정상
+  • 동일 uid는 항상 동일 번호 → 유배 기간 중 닉네임 일관성 보장 (Cloud Function 의존 없음)
+- [x] **댓글 영역 Pandora 스타일 전환** — `CATEGORY_RULES['유배·귀양지'].boardType` `'single'` → `'pandora'`
+  • 동의/반대 댓글 좌우 2컬럼 지그재그 시간순 표시
+  • 각 컬럼 하단에 인라인 댓글 입력폼(placeholder: `댓글을 입력하세요...`)
+  • `hideAttachment: true`로 이미지/링크 첨부 차단
+  • 기존 `CommentExile.tsx`는 pandora 분기에서 자동 비활성화(파일 존속, 실제 미사용)
+
 ### 🏚️ 놀부의 텅 빈 곳간 Phase 1 MVP (2026-04-14)
 > 상세 설계: [STOREHOUSE.md](./STOREHOUSE.md)
 

@@ -101,10 +101,10 @@
 | `App.tsx` | 전역 상태·리스너 중심. props drilling이 많으므로 함부로 리팩터링 금지. |
 | `TiptapEditor.tsx` | 스티키 툴바 + 버블 메뉴 로직 손대지 않기. 커서 위치 유지 로직 보호. |
 | `CreatePostBox.tsx` | 카테고리 목록에서 "한컷" 제외 유지. |
-| `DiscussionView.tsx` | `CATEGORY_RULES` 객체 — 카테고리별 댓글 규칙 정의. 임의 변경 금지. |
+| `DiscussionView.tsx` | `CATEGORY_RULES` 객체 — 카테고리별 댓글 규칙 정의. 임의 변경 금지. 🏚️ 유배·귀양지는 `boardType: 'pandora'` (좌/우 지그재그 + 각 컬럼 하단 인라인 입력) + `hideAttachment: true`. |
 | `OneCutDetailView.tsx` | 2컬럼 레이아웃(8:4 그리드) 유지. tree 문서 실시간 구독(`onSnapshot`). |
 | `DebateBoard.tsx` | 너와 나의 이야기 댓글 IME 처리 — InlineForm 컴포넌트 금지, 인라인 JSX 유지. `isComposing` 체크 보호. |
-| `RootPostCard.tsx` | 하단 통계 바 3컬럼 구조(댓글\|땡스볼\|동의) 유지. `onBack` prop 체인 보호. |
+| `RootPostCard.tsx` | 하단 통계 바 3컬럼 구조(댓글\|땡스볼\|동의) 유지. `onBack` prop 체인 보호. 🏚️ `post.category === '유배·귀양지'`일 때 우상단 공유 버튼 숨김(STOREHOUSE §3 Sandbox Policy). |
 | `ThanksballModal.tsx` | `sendThanksball` Cloud Function(`functions/thanksball.js`)으로 서버 처리. ballBalance 직접 수정 금지(Rules 차단). 서버에서 잔액 차감·수신자 누적·sentBalls·notifications·thanksballTotal 5곳 동시 처리. |
 | `OneCutList.tsx` | 카드 하단은 AnyTalkList 일반 글카드와 완전 동일 구조 유지(아바타w-6+프로필클릭+공유버튼). 원본글 영역 `min-h-[22px]` 높이 확보 필수(카드 세로 통일). |
 | `NotificationBell.tsx` | `notifications/{uid}/items` 실시간 구독. `writeBatch`로 일괄 읽음 처리. 타입: `thanksball·community_post·finger_promoted·giant_tree_spread·giant_tree_wilt`. `isUnread()` 헬퍼로 `read`/`isRead` 두 필드 통합 판단. |
@@ -138,6 +138,7 @@
 | `MarketDashboard.tsx` | 🏪 크리에이터 대시보드. 수익 현황(판매/광고/총판매) + 판매글 관리(숨김/복귀) + 단골장부 구독자. |
 | `ExileMainPage.tsx` | 🏚️ 유배자 메인. 3탭(놀부곳간/무인도/절해고도, 내 단계만 활성, 관전자는 3탭 모두 열람) + 상태카드 + 반성기간 카운트다운 + 속죄금 결제(`releaseFromExile`). |
 | `ExileBoard.tsx` | 🏚️ 유배지 게시판. 본인 단계만 글 작성 가능, 닉네임 자동 익명화(`곳간 거주자 #NNNN`), 외부 공유 금지. |
+| `utils.ts — anonymizeExileNickname` | 🏚️ uid FNV-1a 해시 → `곳간 거주자 #NNNN` 결정적 변환. `useFirestoreActions`의 `handlePostSubmit`/`handleInlineReply`/`handleCommentSubmit`에서 유배글·유배댓글 저장 시 `author` 필드 치환(`author_id`는 실제 uid 유지). |
 | `SayakScreen.tsx` | ☠️ 사약 처분 전용 전체화면. `sanctionStatus === 'banned'` 시 다른 UI 렌더 전에 이 화면만. 10초 카운트다운 → 강제 로그아웃. |
 | `admin/ExileManagement.tsx` | 🏚️ 관리자 유배 관리 탭. 신고 목록 + 현재 유배자 목록(단계별 배지/90일 초과 경고) + [유배 보내기] + 수동 UID 입력 + ☠️ 직권 사약. |
 | `admin/AppealReview.tsx` | ⚖️ 이의 제기 검토 탭. 대기/전체 필터 + 인용(해제 권고)/기각 + 대상자 알림 발송. |

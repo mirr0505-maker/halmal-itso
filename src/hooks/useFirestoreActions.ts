@@ -7,7 +7,7 @@ import {
 import type { Dispatch, SetStateAction, FormEvent } from 'react';
 import type { Post, UserData } from '../types';
 import type { MenuId } from '../components/Sidebar';
-import { isEligibleForExp } from '../utils';
+import { isEligibleForExp, anonymizeExileNickname } from '../utils';
 
 // 🚀 Rate Limit 쿨다운 (클라이언트 사이드)
 const RATE_LIMIT = { POST_COOLDOWN_MS: 60_000, COMMENT_COOLDOWN_MS: 15_000 };
@@ -71,8 +71,12 @@ export function useFirestoreActions({
         const shareToken = customId.split('_').slice(0, 2).join('_'); // "topic_타임스탬프" — ogRenderer 조회용
         // 🚀 contentTextLength: 서버사이드 글자수 검증용 (Firestore Rules에서 신포도와 여우 100자 제한 검증)
         const contentPlainText = (postData.content || '').replace(/<[^>]*>/g, '').replace(/\s/g, '');
+        // 🏚️ 유배·귀양지 글은 닉네임 자동 익명화 (STOREHOUSE.md §11.4)
+        const displayAuthor = postData.category === '유배·귀양지'
+          ? anonymizeExileNickname(userData.uid)
+          : userData.nickname;
         await setDoc(doc(db, 'posts', customId), {
-          ...postData, author: userData.nickname, author_id: userData.uid,
+          ...postData, author: displayAuthor, author_id: userData.uid,
           authorInfo: { level: userData.level, friendCount: friends.length, totalLikes: userData.likes },
           parentId: null, rootId: null, side: 'left', type: 'formal',
           createdAt: serverTimestamp(), likes: 0, dislikes: 0, shareToken,
@@ -136,9 +140,13 @@ export function useFirestoreActions({
       alert('댓글은 15초에 1개만 작성할 수 있습니다.'); return;
     }
     const customId = `comment_${Date.now()}_${userData.uid}`;
+    // 🏚️ 유배·귀양지 댓글은 닉네임 자동 익명화
+    const displayAuthor = selectedTopic.category === '유배·귀양지'
+      ? anonymizeExileNickname(userData.uid)
+      : userData.nickname;
     try {
       await setDoc(doc(db, 'comments', customId), {
-        author: userData.nickname, author_id: userData.uid,
+        author: displayAuthor, author_id: userData.uid,
         title: null, content,
         parentId: parentPost ? parentPost.id : selectedTopic.id,
         rootId: selectedTopic.id,
@@ -171,9 +179,13 @@ export function useFirestoreActions({
     }
     setIsSubmitting(true);
     const customId = `comment_${Date.now()}_${userData.uid}`;
+    // 🏚️ 유배·귀양지 댓글은 닉네임 자동 익명화
+    const displayAuthor = selectedTopic.category === '유배·귀양지'
+      ? anonymizeExileNickname(userData.uid)
+      : userData.nickname;
     try {
       await setDoc(doc(db, 'comments', customId), {
-        author: userData.nickname, author_id: userData.uid,
+        author: displayAuthor, author_id: userData.uid,
         title: selectedType === 'formal' ? newTitle : null,
         content: newContent,
         parentId: replyTarget ? replyTarget.id : selectedTopic.id,
