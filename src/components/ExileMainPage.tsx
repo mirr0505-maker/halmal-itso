@@ -7,14 +7,18 @@ import { addDoc, collection, query, where, orderBy, getDocs, serverTimestamp } f
 import { httpsCallable } from 'firebase/functions';
 import type { Post, UserData, SanctionStatus } from '../types';
 import { formatKoreanNumber } from '../utils';
-import ExileBoard from './ExileBoard';
+import AnyTalkList from './AnyTalkList';
 
 interface Props {
   currentUserData: UserData;
   allRootPosts: Post[];                 // 상위에서 유배 카테고리 필터된 글 전달
   allUsers: Record<string, UserData>;
+  commentCounts?: Record<string, number>;
+  followerCounts?: Record<string, number>;
   onTopicClick: (post: Post) => void;
   onLikeClick?: (e: React.MouseEvent, postId: string) => void;
+  onShareCount?: (postId: string) => void;
+  onAuthorClick?: (author: string) => void;
   onOpenCreate: () => void;             // + 글 작성 — App.tsx의 setIsCreateOpen
   onReleased?: () => void;
 }
@@ -34,7 +38,7 @@ const TABS = [
   { level: 3 as const, label: '절해고도',     days: 30, bail: 300 },
 ];
 
-const ExileMainPage = ({ currentUserData, allRootPosts, allUsers, onTopicClick, onLikeClick, onOpenCreate, onReleased }: Props) => {
+const ExileMainPage = ({ currentUserData, allRootPosts, allUsers, commentCounts, followerCounts, onTopicClick, onLikeClick, onShareCount, onAuthorClick, onOpenCreate, onReleased }: Props) => {
   const myLevel = statusToLevel(currentUserData.sanctionStatus);
   const [activeTab, setActiveTab] = useState<1 | 2 | 3>(myLevel || 1);
   const [processing, setProcessing] = useState(false);
@@ -161,14 +165,18 @@ const ExileMainPage = ({ currentUserData, allRootPosts, allUsers, onTopicClick, 
             <p>• 외부 공유는 금지되어 있습니다.</p>
           </div>}
 
-          {/* 🏚️ 유배지 게시판 — 현재 탭 기준 */}
-          <ExileBoard
+          {/* 🏚️ 유배지 게시판 — AnyTalkList 재사용 (일반 메뉴와 동일 카드 UI) */}
+          <AnyTalkList
             posts={allRootPosts.filter(p => p.category === '유배·귀양지' && (p.exileLevel || 1) === activeTab && !p.isHiddenByExile)}
-            level={activeTab}
-            allUsers={allUsers}
             onTopicClick={onTopicClick}
             onLikeClick={onLikeClick}
+            commentCounts={commentCounts}
             currentNickname={currentUserData.nickname}
+            currentUserData={currentUserData}
+            allUsers={allUsers}
+            followerCounts={followerCounts}
+            onShareCount={onShareCount}
+            onAuthorClick={onAuthorClick}
           />
         </div>
 

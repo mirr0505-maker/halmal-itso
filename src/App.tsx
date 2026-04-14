@@ -527,8 +527,12 @@ function App() {
         currentUserData={userData}
         allRootPosts={allRootPosts}
         allUsers={allUsers}
+        commentCounts={commentCounts}
+        followerCounts={followerCounts}
         onTopicClick={handleViewPost}
         onLikeClick={handleLike}
+        onShareCount={handleShareCount}
+        onAuthorClick={setPublicProfileNick}
         onOpenCreate={() => setIsCreateOpen(true)}
       />;
     }
