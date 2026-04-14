@@ -412,6 +412,7 @@ const { activateInfoBot, deactivateInfoBot, updateInfoBot } = require("./gloveBo
 const { fetchBotNews, fetchBotDart } = require("./gloveBotFetcher");
 const { syncDartCorpMap, triggerSyncDartCorpMap, lookupCorpCode } = require("./dartCorpMap");
 const { purchaseMarketItem, subscribeMarketShop, checkSubscriptionExpiry, processMarketAdRevenue } = require("./market");
+const { sendToExile, releaseFromExile } = require("./storehouse");
 
 exports.registerKanbuPromo = registerKanbuPromo;
 exports.adAuction = adAuction;
@@ -439,3 +440,5 @@ exports.purchaseMarketItem = purchaseMarketItem;
 exports.subscribeMarketShop = subscribeMarketShop;
 exports.checkSubscriptionExpiry = checkSubscriptionExpiry;
 exports.processMarketAdRevenue = processMarketAdRevenue;
+exports.sendToExile = sendToExile;
+exports.releaseFromExile = releaseFromExile;
