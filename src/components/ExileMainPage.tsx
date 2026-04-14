@@ -116,7 +116,7 @@ const ExileMainPage = ({ currentUserData, allRootPosts, allUsers, commentCounts,
             <span className="text-slate-600 font-black text-[15px]">#</span>
             <h2 className="text-[14px] font-[1000] text-slate-900 tracking-tighter whitespace-nowrap">놀부의 텅 빈 곳간</h2>
             <div className="w-px h-3 bg-slate-200 mx-1.5 hidden md:block" />
-            <p className="text-[11px] font-bold text-slate-400 hidden md:block whitespace-nowrap">유배·귀양지, 사회적으로 비난 받을 글로 인하여 여기에 갇혔습니다. 반성하고 속죄하시오</p>
+            <p className="text-[11px] font-bold text-slate-400 hidden md:block whitespace-nowrap">유배·귀양지, 사회적으로 비난 받을 글로 인하여 여기에 갇혔습니다.</p>
           </div>
           {/* 우: 3탭 + 글 작성 */}
           <div className="flex items-center gap-1 shrink-0">
@@ -158,13 +158,6 @@ const ExileMainPage = ({ currentUserData, allRootPosts, allUsers, commentCounts,
       <div className="flex gap-4 items-start mt-4">
         {/* 메인 컨텐츠 영역 */}
         <div className="flex-1 min-w-0">
-          {/* 관전자 안내 */}
-          {!myLevel && <div className="p-3 bg-slate-50 border border-slate-100 rounded-lg text-[10px] font-bold text-slate-500 leading-relaxed mb-3">
-            <p>⚠️ 여기는 제재 유저의 반성 공간입니다. 거친 표현이 포함될 수 있습니다.</p>
-            <p>• 유배자 닉네임은 자동으로 익명 처리됩니다 (곳간 거주자 #NNNN).</p>
-            <p>• 외부 공유는 금지되어 있습니다.</p>
-          </div>}
-
           {/* 🏚️ 유배지 게시판 — AnyTalkList 재사용 (일반 메뉴와 동일 카드 UI) */}
           <AnyTalkList
             posts={allRootPosts.filter(p => p.category === '유배·귀양지' && (p.exileLevel || 1) === activeTab && !p.isHiddenByExile)}
