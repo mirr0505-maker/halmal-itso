@@ -526,9 +526,26 @@ const CommunityView = ({ community, currentUserData, allUsers, followerCounts = 
         </div>
       </div>
 
-      {/* 🚀 Phase 7 — 채팅 탭 */}
+      {/* 🚀 Phase 7 — 채팅 탭 (멤버만) */}
       {activeTab === 'chat' && (
-        <CommunityChatPanel community={community} currentUser={currentUserData} members={members} allUsers={allUsers} />
+        isMember ? (
+          <CommunityChatPanel community={community} currentUser={currentUserData} members={members} allUsers={allUsers} />
+        ) : (
+          <div className="bg-slate-50 border border-slate-200 rounded-xl p-10 text-center mt-4">
+            <p className="text-[32px] mb-3">🔒</p>
+            <p className="text-[14px] font-[1000] text-slate-700 mb-1">장갑 멤버만 채팅에 참여할 수 있어요</p>
+            <p className="text-[11px] font-bold text-slate-400">먼저 가입 신청을 해주세요</p>
+          </div>
+        )
+      )}
+
+      {/* 🚀 비가입자 — 멤버 탭 안내 */}
+      {activeTab === 'members' && !isMember && (
+        <div className="bg-slate-50 border border-slate-200 rounded-xl p-10 text-center mt-4">
+          <p className="text-[32px] mb-3">🔒</p>
+          <p className="text-[14px] font-[1000] text-slate-700 mb-1">장갑 멤버만 멤버 목록을 볼 수 있어요</p>
+          <p className="text-[11px] font-bold text-slate-400">먼저 가입 신청을 해주세요</p>
+        </div>
       )}
 
       {/* 🚀 다섯 손가락 Phase 2 — 멤버 탭 (멤버만) */}
