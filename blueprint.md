@@ -462,3 +462,35 @@ interface KanbuChat {
   - 마이페이지 🖋️ 나의 연재작 + 📚 구독한 작품 2탭
 - **공유**: 일반 게시판과 공용 `sharePost()` 헬퍼 사용 — Web Share API + fallback 클립보드
 - **점세개 메뉴** (EpisodeReader 우상단): 공개프로필 보기 / 신고하기(disabled) / 작가 액션(수정·다시 공개·삭제)
+
+---
+
+## 📌 향후 과제 (TODO)
+
+### 깐부방 호스트 공백 처리 로직 (Host Vacancy Handler) — 🟡 MID
+**우선순위**: 유배귀양지 기능 출시 전까지 반드시 구현
+
+**배경**: 깐부방 호스트(방장)가 여러 사유로 자리를 비울 수 있음
+- ① 회원 탈퇴 (정상 탈퇴)
+- ② 유배귀양지 해금 시 (유배 시스템에서 자동 호출)
+- ③ 사약(Sayak) 처분 시 (영구 추방)
+- ④ 계정 장기 미접속/휴면 처리 시 (추후 정책 수립)
+
+**공통 처리 로직**:
+1. **방장 위임 (Host Transfer)**: `kanbu_rooms/{roomId}/members`의 `joinedAt` 오름차순 첫 번째 멤버에게 자동 위임 → 시스템 알림 + 공지 메시지 게시
+2. **멤버 0명인 경우**: 방 즉시 해체 (`status: 'dissolved'` soft delete)
+3. **유예 기간 (Grace Period)**: 위임 후 7일, 활성 상태면 정상 운영 유지
+
+**Firestore 스키마 추가**:
+- `kanbu_rooms/{roomId}.hostTransferredAt: Timestamp | null`
+- `kanbu_rooms/{roomId}.hostTransferReason: 'withdrawal' | 'exile_release' | 'sayak' | 'dormant'`
+
+**구현 위치**: `functions/kanbu/handleHostVacancy.ts` (독립 유틸로 분리 — 유배/탈퇴 양쪽에서 호출)
+
+**미결정 사항**:
+- 위임받은 멤버의 거부 옵션 여부 (사전 동의 vs 사후 알림)
+- 유예 기간 7일 적정성 (3일/2주 대안)
+
+### 유배귀양지 시스템 — 🔴 미개발
+- `releaseFromExile()` Cloud Function이 호스트 공백 처리 로직 호출 필요
+- 상세 설계 미정
