@@ -57,8 +57,12 @@ exports.sendThanksball = onCall(
       });
 
       if (resolvedRecipientUid) {
+        // ballReceived: 평판 점수용 누적 카운터(영구 보존)
+        // ballBalance: 실사용 가능 잔액 — 수신자가 땡스볼을 되쓰거나 유배 속죄금으로 소진 가능
+        //   (STOREHOUSE.md §2.5: 유배자에게 들어온 땡스볼은 속죄금으로 소진)
         tx.set(db.collection("users").doc(resolvedRecipientUid), {
           ballReceived: FieldValue.increment(amount),
+          ballBalance: FieldValue.increment(amount),
         }, { merge: true });
       }
     });
