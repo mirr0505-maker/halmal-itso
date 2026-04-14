@@ -10,10 +10,13 @@ interface Props {
   currentNickname?: string;
   allUsers: Record<string, UserData>;
   followerCounts: Record<string, number>;
+  // 🏚️ 유배·귀양지는 트래픽이 적어 "등록글"(좋아요 3+ & 1시간) 기준을 완화하므로
+  //    제목을 "게시글 더보기"로 구분 표시 (DiscussionView에서 전달)
+  title?: string;
 }
 
 const RelatedPostsSidebar = ({
-  relatedPosts, onPostClick, commentCounts, currentNickname, allUsers, followerCounts
+  relatedPosts, onPostClick, commentCounts, currentNickname, allUsers, followerCounts, title = '등록글 더보기'
 }: Props) => {
   const getTimeAgo = (timestamp: { seconds: number } | null | undefined) => {
     if (!timestamp) return "";
@@ -33,7 +36,7 @@ const RelatedPostsSidebar = ({
     <aside className="hidden md:block md:col-span-4 sticky top-0 pt-2 bg-slate-50 rounded-xl">
       <div className="flex flex-col gap-0 max-h-[calc(100vh-100px)] overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] pb-20 pl-4 pr-3 border-l-2 border-slate-200">
         <div className="px-2 mb-2">
-          <h4 className="text-[16px] font-[1000] text-slate-900 tracking-tighter">등록글 더보기</h4>
+          <h4 className="text-[16px] font-[1000] text-slate-900 tracking-tighter">{title}</h4>
         </div>
 
         {relatedPosts.map((topic) => {

@@ -106,8 +106,14 @@ const DiscussionView = ({
   }, [rootPost.category, rule.allowDisagree, rule.allowFormal, selectedSide, selectedType, setSelectedSide, setSelectedType]);
 
   const now = Date.now();
+  // 🏚️ 유배·귀양지(곳간/귀양지/절해고도 3단계 공통)는 트래픽이 적어
+  //    "등록글" 기준(좋아요 3+ & 1시간) 적용 시 사이드바가 비는 문제 →
+  //    likes·시간 필터를 스킵하고 isHiddenByExile(문제글 soft-delete)만 제외
+  const isExile = rootPost.category === '유배·귀양지';
   const relatedPosts = otherTopics.filter(topic => {
     if (topic.id === rootPost.id || topic.isOneCut) return false;
+    if ((topic as Post & { isHiddenByExile?: boolean }).isHiddenByExile) return false;
+    if (isExile) return true;
     if ((topic.likes || 0) < 3) return false;
     const createdMs = topic.createdAt?.seconds ? topic.createdAt.seconds * 1000 : 0;
     return (now - createdMs) >= 3600 * 1000;
@@ -220,6 +226,7 @@ const DiscussionView = ({
         currentNickname={currentNickname}
         allUsers={allUsers}
         followerCounts={followerCounts}
+        title={isExile ? '게시글 더보기' : '등록글 더보기'}
       />
     </div>
   );
