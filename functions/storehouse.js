@@ -32,7 +32,9 @@ exports.sendToExile = onCall(
   async (request) => {
     if (!request.auth) throw new HttpsError("unauthenticated", "로그인이 필요합니다.");
     const adminUid = request.auth.uid;
-    const { targetUid, reason } = request.data || {};
+    // 🏚️ postId: 문제 된 글 ID (선택) — 해당 글을 soft delete
+    // targetCollection: 'posts' | 'community_posts' 등 (기본 'posts')
+    const { targetUid, reason, postId, targetCollection } = request.data || {};
 
     // 관리자 권한 검증
     if (!(await verifyAdmin(adminUid))) {
@@ -111,6 +113,38 @@ exports.sendToExile = onCall(
       });
     });
 
+    // 🏚️ 문제 된 글 soft delete — isHiddenByExile: true
+    // 트랜잭션 밖에서 처리 (Firestore 트랜잭션 문서 제한 완화)
+    let hiddenPostsCount = 0;
+    if (postId && typeof postId === "string" && postId.trim()) {
+      try {
+        const col = targetCollection || "posts";
+        await db.collection(col).doc(postId.trim()).update({
+          isHiddenByExile: true,
+          hiddenByExileAt: Timestamp.now(),
+        });
+        hiddenPostsCount = 1;
+      } catch (err) {
+        console.error("[sendToExile] 문제 글 숨김 처리 실패:", err);
+        // 글 숨김 실패해도 유배는 유지
+      }
+    }
+
+    // 🩸 사약 시: 해당 유저의 모든 글 일괄 soft delete
+    if (sayakTriggered) {
+      try {
+        for (const col of ["posts", "community_posts"]) {
+          const snap = await db.collection(col).where("author_id", "==", targetUid).get();
+          const batch = db.batch();
+          snap.docs.forEach(d => batch.update(d.ref, { isHiddenByExile: true, hiddenByExileAt: Timestamp.now() }));
+          if (!snap.empty) await batch.commit();
+          hiddenPostsCount += snap.size;
+        }
+      } catch (err) {
+        console.error("[sendToExile] 사약 글 일괄 숨김 실패:", err);
+      }
+    }
+
     // 대상 유저에게 알림
     await db.collection("notifications").doc(targetUid).collection("items").add({
       type: sayakTriggered ? "sayak_sentenced" : "exile_sentenced",
@@ -121,7 +155,7 @@ exports.sendToExile = onCall(
       read: false,
     });
 
-    return { success: true, strikeCount: newStrikeCount, status: newStatus, sayakTriggered };
+    return { success: true, strikeCount: newStrikeCount, status: newStatus, sayakTriggered, hiddenPostsCount };
   }
 );
 

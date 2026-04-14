@@ -32,22 +32,24 @@ const ExileManagement = () => {
     return unsub;
   }, []);
 
-  const handleExile = async (targetUid: string, targetNickname: string, reason: string) => {
+  const handleExile = async (targetUid: string, targetNickname: string, reason: string, postId?: string) => {
     const userReason = prompt(`"${targetNickname}"님을 유배 보내는 사유를 입력하세요 (기본: ${reason}):`, reason);
     if (!userReason?.trim()) return;
 
-    if (!window.confirm(`⚠️ "${targetNickname}"님을 유배지로 보냅니다.\n\n사유: ${userReason}\n\n진행하시겠습니까? (strikeCount +1 자동 단계 판정)`)) return;
+    const postInfo = postId ? `\n\n문제 글 ID: ${postId} (이 글은 숨김 처리됩니다)` : '';
+    if (!window.confirm(`⚠️ "${targetNickname}"님을 유배지로 보냅니다.\n\n사유: ${userReason}${postInfo}\n\n진행하시겠습니까? (strikeCount +1 자동 단계 판정)`)) return;
 
     setProcessing(targetUid);
     setMessage(null);
     try {
       const fn = httpsCallable(functions, 'sendToExile');
-      const result = await fn({ targetUid, reason: userReason });
-      const data = result.data as { strikeCount: number; status: string; sayakTriggered: boolean };
+      const result = await fn({ targetUid, reason: userReason, postId: postId || null });
+      const data = result.data as { strikeCount: number; status: string; sayakTriggered: boolean; hiddenPostsCount: number };
+      const hidden = data.hiddenPostsCount > 0 ? ` (글 ${data.hiddenPostsCount}개 숨김)` : '';
       if (data.sayakTriggered) {
-        setMessage(`☠️ 사약 처분 완료 (${targetNickname}) — 4차 도달로 영구 밴`);
+        setMessage(`☠️ 사약 처분 완료 (${targetNickname}) — 4차 도달로 영구 밴${hidden}`);
       } else {
-        setMessage(`⚖️ 유배 처분 완료 (${targetNickname}) — ${data.status} (${data.strikeCount}차)`);
+        setMessage(`⚖️ 유배 처분 완료 (${targetNickname}) — ${data.status} (${data.strikeCount}차)${hidden}`);
       }
     } catch (err: unknown) {
       const e = err as { message?: string };
@@ -113,7 +115,7 @@ const ExileManagement = () => {
                 </div>
                 {report.targetUid && (
                   <button
-                    onClick={() => handleExile(report.targetUid!, report.targetNickname || '(대상)', report.reason || '')}
+                    onClick={() => handleExile(report.targetUid!, report.targetNickname || '(대상)', report.reason || '', report.postId)}
                     disabled={processing === report.targetUid}
                     className="shrink-0 px-3 py-2 bg-slate-900 hover:bg-red-600 text-white rounded-lg text-[11px] font-[1000] disabled:opacity-50 transition-colors whitespace-nowrap">
                     {processing === report.targetUid ? '처리 중...' : '⚖️ 유배 보내기'}
@@ -134,10 +136,11 @@ const ExileManagement = () => {
   );
 };
 
-function ManualExileForm({ onSubmit, processing }: { onSubmit: (uid: string, nickname: string, reason: string) => void; processing: string | null }) {
+function ManualExileForm({ onSubmit, processing }: { onSubmit: (uid: string, nickname: string, reason: string, postId?: string) => void; processing: string | null }) {
   const [uid, setUid] = useState('');
   const [nickname, setNickname] = useState('');
   const [reason, setReason] = useState('');
+  const [postId, setPostId] = useState('');
   return (
     <div className="mt-3 space-y-2">
       <input value={uid} onChange={(e) => setUid(e.target.value)} placeholder="대상 UID"
@@ -146,7 +149,9 @@ function ManualExileForm({ onSubmit, processing }: { onSubmit: (uid: string, nic
         className="w-full border border-slate-200 rounded px-3 py-2 text-[12px]" />
       <input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="사유"
         className="w-full border border-slate-200 rounded px-3 py-2 text-[12px]" />
-      <button onClick={() => uid.trim() && onSubmit(uid.trim(), nickname, reason)}
+      <input value={postId} onChange={(e) => setPostId(e.target.value)} placeholder="문제 글 ID (선택, 이 글은 숨김 처리)"
+        className="w-full border border-slate-200 rounded px-3 py-2 text-[12px]" />
+      <button onClick={() => uid.trim() && onSubmit(uid.trim(), nickname, reason, postId.trim() || undefined)}
         disabled={!uid.trim() || processing === uid}
         className="w-full py-2 bg-slate-900 hover:bg-red-600 text-white rounded text-[11px] font-[1000] disabled:opacity-50">
         유배 처분

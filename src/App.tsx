@@ -838,7 +838,7 @@ function App() {
 
     if (activeMenu === 'onecut') {
       // 🚀 한컷 메뉴: 일반 홈 피드와 동일한 탭 필터 적용 (새글=2시간 이내, 등록글=2시간+좋아요3, 인기=좋아요10, 최고=좋아요30)
-      const onecutAll = allRootPosts.filter(p => p.isOneCut || p.category === '한컷');
+      const onecutAll = allRootPosts.filter(p => (p.isOneCut || p.category === '한컷') && !p.isHiddenByExile);
       const onecutCutoff = new Date(Date.now() - POST_FILTER.NEW_POST_WINDOW_MS);
       let onecutPosts: Post[];
       if (activeTab === 'any') {
@@ -860,12 +860,13 @@ function App() {
     // 🚀 포스트 필터링 및 탭 처리
     // 🚀 홈 피드: 마라톤의 전령 속보도 포함 (속보 키워드 있는 글만 Firestore에 저장되므로 전체 허용)
     // 🖋️ 기본 피드에서 잉크병 회차 제외 (잉크병은 자체 인라인 스트립 + 사이드 메뉴에서만 노출)
-    let basePosts = allRootPosts.filter(p => !p.isOneCut && p.category !== 'magic_inkwell');
+    // 🏚️ 유배 처분된 글(isHiddenByExile) 제외
+    let basePosts = allRootPosts.filter(p => !p.isOneCut && p.category !== 'magic_inkwell' && !p.isHiddenByExile);
 
     if (activeMenu !== 'home' && MENU_MESSAGES[activeMenu]) {
       const menuInfo = MENU_MESSAGES[activeMenu];
       const categoryKey = menuInfo.title;
-      basePosts = allRootPosts.filter(p => !p.isOneCut && ( // 카테고리 뷰: 마라톤 포함 전체에서 필터
+      basePosts = allRootPosts.filter(p => !p.isOneCut && !p.isHiddenByExile && ( // 카테고리 뷰: 마라톤 포함 전체에서 필터
         // 🚀 참새들의 방앗간(구 너와 나의 이야기): DB category는 "너와 나의 이야기" 유지
         activeMenu === 'my_story'
           ? (p.category === "너와 나의 이야기" || p.category === undefined)
