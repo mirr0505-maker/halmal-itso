@@ -140,7 +140,7 @@ const CreateEpisode = ({ seriesId, currentUserUid, onSuccess, onCancel }: Create
             onChange={(e) => setEpisodeTitle(e.target.value)}
             maxLength={50}
             placeholder="예: 프롤로그, 만남, 엇갈림"
-            className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:border-blue-500 placeholder:text-[11px] placeholder:font-normal placeholder:text-slate-300"
+            className="w-full px-3 py-2 border border-slate-300 rounded-lg text-[15px] leading-[1.85] text-slate-700 focus:outline-none focus:border-blue-500 placeholder:text-[11px] placeholder:font-normal placeholder:text-slate-300"
           />
         </div>
 
@@ -168,7 +168,7 @@ const CreateEpisode = ({ seriesId, currentUserUid, onSuccess, onCancel }: Create
             maxLength={300}
             rows={3}
             placeholder="독자에게 전하고 싶은 말을 적어주세요."
-            className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:border-blue-500 resize-none placeholder:text-[11px] placeholder:font-normal placeholder:text-slate-300"
+            className="w-full px-3 py-2 border border-slate-300 rounded-lg text-[15px] leading-[1.85] text-slate-700 focus:outline-none focus:border-blue-500 resize-none placeholder:text-[11px] placeholder:font-normal placeholder:text-slate-300"
           />
           <p className="text-xs text-slate-400 mt-1 font-bold">{authorNote.length}/300</p>
         </div>
