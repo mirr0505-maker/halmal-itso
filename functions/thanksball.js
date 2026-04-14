@@ -40,6 +40,11 @@ exports.sendThanksball = onCall(
     await db.runTransaction(async (tx) => {
       const senderSnap = await tx.get(senderRef);
       if (!senderSnap.exists) throw new HttpsError("not-found", "사용자를 찾을 수 없습니다.");
+      // 🏚️ 유배자/사약 유저는 송금 차단 (수신은 허용 — 응원 문화)
+      const senderStatus = senderSnap.data().sanctionStatus;
+      if (senderStatus && (senderStatus.startsWith("exiled_") || senderStatus === "banned")) {
+        throw new HttpsError("permission-denied", "유배 중에는 땡스볼을 보낼 수 없습니다.");
+      }
       const currentBalance = senderSnap.data().ballBalance || 0;
       if (currentBalance < amount) {
         throw new HttpsError("failed-precondition", "잔액 부족");

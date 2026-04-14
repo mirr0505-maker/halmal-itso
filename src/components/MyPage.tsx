@@ -343,9 +343,27 @@ const MyPage = ({
     .filter(p => (p.thanksballTotal || 0) > 0)
     .sort((a, b) => (b.thanksballTotal || 0) - (a.thanksballTotal || 0));
 
+  const isExiled = userData.sanctionStatus?.startsWith('exiled_');
+
   return (
     <div className="w-full max-w-6xl mx-auto py-10 px-4 md:px-6 animate-in fade-in duration-700">
       <div className="flex flex-col gap-8">
+        {/* 🏚️ 유배 중 경고 배너 */}
+        {isExiled && (
+          <div className="bg-rose-50 border border-rose-200 rounded-2xl p-4">
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-[16px]">🏚️</span>
+              <p className="text-[13px] font-[1000] text-rose-700">현재 유배 중입니다 ({userData.strikeCount || 1}범)</p>
+            </div>
+            <p className="text-[11px] font-bold text-rose-600">
+              일반 기능 대부분이 제한됩니다. 속죄금을 바치고 곳간에서 나가려면 "놀부의 텅 빈 곳간" 메뉴로 이동하세요.
+            </p>
+            {userData.sanctionReason && (
+              <p className="text-[10px] font-medium text-rose-500 mt-1">처분 사유: {userData.sanctionReason}</p>
+            )}
+          </div>
+        )}
+
         {/* 🚀 상단 프로필 영역 */}
         <ProfileHeader userData={userData} isEditing={isEditingProfile} setIsEditing={(val) => {
           if (val) setEditData({ nickname: userData.nickname, bio: userData.bio || '', avatarUrl: userData.avatarUrl || '' });

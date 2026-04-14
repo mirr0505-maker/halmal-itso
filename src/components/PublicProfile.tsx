@@ -86,6 +86,17 @@ const PublicProfile = ({
               <h2 className="text-[18px] font-[1000] text-slate-900 truncate">{targetNickname}</h2>
               <span className="text-[10px] font-black text-violet-600 bg-violet-50 px-1.5 py-0.5 rounded-md border border-violet-100">Lv{level}</span>
               <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-md ${repStyle}`}>{repLabel}</span>
+              {/* 🏚️ 유배 상태 배지 */}
+              {userData.sanctionStatus?.startsWith('exiled_') && (
+                <span className="text-[10px] font-black text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded-md border border-rose-200" title={userData.sanctionReason || '유배 중'}>
+                  🏚️ 수감 중 · {userData.strikeCount || 1}범
+                </span>
+              )}
+              {userData.sanctionStatus === 'banned' && (
+                <span className="text-[10px] font-black text-white bg-slate-900 px-1.5 py-0.5 rounded-md">
+                  ☠️ 사약
+                </span>
+              )}
             </div>
             {/* EXP 바 */}
             <div className="mb-1.5">
