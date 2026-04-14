@@ -1,18 +1,39 @@
 // src/components/ErrorBoundary.tsx — 화이트스크린 방지 에러 바운더리
 // 🚀 React 렌더링 에러 시 전체 앱이 언마운트되어 빈 화면이 되는 것을 방지
 // 장시간 방치 후 Firestore 리스너 끊김, 청크 로드 실패 등에서 복구
+// 🏚️ 에러 감지 시 5초 카운트다운 후 자동으로 홈(/)으로 이동 (새로고침 포함)
 import { Component } from 'react';
 import type { ReactNode, ErrorInfo } from 'react';
 
-class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean }> {
+class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean; countdown: number }> {
+  private timer: number | null = null;
+
   constructor(props: { children: ReactNode }) {
     super(props);
-    this.state = { hasError: false };
+    this.state = { hasError: false, countdown: 5 };
   }
-  static getDerivedStateFromError() { return { hasError: true }; }
+
+  static getDerivedStateFromError() { return { hasError: true, countdown: 5 }; }
+
   componentDidCatch(error: Error, info: ErrorInfo) {
     console.error('[ErrorBoundary]', error, info);
+    // 🚀 자동 복구: 1초 단위 카운트다운 → 0 되면 홈으로 이동 (새로고침 포함)
+    this.timer = window.setInterval(() => {
+      this.setState(prev => {
+        if (prev.countdown <= 1) {
+          if (this.timer) clearInterval(this.timer);
+          window.location.href = '/';
+          return { ...prev, countdown: 0 };
+        }
+        return { ...prev, countdown: prev.countdown - 1 };
+      });
+    }, 1000);
   }
+
+  componentWillUnmount() {
+    if (this.timer) clearInterval(this.timer);
+  }
+
   render() {
     if (this.state.hasError) {
       return (
@@ -20,13 +41,9 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boole
           <h1 style={{ fontSize: '28px', fontWeight: 900, fontStyle: 'italic' }}>
             <span style={{ color: '#ef4444' }}>G</span><span style={{ color: '#2563eb' }}>L</span><span style={{ color: '#1e293b' }}>ove</span>
           </h1>
-          <p style={{ fontSize: '13px', color: '#94a3b8', fontWeight: 700 }}>연결이 끊어졌습니다. 새로고침 해주세요.</p>
-          <button
-            onClick={() => { window.location.href = '/'; }}
-            style={{ marginTop: '8px', padding: '8px 20px', background: '#0f172a', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 900, cursor: 'pointer' }}
-          >
-            홈으로 이동
-          </button>
+          <p style={{ fontSize: '13px', color: '#94a3b8', fontWeight: 700 }}>
+            연결이 끊어졌습니다. {this.state.countdown}초 후 자동으로 다시 시작합니다...
+          </p>
         </div>
       );
     }
