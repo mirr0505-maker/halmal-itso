@@ -108,7 +108,7 @@ const ExileMainPage = ({ currentUserData, onReleased }: Props) => {
             <span className="text-slate-600 font-black text-[15px]">#</span>
             <h2 className="text-[14px] font-[1000] text-slate-900 tracking-tighter whitespace-nowrap">놀부의 텅 빈 곳간</h2>
             <div className="w-px h-3 bg-slate-200 mx-1.5 hidden md:block" />
-            <p className="text-[11px] font-bold text-slate-400 hidden md:block whitespace-nowrap">심술을 부린 대가로 이곳에 갇혔습니다 — 반성하고 속죄금을 바쳐 나가시오</p>
+            <p className="text-[11px] font-bold text-slate-400 hidden md:block whitespace-nowrap">유배·귀양지, 사회적으로 비난 받을 글로 인하여 여기에 갇혔습니다. 반성하고 속죄하시오</p>
           </div>
           {/* 우: 3탭 + 글 작성 */}
           <div className="flex items-center gap-1 shrink-0">
