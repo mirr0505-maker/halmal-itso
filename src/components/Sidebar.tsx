@@ -41,9 +41,11 @@ interface Props {
   // 🚀 모바일 드로어 모드
   mobile?: boolean;
   onClose?: () => void;
+  // 🏚️ 유배 상태 — 유배자는 유배지 메뉴만 접근 가능
+  isExiled?: boolean;
 }
 
-const Sidebar = ({ activeMenu, setActiveMenu, kanbuRoomCount = 0, currentNickname, mobile = false, onClose }: Props) => {
+const Sidebar = ({ activeMenu, setActiveMenu, kanbuRoomCount = 0, currentNickname, mobile = false, onClose, isExiled = false }: Props) => {
   const mainServiceMenus: MenuItem[] = [
     {
       id: 'home',
@@ -239,6 +241,29 @@ const Sidebar = ({ activeMenu, setActiveMenu, kanbuRoomCount = 0, currentNicknam
       </button>
     );
   };
+
+  // 🏚️ 유배자 전용 사이드바 — 유배지 + 내정보 + 로그아웃만
+  if (isExiled) {
+    return (
+      <aside className={`flex flex-col bg-white overflow-y-auto ${mobile ? 'w-72 h-full' : 'w-36 hidden md:flex h-full border-r border-slate-300'}`}>
+        {mobile && (
+          <div className="flex items-center justify-between px-4 py-4 border-b border-slate-300 shrink-0">
+            <h2 className="text-[17px] font-[1000] italic tracking-tighter"><span className="text-red-500">G</span><span className="text-blue-600">L</span><span className="text-slate-900">ove</span></h2>
+            <button onClick={onClose} className="text-slate-400">×</button>
+          </div>
+        )}
+        <div className="p-3">
+          <div className="bg-rose-50 border border-rose-200 rounded-lg p-3 mb-3">
+            <p className="text-[10px] font-[1000] text-rose-700 mb-1">🏚️ 유배 중</p>
+            <p className="text-[9px] font-bold text-rose-500">다른 메뉴는 이용할 수 없습니다</p>
+          </div>
+          {renderMenuButton(exileMenu)}
+          <div className="my-3 border-t border-slate-100" />
+          <button onClick={() => setActiveMenu('mypage')} className="w-full text-left px-3 py-2 text-[11px] font-bold text-slate-500 hover:bg-slate-50 rounded">내 정보</button>
+        </div>
+      </aside>
+    );
+  }
 
   return (
     <aside className={`flex flex-col bg-white overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] ${

@@ -70,6 +70,7 @@ const AdvertiserRegister = lazy(() => import('./components/advertiser/Advertiser
 const InkwellHomeView = lazy(() => import('./components/InkwellHomeView'));
 const MarketHomeView = lazy(() => import('./components/MarketHomeView'));
 const ExileMainPage = lazy(() => import('./components/ExileMainPage'));
+const SayakScreen = lazy(() => import('./components/SayakScreen'));
 const SeriesDetail = lazy(() => import('./components/SeriesDetail'));
 const EpisodeReader = lazy(() => import('./components/EpisodeReader'));
 const CreateSeries = lazy(() => import('./components/CreateSeries'));
@@ -126,6 +127,16 @@ function App() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [replyTarget, setReplyTarget] = useState<Post | null>(null);
   const [activeMenu, setActiveMenu] = useState<MenuId>('home');
+
+  // 🏚️ 유배자 라우팅 가드 — sanctionStatus 변경 시 강제 이동
+  useEffect(() => {
+    if (!userData) return;
+    const status = userData.sanctionStatus;
+    // 유배 중이면 exile_place 이외 메뉴 접근 시 강제 이동
+    if (status && status.startsWith('exiled_') && activeMenu !== 'exile_place') {
+      setActiveMenu('exile_place');
+    }
+  }, [userData, activeMenu]);
   const [activeTab, setActiveTab] = useState<'any' | 'recent' | 'best' | 'rank' | 'friend' | 'subscribed'>('any');
   // 🖋️ 내가 구독한 작품 ID Set (홈 구독글 탭 필터링용) — 잉크병 작품 단위 구독
   const [mySubscribedSeriesIds, setMySubscribedSeriesIds] = useState<Set<string>>(new Set());
@@ -1058,6 +1069,11 @@ function App() {
     );
   };
 
+  // 🏚️ 사약 처분 유저 — 로그인 직후 사약 화면만 표시 후 강제 로그아웃
+  if (userData?.sanctionStatus === 'banned') {
+    return <SayakScreen reason={userData.sanctionReason} onLogout={handleLogout} />;
+  }
+
   return (
     <div className="bg-[#F8FAFC] text-slate-900 font-sans h-screen flex flex-col overflow-hidden">
       <header className="bg-white border-b border-slate-300 h-[56px] md:h-[64px] flex items-center justify-between px-4 md:px-6 shrink-0 z-50 shadow-sm">
@@ -1115,7 +1131,7 @@ function App() {
           )}
         </div>
       </header>
-      <div className="flex flex-1 overflow-hidden">{!(selectedTopic || isCreateOpen) && <Sidebar activeMenu={activeMenu} setActiveMenu={(menu) => { setActiveMenu(menu); setSelectedTopic(null); setIsCreateOpen(false); setSelectedRoom(null); setSelectedSeriesId(null); setSelectedEpisodeId(null); setInkwellMode('list'); }} kanbuRoomCount={accessibleRooms.length} currentNickname={userData?.nickname} />}<main className={`flex-1 overflow-y-auto bg-[#F8FAFC] transition-all duration-500 ${(selectedTopic || isCreateOpen) ? 'px-4 md:px-6 pt-4' : 'pt-0'}`}><div className={(selectedTopic || isCreateOpen) ? "max-w-[1600px] mx-auto pb-20 md:pb-20 pb-28" : "pb-20 md:pb-20 pb-28"}>
+      <div className="flex flex-1 overflow-hidden">{!(selectedTopic || isCreateOpen) && <Sidebar activeMenu={activeMenu} setActiveMenu={(menu) => { setActiveMenu(menu); setSelectedTopic(null); setIsCreateOpen(false); setSelectedRoom(null); setSelectedSeriesId(null); setSelectedEpisodeId(null); setInkwellMode('list'); }} kanbuRoomCount={accessibleRooms.length} currentNickname={userData?.nickname} isExiled={!!userData?.sanctionStatus?.startsWith('exiled_')} />}<main className={`flex-1 overflow-y-auto bg-[#F8FAFC] transition-all duration-500 ${(selectedTopic || isCreateOpen) ? 'px-4 md:px-6 pt-4' : 'pt-0'}`}><div className={(selectedTopic || isCreateOpen) ? "max-w-[1600px] mx-auto pb-20 md:pb-20 pb-28" : "pb-20 md:pb-20 pb-28"}>
         {!(selectedTopic || isCreateOpen) && (
           (activeMenu === 'home' || activeMenu === 'onecut') ? (
             <SubNavbar activeTab={activeTab} onTabClick={setActiveTab} showTabs={true} />
@@ -1166,6 +1182,7 @@ function App() {
               currentNickname={userData?.nickname}
               mobile={true}
               onClose={() => setIsMobileMenuOpen(false)}
+              isExiled={!!userData?.sanctionStatus?.startsWith('exiled_')}
             />
           </div>
         </div>
