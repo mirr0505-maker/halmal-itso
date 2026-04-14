@@ -131,7 +131,7 @@ const CreateEpisode = ({ seriesId, currentUserUid, onSuccess, onCancel }: Create
       <div className="space-y-6">
         {/* 회차 제목 */}
         <div>
-          <label className="block text-[12px] font-[1000] text-slate-600 mb-2">
+          <label className="block text-[11px] font-[1000] text-slate-600 mb-2">
             회차 제목 <span className="text-red-500">*</span>
           </label>
           <input
@@ -146,7 +146,7 @@ const CreateEpisode = ({ seriesId, currentUserUid, onSuccess, onCancel }: Create
 
         {/* 본문 — Tiptap 에디터 (기존 컴포넌트 시그니처: content, onChange, onImageUpload, placeholder) */}
         <div>
-          <label className="block text-[12px] font-[1000] text-slate-600 mb-2">
+          <label className="block text-[11px] font-[1000] text-slate-600 mb-2">
             본문 <span className="text-red-500">*</span>
           </label>
           <div className="border border-slate-300 rounded-lg overflow-hidden">
@@ -161,7 +161,7 @@ const CreateEpisode = ({ seriesId, currentUserUid, onSuccess, onCancel }: Create
 
         {/* 작가의 말 */}
         <div>
-          <label className="block text-[12px] font-[1000] text-slate-600 mb-2">작가의 말 (선택)</label>
+          <label className="block text-[11px] font-[1000] text-slate-600 mb-2">작가의 말 (선택)</label>
           <textarea
             value={authorNote}
             onChange={(e) => setAuthorNote(e.target.value)}
