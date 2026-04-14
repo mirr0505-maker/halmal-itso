@@ -69,6 +69,7 @@ const AdvertiserRegister = lazy(() => import('./components/advertiser/Advertiser
 // 🖋️ 마르지 않는 잉크병 — 사이드 메뉴 진입 화면 (회차/작품 2탭) + 상세/본문/생성 폼
 const InkwellHomeView = lazy(() => import('./components/InkwellHomeView'));
 const MarketHomeView = lazy(() => import('./components/MarketHomeView'));
+const ExileMainPage = lazy(() => import('./components/ExileMainPage'));
 const SeriesDetail = lazy(() => import('./components/SeriesDetail'));
 const EpisodeReader = lazy(() => import('./components/EpisodeReader'));
 const CreateSeries = lazy(() => import('./components/CreateSeries'));
@@ -503,6 +504,23 @@ function App() {
           currentUserData={userData}
           allUsers={allUsers}
         />
+      );
+    }
+
+    // 🏚️ 놀부의 텅 빈 곳간 (유배귀양지) — 유배자는 본인 상태 + 속죄금 결제 화면
+    if (activeMenu === 'exile_place') {
+      if (!userData) return <div className="py-20 text-center text-slate-400 text-[12px] font-bold">로그인이 필요합니다</div>;
+      const isExiled = userData.sanctionStatus?.startsWith('exiled_');
+      if (isExiled) {
+        return <ExileMainPage currentUserData={userData} />;
+      }
+      // 일반 유저(관전자) 접근 — 미구현 안내
+      return (
+        <div className="w-full max-w-[600px] mx-auto px-4 py-20 text-center">
+          <p className="text-[32px] mb-3">🏚️</p>
+          <p className="text-[14px] font-[1000] text-slate-700 mb-1">놀부의 텅 빈 곳간</p>
+          <p className="text-[11px] font-bold text-slate-400">유배자의 반성 공간입니다. 관전 기능은 Phase 2에서 제공됩니다.</p>
+        </div>
       );
     }
 
@@ -1101,7 +1119,7 @@ function App() {
         {!(selectedTopic || isCreateOpen) && (
           (activeMenu === 'home' || activeMenu === 'onecut') ? (
             <SubNavbar activeTab={activeTab} onTabClick={setActiveTab} showTabs={true} />
-          ) : (MENU_MESSAGES[activeMenu] && activeMenu !== 'giant_tree' && activeMenu !== 'kanbu_room' && activeMenu !== 'friends' && activeMenu !== 'inkwell' && activeMenu !== 'market') ? (
+          ) : (MENU_MESSAGES[activeMenu] && activeMenu !== 'giant_tree' && activeMenu !== 'kanbu_room' && activeMenu !== 'friends' && activeMenu !== 'inkwell' && activeMenu !== 'market' && activeMenu !== 'exile_place') ? (
             <CategoryHeader menuInfo={MENU_MESSAGES[activeMenu]} />
           ) : null
         )}
