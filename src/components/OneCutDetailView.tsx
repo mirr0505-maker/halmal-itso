@@ -186,6 +186,23 @@ const OneCutDetailView = ({
                 {isMyPost && (
                   <>
                     <button onClick={() => onEditPost?.(rootPost)} className="text-[11px] font-bold text-slate-400 hover:text-blue-500 transition-colors">수정</button>
+                    <button
+                      onClick={async () => {
+                        // RootPostCard와 동일한 문구·흐름 (EXP -2, 목록 복귀)
+                        if (!window.confirm('정말 영구히 파기하겠소?')) return;
+                        try {
+                          await deleteDoc(doc(db, 'posts', rootPost.id));
+                          if (rootPost.author_id) {
+                            updateDoc(doc(db, 'users', rootPost.author_id), { exp: increment(-2) }).catch(() => {});
+                          }
+                          onBack?.();
+                        } catch (err) {
+                          console.error('한컷 삭제 실패:', err);
+                          alert('삭제에 실패했습니다.');
+                        }
+                      }}
+                      className="text-[11px] font-bold text-slate-400 hover:text-rose-500 transition-colors"
+                    >삭제</button>
                   </>
                 )}
               </div>
