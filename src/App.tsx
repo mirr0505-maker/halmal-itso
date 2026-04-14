@@ -33,6 +33,7 @@ import { useState, useEffect, lazy, Suspense } from 'react';
 import { db } from './firebase';
 import { collection, onSnapshot, query, where } from 'firebase/firestore';
 import type { Post, KanbuRoom, Community } from './types';
+import { EXILE_CATEGORY } from './types';
 import { useFirebaseListeners } from './hooks/useFirebaseListeners';
 import { useAuthActions } from './hooks/useAuthActions';
 import { useGloveActions } from './hooks/useGloveActions';
@@ -885,7 +886,7 @@ function App() {
       const status = authorData?.sanctionStatus;
       return !!(status && (status.startsWith('exiled_') || status === 'banned'));
     };
-    let basePosts = allRootPosts.filter(p => !p.isOneCut && p.category !== 'magic_inkwell' && p.category !== '유배·귀양지' && !p.isHiddenByExile && !isAuthorExiled(p));
+    let basePosts = allRootPosts.filter(p => !p.isOneCut && p.category !== 'magic_inkwell' && p.category !== EXILE_CATEGORY && !p.isHiddenByExile && !isAuthorExiled(p));
 
     if (activeMenu !== 'home' && MENU_MESSAGES[activeMenu]) {
       const menuInfo = MENU_MESSAGES[activeMenu];

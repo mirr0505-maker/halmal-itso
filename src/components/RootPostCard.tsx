@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { db } from '../firebase';
 import { doc, deleteDoc, updateDoc, increment } from 'firebase/firestore';
 import type { Post, UserData } from '../types';
+import { EXILE_CATEGORY } from '../types';
 import { getReputationLabel, getReputationScore, formatKoreanNumber, getCategoryDisplayName, calculateLevel } from '../utils';
 import { CATEGORY_RULES } from './DiscussionView';
 import LinkPreviewCard from './LinkPreviewCard';
@@ -142,7 +143,7 @@ const RootPostCard = ({
           
           <div className="flex items-center gap-3">
             {/* 공유 버튼 — 🏚️ 유배·귀양지는 외부 공유 금지(STOREHOUSE.md §3 Sandbox Policy)로 숨김 */}
-            {post.category !== '유배·귀양지' && (
+            {post.category !== EXILE_CATEGORY && (
               <button
                 onClick={handleCopyUrl}
                 className={`flex items-center gap-1 text-[11px] font-bold transition-colors ${copied ? 'text-emerald-500' : 'text-slate-400 hover:text-blue-500'}`}

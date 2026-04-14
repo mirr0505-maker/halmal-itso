@@ -1,5 +1,10 @@
 // src/types.ts
 
+// 🏚️ 유배·귀양지 카테고리 단일 진실 소스
+// Why: literal 문자열이 RootPostCard/DiscussionView/useFirestoreActions/ExileMainPage 등 다수
+//      파일에 흩어지면 오타(중점 `·` vs 하이픈 `-` 등) 1글자로 조용히 오동작. 상수로 고정.
+export const EXILE_CATEGORY = '유배·귀양지' as const;
+
 // 🚀 FirestoreTimestamp: Firestore Timestamp 최소 구조 (서버·클라이언트 양쪽 호환)
 export interface FirestoreTimestamp {
   seconds: number;

@@ -6,6 +6,7 @@ import { db, functions } from '../firebase';
 import { addDoc, collection, query, where, orderBy, getDocs, serverTimestamp } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import type { Post, UserData, SanctionStatus } from '../types';
+import { EXILE_CATEGORY } from '../types';
 import { formatKoreanNumber } from '../utils';
 import AnyTalkList from './AnyTalkList';
 
@@ -160,7 +161,7 @@ const ExileMainPage = ({ currentUserData, allRootPosts, allUsers, commentCounts,
         <div className="flex-1 min-w-0">
           {/* 🏚️ 유배지 게시판 — AnyTalkList 재사용 (일반 메뉴와 동일 카드 UI) */}
           <AnyTalkList
-            posts={allRootPosts.filter(p => p.category === '유배·귀양지' && (p.exileLevel || 1) === activeTab && !p.isHiddenByExile)}
+            posts={allRootPosts.filter(p => p.category === EXILE_CATEGORY && (p.exileLevel || 1) === activeTab && !p.isHiddenByExile)}
             onTopicClick={onTopicClick}
             onLikeClick={onLikeClick}
             commentCounts={commentCounts}

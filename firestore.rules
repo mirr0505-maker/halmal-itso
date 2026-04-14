@@ -18,10 +18,16 @@ service cloud.firestore {
       // Why: 프론트 우회로 글자수 제한을 무시하는 공격 방지
       // contentTextLength 필드는 클라이언트가 HTML 태그·공백 제거 후 계산한 순수 글자 수
       // content에 '<img ' 포함 시 이미지 첨부로 간주하여 글자수 제한 면제
+      // 🏚️ 보안: 유배·귀양지 글은 author 필드가 반드시 "곳간 거주자 #NNNN" 형식이어야 함
+      // Why: 클라이언트에서 익명화 로직을 우회하고 실명 닉네임을 저장하는 공격 차단
+      //      (STOREHOUSE.md §11.4 — 타인에게 익명으로만 인지)
       allow create: if request.auth != null
         && (request.resource.data.category != '신포도와 여우'
           || request.resource.data.contentTextLength <= 100
-          || request.resource.data.content.matches('.*<img .*'));
+          || request.resource.data.content.matches('.*<img .*'))
+        && (request.resource.data.category != '유배·귀양지'
+          || (request.resource.data.author_id == request.auth.uid
+              && request.resource.data.author.matches('^곳간 거주자 #[0-9]{4}$')));
       // 본문 수정·삭제: 작성자 본인만
       allow delete: if request.auth != null
         && resource.data.author_id == request.auth.uid;
@@ -60,7 +66,18 @@ service cloud.firestore {
     }
     match /comments/{id} {
       allow read: if true;
-      allow create: if request.auth != null;
+      // 🏚️ 보안: 유배·귀양지 글(rootId가 유배글)의 댓글도 author 익명 패턴 강제
+      // Why: 댓글도 실명 유출 경로이므로 동일한 방어 필요
+      allow create: if request.auth != null
+        && (
+          // rootId가 없거나(일반 댓글) 혹은 rootId 글이 유배글이 아니면 기본 허용
+          !('rootId' in request.resource.data)
+          || request.resource.data.rootId == null
+          || get(/databases/$(database)/documents/posts/$(request.resource.data.rootId)).data.category != '유배·귀양지'
+          // rootId 글이 유배글이면: author_id 본인 + author가 익명 패턴이어야 함
+          || (request.resource.data.author_id == request.auth.uid
+              && request.resource.data.author.matches('^곳간 거주자 #[0-9]{4}$'))
+        );
       // 🖋️ Phase 4-I: 삭제는 작성자 본인 OR 잉크병 회차의 작품 작가
       // (작가는 자기 작품 회차에 달린 다른 사람 댓글을 삭제 가능. 수정은 불가)
       allow delete: if request.auth != null

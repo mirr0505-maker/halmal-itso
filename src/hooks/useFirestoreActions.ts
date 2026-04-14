@@ -6,6 +6,7 @@ import {
 } from 'firebase/firestore';
 import type { Dispatch, SetStateAction, FormEvent } from 'react';
 import type { Post, UserData } from '../types';
+import { EXILE_CATEGORY } from '../types';
 import type { MenuId } from '../components/Sidebar';
 import { isEligibleForExp, anonymizeExileNickname } from '../utils';
 
@@ -72,7 +73,7 @@ export function useFirestoreActions({
         // 🚀 contentTextLength: 서버사이드 글자수 검증용 (Firestore Rules에서 신포도와 여우 100자 제한 검증)
         const contentPlainText = (postData.content || '').replace(/<[^>]*>/g, '').replace(/\s/g, '');
         // 🏚️ 유배·귀양지 글은 닉네임 자동 익명화 (STOREHOUSE.md §11.4)
-        const displayAuthor = postData.category === '유배·귀양지'
+        const displayAuthor = postData.category === EXILE_CATEGORY
           ? anonymizeExileNickname(userData.uid)
           : userData.nickname;
         await setDoc(doc(db, 'posts', customId), {
@@ -141,7 +142,7 @@ export function useFirestoreActions({
     }
     const customId = `comment_${Date.now()}_${userData.uid}`;
     // 🏚️ 유배·귀양지 댓글은 닉네임 자동 익명화
-    const displayAuthor = selectedTopic.category === '유배·귀양지'
+    const displayAuthor = selectedTopic.category === EXILE_CATEGORY
       ? anonymizeExileNickname(userData.uid)
       : userData.nickname;
     try {
@@ -180,7 +181,7 @@ export function useFirestoreActions({
     setIsSubmitting(true);
     const customId = `comment_${Date.now()}_${userData.uid}`;
     // 🏚️ 유배·귀양지 댓글은 닉네임 자동 익명화
-    const displayAuthor = selectedTopic.category === '유배·귀양지'
+    const displayAuthor = selectedTopic.category === EXILE_CATEGORY
       ? anonymizeExileNickname(userData.uid)
       : userData.nickname;
     try {

@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { uploadToR2 } from '../uploadToR2';
 import type { Post, UserData } from '../types';
+import { EXILE_CATEGORY } from '../types';
 import TiptapEditor from './TiptapEditor';
 import AdSlotSetting from './ads/AdSlotSetting';
 import { useAdSlotSetting } from './ads/useAdSlotSetting';
@@ -22,7 +23,7 @@ const CreateExile = ({ userData, editingPost, onSubmit, onClose }: Props) => {
   const [postData, setPostData] = useState<Partial<Post>>({
     title: editingPost?.title || '',
     content: editingPost?.content || '',
-    category: '유배·귀양지',
+    category: EXILE_CATEGORY,
     tags: editingPost?.tags || ['', '', '', '', ''],
     isOneCut: false,
     // 🏚️ 유배지 글 식별 필드

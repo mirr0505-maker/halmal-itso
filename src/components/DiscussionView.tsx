@@ -1,6 +1,7 @@
 // src/components/DiscussionView.tsx — 일반 게시글 상세 뷰 (2컬럼 레이아웃)
 import React, { useEffect } from 'react';
 import type { Post, UserData } from '../types';
+import { EXILE_CATEGORY } from '../types';
 import RootPostCard from './RootPostCard';
 import DebateBoard from './DebateBoard';
 import AdSlot from './ads/AdSlot';
@@ -109,10 +110,10 @@ const DiscussionView = ({
   // 🏚️ 유배·귀양지(곳간/귀양지/절해고도 3단계 공통)는 트래픽이 적어
   //    "등록글" 기준(좋아요 3+ & 1시간) 적용 시 사이드바가 비는 문제 →
   //    likes·시간 필터를 스킵하고 isHiddenByExile(문제글 soft-delete)만 제외
-  const isExile = rootPost.category === '유배·귀양지';
+  const isExile = rootPost.category === EXILE_CATEGORY;
   const relatedPosts = otherTopics.filter(topic => {
     if (topic.id === rootPost.id || topic.isOneCut) return false;
-    if ((topic as Post & { isHiddenByExile?: boolean }).isHiddenByExile) return false;
+    if (topic.isHiddenByExile) return false;
     if (isExile) return true;
     if ((topic.likes || 0) < 3) return false;
     const createdMs = topic.createdAt?.seconds ? topic.createdAt.seconds * 1000 : 0;
