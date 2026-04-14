@@ -518,21 +518,12 @@ function App() {
       );
     }
 
-    // 🏚️ 놀부의 텅 빈 곳간 (유배귀양지) — 유배자는 본인 상태 + 속죄금 결제 화면
+    // 🏚️ 놀부의 텅 빈 곳간 (유배귀양지)
+    // 유배자: 본인 상태 + 속죄금 결제 화면 + 본인 단계 게시판
+    // 일반 유저: 관전 뷰 — 3탭 게시판 전부 열람 (익명 닉네임)
     if (activeMenu === 'exile_place') {
       if (!userData) return <div className="py-20 text-center text-slate-400 text-[12px] font-bold">로그인이 필요합니다</div>;
-      const isExiled = userData.sanctionStatus?.startsWith('exiled_');
-      if (isExiled) {
-        return <ExileMainPage currentUserData={userData} />;
-      }
-      // 일반 유저(관전자) 접근 — 미구현 안내
-      return (
-        <div className="w-full max-w-[600px] mx-auto px-4 py-20 text-center">
-          <p className="text-[32px] mb-3">🏚️</p>
-          <p className="text-[14px] font-[1000] text-slate-700 mb-1">놀부의 텅 빈 곳간</p>
-          <p className="text-[11px] font-bold text-slate-400">유배자의 반성 공간입니다. 관전 기능은 Phase 2에서 제공됩니다.</p>
-        </div>
-      );
+      return <ExileMainPage currentUserData={userData} />;
     }
 
     // 🚀 우리들의 장갑: 커뮤니티 라우팅 — 2탭(소곤소곤·장갑찾기) + 우측 내 장갑 사이드바

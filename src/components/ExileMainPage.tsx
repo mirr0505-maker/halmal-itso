@@ -6,6 +6,7 @@ import { functions } from '../firebase';
 import { httpsCallable } from 'firebase/functions';
 import type { UserData, SanctionStatus } from '../types';
 import { formatKoreanNumber } from '../utils';
+import ExileBoard from './ExileBoard';
 
 interface Props {
   currentUserData: UserData;
@@ -103,33 +104,35 @@ const ExileMainPage = ({ currentUserData, onReleased }: Props) => {
         <p className="text-[11px] font-bold text-slate-400">심술을 부린 대가로 이곳에 갇혔습니다. 반성하고 속죄금을 바쳐 나가시오.</p>
       </div>
 
-      {/* 3탭 — 내가 속한 탭만 활성, 나머지는 잠금 */}
+      {/* 3탭 — 유배자는 본인 단계만, 일반 유저(관전자)는 모두 열람 가능 */}
       <div className="flex gap-1.5 mb-4">
         {TABS.map(tab => {
           const isMyLevel = tab.level === myLevel;
           const isActive = tab.level === activeTab;
+          const isSpectator = !myLevel;
+          const canAccess = isMyLevel || isSpectator;
           return (
             <button
               key={tab.level}
-              onClick={() => isMyLevel && setActiveTab(tab.level)}
-              disabled={!isMyLevel}
+              onClick={() => canAccess && setActiveTab(tab.level)}
+              disabled={!canAccess}
               className={`flex-1 px-3 py-2.5 rounded-lg border transition-all ${
-                isActive && isMyLevel
+                isActive && canAccess
                   ? 'bg-slate-900 border-slate-900 text-white'
-                  : isMyLevel
+                  : canAccess
                     ? 'bg-white border-slate-300 text-slate-600 hover:bg-slate-50'
                     : 'bg-slate-50 border-slate-100 text-slate-300 cursor-not-allowed'
               }`}
             >
-              <p className="text-[11px] font-[1000]">{isMyLevel ? '' : '🔒 '}{tab.label}</p>
+              <p className="text-[11px] font-[1000]">{canAccess ? '' : '🔒 '}{tab.label}</p>
               <p className="text-[9px] font-bold mt-0.5">{tab.days}일 · {tab.bail}볼</p>
             </button>
           );
         })}
       </div>
 
-      {/* 내 상태 카드 */}
-      <div className="bg-white border border-slate-200 rounded-xl p-5 mb-4">
+      {/* 내 상태 카드 — 유배자 본인에게만 */}
+      {myLevel && <div className="bg-white border border-slate-200 rounded-xl p-5 mb-4">
         <div className="flex items-start justify-between mb-3">
           <div>
             <p className="text-[10px] font-[1000] text-slate-400 uppercase tracking-widest">내 상태</p>
@@ -191,15 +194,32 @@ const ExileMainPage = ({ currentUserData, onReleased }: Props) => {
             모든 깐부 관계가 초기화됩니다
           </p>
         </div>
-      </div>
+      </div>}
 
-      {/* 안내 */}
-      <div className="p-3 bg-slate-50 border border-slate-100 rounded-lg text-[10px] font-bold text-slate-500 leading-relaxed">
+      {/* 안내 — 유배자 본인만 */}
+      {myLevel && <div className="p-3 bg-slate-50 border border-slate-100 rounded-lg text-[10px] font-bold text-slate-500 leading-relaxed mb-4">
         <p>• 반성 기간이 지나야 속죄금 결제가 활성화됩니다.</p>
         <p>• 속죄금을 내지 않으면 무기한 유배가 됩니다. (90일 경과 시 자동 사약)</p>
         <p>• 전과 기록(strikeCount)은 해금 후에도 영구 보존됩니다.</p>
         <p>• 4차 도달 시 사약 처분 (영구 밴, 휴대폰 번호 블랙리스트 등록)</p>
+      </div>}
+
+      {/* 관전자 안내 */}
+      {!myLevel && <div className="p-3 bg-slate-50 border border-slate-100 rounded-lg text-[10px] font-bold text-slate-500 leading-relaxed mb-4">
+        <p>⚠️ 여기는 제재 유저의 반성 공간입니다. 거친 표현이 포함될 수 있습니다.</p>
+        <p>• 유배자 닉네임은 자동으로 익명 처리됩니다 (곳간 거주자 #NNNN).</p>
+        <p>• 외부 공유는 금지되어 있습니다.</p>
+      </div>}
+
+      {/* 🏚️ 유배지 게시판 — 현재 탭 기준 */}
+      <div className="mb-3">
+        <p className="text-[11px] font-[1000] text-slate-600 mb-2">{activeTab}차 유배지 게시판</p>
       </div>
+      <ExileBoard
+        currentUserData={currentUserData}
+        level={activeTab}
+        isExiledHere={myLevel === activeTab}
+      />
     </div>
   );
 };
