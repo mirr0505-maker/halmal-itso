@@ -20,7 +20,13 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boole
           <h1 style={{ fontSize: '28px', fontWeight: 900, fontStyle: 'italic' }}>
             <span style={{ color: '#ef4444' }}>G</span><span style={{ color: '#2563eb' }}>L</span><span style={{ color: '#1e293b' }}>ove</span>
           </h1>
-          <p style={{ fontSize: '13px', color: '#94a3b8', fontWeight: 700 }}>연결이 끊어졌습니다. 새로고침합니다...</p>
+          <p style={{ fontSize: '13px', color: '#94a3b8', fontWeight: 700 }}>연결이 끊어졌습니다. 새로고침 해주세요.</p>
+          <button
+            onClick={() => { window.location.href = '/'; }}
+            style={{ marginTop: '8px', padding: '8px 20px', background: '#0f172a', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 900, cursor: 'pointer' }}
+          >
+            홈으로 이동
+          </button>
         </div>
       );
     }

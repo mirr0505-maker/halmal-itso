@@ -17,7 +17,8 @@ window.addEventListener('unhandledrejection', (event) => {
   }
 });
 
-// 🚀 Firestore 리스너 끊김 감지 시 3초 후 자동 새로고침
+// 🚀 Firestore 리스너 끊김 감지 시 홈으로 이동하며 새로고침
+// (단순 reload는 현재 페이지 상태 복구 실패 가능 → 홈으로 이동해 깔끔히 재시작)
 const originalError = console.error;
 let reloadScheduled = false;
 console.error = (...args) => {
@@ -25,7 +26,7 @@ console.error = (...args) => {
   const msg = args.join(' ');
   if (!reloadScheduled && (msg.includes('FIRESTORE') || msg.includes('WebChannel') || msg.includes('Failed to get document'))) {
     reloadScheduled = true;
-    setTimeout(() => window.location.reload(), 3000);
+    setTimeout(() => { window.location.href = '/'; }, 5000);
   }
 };
 
