@@ -8,8 +8,9 @@ import {
 } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '../firebase';
-import type { Post, Series, EpisodePrivateContent } from '../types';
+import type { Post, Series, EpisodePrivateContent, UserData } from '../types';
 import { formatCount } from '../utils/inkwell';
+import { calculateLevel, formatKoreanNumber, getReputationLabel, getReputationScore } from '../utils';
 import { sharePost } from '../utils/share';
 import PaywallOverlay from './PaywallOverlay';
 import EpisodeCommentBoard from './EpisodeCommentBoard';
@@ -29,9 +30,14 @@ interface EpisodeReaderProps {
   onGoToSeries?: (seriesId: string) => void;
   // 🖋️ 점세개 메뉴 "공개프로필 보기" — 작가 닉네임 전달
   onAuthorClick?: (nickname: string) => void;
+  // 🚀 작성자 카드용 데이터 (RootPostCard와 동일한 UX 재현)
+  allUsers?: Record<string, UserData>;
+  followerCounts?: Record<string, number>;
+  friends?: string[];
+  onToggleFriend?: (author: string) => void;
 }
 
-const EpisodeReader = ({ postId, currentUserUid, currentUserNickname, onBack, onNavigateEpisode, onEditEpisode, onDeleteSuccess, onGoToSeries, onAuthorClick }: EpisodeReaderProps) => {
+const EpisodeReader = ({ postId, currentUserUid, currentUserNickname, onBack, onNavigateEpisode, onEditEpisode, onDeleteSuccess, onGoToSeries, onAuthorClick, allUsers = {}, followerCounts = {}, friends = [], onToggleFriend }: EpisodeReaderProps) => {
   const [episode, setEpisode] = useState<Post | null>(null);
   const [series, setSeries] = useState<Series | null>(null);
   const [allEpisodes, setAllEpisodes] = useState<Post[]>([]);
@@ -609,57 +615,108 @@ const EpisodeReader = ({ postId, currentUserUid, currentUserNickname, onBack, on
             </div>
           )}
 
-          {/* 🖋️ Phase 4-G: 본문 인터랙션 바 (좋아요 + 댓글수 + 땡스볼) */}
-          <div className="my-6 py-4 border-y border-slate-200">
-            <div className="flex items-center justify-center gap-6">
-              {/* 좋아요 */}
-              {(() => {
-                const isLiked = !!(currentUserNickname && episode.likedBy?.includes(currentUserNickname));
-                return (
+          {/* 🖋️ 작성자 카드 + 인터랙션 바 — RootPostCard 하단 동일 패턴 */}
+          {(() => {
+            const authorData = (episode.author_id && allUsers[episode.author_id]) || allUsers[`nickname_${episode.author}`];
+            const displayLevel = calculateLevel(authorData?.exp || 0);
+            const repScore = getReputationScore({
+              likes: authorData?.likes || 0,
+              totalShares: authorData?.totalShares || 0,
+              ballReceived: authorData?.ballReceived || 0,
+            });
+            const realFollowers = followerCounts[episode.author || ''] || 0;
+            const isLiked = !!(currentUserNickname && episode.likedBy?.includes(currentUserNickname));
+            // 🚀 골드스타: Lv5+ 유저가 좋아요한 수 (RootPostCard 동일 로직)
+            const goldStarCount = (episode.likedBy || []).filter(nick => {
+              const ud = allUsers[`nickname_${nick}`];
+              return ud && calculateLevel(ud.exp || 0) >= 5;
+            }).length;
+            const isFriend = !!episode.author && friends.includes(episode.author);
+            return (
+              <div className="flex flex-col md:flex-row items-center justify-between gap-2 p-2 border border-slate-100 rounded-2xl bg-slate-50/30 my-6">
+                <div className="flex items-center gap-4">
+                  <button
+                    onClick={() => episode.author && onAuthorClick?.(episode.author)}
+                    className="w-12 h-12 rounded-xl bg-slate-100 overflow-hidden border border-slate-200 shrink-0 hover:ring-2 hover:ring-violet-300 transition-all"
+                    title="공개프로필 보기"
+                  >
+                    <img src={authorData?.avatarUrl || `https://api.dicebear.com/7.x/adventurer/svg?seed=${episode.author}`} alt="avatar" className="w-full h-full object-cover" />
+                  </button>
+                  <div className="flex flex-col">
+                    <button
+                      onClick={() => episode.author && onAuthorClick?.(episode.author)}
+                      className="font-[1000] text-[15px] text-slate-900 mb-0.5 text-left hover:text-violet-600 transition-colors"
+                    >
+                      {episode.author}
+                    </button>
+                    <span className="text-[11px] text-slate-500 font-bold">
+                      Lv {displayLevel} · {getReputationLabel(repScore)} · 깐부수 {formatKoreanNumber(realFollowers)}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 w-full md:w-auto">
+                  {goldStarCount > 0 && (
+                    <div className="flex items-center gap-0.5 px-2 py-1.5 rounded-xl bg-amber-50 border border-amber-200 shrink-0">
+                      <svg className="w-3.5 h-3.5 text-amber-400 fill-current" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                      </svg>
+                      <span className="text-[11px] font-[1000] text-amber-500">{goldStarCount}</span>
+                    </div>
+                  )}
                   <button
                     onClick={handleEpisodeLike}
                     disabled={isAuthor}
-                    className={`flex flex-col items-center gap-0.5 transition-colors ${
+                    className={`flex-1 md:flex-none flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl transition-all duration-300 font-[1000] text-[12px] whitespace-nowrap ${
                       isAuthor
-                        ? 'text-slate-300 cursor-not-allowed'
+                        ? 'bg-white text-slate-300 border border-slate-200 cursor-not-allowed'
                         : isLiked
-                          ? 'text-rose-500 hover:text-rose-600'
-                          : 'text-slate-400 hover:text-rose-500'
+                          ? 'bg-[#FF2E56] text-white ring-2 ring-rose-300 scale-105'
+                          : 'bg-white text-rose-400 border border-rose-200 hover:bg-rose-50'
                     }`}
                   >
-                    <span className="text-2xl">{isLiked ? '❤️' : '🤍'}</span>
-                    <span className="text-[10px] font-[1000]">{episode.likes || 0}</span>
+                    <svg className="w-3.5 h-3.5 fill-current shrink-0" viewBox="0 0 24 24" stroke="none"><path d="M11.645 20.91l-.007-.003-.022-.012a15.247 15.247 0 01-.383-.218 25.18 25.18 0 01-4.244-3.17C4.688 15.36 2.25 12.174 2.25 8.25 2.25 5.322 4.714 3 7.688 3A5.5 5.5 0 0112 5.052 5.5 5.5 0 0116.313 3c2.973 0 5.437 2.322 5.437 5.25 0 3.925-2.438 7.111-4.739 9.256a25.175 25.175 0 01-4.244 3.17 15.247 15.247 0 01-.383.219l-.022.012-.007.004-.003.001a.752.752 0 01-.704 0l-.003-.001z" /></svg>
+                    {formatKoreanNumber(episode.likes || 0)}
                   </button>
-                );
-              })()}
-
-              {/* 댓글수 (카운터만) */}
-              <div className="flex flex-col items-center gap-0.5 text-slate-400">
-                <span className="text-2xl">💬</span>
-                <span className="text-[10px] font-[1000]">{episode.commentCount || 0}</span>
+                  <button
+                    onClick={handleEpisodeThanksball}
+                    disabled={isAuthor || !currentUserNickname}
+                    title={isAuthor ? '본인 회차에는 땡스볼을 보낼 수 없습니다' : (currentUserNickname ? '땡스볼 보내기' : '로그인 후 이용하세요')}
+                    className={`flex-1 md:flex-none flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border text-[12px] font-[1000] whitespace-nowrap transition-all ${
+                      isAuthor || !currentUserNickname
+                        ? 'bg-white text-slate-300 border-slate-200 cursor-default'
+                        : 'bg-white text-amber-500 border-amber-200 hover:bg-amber-50 cursor-pointer'
+                    }`}
+                  >
+                    <span className="text-[14px] leading-none">⚾</span>
+                    <span>{(episode.thanksballTotal || 0) > 0 ? `${episode.thanksballTotal}볼` : '땡스볼'}</span>
+                  </button>
+                  {isAuthor ? (
+                    <div className="flex-1 md:flex-none px-3 py-2 text-[12px] font-[1000] rounded-xl border bg-white text-slate-300 border-slate-200 cursor-default whitespace-nowrap text-center">
+                      + 깐부맺기
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => episode.author && onToggleFriend?.(episode.author)}
+                      disabled={!onToggleFriend || !currentUserNickname}
+                      className={`flex-1 md:flex-none px-3 py-2 text-[12px] font-[1000] rounded-xl border transition-all whitespace-nowrap ${
+                        isFriend
+                          ? 'bg-white text-slate-400 border-slate-200'
+                          : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                      } ${(!onToggleFriend || !currentUserNickname) ? 'opacity-40 cursor-not-allowed' : ''}`}
+                    >
+                      {isFriend ? '깐부해제' : '+ 깐부맺기'}
+                    </button>
+                  )}
+                </div>
               </div>
+            );
+          })()}
 
-              {/* 땡스볼 */}
-              <button
-                onClick={handleEpisodeThanksball}
-                disabled={isAuthor}
-                className={`flex flex-col items-center gap-0.5 transition-colors ${
-                  isAuthor
-                    ? 'text-slate-300 cursor-not-allowed'
-                    : 'text-slate-400 hover:text-amber-500'
-                }`}
-              >
-                <span className="text-2xl">🏀</span>
-                <span className="text-[10px] font-[1000]">{episode.thanksballTotal || 0}</span>
-              </button>
-            </div>
-
-            {/* 작가 응원 안내 (작가 본인은 비표시) */}
-            {!isAuthor && (
-              <p className="text-center text-[10px] text-slate-400 font-bold mt-3">
-                이 회차가 마음에 드셨다면 작가에게 응원을 보내주세요
-              </p>
-            )}
+          {/* 하단 통계 바 — 댓글수 / 땡스볼총합 (RootPostCard 동일 패턴) */}
+          <div className="flex items-center justify-between text-[13px] font-bold text-slate-500 bg-white border-t border-b border-slate-100 px-6 py-2 mb-6">
+            <span>댓글 <span className="font-black text-slate-700">{formatKoreanNumber(episode.commentCount || 0)}</span></span>
+            <span>땡스볼 <span className="font-black text-slate-700">{formatKoreanNumber(episode.thanksballTotal || 0)}</span></span>
           </div>
         </>
       ) : (

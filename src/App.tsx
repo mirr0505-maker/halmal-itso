@@ -751,6 +751,10 @@ function App() {
               setSelectedEpisodeId(null);
             }}
             onAuthorClick={setPublicProfileNick}
+            allUsers={allUsers}
+            followerCounts={followerCounts}
+            friends={friends}
+            onToggleFriend={toggleFriend}
           />
         );
       }
@@ -829,6 +833,10 @@ function App() {
               setSelectedTopic(null);
             }}
             onAuthorClick={setPublicProfileNick}
+            allUsers={allUsers}
+            followerCounts={followerCounts}
+            friends={friends}
+            onToggleFriend={toggleFriend}
           />
         );
       }
