@@ -23,7 +23,7 @@ export const EXTERNAL_URLS = {
 
 // 🚀 깐부맺기 메뉴 — 현재 테스트/개발 단계라 허용 닉네임만 표시
 // TODO: 실 서비스 전환 시 이 배열 제거 후 전체 유저 표시로 변경
-export const FRIENDS_MENU_ALLOWED_NICKNAMES = ["깐부1호", "깐부2호", "깐부3호", "깐부4호", "깐부5호", "깐부6호", "깐부7호", "깐부8호", "깐부9호", "깐부10호", "흑무영"];
+export const FRIENDS_MENU_ALLOWED_NICKNAMES = ["깐부1호", "깐부2호", "깐부3호", "깐부4호", "깐부5호", "깐부6호", "깐부7호", "깐부8호", "깐부9호", "깐부10호", "불량깐부1호", "불량깐부2호", "불량깐부3호", "흑무영"];
 
 // 🚀 플랫폼 관리자 닉네임 화이트리스트 (광고 검수·정산 승인·부정행위 모니터링)
 // Why: 별도 isAdmin 필드/커스텀 클레임 없이 닉네임으로 단순 판별 (MVP 단계)
@@ -44,6 +44,10 @@ export const TEST_ACCOUNTS = [
   { nickname: "깐부8호", email: "test8@halmal.com", bio: "8번 테스트 계정이오.", level: 8, exp: 4000, likes: 1000 },
   { nickname: "깐부9호", email: "test9@halmal.com", bio: "9번 테스트 계정이오.", level: 9, exp: 7000, likes: 1000 },
   { nickname: "깐부10호", email: "test10@halmal.com", bio: "10번 테스트 계정이오.", level: 10, exp: 10000, likes: 1000 },
+  // 🏚️ 유배 테스트용 불량 계정
+  { nickname: "불량깐부1호", email: "bad1@halmal.com", bio: "유배 테스트 1호", level: 3, exp: 100, likes: 50 },
+  { nickname: "불량깐부2호", email: "bad2@halmal.com", bio: "유배 테스트 2호", level: 4, exp: 250, likes: 100 },
+  { nickname: "불량깐부3호", email: "bad3@halmal.com", bio: "유배 테스트 3호", level: 5, exp: 500, likes: 200 },
 ];
 
 export const MENU_MESSAGES: Record<string, { title: string, description: string, emoji: string, categoryKey?: string, tags?: string[] }> = {
