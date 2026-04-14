@@ -98,132 +98,142 @@ const ExileMainPage = ({ currentUserData, onReleased }: Props) => {
   };
 
   return (
-    <div className="w-full max-w-[800px] mx-auto px-4 py-6">
-      {/* 제목 */}
-      <div className="mb-5">
-        <h1 className="text-[18px] font-[1000] text-slate-800 mb-1">🏚️ 놀부의 텅 빈 곳간</h1>
-        <p className="text-[11px] font-bold text-slate-400">심술을 부린 대가로 이곳에 갇혔습니다. 반성하고 속죄금을 바쳐 나가시오.</p>
-      </div>
-
-      {/* 3탭 — 유배자는 본인 단계만, 일반 유저(관전자)는 모두 열람 가능 */}
-      <div className="flex gap-1.5 mb-4">
-        {TABS.map(tab => {
-          const isMyLevel = tab.level === myLevel;
-          const isActive = tab.level === activeTab;
-          const isSpectator = !myLevel;
-          const canAccess = isMyLevel || isSpectator;
-          return (
-            <button
-              key={tab.level}
-              onClick={() => canAccess && setActiveTab(tab.level)}
-              disabled={!canAccess}
-              className={`flex-1 px-3 py-2.5 rounded-lg border transition-all ${
-                isActive && canAccess
-                  ? 'bg-slate-900 border-slate-900 text-white'
-                  : canAccess
-                    ? 'bg-white border-slate-300 text-slate-600 hover:bg-slate-50'
-                    : 'bg-slate-50 border-slate-100 text-slate-300 cursor-not-allowed'
-              }`}
-            >
-              <p className="text-[11px] font-[1000]">{canAccess ? '' : '🔒 '}{tab.label}</p>
-              <p className="text-[9px] font-bold mt-0.5">{tab.days}일 · {tab.bail}볼</p>
-            </button>
-          );
-        })}
-      </div>
-
-      {/* 내 상태 카드 — 유배자 본인에게만 */}
-      {myLevel && <div className="bg-white border border-slate-200 rounded-xl p-5 mb-4">
-        <div className="flex items-start justify-between mb-3">
-          <div>
-            <p className="text-[10px] font-[1000] text-slate-400 uppercase tracking-widest">내 상태</p>
-            <p className="text-[14px] font-[1000] text-slate-800 mt-0.5">
-              {myLevel && TABS[myLevel - 1]?.label} · {currentUserData.strikeCount || 0}범
-            </p>
+    <div className="w-full pb-4 animate-in fade-in">
+      {/* 🏚️ 헤더 — 우리들의 장갑 패턴: #제목 + 설명 | 탭 3개 */}
+      <div className="sticky top-0 z-30 bg-[#F8FAFC]/80 backdrop-blur-md pt-2">
+        <div className="flex items-center justify-between border-b border-slate-200 h-[44px] gap-3">
+          {/* 좌: 타이틀 */}
+          <div className="flex items-center gap-1.5 shrink-0">
+            <span className="text-slate-600 font-black text-[15px]">#</span>
+            <h2 className="text-[14px] font-[1000] text-slate-900 tracking-tighter whitespace-nowrap">놀부의 텅 빈 곳간</h2>
+            <div className="w-px h-3 bg-slate-200 mx-1.5 hidden md:block" />
+            <p className="text-[11px] font-bold text-slate-400 hidden md:block whitespace-nowrap">심술을 부린 대가로 이곳에 갇혔습니다 — 반성하고 속죄금을 바쳐 나가시오</p>
           </div>
-          <span className="text-[10px] font-[1000] text-rose-600 bg-rose-50 px-2 py-0.5 rounded-full">
-            {myLevel}차 유배 중
-          </span>
+          {/* 우: 3탭 */}
+          <div className="flex items-center gap-1 shrink-0">
+            {TABS.map(tab => {
+              const isMyLevel = tab.level === myLevel;
+              const isActive = tab.level === activeTab;
+              const isSpectator = !myLevel;
+              const canAccess = isMyLevel || isSpectator;
+              return (
+                <button
+                  key={tab.level}
+                  onClick={() => canAccess && setActiveTab(tab.level)}
+                  disabled={!canAccess}
+                  className={`flex items-center gap-1 px-2 py-1.5 rounded-lg border transition-all ${
+                    isActive && canAccess
+                      ? 'bg-rose-50 border-rose-200 text-rose-700'
+                      : canAccess
+                        ? 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'
+                        : 'bg-slate-50 border-slate-100 text-slate-300 cursor-not-allowed'
+                  }`}
+                >
+                  <span className="text-[11px] font-[1000] whitespace-nowrap">{canAccess ? '' : '🔒 '}{tab.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* 2컬럼 레이아웃 — 메인(게시판) + 우측 사이드바(유저 정보) */}
+      <div className="flex gap-4 items-start mt-4">
+        {/* 메인 컨텐츠 영역 */}
+        <div className="flex-1 min-w-0">
+          {/* 관전자 안내 */}
+          {!myLevel && <div className="p-3 bg-slate-50 border border-slate-100 rounded-lg text-[10px] font-bold text-slate-500 leading-relaxed mb-3">
+            <p>⚠️ 여기는 제재 유저의 반성 공간입니다. 거친 표현이 포함될 수 있습니다.</p>
+            <p>• 유배자 닉네임은 자동으로 익명 처리됩니다 (곳간 거주자 #NNNN).</p>
+            <p>• 외부 공유는 금지되어 있습니다.</p>
+          </div>}
+
+          {/* 🏚️ 이의 제기 (유배자 본인만) */}
+          {myLevel && <AppealForm currentUserData={currentUserData} />}
+
+          {/* 🏚️ 유배지 게시판 — 현재 탭 기준 */}
+          <ExileBoard
+            currentUserData={currentUserData}
+            level={activeTab}
+            isExiledHere={myLevel === activeTab}
+          />
         </div>
 
-        {currentUserData.sanctionReason && (
-          <div className="mb-3 p-3 bg-slate-50 rounded-lg">
-            <p className="text-[10px] font-[1000] text-slate-400 mb-1">처분 사유</p>
-            <p className="text-[12px] font-medium text-slate-600">{currentUserData.sanctionReason}</p>
+        {/* 우측 사이드바 — 유배자 본인 정보 (데스크톱만) */}
+        {myLevel && (
+          <div className="hidden md:block w-64 shrink-0">
+            <div className="sticky top-[60px]">
+              <div className="bg-white border border-slate-100 rounded-2xl overflow-hidden">
+                <div className="px-4 py-3 border-b border-slate-100 flex items-center gap-2">
+                  <span className="text-[13px] font-[1000] text-slate-900">🏚️ 내 상태</span>
+                </div>
+                <div className="p-4 space-y-3">
+                  {/* 프로필 */}
+                  <div className="flex items-center gap-2 pb-3 border-b border-slate-100">
+                    <div className="w-10 h-10 rounded-full bg-slate-50 overflow-hidden border border-slate-200">
+                      <img src={currentUserData.avatarUrl || `https://api.dicebear.com/7.x/adventurer/svg?seed=${currentUserData.nickname}`} alt="" className="w-full h-full object-cover" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[12px] font-[1000] text-slate-800 truncate">{currentUserData.nickname}</p>
+                      <p className="text-[9px] font-bold text-rose-600">
+                        {TABS[myLevel - 1]?.label} · {currentUserData.strikeCount || 0}범
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* 처분 사유 */}
+                  {currentUserData.sanctionReason && (
+                    <div>
+                      <p className="text-[9px] font-[1000] text-slate-400 uppercase tracking-widest mb-1">처분 사유</p>
+                      <p className="text-[11px] font-medium text-slate-600">{currentUserData.sanctionReason}</p>
+                    </div>
+                  )}
+
+                  {/* 반성 기간 */}
+                  <div className="p-2.5 bg-amber-50 border border-amber-100 rounded-lg text-center">
+                    <p className="text-[9px] font-[1000] text-amber-700 mb-0.5">반성 기간</p>
+                    <p className="text-[12px] font-[1000] text-amber-900">{formatRemaining(remainingSec)}</p>
+                  </div>
+
+                  {/* 속죄금 */}
+                  <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
+                    <div className="flex items-center justify-between mb-1">
+                      <p className="text-[9px] font-[1000] text-slate-400 uppercase tracking-widest">속죄금</p>
+                      <p className="text-[9px] font-bold text-slate-400">{formatKoreanNumber(balance)}볼 보유</p>
+                    </div>
+                    <div className="flex items-baseline gap-1 mb-2">
+                      <span className="text-[20px] font-[1000] text-slate-900">{bail}</span>
+                      <span className="text-[10px] font-bold text-slate-500">볼</span>
+                    </div>
+                    {error && <p className="text-[10px] font-bold text-red-500 mb-1">{error}</p>}
+                    <button
+                      onClick={handleRelease}
+                      disabled={!canPay || !hasEnoughBalance || processing}
+                      className={`w-full py-2 rounded-lg text-[11px] font-[1000] transition-all ${
+                        canPay && hasEnoughBalance && !processing
+                          ? 'bg-slate-900 text-white hover:bg-slate-700'
+                          : 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                      }`}
+                    >
+                      {processing ? '처리 중...' :
+                        !canPay ? '반성 기간 중' :
+                        !hasEnoughBalance ? `${bail - balance}볼 부족` :
+                        `🏀 ${bail}볼 내기`}
+                    </button>
+                  </div>
+
+                  {/* 안내 */}
+                  <div className="pt-2 border-t border-slate-100">
+                    <p className="text-[9px] font-bold text-slate-400 leading-relaxed">
+                      곳간에서 나오면 모든 깐부 관계가 초기화됩니다. 전과는 영구 보존. 90일 미납 시 자동 사약.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         )}
-
-        {/* 반성 기간 카운트다운 */}
-        <div className="mb-3 p-3 bg-amber-50 border border-amber-100 rounded-lg text-center">
-          <p className="text-[10px] font-[1000] text-amber-700 mb-1">반성 기간</p>
-          <p className="text-[16px] font-[1000] text-amber-900">{formatRemaining(remainingSec)}</p>
-          <p className="text-[9px] font-bold text-amber-600 mt-1">
-            {canPay ? '속죄금을 바치고 나갈 수 있습니다' : '이 시간이 지나야 속죄금 결제가 활성화됩니다'}
-          </p>
-        </div>
-
-        {/* 속죄금 결제 */}
-        <div className="p-4 bg-slate-50 border border-slate-200 rounded-lg">
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-[10px] font-[1000] text-slate-400 uppercase tracking-widest">속죄금</p>
-            <p className="text-[9px] font-bold text-slate-400">보유 {formatKoreanNumber(balance)}볼</p>
-          </div>
-          <div className="flex items-baseline gap-2 mb-3">
-            <span className="text-[28px] font-[1000] text-slate-900">{bail}</span>
-            <span className="text-[12px] font-bold text-slate-500">볼</span>
-          </div>
-
-          {error && <p className="text-[11px] font-bold text-red-500 mb-2">{error}</p>}
-
-          <button
-            onClick={handleRelease}
-            disabled={!canPay || !hasEnoughBalance || processing}
-            className={`w-full py-3 rounded-lg text-[13px] font-[1000] transition-all ${
-              canPay && hasEnoughBalance && !processing
-                ? 'bg-slate-900 text-white hover:bg-slate-700'
-                : 'bg-slate-200 text-slate-400 cursor-not-allowed'
-            }`}
-          >
-            {processing ? '처리 중...' :
-              !canPay ? '반성 기간 중' :
-              !hasEnoughBalance ? `속죄금 부족 (${bail - balance}볼 더 필요)` :
-              `🏀 ${bail}볼 바치고 나가기`}
-          </button>
-
-          <p className="text-[9px] font-bold text-slate-400 mt-2 text-center leading-relaxed">
-            ⚠️ 곳간에서 나오는 자는 빈손으로 나와야 하는 법 —<br/>
-            모든 깐부 관계가 초기화됩니다
-          </p>
-        </div>
-      </div>}
-
-      {/* 안내 — 유배자 본인만 */}
-      {myLevel && <div className="p-3 bg-slate-50 border border-slate-100 rounded-lg text-[10px] font-bold text-slate-500 leading-relaxed mb-4">
-        <p>• 반성 기간이 지나야 속죄금 결제가 활성화됩니다.</p>
-        <p>• 속죄금을 내지 않으면 무기한 유배가 됩니다. (90일 경과 시 자동 사약)</p>
-        <p>• 전과 기록(strikeCount)은 해금 후에도 영구 보존됩니다.</p>
-        <p>• 4차 도달 시 사약 처분 (영구 밴, 휴대폰 번호 블랙리스트 등록)</p>
-      </div>}
-
-      {/* 관전자 안내 */}
-      {!myLevel && <div className="p-3 bg-slate-50 border border-slate-100 rounded-lg text-[10px] font-bold text-slate-500 leading-relaxed mb-4">
-        <p>⚠️ 여기는 제재 유저의 반성 공간입니다. 거친 표현이 포함될 수 있습니다.</p>
-        <p>• 유배자 닉네임은 자동으로 익명 처리됩니다 (곳간 거주자 #NNNN).</p>
-        <p>• 외부 공유는 금지되어 있습니다.</p>
-      </div>}
-
-      {/* 🏚️ 이의 제기 (유배자 본인만) */}
-      {myLevel && <AppealForm currentUserData={currentUserData} />}
-
-      {/* 🏚️ 유배지 게시판 — 현재 탭 기준 */}
-      <div className="mb-3">
-        <p className="text-[11px] font-[1000] text-slate-600 mb-2">{activeTab}차 유배지 게시판</p>
       </div>
-      <ExileBoard
-        currentUserData={currentUserData}
-        level={activeTab}
-        isExiledHere={myLevel === activeTab}
-      />
     </div>
   );
 };
