@@ -34,7 +34,6 @@ const CreateOneCutBox = ({ userData, editingPost, allPosts, onSubmit, onClose }:
     linkedPostId: editingPost?.linkedPostId || '',
   });
   const [imageUrls, setImageUrls] = useState<string[]>(initialUrls);
-  const [previewIdx, setPreviewIdx] = useState(0);
 
   const [showLinkModal, setShowLinkModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -83,7 +82,6 @@ const CreateOneCutBox = ({ userData, editingPost, allPosts, onSubmit, onClose }:
     setImageUrls(prev => {
       const next = prev.filter((_, i) => i !== idx);
       setPostData(p => ({ ...p, imageUrl: next[0] || '' }));
-      if (previewIdx >= next.length) setPreviewIdx(Math.max(0, next.length - 1));
       return next;
     });
   };
@@ -140,7 +138,7 @@ const CreateOneCutBox = ({ userData, editingPost, allPosts, onSubmit, onClose }:
   };
 
   return (
-    <div className="w-full max-w-[1200px] mx-auto py-6 animate-in fade-in slide-in-from-bottom-4 duration-500" onPaste={handlePaste}>
+    <div className="w-full max-w-[720px] mx-auto py-6 animate-in fade-in slide-in-from-bottom-4 duration-500" onPaste={handlePaste}>
       <div className="bg-white rounded-[2.5rem] shadow-2xl border border-slate-100 overflow-hidden flex flex-col max-h-[90vh]">
         {/* Header - Fixed */}
         <div className="px-10 py-7 flex justify-between items-center border-b border-slate-50 bg-white z-[60] shrink-0">
@@ -162,11 +160,10 @@ const CreateOneCutBox = ({ userData, editingPost, allPosts, onSubmit, onClose }:
           </div>
         </div>
 
-        {/* Scrollable Content Area */}
+        {/* Scrollable Content Area — 단일 컬럼 (우측 미리보기 제거, 슬롯이 곧 미리보기 역할) */}
         <div className="flex-1 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-          <div className="px-10 py-10 grid grid-cols-1 lg:grid-cols-12 gap-12">
-            {/* Left Section: Inputs */}
-            <div className="lg:col-span-7 space-y-10">
+          <div className="px-8 py-8">
+            <div className="space-y-8">
               <div className="space-y-3">
                 <label className="text-[11px] font-black text-slate-400 ml-1 uppercase tracking-widest">제목</label>
                 <input type="text" placeholder="강렬한 한 줄 제목을 입력하세요." value={postData.title} onChange={e => setPostData(prev => ({...prev, title: e.target.value}))} className="w-full bg-slate-50 border-2 border-transparent px-8 py-5 rounded-[1.5rem] text-[18px] font-black text-slate-900 focus:bg-white focus:border-rose-500 outline-none transition-all placeholder:text-slate-200" />
@@ -185,7 +182,7 @@ const CreateOneCutBox = ({ userData, editingPost, allPosts, onSubmit, onClose }:
               {/* 🍞 이미지 슬롯 1~4컷 */}
               <div className="space-y-3">
                 <label className="text-[11px] font-black text-slate-400 ml-1 uppercase tracking-widest">📸 이미지 슬롯 (최대 4컷, 16:9 권장)</label>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                   {/* 최소 1개 슬롯은 항상 표시 */}
                   {(imageUrls.length === 0 ? [''] : imageUrls).map((url, idx) => {
                     const isEmpty = !url;
@@ -300,64 +297,6 @@ const CreateOneCutBox = ({ userData, editingPost, allPosts, onSubmit, onClose }:
               {/* 🚀 ADSMARKET: 광고 슬롯 설정 (Lv5+) */}
               <AdSlotSetting userLevel={calculateLevel(userData?.exp || 0)} adSlotEnabled={adSlotEnabled} adSlotType={adSlotType}
                 onChange={onAdSlotChange} />
-            </div>
-
-            {/* Right Section: 캐러셀 미리보기 */}
-            <div className="lg:col-span-5 space-y-4">
-              <div className="sticky top-0 space-y-4">
-                <div className="flex items-center justify-between">
-                  <label className="text-[11px] font-black text-slate-400 ml-1 uppercase tracking-widest">🖼️ 빵부스러기 미리보기 (16:9)</label>
-                  {filledUrls.length > 0 && (
-                    <span className="text-[10px] font-black text-slate-400">{previewIdx + 1} / {filledUrls.length}</span>
-                  )}
-                </div>
-                <div className="aspect-[16/9] bg-slate-900 rounded-xl overflow-hidden border-4 border-[#0F172A] shadow-2xl relative flex items-center justify-center group">
-                  {filledUrls.length > 0 ? (
-                    <>
-                      <img src={filledUrls[Math.min(previewIdx, filledUrls.length - 1)]} alt="preview" className="w-full h-full object-cover" />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none" />
-                      {/* 🍞 마지막 컷에만 CTA 미리보기 — 원본글 링크 연결 시 */}
-                      {(previewIdx === filledUrls.length - 1) && (postData.linkedPostId || postData.linkUrl) && (
-                        <div className="absolute bottom-16 left-1/2 -translate-x-1/2 px-5 py-2.5 bg-black/70 backdrop-blur-sm text-white rounded-full text-[12px] font-black shadow-xl whitespace-nowrap border border-white/20">
-                          🔗 숨겨진 자세한 이야기 보러가기
-                        </div>
-                      )}
-                      <div className="absolute bottom-4 left-6 right-6 text-white">
-                        <h3 className="text-[18px] font-[1000] italic leading-tight mb-2 tracking-tighter drop-shadow-lg line-clamp-2">{postData.title || "제목을 입력하세요"}</h3>
-                        <div className="flex items-center gap-2 bg-white/10 backdrop-blur-md px-3 py-1.5 rounded-xl w-fit border border-white/10">
-                          <div className="w-5 h-5 rounded-full bg-white/20 overflow-hidden"><img src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${userData?.nickname}`} alt="" className="w-full h-full object-cover" /></div>
-                          <span className="text-[11px] font-black opacity-90">{userData?.nickname}</span>
-                        </div>
-                      </div>
-                      {/* 좌/우 화살표 — 2컷 이상일 때만 */}
-                      {filledUrls.length > 1 && (
-                        <>
-                          <button type="button" onClick={() => setPreviewIdx(i => Math.max(0, i - 1))} disabled={previewIdx === 0}
-                            className="absolute left-2 top-1/2 -translate-y-1/2 w-9 h-9 bg-black/50 hover:bg-black/70 disabled:opacity-30 text-white rounded-full flex items-center justify-center transition-all"
-                            aria-label="이전 컷">
-                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7"/></svg>
-                          </button>
-                          <button type="button" onClick={() => setPreviewIdx(i => Math.min(filledUrls.length - 1, i + 1))} disabled={previewIdx === filledUrls.length - 1}
-                            className="absolute right-2 top-1/2 -translate-y-1/2 w-9 h-9 bg-black/50 hover:bg-black/70 disabled:opacity-30 text-white rounded-full flex items-center justify-center transition-all"
-                            aria-label="다음 컷">
-                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7"/></svg>
-                          </button>
-                          {/* 인디케이터 점 */}
-                          <div className="absolute top-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5">
-                            {filledUrls.map((_, i) => (
-                              <button key={i} type="button" onClick={() => setPreviewIdx(i)}
-                                className={`w-1.5 h-1.5 rounded-full transition-all ${i === previewIdx ? 'bg-white w-4' : 'bg-white/40'}`}
-                                aria-label={`컷 ${i + 1}로 이동`} />
-                            ))}
-                          </div>
-                        </>
-                      )}
-                    </>
-                  ) : (
-                    <div className="text-center px-10"><p className="text-slate-600 text-[13px] font-black leading-relaxed">이미지를 선택하거나<br/>여기에 붙여넣으세요.</p></div>
-                  )}
-                </div>
-              </div>
             </div>
           </div>
         </div>
