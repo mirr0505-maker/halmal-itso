@@ -65,15 +65,49 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boole
     if (this.timer) clearInterval(this.timer);
   }
 
+  // 🔧 사용자 강제 새로고침 — 캐시 우회 쿼리 붙여 하드 리로드
+  private handleManualReload = () => {
+    sessionStorage.setItem('chunk_reload_at', String(Date.now()));
+    window.location.href = `/?_cb=${Date.now()}`;
+  };
+
   render() {
     if (this.state.hasError) {
       return (
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh', gap: '12px', fontFamily: 'sans-serif' }}>
-          <h1 style={{ fontSize: '28px', fontWeight: 900, fontStyle: 'italic' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh', gap: '16px', padding: '24px', fontFamily: 'sans-serif', textAlign: 'center' }}>
+          <h1 style={{ fontSize: '28px', fontWeight: 900, fontStyle: 'italic', margin: 0 }}>
             <span style={{ color: '#ef4444' }}>G</span><span style={{ color: '#2563eb' }}>L</span><span style={{ color: '#1e293b' }}>ove</span>
           </h1>
-          <p style={{ fontSize: '13px', color: '#94a3b8', fontWeight: 700 }}>
-            연결이 끊어졌습니다. {this.state.countdown}초 후 자동으로 다시 시작합니다...
+          <p style={{ fontSize: '15px', color: '#1e293b', fontWeight: 800, margin: 0, lineHeight: 1.5 }}>
+            새 버전이 배포되었습니다.
+            <br />
+            <span style={{ color: '#ef4444' }}>아래 버튼을 눌러 새로고침</span>해주세요.
+          </p>
+          <button
+            type="button"
+            onClick={this.handleManualReload}
+            style={{
+              marginTop: '8px',
+              padding: '14px 28px',
+              fontSize: '15px',
+              fontWeight: 900,
+              color: 'white',
+              background: '#7c3aed',
+              border: 'none',
+              borderRadius: '12px',
+              cursor: 'pointer',
+              boxShadow: '0 4px 12px rgba(124, 58, 237, 0.3)',
+            }}
+          >
+            🔄 지금 새로고침
+          </button>
+          <p style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 600, margin: 0, marginTop: '4px' }}>
+            {this.state.countdown}초 후 자동 시도됩니다.
+          </p>
+          <p style={{ fontSize: '10px', color: '#cbd5e1', fontWeight: 500, margin: 0, maxWidth: '320px' }}>
+            계속 같은 화면이 나오면 브라우저 설정에서 캐시를 지워주세요.
+            <br />
+            (PC: Ctrl+Shift+R / 모바일: 브라우저 설정 → 인터넷 사용 기록 삭제)
           </p>
         </div>
       );
