@@ -135,8 +135,9 @@ const Sidebar = ({ activeMenu, setActiveMenu, kanbuRoomCount = 0, currentNicknam
     label: '헨젤의 빵부스러기',
     description: '한컷 · 네컷',
     icon: (
-      // 🍞 빵 이모지 — CSS grayscale 필터로 무채색 톤 적용 (다른 메뉴 SVG와 시각적 조화)
-      <span className="text-[16px] leading-none grayscale opacity-80" aria-hidden>🍞</span>
+      // 🍞 빵 이모지 — 라벨+설명 2줄 사이 중앙(수직)에 위치시키기 위해 mt-1.5로 아래로 밀어냄
+      //   (다른 메뉴 SVG는 18x18이지만 이모지는 16px라 위쪽으로 몰려 보이는 현상 보정)
+      <span className="inline-block w-[18px] text-[16px] leading-none grayscale opacity-80 mt-1.5" aria-hidden>🍞</span>
     )
   };
 
