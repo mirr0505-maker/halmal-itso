@@ -59,6 +59,19 @@ const CreateNakedKing = ({ userData, editingPost, onSubmit, onClose }: Props) =>
 
   const handleSubmit = async () => {
     if (!userData || !postData.content?.trim() || isSubmitting) return;
+
+    // 🚀 판도라 필수 검증 — 팩트체크 카테고리 취지상 판정·결과는 필수 정보
+    // Why: 과거에는 미선택 시 verdict가 undefined로 남아 Firestore에서 거부되는 버그가 있었음.
+    //      단순 데이터 제거보다 사용자에게 명확한 피드백을 주어 반쪽짜리 팩트체크 글 방지.
+    if (!postData.verdict) {
+      alert('판정(✅ 사실 / ❌ 허위 / 🔍 미정)을 선택해주세요.');
+      return;
+    }
+    if (!postData.factCheckResult?.trim()) {
+      alert('검증 결과를 입력해주세요.');
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       const filteredTags = (postData.tags || []).filter(t => t.trim() !== '');
