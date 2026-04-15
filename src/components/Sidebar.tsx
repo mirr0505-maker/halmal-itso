@@ -135,9 +135,9 @@ const Sidebar = ({ activeMenu, setActiveMenu, kanbuRoomCount = 0, currentNicknam
     label: '헨젤의 빵부스러기',
     description: '한컷 · 네컷',
     icon: (
-      // 🍞 빵 이모지 — 라벨+설명 2줄 사이 중앙(수직)에 위치시키기 위해 mt-1.5로 아래로 밀어냄
-      //   (다른 메뉴 SVG는 18x18이지만 이모지는 16px라 위쪽으로 몰려 보이는 현상 보정)
-      <span className="inline-block w-[18px] text-[16px] leading-none grayscale opacity-80 mt-1.5" aria-hidden>🍞</span>
+      // 🍞 빵 이모지 — grayscale + brightness↓ + contrast↑ 조합으로 SVG text-slate-500에 근접한 어두운 회색톤
+      //   mt-1.5: 라벨+설명 2줄 사이 중앙(수직) 위치 보정 (이모지 16px라 위쪽 몰림 현상 해결)
+      <span className="inline-block w-[18px] text-[16px] leading-none mt-1.5" style={{ filter: 'grayscale(1) brightness(0.55) contrast(1.15)', opacity: 0.85 }} aria-hidden>🍞</span>
     )
   };
 
@@ -303,7 +303,7 @@ const Sidebar = ({ activeMenu, setActiveMenu, kanbuRoomCount = 0, currentNicknam
               : 'bg-transparent text-slate-500 border-transparent hover:bg-slate-50 hover:text-slate-600'
           }`}
         >
-          <span className="transition-all duration-150 shrink-0 text-[16px] leading-none" style={{ filter: 'grayscale(1)', opacity: activeMenu === 'glove' ? 1 : 0.80 }}>
+          <span className="transition-all duration-150 shrink-0 text-[16px] leading-none" style={{ filter: 'grayscale(1) brightness(0.55) contrast(1.15)', opacity: activeMenu === 'glove' ? 1 : 0.85 }}>
             🧤
           </span>
           <div className="flex flex-col items-start min-w-0 flex-1 overflow-hidden">
@@ -325,7 +325,7 @@ const Sidebar = ({ activeMenu, setActiveMenu, kanbuRoomCount = 0, currentNicknam
               : 'bg-transparent text-slate-500 border-transparent hover:bg-slate-50 hover:text-slate-600'
           }`}
         >
-          <span className="transition-all duration-150 shrink-0 text-[16px] leading-none" style={{ filter: 'grayscale(1)', opacity: activeMenu === 'giant_tree' ? 1 : 0.80 }}>
+          <span className="transition-all duration-150 shrink-0 text-[16px] leading-none" style={{ filter: 'grayscale(1) brightness(0.55) contrast(1.15)', opacity: activeMenu === 'giant_tree' ? 1 : 0.85 }}>
             🌳
           </span>
           <div className="flex flex-col items-start min-w-0 flex-1 overflow-hidden">
@@ -343,7 +343,7 @@ const Sidebar = ({ activeMenu, setActiveMenu, kanbuRoomCount = 0, currentNicknam
               : 'bg-transparent text-slate-500 border-transparent hover:bg-slate-50 hover:text-slate-600'
           }`}
         >
-          <span className="transition-all duration-150 shrink-0 text-[16px] leading-none" style={{ filter: 'grayscale(1)', opacity: activeMenu === 'inkwell' ? 1 : 0.80 }}>
+          <span className="transition-all duration-150 shrink-0 text-[16px] leading-none" style={{ filter: 'grayscale(1) brightness(0.55) contrast(1.15)', opacity: activeMenu === 'inkwell' ? 1 : 0.85 }}>
             🖋️
           </span>
           <div className="flex flex-col items-start min-w-0 flex-1 overflow-hidden">
