@@ -303,7 +303,7 @@ const Sidebar = ({ activeMenu, setActiveMenu, kanbuRoomCount = 0, currentNicknam
               : 'bg-transparent text-slate-500 border-transparent hover:bg-slate-50 hover:text-slate-600'
           }`}
         >
-          <span className="transition-all duration-150 shrink-0 text-[16px] leading-none" style={{ filter: 'grayscale(1)', opacity: activeMenu === 'glove' ? 0.65 : 0.20 }}>
+          <span className="transition-all duration-150 shrink-0 text-[16px] leading-none" style={{ filter: 'grayscale(1)', opacity: activeMenu === 'glove' ? 1 : 0.80 }}>
             🧤
           </span>
           <div className="flex flex-col items-start min-w-0 flex-1 overflow-hidden">
@@ -325,7 +325,7 @@ const Sidebar = ({ activeMenu, setActiveMenu, kanbuRoomCount = 0, currentNicknam
               : 'bg-transparent text-slate-500 border-transparent hover:bg-slate-50 hover:text-slate-600'
           }`}
         >
-          <span className="transition-all duration-150 shrink-0 text-[16px] leading-none" style={{ filter: 'grayscale(1)', opacity: activeMenu === 'giant_tree' ? 0.75 : 0.25 }}>
+          <span className="transition-all duration-150 shrink-0 text-[16px] leading-none" style={{ filter: 'grayscale(1)', opacity: activeMenu === 'giant_tree' ? 1 : 0.80 }}>
             🌳
           </span>
           <div className="flex flex-col items-start min-w-0 flex-1 overflow-hidden">
@@ -343,7 +343,7 @@ const Sidebar = ({ activeMenu, setActiveMenu, kanbuRoomCount = 0, currentNicknam
               : 'bg-transparent text-slate-500 border-transparent hover:bg-slate-50 hover:text-slate-600'
           }`}
         >
-          <span className="transition-all duration-150 shrink-0 text-[16px] leading-none" style={{ filter: 'grayscale(1)', opacity: activeMenu === 'inkwell' ? 0.75 : 0.25 }}>
+          <span className="transition-all duration-150 shrink-0 text-[16px] leading-none" style={{ filter: 'grayscale(1)', opacity: activeMenu === 'inkwell' ? 1 : 0.80 }}>
             🖋️
           </span>
           <div className="flex flex-col items-start min-w-0 flex-1 overflow-hidden">
