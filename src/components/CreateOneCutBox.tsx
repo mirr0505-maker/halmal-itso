@@ -182,7 +182,7 @@ const CreateOneCutBox = ({ userData, editingPost, allPosts, onSubmit, onClose }:
               {/* 🍞 이미지 슬롯 1~4컷 */}
               <div className="space-y-3">
                 <label className="text-[11px] font-black text-slate-400 ml-1 uppercase tracking-widest">📸 이미지 슬롯 (최대 4컷, 16:9 권장)</label>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div className="grid grid-cols-1 gap-3">
                   {/* 최소 1개 슬롯은 항상 표시 */}
                   {(imageUrls.length === 0 ? [''] : imageUrls).map((url, idx) => {
                     const isEmpty = !url;
