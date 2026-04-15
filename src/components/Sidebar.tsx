@@ -133,6 +133,7 @@ const Sidebar = ({ activeMenu, setActiveMenu, kanbuRoomCount = 0, currentNicknam
   const oneCutMenu: MenuItem = {
     id: 'onecut',
     label: '헨젤의 빵부스러기',
+    description: '한컷 · 네컷',
     icon: (
       // 🍞 빵 이모지 — CSS grayscale 필터로 무채색 톤 적용 (다른 메뉴 SVG와 시각적 조화)
       <span className="text-[16px] leading-none grayscale opacity-80" aria-hidden>🍞</span>
@@ -142,6 +143,7 @@ const Sidebar = ({ activeMenu, setActiveMenu, kanbuRoomCount = 0, currentNicknam
   const marketMenu: MenuItem = {
     id: 'market',
     label: '강변 시장',
+    description: '판매 · 구독',
     icon: (
       <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
