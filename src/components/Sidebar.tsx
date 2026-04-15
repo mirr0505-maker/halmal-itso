@@ -132,11 +132,10 @@ const Sidebar = ({ activeMenu, setActiveMenu, kanbuRoomCount = 0, currentNicknam
 
   const oneCutMenu: MenuItem = {
     id: 'onecut',
-    label: '한컷',
+    label: '헨젤의 빵부스러기',
     icon: (
-      <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-      </svg>
+      // 🍞 빵 이모지 — CSS grayscale 필터로 무채색 톤 적용 (다른 메뉴 SVG와 시각적 조화)
+      <span className="text-[16px] leading-none grayscale opacity-80" aria-hidden>🍞</span>
     )
   };
 

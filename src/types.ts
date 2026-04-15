@@ -78,6 +78,9 @@ export interface Post {
   category?: string; // 🚀 게시글 카테고리
   content: string;
   imageUrl?: string | null;
+  // 🍞 헨젤의 빵부스러기 — 1~4컷 캐러셀 배열. 하위호환을 위해 imageUrl도 imageUrls[0]로 동시 저장.
+  // 렌더링: imageUrls?.length ? imageUrls : (imageUrl ? [imageUrl] : [])
+  imageUrls?: string[];
   linkUrl?: string | null;
   tags?: string[];
   authorInfo?: AuthorInfo;

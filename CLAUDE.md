@@ -106,7 +106,9 @@
 | `DebateBoard.tsx` | 너와 나의 이야기 댓글 IME 처리 — InlineForm 컴포넌트 금지, 인라인 JSX 유지. `isComposing` 체크 보호. |
 | `RootPostCard.tsx` | 하단 통계 바 3컬럼 구조(댓글\|땡스볼\|동의) 유지. `onBack` prop 체인 보호. 🏚️ `post.category === '유배·귀양지'`일 때 우상단 공유 버튼 숨김(STOREHOUSE §3 Sandbox Policy). |
 | `ThanksballModal.tsx` | `sendThanksball` Cloud Function(`functions/thanksball.js`)으로 서버 처리. ballBalance 직접 수정 금지(Rules 차단). 서버에서 잔액 차감·수신자 누적·sentBalls·notifications·thanksballTotal 5곳 동시 처리. |
-| `OneCutList.tsx` | 카드 하단은 AnyTalkList 일반 글카드와 완전 동일 구조 유지(아바타w-6+프로필클릭+공유버튼). 원본글 영역 `min-h-[22px]` 높이 확보 필수(카드 세로 통일). |
+| `OneCutList.tsx` | 카드 하단은 AnyTalkList 일반 글카드와 완전 동일 구조 유지(아바타w-6+프로필클릭+공유버튼). 원본글 영역 `min-h-[22px]` 높이 확보 필수(카드 세로 통일). 🍞 썸네일은 `imageUrls[0] ?? imageUrl`, 좌상단 `🍞 1/N` 배지(회색). |
+| `CreateOneCutBox.tsx` | 🍞 헨젤의 빵부스러기 — 1~4슬롯 업로드 + 캐러셀 미리보기. `imageUrls` 배열 state, 저장 시 `imageUrl = imageUrls[0]` 동시 저장(하위호환). DB 카테고리 `한컷` + `isOneCut: true` 유지. |
+| `OneCutDetailView.tsx` | 1컷: 단일 이미지(기존), 2~4컷: 캐러셀(←/→ 화살표·인디케이터·키보드·스와이프). 마지막 컷 CTA "🔗 숨겨진 자세한 이야기 보러가기" — `linkedPostId` 우선, 없으면 `linkUrl` 새 탭. |
 | `NotificationBell.tsx` | `notifications/{uid}/items` 실시간 구독. `writeBatch`로 일괄 읽음 처리. 타입: `thanksball·community_post·finger_promoted·giant_tree_spread·giant_tree_wilt`. `isUnread()` 헬퍼로 `read`/`isRead` 두 필드 통합 판단. |
 | `EditorToolbar.tsx` | 링크 삽입 후 Workers 호출 → `LinkPreviewCard` 표시. `fetchPreview` 내부 상태 보호. |
 | `LinkPreviewCard.tsx` | OgData 타입 export — EditorToolbar에서 import해 사용. |

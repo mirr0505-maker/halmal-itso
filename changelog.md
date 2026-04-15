@@ -1,5 +1,34 @@
 ## 8. 현재 구현 상태 (2026-03-24 기준, 코드 실측)
 
+### 🍞 헨젤의 빵부스러기 (2026-04-15)
+> 설계: [HANSEL_BREADCRUMBS.md](./HANSEL_BREADCRUMBS.md) v1.1
+
+기존 한컷 시스템을 1~4컷 캐러셀로 확장. "글의 쇼츠" 기능으로 오리지널 긴 글로의 Conversion을 극대화.
+
+- [x] **메뉴 리브랜딩** — 한컷 → `🍞 헨젤의 빵부스러기` (회색톤 이모지 적용)
+  - `constants.ts` MENU_MESSAGES.onecut: 제목·설명 교체 (`인생 네컷처럼 내 글도 한컷 · 네컷으로, 그리고 연계는 필수`)
+  - `Sidebar.tsx`: SVG 아이콘 → 🍞 이모지 `grayscale opacity-80`
+  - `App.tsx` 카테고리 선택 카드: onecut 이모지에 조건부 grayscale
+  - `CreateOneCutBox.tsx`: 라벨 4곳 교체 (제목, 버튼, 미리보기 등)
+  - DB 값(`category: '한컷'`, `isOneCut: true`) 유지 → 하위호환
+- [x] **데이터 모델 확장** — `Post.imageUrls?: string[]` 신설 ([types.ts:82](./src/types.ts))
+  - 저장 시 `imageUrl = imageUrls[0]` 동시 저장 → 기존 렌더링 코드 무수정 동작
+  - 마이그레이션 없음 (기존 글은 `imageUrl` 단일만 사용)
+- [x] **작성 폼 1~4슬롯** — `CreateOneCutBox.tsx`
+  - 1~4컷 슬롯 그리드 + 개별 업로드/삭제/위치 배지
+  - `+ 다음 컷 추가` 버튼, 💡 가이드 박스 (1~4컷 작성 팁)
+  - 캐러셀 미리보기 (화살표·인디케이터·N/M 카운터), 마지막 컷 CTA 미리보기
+  - 붙여넣기 → 다음 빈 슬롯 자동 채움, 수정 모드 시 기존 배열 불러오기
+- [x] **상세뷰 캐러셀 + CTA** — `OneCutDetailView.tsx`
+  - 1컷: 단일 이미지 (기존 동일), 2~4컷: 캐러셀
+  - 좌/우 화살표 + 인디케이터 점 + 키보드 ←/→ + 모바일 스와이프 + 우상단 `🍞 N/M` 배지
+  - **마지막 컷 CTA 오버레이**: `🔗 숨겨진 자세한 이야기 보러가기` (linkedPostId 또는 linkUrl 있을 때)
+    - linkedPostId 우선 → 해당 글로 이동, 없으면 linkUrl → 새 탭
+- [x] **리스트 카드 배지** — `OneCutList.tsx` + `AnyTalkList.tsx` 인라인 onecut 섹션
+  - 썸네일 좌상단 `🍞 1/N` 배지 (회색 🍞)
+  - 1컷도 `🍞 1/1` 표시하여 일관성 유지
+- [x] **하위호환 보장** — `images = imageUrls?.length ? imageUrls : (imageUrl ? [imageUrl] : [])` 패턴 전 구간 적용
+
 ### 🏚️ 놀부 곳간 후속 정비 (2026-04-14 ~ 2026-04-15)
 > 설계 반영: [STOREHOUSE.md §2.5 / §2.7 / §2.8 / §2.9](./STOREHOUSE.md)
 

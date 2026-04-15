@@ -52,9 +52,9 @@ export const TEST_ACCOUNTS = [
 
 export const MENU_MESSAGES: Record<string, { title: string, description: string, emoji: string, categoryKey?: string, tags?: string[] }> = {
   onecut: {
-    emoji: "🎞️",
-    title: "한컷",
-    description: "이미지 한장으로 전하는, 원본글 요약이나 짧은 메세지 (원본글 링크, 이미지 상세 내용 포함)"
+    emoji: "🍞",
+    title: "헨젤의 빵부스러기",
+    description: "인생 네컷처럼 내 글도 한컷 · 네컷으로, 그리고 연계는 필수"
   },
   market: {
     emoji: "🏪",

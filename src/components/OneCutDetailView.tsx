@@ -150,6 +150,41 @@ const OneCutDetailView = ({
     ? otherTopics.find(p => p.id === rootPost.linkedPostId)
     : null;
 
+  // 🍞 헨젤의 빵부스러기 — 이미지 배열 파생 (하위호환: imageUrls 없으면 imageUrl 단일 사용)
+  const images: string[] = rootPost.imageUrls?.length
+    ? rootPost.imageUrls
+    : (rootPost.imageUrl ? [rootPost.imageUrl] : []);
+  const [carouselIdx, setCarouselIdx] = useState(0);
+  const isMultiCut = images.length > 1;
+  const isLastCut = carouselIdx === images.length - 1;
+  const hasCta = !!(linkedPost || rootPost.linkUrl);
+  const handleCtaClick = () => {
+    if (linkedPost) { onTopicChange(linkedPost); return; }
+    if (rootPost.linkUrl) { window.open(rootPost.linkUrl, '_blank', 'noopener,noreferrer'); }
+  };
+  // 키보드 ←/→ 네비게이션
+  useEffect(() => {
+    if (!isMultiCut) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowLeft') setCarouselIdx(i => Math.max(0, i - 1));
+      if (e.key === 'ArrowRight') setCarouselIdx(i => Math.min(images.length - 1, i + 1));
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [isMultiCut, images.length]);
+  // 모바일 스와이프
+  const touchStartX = useRef<number | null>(null);
+  const onTouchStart = (e: React.TouchEvent) => { touchStartX.current = e.touches[0].clientX; };
+  const onTouchEnd = (e: React.TouchEvent) => {
+    if (touchStartX.current === null) return;
+    const dx = e.changedTouches[0].clientX - touchStartX.current;
+    if (Math.abs(dx) > 40) {
+      if (dx < 0) setCarouselIdx(i => Math.min(images.length - 1, i + 1));
+      else setCarouselIdx(i => Math.max(0, i - 1));
+    }
+    touchStartX.current = null;
+  };
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-12 gap-4 w-full max-w-[1600px] mx-auto animate-in fade-in duration-700 items-start pb-20">
 
@@ -237,15 +272,50 @@ const OneCutDetailView = ({
               </a>
             )}
 
-            {/* 이미지 — 본문 위 배치, 2/3 너비 */}
-            {rootPost.imageUrl && !imageError && (
-              <div className="w-full mb-5 rounded-2xl overflow-hidden border border-slate-100 bg-slate-50">
+            {/* 🍞 이미지 캐러셀 — 1컷이면 단일 이미지, 2~4컷이면 화살표·인디케이터·스와이프 */}
+            {images.length > 0 && !imageError && (
+              <div className="w-full mb-5 rounded-2xl overflow-hidden border border-slate-100 bg-slate-900 relative group" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
                 <img
-                  src={rootPost.imageUrl}
-                  alt="한컷"
+                  src={images[Math.min(carouselIdx, images.length - 1)]}
+                  alt={`빵부스러기 ${carouselIdx + 1}/${images.length}`}
                   className="w-full h-auto object-contain max-h-[600px]"
                   onError={() => setImageError(true)}
                 />
+                {/* 🔗 마지막 컷 CTA 오버레이 — 연계 링크 있을 때만 */}
+                {isLastCut && hasCta && (
+                  <button
+                    type="button"
+                    onClick={handleCtaClick}
+                    className="absolute bottom-6 left-1/2 -translate-x-1/2 px-6 py-3 bg-black/70 hover:bg-black/80 backdrop-blur-sm text-white rounded-full text-[13px] font-black shadow-2xl border border-white/20 hover:scale-105 transition-all whitespace-nowrap"
+                  >
+                    🔗 숨겨진 자세한 이야기 보러가기
+                  </button>
+                )}
+                {/* 좌/우 화살표 — 다컷일 때만 */}
+                {isMultiCut && (
+                  <>
+                    <button type="button" onClick={() => setCarouselIdx(i => Math.max(0, i - 1))} disabled={carouselIdx === 0}
+                      className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 bg-black/50 hover:bg-black/70 disabled:opacity-20 text-white rounded-full flex items-center justify-center transition-all"
+                      aria-label="이전 컷">
+                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7"/></svg>
+                    </button>
+                    <button type="button" onClick={() => setCarouselIdx(i => Math.min(images.length - 1, i + 1))} disabled={isLastCut}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 bg-black/50 hover:bg-black/70 disabled:opacity-20 text-white rounded-full flex items-center justify-center transition-all"
+                      aria-label="다음 컷">
+                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7"/></svg>
+                    </button>
+                    {/* 인디케이터 점 */}
+                    <div className="absolute top-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5 px-2 py-1 bg-black/40 backdrop-blur-sm rounded-full">
+                      {images.map((_, i) => (
+                        <button key={i} type="button" onClick={() => setCarouselIdx(i)}
+                          className={`h-1.5 rounded-full transition-all ${i === carouselIdx ? 'bg-white w-4' : 'bg-white/50 w-1.5'}`}
+                          aria-label={`컷 ${i + 1}로 이동`} />
+                      ))}
+                    </div>
+                    {/* 우상단 N/M 배지 */}
+                    <span className="absolute top-3 right-3 px-2 py-0.5 bg-black/60 text-white text-[11px] font-black rounded-full">🍞 {carouselIdx + 1}/{images.length}</span>
+                  </>
+                )}
               </div>
             )}
 

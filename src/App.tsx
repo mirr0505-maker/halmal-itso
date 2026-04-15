@@ -366,7 +366,7 @@ function App() {
           bone_hitting:    '뼈때리는 명언',
           local_news:      '지역 · 세계 소식',
           marathon_herald: '속보 긴급뉴스',
-          onecut:          '이미지 한 장',
+          onecut:          '한컷 · 네컷',
         };
         return (
           <div className="w-full max-w-2xl mx-auto py-8 px-4 animate-in fade-in">
@@ -394,7 +394,7 @@ function App() {
                   >
                     {/* 이모지 + 짧은 설명 (같은 줄) */}
                     <div className="flex items-center gap-1.5 mb-2">
-                      <span className="text-[18px] leading-none">{info.emoji}</span>
+                      <span className={`text-[18px] leading-none ${key === 'onecut' ? 'grayscale opacity-80' : ''}`}>{info.emoji}</span>
                       <span className="text-[10px] font-bold text-slate-400 leading-tight">{CARD_SUBTITLES[key]}</span>
                     </div>
                     {/* 메뉴 제목 */}
