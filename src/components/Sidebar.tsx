@@ -137,7 +137,7 @@ const Sidebar = ({ activeMenu, setActiveMenu, kanbuRoomCount = 0, currentNicknam
     icon: (
       // 🍞 빵 이모지 — grayscale + brightness↓ + contrast↑ 조합으로 SVG text-slate-500에 근접한 어두운 회색톤
       //   mt-1.5: 라벨+설명 2줄 사이 중앙(수직) 위치 보정 (이모지 16px라 위쪽 몰림 현상 해결)
-      <span className="inline-block w-[18px] text-[16px] leading-none mt-1.5" style={{ filter: 'grayscale(1) brightness(0.55) contrast(1.15)', opacity: 0.85 }} aria-hidden>🍞</span>
+      <span className="inline-block w-[18px] text-[16px] leading-none mt-1.5" style={{ filter: 'grayscale(1) brightness(0.8)', opacity: 0.85 }} aria-hidden>🍞</span>
     )
   };
 
@@ -303,7 +303,7 @@ const Sidebar = ({ activeMenu, setActiveMenu, kanbuRoomCount = 0, currentNicknam
               : 'bg-transparent text-slate-500 border-transparent hover:bg-slate-50 hover:text-slate-600'
           }`}
         >
-          <span className="transition-all duration-150 shrink-0 text-[16px] leading-none" style={{ filter: 'grayscale(1) brightness(0.55) contrast(1.15)', opacity: activeMenu === 'glove' ? 1 : 0.85 }}>
+          <span className="transition-all duration-150 shrink-0 text-[16px] leading-none" style={{ filter: 'grayscale(1) brightness(0.8)', opacity: activeMenu === 'glove' ? 1 : 0.85 }}>
             🧤
           </span>
           <div className="flex flex-col items-start min-w-0 flex-1 overflow-hidden">
@@ -325,7 +325,7 @@ const Sidebar = ({ activeMenu, setActiveMenu, kanbuRoomCount = 0, currentNicknam
               : 'bg-transparent text-slate-500 border-transparent hover:bg-slate-50 hover:text-slate-600'
           }`}
         >
-          <span className="transition-all duration-150 shrink-0 text-[16px] leading-none" style={{ filter: 'grayscale(1) brightness(0.55) contrast(1.15)', opacity: activeMenu === 'giant_tree' ? 1 : 0.85 }}>
+          <span className="transition-all duration-150 shrink-0 text-[16px] leading-none" style={{ filter: 'grayscale(1) brightness(0.8)', opacity: activeMenu === 'giant_tree' ? 1 : 0.85 }}>
             🌳
           </span>
           <div className="flex flex-col items-start min-w-0 flex-1 overflow-hidden">
@@ -343,7 +343,7 @@ const Sidebar = ({ activeMenu, setActiveMenu, kanbuRoomCount = 0, currentNicknam
               : 'bg-transparent text-slate-500 border-transparent hover:bg-slate-50 hover:text-slate-600'
           }`}
         >
-          <span className="transition-all duration-150 shrink-0 text-[16px] leading-none" style={{ filter: 'grayscale(1) brightness(0.55) contrast(1.15)', opacity: activeMenu === 'inkwell' ? 1 : 0.85 }}>
+          <span className="transition-all duration-150 shrink-0 text-[16px] leading-none" style={{ filter: 'grayscale(1) brightness(0.8)', opacity: activeMenu === 'inkwell' ? 1 : 0.85 }}>
             🖋️
           </span>
           <div className="flex flex-col items-start min-w-0 flex-1 overflow-hidden">
