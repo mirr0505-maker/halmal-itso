@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { db } from '../firebase';
 import { collection, onSnapshot, query, where, orderBy, limit, doc, updateDoc, deleteDoc, deleteField, increment, arrayUnion, arrayRemove, serverTimestamp } from 'firebase/firestore';
 import type { Community, CommunityPost, CommunityMember, FingerRole, UserData, PromotionRules } from '../types';
-import { DEFAULT_PROMOTION_RULES } from '../types';
+import { DEFAULT_PROMOTION_RULES, TIER_CONFIG } from '../types';
 import { CHAT_MEMBER_LIMIT } from '../types';
 import TiptapEditor from './TiptapEditor';
 import CommunityAdminPanel from './CommunityAdminPanel';
@@ -12,6 +12,7 @@ import VerifiedBadgeComponent from './VerifiedBadge';
 import VerifyMemberModal from './VerifyMemberModal';
 import CommunityPostDetail from './CommunityPostDetail';
 import JoinAnswersDisplay from './JoinAnswersDisplay';
+import ShareholderVerifyScreen from './ShareholderVerifyScreen';
 import { sanitizeHtml } from '../sanitize';
 import { uploadToR2 } from '../uploadToR2';
 import { calculateLevel, getReputationLabel, getReputationScore, formatKoreanNumber } from '../utils';
@@ -42,6 +43,8 @@ const CommunityView = ({ community, currentUserData, allUsers, followerCounts = 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [selectedPost, setSelectedPost] = useState<CommunityPost | null>(null);
+  // 🛡️ 주주 인증 등록 화면 표시 여부
+  const [showVerifyScreen, setShowVerifyScreen] = useState(false);
   // 🚀 다섯 손가락 Phase 2 — 탭 + 멤버 상태
   const [activeTab, setActiveTab] = useState<'posts' | 'chat' | 'members' | 'admin'>('posts');
   const [members, setMembers] = useState<CommunityMember[]>([]);
@@ -553,6 +556,39 @@ const CommunityView = ({ community, currentUserData, allUsers, followerCounts = 
         <>
         {/* 🚀 승급 조건 패널 — 개설자(thumb)에게만 */}
         {myFinger === 'thumb' && <MemberPromotionPanel community={community} />}
+        {/* 🛡️ 주주 인증 등록 버튼 — 주식 카테고리 + 멤버 본인 */}
+        {community.category === '주식' && currentUserData && currentMembership && !showVerifyScreen && (
+          <div className="mb-3">
+            <button
+              onClick={() => setShowVerifyScreen(true)}
+              className="w-full flex items-center justify-between px-4 py-3 bg-blue-50 border border-blue-200 rounded-xl hover:bg-blue-100 transition-colors"
+            >
+              <div className="flex items-center gap-2">
+                <span className="text-[14px]">🛡️</span>
+                <div className="text-left">
+                  <p className="text-[12px] font-[1000] text-blue-700">주주 인증 등록</p>
+                  <p className="text-[10px] font-bold text-blue-500">
+                    {currentMembership.verified?.tier
+                      ? `현재: ${TIER_CONFIG[currentMembership.verified.tier]?.emoji} ${TIER_CONFIG[currentMembership.verified.tier]?.label}${currentMembership.reverifyRequestedAt ? ' · ⚠️ 재인증 요청됨' : ''}`
+                      : '증권사 보유 현황 스크린샷으로 인증하세요'}
+                  </p>
+                </div>
+              </div>
+              <svg className="w-4 h-4 text-blue-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7"/></svg>
+            </button>
+          </div>
+        )}
+        {/* 🛡️ 주주 인증 등록 화면 */}
+        {showVerifyScreen && currentUserData && currentMembership && (
+          <div className="mb-3 bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+            <ShareholderVerifyScreen
+              community={community}
+              membership={currentMembership as CommunityMember & { id: string }}
+              currentUserData={currentUserData}
+              onClose={() => setShowVerifyScreen(false)}
+            />
+          </div>
+        )}
         <div className="bg-white border border-slate-100 rounded-xl overflow-hidden shadow-sm">
           <div className="px-5 py-3 border-b border-slate-50">
             <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest">활성 멤버 {activeMembers.length}명</p>

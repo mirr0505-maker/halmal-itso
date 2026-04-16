@@ -3,9 +3,9 @@
 // 인증 대기 + 인증 완료 목록 + TierSelector + 종목 설정
 import { useState, useEffect } from 'react';
 import { db } from '../firebase';
-import { collection, query, where, onSnapshot, doc, setDoc, updateDoc, deleteField, serverTimestamp } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, doc, setDoc, updateDoc, deleteField, serverTimestamp, addDoc, Timestamp } from 'firebase/firestore';
 import type { Community, CommunityMember, ShareholderTier } from '../types';
-import { TIER_CONFIG, tierRangeLabel } from '../types';
+import { TIER_CONFIG, tierRangeLabel, getTierFromQuantity } from '../types';
 import JoinAnswersDisplay from './JoinAnswersDisplay';
 
 interface Props {
@@ -87,7 +87,9 @@ const VerifyShareholderPanel = ({ community, currentUid, currentNickname }: Prop
 
   // 인증 부여
   const handleVerify = async (member: CommunityMember & { id: string }) => {
-    const tier = selectedTiers[member.id || `${community.id}_${member.userId}`];
+    const mId = member.id || `${community.id}_${member.userId}`;
+    const suggestedTier = member.verifyRequest?.status === 'pending' ? getTierFromQuantity(member.verifyRequest.selfReportedQty) : null;
+    const tier = selectedTiers[mId] ?? suggestedTier;
     if (!tier) { alert('등급을 선택해주세요.'); return; }
     const docId = member.id || `${community.id}_${member.userId}`;
     setProcessing(docId);
@@ -99,8 +101,10 @@ const VerifyShareholderPanel = ({ community, currentUid, currentNickname }: Prop
           verifiedByNickname: currentNickname,
           label: '주주',
           tier,
-          source: 'manual',
+          source: member.verifyRequest?.status === 'pending' ? 'manual' : 'manual',
         },
+        // 인증 요청이 있었으면 approved로 변경
+        ...(member.verifyRequest ? { 'verifyRequest.status': 'approved' } : {}),
       });
     } finally {
       setProcessing(null);
@@ -130,6 +134,56 @@ const VerifyShareholderPanel = ({ community, currentUid, currentNickname }: Prop
         'verified.tier': newTier,
         'verified.source': 'manual_override',
       });
+    } finally {
+      setProcessing(null);
+    }
+  };
+
+  // 🛡️ 개별 인증 요청 발송 — 멤버에게 알림
+  const sendVerifyRequest = async (member: CommunityMember & { id: string }) => {
+    const docId = member.id || `${community.id}_${member.userId}`;
+    setProcessing(docId);
+    try {
+      await updateDoc(doc(db, 'community_memberships', docId), {
+        reverifyRequestedAt: serverTimestamp(),
+      });
+      await addDoc(collection(db, 'notifications', member.userId, 'items'), {
+        type: 'shareholder_verify_request',
+        fromNickname: currentNickname,
+        communityId: community.id,
+        communityName: community.name,
+        message: `'${community.name}' 주주방에서 주주 인증을 요청했습니다`,
+        createdAt: Timestamp.now(),
+        read: false,
+      });
+    } finally {
+      setProcessing(null);
+    }
+  };
+
+  // 🛡️ 일괄 인증 요청 — 미인증 + 인증 완료(재인증) 멤버 전체
+  const sendBulkVerifyRequest = async () => {
+    const targets = unverified.filter(m => !m.verifyRequest || m.verifyRequest.status !== 'pending');
+    if (targets.length === 0) { alert('인증 요청할 대상이 없습니다.'); return; }
+    if (!window.confirm(`${targets.length}명에게 인증 요청을 보내시겠습니까?`)) return;
+    setProcessing('__bulk');
+    try {
+      for (const m of targets) {
+        const docId = (m as CommunityMember & { id: string }).id || `${community.id}_${m.userId}`;
+        await updateDoc(doc(db, 'community_memberships', docId), {
+          reverifyRequestedAt: serverTimestamp(),
+        });
+        await addDoc(collection(db, 'notifications', m.userId, 'items'), {
+          type: 'shareholder_verify_request',
+          fromNickname: currentNickname,
+          communityId: community.id,
+          communityName: community.name,
+          message: `'${community.name}' 주주방에서 주주 인증을 요청했습니다`,
+          createdAt: Timestamp.now(),
+          read: false,
+        });
+      }
+      alert(`${targets.length}명에게 인증 요청을 보냈습니다.`);
     } finally {
       setProcessing(null);
     }
@@ -238,15 +292,29 @@ const VerifyShareholderPanel = ({ community, currentUid, currentNickname }: Prop
 
       {/* 인증 대기 목록 */}
       <div>
-        <p className="text-[10px] font-[1000] text-slate-500 uppercase tracking-widest mb-2">
-          인증 대기 ({unverified.length}명)
-        </p>
+        <div className="flex items-center justify-between mb-2">
+          <p className="text-[10px] font-[1000] text-slate-500 uppercase tracking-widest">
+            인증 대기 ({unverified.length}명)
+          </p>
+          {unverified.length > 0 && (
+            <button
+              onClick={sendBulkVerifyRequest}
+              disabled={processing === '__bulk'}
+              className="px-2.5 py-1 bg-amber-50 border border-amber-200 text-amber-700 text-[10px] font-[1000] rounded-lg hover:bg-amber-100 disabled:opacity-40 transition-colors"
+            >
+              {processing === '__bulk' ? '발송 중...' : '📢 일괄 인증 요청'}
+            </button>
+          )}
+        </div>
         {unverified.length === 0 ? (
           <p className="text-[11px] text-slate-400 font-bold italic py-3">인증 대기 중인 멤버가 없습니다.</p>
         ) : (
           <div className="space-y-3">
             {unverified.map(m => {
               const mId = (m as CommunityMember & { id: string }).id || `${community.id}_${m.userId}`;
+              const vr = m.verifyRequest;
+              const hasPendingRequest = vr?.status === 'pending';
+              const suggestedTier = hasPendingRequest ? getTierFromQuantity(vr!.selfReportedQty) : null;
               return (
                 <div key={mId} className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
                   <div className="flex items-center gap-2 mb-2">
@@ -258,17 +326,26 @@ const VerifyShareholderPanel = ({ community, currentUid, currentNickname }: Prop
                       <span className="text-[10px] font-bold text-slate-400 ml-1.5">{m.finger || 'ring'} · 가입 {formatDate(m.joinedAt)}</span>
                     </div>
                   </div>
-                  {/* 가입 답변 — compact */}
+                  {/* 가입 답변 */}
                   {m.joinAnswers && (
                     <div className="mb-2 pl-2 border-l-2 border-slate-200">
                       <JoinAnswersDisplay answers={m.joinAnswers} />
                     </div>
                   )}
-                  {/* 등급 선택 */}
+                  {/* 📸 멤버가 제출한 스크린샷 + 자기신고 보유수 */}
+                  {hasPendingRequest && (
+                    <div className="mb-2 p-2 bg-blue-50 border border-blue-100 rounded-lg">
+                      <p className="text-[10px] font-[1000] text-blue-700 mb-1.5">📸 인증 요청 (자기신고: {vr!.selfReportedQty.toLocaleString()}주 → 예상 {suggestedTier && TIER_CONFIG[suggestedTier].emoji} {suggestedTier && TIER_CONFIG[suggestedTier].label})</p>
+                      {vr!.screenshotUrl && (
+                        <img src={vr!.screenshotUrl} alt="보유 현황" className="w-full max-h-[200px] object-contain rounded border border-slate-200 cursor-pointer" onClick={() => window.open(vr!.screenshotUrl, '_blank')} />
+                      )}
+                    </div>
+                  )}
+                  {/* 등급 선택 — 인증 요청이 있으면 자동 선택 */}
                   <div className="mb-2">
                     <p className="text-[10px] font-bold text-slate-400 mb-1">등급 선택:</p>
                     <TierSelector
-                      value={selectedTiers[mId] || null}
+                      value={selectedTiers[mId] ?? suggestedTier ?? null}
                       onChange={t => setSelectedTiers(prev => ({ ...prev, [mId]: t }))}
                     />
                   </div>
@@ -276,11 +353,20 @@ const VerifyShareholderPanel = ({ community, currentUid, currentNickname }: Prop
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => handleVerify(m as CommunityMember & { id: string })}
-                      disabled={!selectedTiers[mId] || processing === mId}
+                      disabled={!(selectedTiers[mId] ?? suggestedTier) || processing === mId}
                       className="px-3 py-1.5 bg-blue-600 text-white text-[11px] font-[1000] rounded-lg hover:bg-blue-700 disabled:opacity-40 transition-colors"
                     >
                       {processing === mId ? '처리 중...' : '인증 부여'}
                     </button>
+                    {!hasPendingRequest && (
+                      <button
+                        onClick={() => sendVerifyRequest(m as CommunityMember & { id: string })}
+                        disabled={processing === mId}
+                        className="px-3 py-1.5 bg-amber-50 border border-amber-200 text-amber-700 text-[10px] font-[1000] rounded-lg hover:bg-amber-100 disabled:opacity-40 transition-colors"
+                      >
+                        📢 인증 요청
+                      </button>
+                    )}
                   </div>
                 </div>
               );

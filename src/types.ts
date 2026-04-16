@@ -466,6 +466,15 @@ export interface CommunityMember {
   joinAnswers?: JoinAnswers;
   // 🚀 Phase 6 — 인증 마킹 (대장/부대장이 부여)
   verified?: VerifiedBadge;
+  // 🛡️ 주주 인증 요청 (멤버가 스크린샷+자기신고 제출 → 방장이 확인)
+  verifyRequest?: {
+    screenshotUrl: string;           // R2 업로드 증권사 보유 현황 스크린샷
+    selfReportedQty: number;         // 자기신고 보유수
+    requestedAt: FirestoreTimestamp;
+    status: 'pending' | 'approved' | 'rejected';
+  };
+  // 🛡️ 방장이 재인증 요청한 경우 (멤버에게 알림 → 재등록 유도)
+  reverifyRequestedAt?: FirestoreTimestamp;
 }
 
 export interface CommunityPost {
