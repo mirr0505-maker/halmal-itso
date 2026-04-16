@@ -2,7 +2,7 @@
 // 주주방 멤버가 증권사 보유 스크린샷을 업로드하고 자기신고 보유수를 입력하여 인증 요청
 // 방장이 VerifyShareholderPanel에서 확인 후 등급 부여
 import { useState } from 'react';
-import { db } from '../firebase';
+import { db, auth } from '../firebase';
 import { doc, updateDoc, serverTimestamp, addDoc, collection, Timestamp } from 'firebase/firestore';
 import { uploadToR2 } from '../uploadToR2';
 import type { Community, CommunityMember, UserData } from '../types';
@@ -232,7 +232,7 @@ const ShareholderVerifyScreen = ({ community, membership, currentUserData, onClo
               setSubmitting(true);
               setError(null);
               try {
-                const token = await (await import('../firebase')).auth.currentUser?.getIdToken();
+                const token = await auth.currentUser?.getIdToken();
                 if (!token) { setError('로그인이 필요합니다.'); return; }
                 const res = await fetch('https://halmal-upload-worker.mirr0505.workers.dev/api/verify-shares', {
                   method: 'POST',
