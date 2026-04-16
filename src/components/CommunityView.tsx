@@ -13,6 +13,7 @@ import VerifyMemberModal from './VerifyMemberModal';
 import CommunityPostDetail from './CommunityPostDetail';
 import JoinAnswersDisplay from './JoinAnswersDisplay';
 import ShareholderVerifyScreen from './ShareholderVerifyScreen';
+import VerifyShareholderPanel from './VerifyShareholderPanel';
 import { sanitizeHtml } from '../sanitize';
 import { uploadToR2 } from '../uploadToR2';
 import { calculateLevel, getReputationLabel, getReputationScore, formatKoreanNumber } from '../utils';
@@ -46,7 +47,7 @@ const CommunityView = ({ community, currentUserData, allUsers, followerCounts = 
   // 🛡️ 주주 인증 등록 화면 표시 여부
   const [showVerifyScreen, setShowVerifyScreen] = useState(false);
   // 🚀 다섯 손가락 Phase 2 — 탭 + 멤버 상태
-  const [activeTab, setActiveTab] = useState<'posts' | 'chat' | 'members' | 'admin'>('posts');
+  const [activeTab, setActiveTab] = useState<'posts' | 'chat' | 'members' | 'admin' | 'verify'>('posts');
   const [members, setMembers] = useState<CommunityMember[]>([]);
   const [currentMembership, setCurrentMembership] = useState<CommunityMember | null>(null);
   // 🚀 Phase 4 — 현재 유저의 알림 구독 여부
@@ -511,10 +512,16 @@ const CommunityView = ({ community, currentUserData, allUsers, followerCounts = 
           )}
           {/* 🚀 다섯 손가락 Phase 2 — 탭 바 (멤버만 표시) */}
           {!isBlocked && !isPending && <div className="flex gap-0 mt-3 border-b border-slate-100">
-            {(['posts', 'chat', 'members', ...(isAdmin ? ['admin'] : [])] as Array<'posts' | 'chat' | 'members' | 'admin'>).map((tab) => {
+            {([
+              'posts', 'chat', 'members',
+              // 🛡️ 주주 인증 탭 — 주식 카테고리 + 관리자일 때만
+              ...(isAdmin && community.category === '주식' ? ['verify'] : []),
+              ...(isAdmin ? ['admin'] : []),
+            ] as Array<'posts' | 'chat' | 'members' | 'admin' | 'verify'>).map((tab) => {
               const chatBadge = isChatAvailable && unreadChatCount > 0 && activeTab !== 'chat' ? ` (${unreadChatCount > 99 ? '99+' : unreadChatCount})` : '';
               const chatLabel = isChatAvailable ? `💭 채팅${chatBadge}` : '💭 채팅 (50명+)';
-              const labels: Record<string, string> = { posts: '💬 소곤소곤', chat: chatLabel, members: `🤝 멤버 ${activeMembers.length}`, admin: `⚙️ 관리${pendingMembers.length > 0 ? ` (${pendingMembers.length})` : ''}` };
+              const pendingVerifyCount = members.filter(m => m.verifyRequest?.status === 'pending').length;
+              const labels: Record<string, string> = { posts: '💬 소곤소곤', chat: chatLabel, members: `🤝 멤버 ${activeMembers.length}`, verify: `🛡️ 주주 인증${pendingVerifyCount > 0 ? ` (${pendingVerifyCount})` : ''}`, admin: `⚙️ 관리${pendingMembers.length > 0 ? ` (${pendingMembers.length})` : ''}` };
               return (
                 <button
                   key={tab}
@@ -679,6 +686,15 @@ const CommunityView = ({ community, currentUserData, allUsers, followerCounts = 
       )}
 
       {/* 🚀 다섯 손가락 Phase 3 — 관리 탭 (CommunityAdminPanel) */}
+      {/* 🛡️ 주주 인증 독립 탭 — 주식 카테고리 + 관리자만 */}
+      {activeTab === 'verify' && isAdmin && community.category === '주식' && currentUserData && (
+        <VerifyShareholderPanel
+          community={community}
+          currentUid={currentUserData.uid}
+          currentNickname={currentUserData.nickname}
+        />
+      )}
+
       {activeTab === 'admin' && isAdmin && (
         <CommunityAdminPanel
           community={community}
@@ -687,7 +703,6 @@ const CommunityView = ({ community, currentUserData, allUsers, followerCounts = 
           onApprove={handleApprove}
           onReject={handleReject}
           onClosed={onClosed ?? onBack}
-          currentUserData={currentUserData}
         />
       )}
 

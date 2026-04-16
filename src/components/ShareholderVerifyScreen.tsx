@@ -145,6 +145,7 @@ const ShareholderVerifyScreen = ({ community, membership, currentUserData, onClo
       {/* 스크린샷 업로드 */}
       <div className="space-y-2">
         <label className="text-[11px] font-[1000] text-slate-600">📸 증권사 보유 현황 스크린샷 <span className="text-red-500">*</span></label>
+        <p className="text-[10px] font-bold text-amber-600">🔒 스크린샷은 방장만 열람 가능하며, 인증 승인 후 30일 뒤 자동 삭제됩니다.</p>
         {screenshotUrl ? (
           <div className="relative">
             <img src={screenshotUrl} alt="보유 현황" className="w-full max-h-[300px] object-contain rounded-lg border border-slate-200" />
