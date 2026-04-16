@@ -323,7 +323,7 @@ interface KanbuChat {
 | `bone_hitting` | 신포도와 여우 | 신포도와 여우 | 명언, 짧은 글 (구: 뼈때리는 글 → migrate 완료) |
 | `local_news` | 마법 수정 구슬 | 마법 수정 구슬 | 정보 공유 보드 (구: 현지 소식 → migrate 완료) |
 | `friends` | 깐부 맺기 | (UI 전용) | 홍보 카드 기반 깐부 매칭. Lv2+ 유저가 이미지·키워드·공약을 등록하면 카드 노출. 클릭 시 팝업 상세(공개프로필+깐부맺기). `users/{uid}.promoEnabled/promoImageUrl/promoKeywords/promoMessage` |
-| `kanbu_room` | 깐부방 | (subcollection) | 깐부가 개설한 방 목록, 방별 게시판+실시간 채팅. Lv3 이상 개설. Firestore: `kanbu_rooms/{roomId}/chats` |
+| `kanbu_room` | 깐부방 | (subcollection) | 우리들의 장갑 패턴 2컬럼(메인+사이드바) + 탭(깐부방 찾기/내 깐부방). 방 내부 5탭: 📋 자유 게시판 / 🔒 유료 1회(A타입) / 🔒 유료 구독(B타입) / 💬 채팅 / 👥 멤버 + ⚙️ 관리(개설자). 유료 게시판 수수료: Lv별 20~30% (강변 시장 동일). `memberIds[]` 멤버십 + `paidOnceMembers[]`/`paidMonthlyMembers[]`. CF: `joinPaidKanbuRoom`(결제+수수료 분배) + `checkKanbuSubscriptionExpiry`(월 만료). Firestore: `kanbu_rooms/{roomId}/chats` + `kanbu_paid_subs/{roomId}_{uid}` |
 | `glove` | 우리들의 장갑 | (커뮤니티) | 다섯 손가락 운영 체제 (thumb·index·middle·ring·pinky). 가입방식 3종(open·approval·password), minLevel 제한, 공지 고정, 알림 opt-in, 중지 자동 산정. 대표 이미지(`thumbnailUrl`) + 채팅 바탕화면(`chatBgUrl`) R2 업로드. 자세한 내용 → `GLOVE.md` |
 | `marathon_herald` | 마라톤의 전령 | 마라톤의 전령 | 뉴스 속보 봇 전용 채널. 속보 키워드(속보·단독·지진·폭발·테러·비상계엄 6개) 포함 기사만 Firestore 저장. `newsType: 'breaking'`→🚨 속보(빨간 pulse 배지). 좋아요 임계값 없이 즉시 노출. 홈 새글 피드에도 포함. 댓글: pandora 공감/의심 2컬럼. 원본 기사 `linkUrl` → RootPostCard [🔗 바로가기] 버튼. Cloud Functions 매 10분 자동 등록, 분대별 1개 언론사 순차 수집(MBC·연합뉴스TV·연합뉴스·경향신문·동아일보·뉴시스). |
 | `market` | 강변 시장 | 크리에이터 이코노미 | 가판대(단건 판매 Lv3+) + 단골장부(구독 상점 Lv5+). 레벨별 수수료(30/25/20%). 자세한 내용 → `MARKET.md` |

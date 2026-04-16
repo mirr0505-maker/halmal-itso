@@ -1,5 +1,23 @@
 ## 8. 현재 구현 상태 (2026-03-24 기준, 코드 실측)
 
+### 🏠 깐부방 업그레이드 (2026-04-16)
+
+- [x] **레이아웃 리뉴얼** — 우리들의 장갑 패턴 적용: 헤더(# 깐부방 + 탭 + 만들기) + 2컬럼(메인+사이드바)
+  - [깐부방 찾기] 카드 그리드: 깐부 관계만 [가입], 비깐부 🔒 표시
+  - [내 깐부방] 카드 그리드 + 사이드바 compact (컬러 도트)
+- [x] **방 내부 5탭** — 📋 자유 게시판 / 🔒 유료 1회(A타입) / 🔒 유료 구독(B타입) / 💬 채팅 / 👥 멤버 + ⚙️ 관리(개설자)
+  - 유료 탭: 개설자가 관리 탭에서 활성화 시 동적 생성, 미결제 시 페이월
+  - 멤버 탭: 유료/무료/구독 배지 구분
+  - 관리 탭: 유료 A/B 설정 + 멤버 강퇴 + 방 수정/삭제
+- [x] **유료 게시판 수수료** — Lv3-4 30% / Lv5-6 25% / Lv7+ 20% (강변 시장 동일)
+- [x] **Cloud Functions**
+  - `joinPaidKanbuRoom`: 볼 차감 + 수수료 분배 + platform_revenue/kanbu_room + pendingRevenue(정산) + 알림
+  - `checkKanbuSubscriptionExpiry`: 매일 09:00 월 구독 만료 → paidMonthlyMembers 제거 + 알림
+- [x] **정산·세무 통합** — pendingRevenue 누적 → 기존 WithdrawModal·SettlementQueue·calculateWithholdingTax 자동 적용
+- [x] **관리자 대시보드** — PlatformRevenueDashboard에 깐부방 수익 카드 추가
+- [x] **크리에이터 대시보드** — "광고 수익" → "크리에이터 수익" 라벨 범용화 + 수익 경로 안내
+- [x] **데이터 모델** — KanbuRoom: paidBoards(once/monthly) + paidOnceMembers + paidMonthlyMembers. Post: kanbuBoardType. kanbu_paid_subs 컬렉션 (월 구독 만료 추적)
+
 ### 🛡️ 주주방 인증 체계 Phase A~H + Codef 샌드박스 (2026-04-16)
 > 설계: [SHAREHOLDER_TIER.md](./SHAREHOLDER_TIER.md) | 미룬 작업: [SHAREHOLDER_BACKLOG.md](./SHAREHOLDER_BACKLOG.md)
 

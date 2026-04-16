@@ -42,7 +42,7 @@
 - Firestore 자동 생성 ID 금지 → `topic_timestamp_uid` / `comment_timestamp_uid` 형식 사용
   - **예외**: `notifications/{uid}/items`, `sentBalls/{uid}/items`, `giant_trees/{id}/leaves` — 보조 데이터는 `addDoc` 자동 ID 허용
 - 실시간 리스너: `onSnapshot` (App.tsx 또는 개별 컴포넌트에서 관리)
-- 컬렉션: `posts`, `comments`, `users`, `kanbu_rooms`, `notifications`, `sentBalls`, `communities`, `community_posts`, `community_memberships`, `community_post_comments`, `giant_trees`, `marathon_dedup`, `series`, `unlocked_episodes`, `series_subscriptions`, `platform_revenue`, `glove_bot_payments`, `glove_bot_dedup`, `dart_corp_map`, `market_items`, `market_purchases`, `market_shops`, `market_subscriptions`, `market_ad_revenues`, `bail_history`, `release_history`, `banned_phones`, `sanction_log`, `exile_posts`, `exile_comments`
+- 컬렉션: `posts`, `comments`, `users`, `kanbu_rooms`, `notifications`, `sentBalls`, `communities`, `community_posts`, `community_memberships`, `community_post_comments`, `giant_trees`, `marathon_dedup`, `series`, `unlocked_episodes`, `series_subscriptions`, `platform_revenue`, `glove_bot_payments`, `glove_bot_dedup`, `dart_corp_map`, `market_items`, `market_purchases`, `market_shops`, `market_subscriptions`, `market_ad_revenues`, `bail_history`, `release_history`, `banned_phones`, `sanction_log`, `exile_posts`, `exile_comments`, `kanbu_paid_subs`
 - **Firestore Security Rules 차단 필드**: `ballBalance`, `promoEnabled`, `promoExpireAt`, `promoPlan`, `promoUpdatedAt` — 클라이언트 직접 수정 불가, 반드시 Cloud Function 경유
 - **Rules read/write 전면 차단 컬렉션**: `platform_revenue`, `glove_bot_payments`(대장 본인 read만 허용), `glove_bot_dedup`, `banned_phones`, `sanction_log`(관리자만 read), `bail_history`/`release_history`(본인만 read) — Admin SDK / Cloud Function 전용
 - **🏚️ sanction 필드**: `sanctionStatus`, `strikeCount`, `requiredBail`, `sanctionExpiresAt`, `phoneVerified`, `phoneHash` — 클라이언트 직접 수정 불가, 반드시 Cloud Function(`sendToExile`/`releaseFromExile`) 경유
@@ -52,6 +52,7 @@
 - `thanksball.js` — `sendThanksball`: 땡스볼 전송 (잔액 차감·수신자 누적·알림). posts.author_id 우선 조회로 수신자 UID 확보. 수신자 `ballReceived`(평판 누적) + `ballBalance`(실사용 잔액) **동시 증가** — 받은 땡스볼은 되쓰기/유배 속죄금으로 사용 가능.
 - `testCharge.js` — `testChargeBall`: 테스트용 볼 충전
 - `kanbuPromo.js` — `registerKanbuPromo`: 깐부 홍보 카드 등록 (Lv2+, 기간제)
+- `kanbuPaid.js` — `joinPaidKanbuRoom`: 깐부방 유료 게시판 결제(1회/구독, 수수료 Lv별 20~30%, pendingRevenue 누적). `checkKanbuSubscriptionExpiry`: 매일 09:00 월 구독 만료 처리
 - `auction.js` / `revenue.js` / `fraud.js` / `settlement.js` — ADSMARKET 광고 시스템
 - `contentLength.js` — `validateContentLength`: 신포도와 여우 100자 제한
 - `inkwell.js` — `unlockEpisode`(유료 회차 결제, 수수료 11%), `createEpisode`(서버측 episodeNumber), `onEpisodeCreate`(구독자 알림), `onInkwellPostDelete`(고아 알림+영수증 cleanup)
@@ -143,6 +144,9 @@
 | `MarketShopEditor.tsx` | 🏪 단골장부 상점 개설. 이름/소개/가격(10~200)/표지. Lv5+만. |
 | `MarketShopDetail.tsx` | 🏪 단골장부 상세. 구독 버튼 + 크리에이터 판매글 목록. `subscribeMarketShop` callable. |
 | `MarketDashboard.tsx` | 🏪 크리에이터 대시보드. 수익 현황(판매/광고/총판매) + 판매글 관리(숨김/복귀) + 단골장부 구독자. |
+| `KanbuRoomView.tsx` | 깐부방 상세 5탭(📋 자유 게시판 / 🔒 유료×2 / 💬 채팅 / 👥 멤버 / ⚙️ 관리). 유료 게시판 페이월 + 결제(`joinPaidKanbuRoom`). 관리: 유료 A/B 타입 설정 + 멤버 강퇴 + 방 수정/삭제. |
+| `KanbuRoomList.tsx` | 깐부방 찾기 카드 그리드. 깐부 관계인 방만 [가입], 비깐부 🔒 표시. memberIds + memberCount 관리. |
+| `MyKanbuRoomList.tsx` | 나의 깐부방 목록. `compact=true`: 사이드바 소형(컬러도트), `compact=false`: 메인 카드 그리드. |
 | `ExileMainPage.tsx` | 🏚️ 유배자 메인. 3탭(놀부곳간/무인도/절해고도, 내 단계만 활성, 관전자는 3탭 모두 열람) + 상태카드 + 반성기간 카운트다운 + 속죄금 결제(`releaseFromExile`). 헤더 서브타이틀 간결화, 관전자 안내 배너 제거(2026-04-14). |
 | `ExileBoard.tsx` | 🏚️ 유배지 게시판. 본인 단계만 글 작성 가능, 닉네임 자동 익명화(`곳간 거주자 #NNNN`), 외부 공유 금지. |
 | `utils.ts — anonymizeExileNickname` | 🏚️ uid FNV-1a 해시 → `곳간 거주자 #NNNN` 결정적 변환. `useFirestoreActions`의 `handlePostSubmit`/`handleInlineReply`/`handleCommentSubmit`에서 유배글·유배댓글 저장 시 `author` 필드 치환(`author_id`는 실제 uid 유지). |
