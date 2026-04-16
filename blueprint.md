@@ -25,7 +25,7 @@
 | **의미** | "I have something to say" — 자유 토론 커뮤니티 |
 | **대상** | 한국어 사용자 |
 | **유형** | 소셜 토론 플랫폼 (멀티 카테고리) |
-| **배포** | Firebase Hosting |
+| **배포** | Firebase Hㅁosting |
 | **저장소** | `e:\halmal-itso` (Windows) |
 
 ---
@@ -314,7 +314,7 @@ interface KanbuChat {
 
 | 메뉴 ID | 표시명 (Title) | 카테고리 키 (DB) | 특이사항 |
 |---------|--------------|-----------------|----------|
-| `onecut` | 한컷 | (isOneCut 플래그) | 16:9 가로형 이미지 전용 |
+| `onecut` | 🍞 헨젤의 빵부스러기 | (isOneCut 플래그, category='한컷') | 1~4컷 캐러셀 + CTA(원본글 연계). DB 카테고리 '한컷' + isOneCut:true 유지, 표시명만 변경. `imageUrls: string[]` 배열 + `imageUrl=imageUrls[0]` 하위호환. 자세한 내용 → [HANSEL_BREADCRUMBS.md](./HANSEL_BREADCRUMBS.md) |
 | `my_story` | 참새들의 방앗간 | 너와 나의 이야기 | 일상, 공감 위주. 표시명만 2026-04 변경, DB category 값은 그대로 유지 (utils.ts CATEGORY_DISPLAY_MAP 매핑) |
 | `inkwell` | 마르지 않는 잉크병 | magic_inkwell | 🖋️ 연재 시스템 — 작품(Series) + 회차(posts) 분리 모델, 부분 유료화·구독·답글. 자세한 내용 → [INKWELL.md](./INKWELL.md) |
 | `naked_king` | 판도라의 상자 | 판도라의 상자 | 지그재그 댓글 보드 (동의/반박 인라인 입력, 핀 고정, boardType: pandora) |
@@ -380,12 +380,18 @@ interface KanbuChat {
   - `tab === 'any'` (새글 탭): 하트 3개 표시. `promoLevel = Math.min(post.likes, 3)` 기준으로 채워진 하트 수 결정 (0개이면 전부 빈 하트). `text-rose-400 fill-current` (채움) vs `text-slate-100 fill-none` (빈 하트).
   - 그 외 탭 / 카테고리 뷰: Lv5 이상 유저가 좋아요를 누른 수(`goldStarCount`) > 0 일 때만 금색 별(⭐) + 숫자 표시. `text-amber-400 fill-current`. 0이면 아무것도 표시하지 않음.
 
-### 7.3 한컷 시스템 (`OneCut`)
-- **비율**: 16:9 가로형 이미지 (`aspect-[16/9]`). 업로드 미리보기 · 목록 카드 · 상세 뷰 동일 비율 통일.
-- **연결**: 일반 게시글과 한컷을 `linkedPostId`로 상호 연결하여 이동 지원.
-- **상세 설명 없음**: 이미지 + 제목만으로 의미 전달. CreateOneCutBox에서 상세 설명 textarea 제거.
-- **홈 피드 인라인 섹션**: 새글/등록글/인기글/최고글/깐부글 탭 하단에 탭 기준과 동일한 필터의 한컷 최신 4개를 가로 그리드로 표시. 더보기 → 한컷 메뉴로 이동.
-- **카드 하단 구조**: 일반 글카드(AnyTalkList)와 완전 동일 — 아바타(w-6)+닉네임+Lv/평판/깐부수(좌) | 댓글·땡스볼·좋아요·공유(우). 아바타 클릭 → 공개 프로필. 원본글 영역은 없어도 `min-h-[22px]`로 높이 확보 (카드 세로 사이즈 통일).
+### 7.3 🍞 헨젤의 빵부스러기 (구 한컷 → v1.1 리브랜딩)
+> 상세 설계: [HANSEL_BREADCRUMBS.md](./HANSEL_BREADCRUMBS.md)
+
+- **컨셉**: 1~4컷 캐러셀로 오리지널 긴 글로의 Conversion 극대화 ("글의 쇼츠")
+- **비율**: 16:9 가로형 이미지. 1컷=영화 포스터, 4컷=기승전결 예고편.
+- **데이터**: `imageUrls: string[]` (1~4장) + `imageUrl = imageUrls[0]` (하위호환). DB category '한컷' + `isOneCut: true` 유지.
+- **작성 폼**: 1~4슬롯 세로 배치 + 가이드 박스 + 붙여넣기 자동 채움
+- **상세 뷰**: 2~4컷 캐러셀(←/→ 화살표·인디케이터·키보드·스와이프). 마지막 컷 CTA "🔗 숨겨진 자세한 이야기 보러가기" (linkedPostId 우선, linkUrl 새 탭)
+- **리스트 배지**: 좌상단 `🍞 1/N` (회색 빵 이모지)
+- **연결**: `linkedPostId`로 원본글 상호 연결
+- **홈 피드 인라인 섹션**: 탭 기준과 동일한 필터의 빵부스러기 최신 4개를 가로 그리드로 표시
+- **카드 하단 구조**: 일반 글카드(AnyTalkList)와 동일 (아바타+닉네임+Lv/평판/깐부수)
 
 ---
 

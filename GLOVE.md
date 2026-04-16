@@ -564,7 +564,18 @@ functions/
 
 > 상세 설계: **[SHAREHOLDER_TIER.md](./SHAREHOLDER_TIER.md)** | 미룬 작업: **[SHAREHOLDER_BACKLOG.md](./SHAREHOLDER_BACKLOG.md)**
 
-주주방(`community.category === '주식'`)에서 멤버의 실제 주식 보유 등급(🐟새우/🦈상어/🐋고래/🐳대왕고래)을 방장이 수동 인증하여 닉네임 배지로 표시하는 시스템.
+주주방(`community.category === '주식'`)에서 멤버의 실제 주식 보유 등급(새우/상어/고래/대왕고래)을 인증하여 배지로 표시하는 시스템.
 
-- **Phase A~C + H**: 수동 인증 트랙 (types.ts + VerifyShareholderPanel + 배지 전파 + 글/댓글 스냅샷)
-- **Phase E~F**: 마이데이터(Codef) 자동 인증 트랙 (BACKLOG에서 관리, 서비스 성장 후 도입)
+**구현 완료 (2026-04-16):**
+- **Phase A~C + H**: 타입 정의 + 방장 인증 패널(VerifyShareholderPanel) + 배지 전파(채팅·멤버·글·댓글 4곳) + 글/댓글 tier 스냅샷("💡 이 의견은 고래 주주가 작성했습니다")
+- **멤버 인증 등록 화면**: ShareholderVerifyScreen — 2탭(📸 스크린샷 / 📊 마이데이터), 차분한 slate 톤
+- **방장 인증 관리**: 개별/일괄 인증 요청 → 알림 → 멤버 등록 → 방장 승인. source 구분(수동/스크린샷/마이데이터)
+- **스크린샷 보안**: R2 Worker 프록시(SecureImage) + 30일 자동 만료 + 방장만 열람
+- **Codef 샌드박스 연동**: Worker `/api/verify-shares` 엔드포인트, 키 등록 완료
+- **독립 탭**: 🛡️ 주주 인증 탭 (방장=관리, 멤버=등록)
+- **멤버 리스트**: 주주방은 이모지 대신 텍스트("멤버 · 고래 · 주주 인증")
+
+**미룬 작업 (BACKLOG):**
+- R2 스크린샷 30일 실제 삭제 스케줄러 (Cloud Function)
+- Codef 정식 전환 (사업자 등록 후)
+- 증거 이미지 presigned URL

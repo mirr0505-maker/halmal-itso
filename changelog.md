@@ -1,5 +1,18 @@
 ## 8. 현재 구현 상태 (2026-03-24 기준, 코드 실측)
 
+### 🛡️ 주주방 인증 체계 Phase A~H + Codef 샌드박스 (2026-04-16)
+> 설계: [SHAREHOLDER_TIER.md](./SHAREHOLDER_TIER.md) | 미룬 작업: [SHAREHOLDER_BACKLOG.md](./SHAREHOLDER_BACKLOG.md)
+
+- [x] **Phase A** — types.ts: ShareholderTier + TIER_CONFIG + getTierFromQuantity + tierRangeLabel. VerifiedBadge에 tier/source 추가. Community에 shareholderSettings 추가
+- [x] **Phase B** — VerifyShareholderPanel 신규 + CommunityView 독립 '🛡️ 주주 인증' 탭. 종목 설정(1회 잠금) + TierSelector + 인증 부여/해제/등급 변경. 방장 자기 인증(👑 내 등급 설정). 개별/일괄 인증 요청 → 알림 발송
+- [x] **Phase C** — 배지 전파 4곳(채팅·멤버·글·댓글). 주주방은 이모지 대신 텍스트("멤버 · 고래 · 주주 인증")
+- [x] **Phase H** — 글 하단 "💡 이 의견은 고래(1만~10만주) 주주가 작성했습니다" 스냅샷 (보유수 비노출)
+- [x] **멤버 인증 등록** — ShareholderVerifyScreen: 2탭(📸 스크린샷 / 📊 마이데이터) + 차분한 slate 톤. 마이데이터 3단계(조회→결과→제출)
+- [x] **스크린샷 보안** — SecureImage(Worker 프록시) + 30일 자동 만료 + 방장만 열람. shareholderCleanup.js 스케줄러(매일 04:30)
+- [x] **Codef 샌드박스 연동** — Worker /api/verify-shares: OAuth Basic Auth + URL-encoded 응답 디코딩. 키 3개 등록 완료. Mock 모드 fallback 유지
+- [x] **Firestore Rules** — 방장 자기 verified 수정 허용 + 관리자 verifyRequest/reverifyRequestedAt 추가
+- [x] **source 3종 구분** — ✏️ 수동(manual) / 📸 스크린샷(screenshot) / 🔗 마이데이터(mydata)
+
 ### 🍞 헨젤의 빵부스러기 (2026-04-15)
 > 설계: [HANSEL_BREADCRUMBS.md](./HANSEL_BREADCRUMBS.md) v1.1
 

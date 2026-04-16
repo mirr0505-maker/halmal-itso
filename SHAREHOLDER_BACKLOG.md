@@ -85,6 +85,14 @@
 
 ## ✅ 완료 항목
 
-| 항목 | 완료일 | 커밋 |
+| 항목 | 완료일 | 비고 |
 |------|--------|------|
-| *(Sprint 1 완료 후 여기에 기록)* | | |
+| Phase A~C + H (수동 인증 트랙) | 2026-04-16 | 타입 + 방장 패널 + 배지 4곳 + tier 스냅샷 |
+| 멤버 인증 등록 화면 (2탭: 스크린샷/마이데이터) | 2026-04-16 | ShareholderVerifyScreen + 독립 탭 분리 |
+| 방장 개별/일괄 인증 요청 + 알림 | 2026-04-16 | 알림 타입 2개 (verify_request/submitted) |
+| 스크린샷 30일 보관 + SecureImage 프록시 | 2026-04-16 | Worker /api/screenshot + approvedAt + UI 만료 표시 |
+| Worker DELETE 엔드포인트 | 2026-04-16 | R2 파일 삭제 (스케줄러 연동 대기) |
+| Codef 샌드박스 연동 | 2026-04-16 | Worker /api/verify-shares + OAuth + URL-encoded 응답 디코딩 |
+| 멤버 리스트 텍스트 기반 정리 | 2026-04-16 | 이모지 → "멤버 · 고래 · 주주 인증" 텍스트 |
+| 종목 설정 1회 잠금 | 2026-04-16 | 저장 후 읽기 전용 전환 |
+| source 구분 (manual/screenshot/mydata) | 2026-04-16 | 인증 완료 목록에 아이콘 분기 |

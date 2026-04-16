@@ -120,7 +120,10 @@
 | `CommunityChatPanel.tsx` | 실시간 채팅 (onSnapshot limit 50 + 페이징 30). 답장/이모지 6종/이미지+문서 첨부/땡스볼/soft delete. 50명 한도 가드. 읽지 않은 메시지 카운트(chatLastReadAt). `chatBgUrl` 있으면 배경 이미지 + linear-gradient 60% 흰색 오버레이. |
 | `CommunityFeed.tsx` | 소곤소곤 피드. 글 클릭 → CommunityPostDetail 모달 직접 오픈 + 멤버 lazy load. 피드 카드 하단 땡스볼 버튼(ThanksballModal). 🤖 봇 게시글 뱃지 표시. |
 | `CreateCommunityModal.tsx` | 승인제(approval) 선택 시 가입 폼 빌더 표시. `joinForm` state + 표준 필드 토글 + 커스텀 질문 5개 슬롯 제한. 대표 이미지(`thumbnailUrl`) + 채팅 바탕화면(`chatBgUrl`) R2 업로드 옵션. 주식 카테고리 정보봇 안내. 닉네임 배지(`displayBadgeKey`) 라디오 선택. |
-| `CommunityAdminPanel.tsx` | 관리 탭 (설정수정/대표이미지/채팅배경/닉네임배지/승급조건/정보봇/폐쇄). 정보봇 UI는 `category='주식'` + 대장(thumb) 전용. DART 매핑 동기화 버튼. 이미지/버튼 `w-2/3 mx-auto` 중앙 정렬. |
+| `CommunityAdminPanel.tsx` | 관리 탭 (설정수정/대표이미지/채팅배경/닉네임배지/승급조건/정보봇/폐쇄). 정보봇 UI는 `category='주식'` + 대장(thumb) 전용. DART 매핑 동기화 버튼. 이미지/버튼 `w-2/3 mx-auto` 중앙 정렬. 🛡️ 주주 인증은 독립 탭으로 분리됨(CommunityView 'verify' 탭). |
+| `VerifyShareholderPanel.tsx` | 🛡️ 방장 주주 인증 관리. 종목 설정(1회 잠금) + TierSelector(4등급 라디오) + 인증 대기(스크린샷/마이데이터 구분) + 인증 완료(등급 변경/해제/스크린샷 30일 열람). 개별/일괄 인증 요청 발송. SecureImage 프록시 사용. |
+| `ShareholderVerifyScreen.tsx` | 🛡️ 멤버 주주 인증 등록. 2탭(📸 스크린샷 / 📊 마이데이터) + 차분한 slate 톤. 마이데이터 3단계(조회→결과→제출). 등급 기준표 양쪽 탭 노출. 스크린샷 30일 삭제 안내. |
+| `SecureImage.tsx` | 🔒 R2 프록시 이미지 로더. 직접 URL 대신 Worker `/api/screenshot`으로 Firebase Auth 인증 후 Blob URL 로드. 주주 인증 스크린샷 열람에 사용. |
 | `MyCommunityList.tsx` | 나의 장갑 목록. `compact=true`: 사이드바 소형(컬러도트/썸네일). `compact=false`: 메인 탭 카드 그리드. |
 | `JoinCommunityModal.tsx` | joinForm 있으면 폼 빌더 모드, 없으면 레거시 모드. `validateJoinAnswers`로 필수 항목 검증. |
 | `InkwellHomeView.tsx` | 🖋️ 잉크병 사이드 메뉴 진입 화면. glove 패턴 sticky 헤더 + 2탭 (📖 회차 / 📚 작품). `activeTab`은 부모(App.tsx `inkwellTab`)에서 관리 — SeriesDetail 진입 후 복귀 시 탭 유지. |

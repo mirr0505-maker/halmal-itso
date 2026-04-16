@@ -103,10 +103,10 @@ export const getTierFromQuantity = (qty: number): ShareholderTier => {
 
 | Phase | 작업 | 상태 | 의존성 |
 |:-:|:--|:-:|:--|
-| **A** | types.ts — `ShareholderTier` + `TIER_CONFIG` + `VerifiedBadge.tier/source` + `Community.shareholderSettings` | 이번 구현 | 없음 |
-| **B** | `VerifyShareholderPanel.tsx` 신규 + `CommunityAdminPanel`에 "주주 인증" 탭 + `TierSelector` 컴포넌트 | 이번 구현 | A |
-| **C** | 닉네임 배지 4지점(채팅·멤버·글·댓글)에 tier emoji 전파 — `category === '주식'`일 때만 | 이번 구현 | B |
-| **H** | 게시글/댓글 작성 시점의 tier 스냅샷 표시 — 실제 보유수 비노출, tier 범위만 | 이번 구현 | C |
+| **A** | types.ts — `ShareholderTier` + `TIER_CONFIG` + `VerifiedBadge.tier/source` + `Community.shareholderSettings` | ✅ 완료 | 없음 |
+| **B** | `VerifyShareholderPanel.tsx` — 독립 탭 + 종목 잠금 + 스크린샷/마이데이터 구분 + 개별/일괄 요청 | ✅ 완료 | A |
+| **C** | 배지 4지점 전파 — 주주방은 이모지 대신 텍스트("멤버 · 고래 · 주주 인증") | ✅ 완료 | B |
+| **H** | 글/댓글 tier 스냅샷 ("💡 이 의견은 고래 주주가 작성했습니다") | ✅ 완료 | C |
 | ~~D~~ | ~~가중치 투표 표시~~ | **제거됨** | — |
 | **E** | Worker `/api/verify-shares` + Codef 연동 | [BACKLOG](./SHAREHOLDER_BACKLOG.md) | A, B |
 | **F** | 클라이언트 마이데이터 UI (증권사 선택 + Codef 인증서 팝업) | [BACKLOG](./SHAREHOLDER_BACKLOG.md) | E |
