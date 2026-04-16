@@ -237,17 +237,23 @@ export default {
             },
             body: JSON.stringify({
               connectedId: body.connectedId || 'sandbox_connected_id',
-              organization: body.organization || '0247', // 기본: 삼성증권
+              organization: body.organization || '0247',
               account: '',
               accountPassword: '',
             }),
           });
-          const balanceData = await balanceRes.json() as {
+          // Codef 응답은 URL-encoded JSON — decodeURIComponent 후 파싱 필요
+          const balanceText = await balanceRes.text();
+          let balanceData: {
             result?: { code?: string; message?: string };
             data?: { resItemList?: Array<{ resItemCode?: string; resHoldingQty?: string; resItemName?: string }> };
           };
+          try {
+            balanceData = JSON.parse(decodeURIComponent(balanceText));
+          } catch {
+            return json({ error: 'Codef 응답 파싱 실패', details: balanceText.slice(0, 300) }, 502);
+          }
 
-          // 샌드박스 응답 파싱
           const items = balanceData?.data?.resItemList || [];
           const matched = items.find((i: { resItemCode?: string }) => i.resItemCode === body.stockCode);
           const qty = parseInt(matched?.resHoldingQty || '0', 10);
