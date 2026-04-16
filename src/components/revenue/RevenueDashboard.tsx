@@ -23,7 +23,7 @@ const RevenueDashboard = ({ pendingRevenue, pendingThanksBall, totalSettled, use
       {/* 수익 요약 카드 */}
       <div className="grid grid-cols-3 gap-3">
         <div className="bg-violet-50 rounded-2xl p-4 border border-violet-100 text-center">
-          <p className="text-[10px] font-black text-violet-400 uppercase tracking-widest mb-1">광고 수익</p>
+          <p className="text-[10px] font-black text-violet-400 uppercase tracking-widest mb-1">크리에이터 수익</p>
           <p className="text-[18px] font-[1000] text-violet-700">₩{formatKoreanNumber(pendingRevenue)}</p>
         </div>
         <div className="bg-amber-50 rounded-2xl p-4 border border-amber-100 text-center">
@@ -56,6 +56,14 @@ const RevenueDashboard = ({ pendingRevenue, pendingThanksBall, totalSettled, use
           </p>
         </div>
       )}
+
+      {/* 수익 구성 안내 */}
+      <div className="bg-slate-50 rounded-xl p-3 border border-slate-100">
+        <p className="text-[9px] font-[1000] text-slate-400 mb-1">수익 발생 경로</p>
+        <p className="text-[9px] font-bold text-slate-400 leading-relaxed">
+          광고 슬롯(Lv5+) · 강변 시장(판매/구독) · 잉크병(유료 회차) · 깐부방(유료 게시판) — 수수료 제외 후 미정산 잔액에 합산됩니다.
+        </p>
+      </div>
 
       {/* 출금 버튼 */}
       <div className="flex items-center justify-between bg-white rounded-2xl p-4 border border-slate-100">

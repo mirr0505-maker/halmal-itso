@@ -58,11 +58,12 @@ exports.joinPaidKanbuRoom = onCall(
       // 구매자 차감
       tx.update(buyerRef, { ballBalance: FieldValue.increment(-price) });
 
-      // 개설자 수익
+      // 개설자 수익 — ballBalance(즉시 사용) + ballReceived(평판) + pendingRevenue(정산 신청 가능 금액)
       const creatorRef = db.collection("users").doc(room.creatorId);
       tx.update(creatorRef, {
         ballBalance: FieldValue.increment(creatorEarning),
         ballReceived: FieldValue.increment(creatorEarning),
+        pendingRevenue: FieldValue.increment(creatorEarning),
       });
 
       // 멤버 추가

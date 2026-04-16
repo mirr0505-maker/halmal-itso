@@ -22,6 +22,7 @@ const PlatformRevenueDashboard = () => {
   const [gloveBot, setGloveBot] = useState<RevenueDoc | null>(null);
   const [penalty, setPenalty] = useState<RevenueDoc | null>(null);
   const [sayakSeized, setSayakSeized] = useState<SayakSeizedDoc | null>(null);
+  const [kanbuRoom, setKanbuRoom] = useState<RevenueDoc | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -31,12 +32,14 @@ const PlatformRevenueDashboard = () => {
       getDoc(doc(db, 'platform_revenue', 'glove_bot')),
       getDoc(doc(db, 'platform_revenue', 'penalty')),
       getDoc(doc(db, 'platform_revenue', 'sayak_seized')),
-    ]).then(([inkSnap, mktSnap, botSnap, penSnap, syzSnap]) => {
+      getDoc(doc(db, 'platform_revenue', 'kanbu_room')),
+    ]).then(([inkSnap, mktSnap, botSnap, penSnap, syzSnap, kanbuSnap]) => {
       if (inkSnap.exists()) setInkwell(inkSnap.data() as RevenueDoc);
       if (mktSnap.exists()) setMarket(mktSnap.data() as RevenueDoc);
       if (botSnap.exists()) setGloveBot(botSnap.data() as RevenueDoc);
       if (penSnap.exists()) setPenalty({ totalFee: (penSnap.data() as { totalAmount?: number }).totalAmount || 0 });
       if (syzSnap.exists()) setSayakSeized(syzSnap.data() as SayakSeizedDoc);
+      if (kanbuSnap.exists()) setKanbuRoom(kanbuSnap.data() as RevenueDoc);
     }).catch(err => console.error('[PlatformRevenue]', err))
       .finally(() => setLoading(false));
   }, []);
@@ -49,7 +52,9 @@ const PlatformRevenueDashboard = () => {
   const penFee = penalty?.totalFee || 0;
   const syzFee = sayakSeized?.totalAmount || 0;
   const syzCount = sayakSeized?.totalSayakCount || 0;
-  const totalFee = inkFee + mktFee + botFee + penFee + syzFee;
+  const kanbuFee = kanbuRoom?.totalFee || 0;
+  const kanbuTx = (kanbuRoom as RevenueDoc & { totalTransactions?: number })?.totalTransactions || 0;
+  const totalFee = inkFee + mktFee + botFee + penFee + syzFee + kanbuFee;
 
   const inkGross = inkwell?.totalGross || 0;
   const mktGross = market?.totalGross || 0;
@@ -84,6 +89,12 @@ const PlatformRevenueDashboard = () => {
           <p className="text-[10px] font-[1000] text-slate-400 mb-2">정보봇 (월 20볼 100%)</p>
           <p className="text-[20px] font-[1000] text-slate-900">{formatKoreanNumber(botFee)}</p>
           <p className="text-[9px] font-bold text-slate-300 mt-1">전액 플랫폼</p>
+        </div>
+        {/* 깐부방 */}
+        <div className="bg-white border border-slate-100 rounded-xl p-4">
+          <p className="text-[10px] font-[1000] text-slate-400 mb-2">깐부방 유료 게시판 (20~30%)</p>
+          <p className="text-[20px] font-[1000] text-slate-900">{formatKoreanNumber(kanbuFee)}</p>
+          <p className="text-[9px] font-bold text-slate-300 mt-1">{kanbuTx}건 거래</p>
         </div>
       </div>
 
@@ -123,6 +134,10 @@ const PlatformRevenueDashboard = () => {
           <div className="flex justify-between">
             <span>정보봇 월간 이용료</span>
             <span>플랫폼 100% (20볼/월)</span>
+          </div>
+          <div className="flex justify-between">
+            <span>깐부방 유료 게시판 (1회/구독)</span>
+            <span>플랫폼 20~30% (레벨별) · 개설자 70~80%</span>
           </div>
           <div className="flex justify-between">
             <span>🏚️ 속죄금 (유배 해금)</span>
