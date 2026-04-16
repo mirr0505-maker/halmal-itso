@@ -107,7 +107,7 @@ const VerifyShareholderPanel = ({ community, currentUid, currentNickname }: Prop
           verifiedByNickname: currentNickname,
           label: '주주',
           tier,
-          source: member.verifyRequest?.status === 'pending' ? 'manual' : 'manual',
+          source: member.verifyRequest?.status === 'pending' ? 'screenshot' : 'manual',
         },
         // 인증 요청이 있었으면 approved로 변경
         ...(member.verifyRequest ? { 'verifyRequest.status': 'approved' } : {}),
@@ -401,7 +401,7 @@ const VerifyShareholderPanel = ({ community, currentUid, currentNickname }: Prop
                     <div className="min-w-0">
                       <span className="text-[12px] font-[1000] text-slate-800">{m.nickname}</span>
                       <span className="text-[10px] font-bold text-slate-400 ml-1.5">
-                        {tierCfg?.label || '인증'} · {formatDate(v.verifiedAt)} · {v.source || 'manual'}
+                        {tierCfg?.label || '인증'} · {formatDate(v.verifiedAt)} · {v.source === 'screenshot' ? '📸 스크린샷' : v.source === 'mydata' ? '🔗 마이데이터' : '✏️ 수동'}
                       </span>
                     </div>
                   </div>

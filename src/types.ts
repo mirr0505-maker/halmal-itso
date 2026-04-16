@@ -360,7 +360,7 @@ export interface VerifiedBadge {
   label: string;               // "주주", "홀더", "거주민" 등 (없으면 "인증")
   // 🛡️ 주주방 전용 — 등급 + 인증 출처 (SHAREHOLDER_TIER.md §5)
   tier?: ShareholderTier;
-  source?: 'manual' | 'mydata' | 'manual_override';
+  source?: 'manual' | 'screenshot' | 'mydata' | 'manual_override';
 }
 
 // ════════════════════════════════════════════════════════════
