@@ -5,7 +5,8 @@ import { db, functions } from '../firebase';
 import { doc, updateDoc, deleteField, collection, getDocs, query, where, writeBatch } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { uploadToR2 } from '../uploadToR2';
-import type { Community, CommunityMember, FingerRole, PromotionRules, InfoBotSource } from '../types';
+import type { Community, CommunityMember, FingerRole, PromotionRules, InfoBotSource, UserData } from '../types';
+import VerifyShareholderPanel from './VerifyShareholderPanel';
 import { DEFAULT_PROMOTION_RULES } from '../types';
 import JoinAnswersDisplay from './JoinAnswersDisplay';
 import { STANDARD_FIELD_LABELS } from '../utils/joinForm';
@@ -25,9 +26,11 @@ interface Props {
   onApprove: (m: CommunityMember) => void;
   onReject: (m: CommunityMember) => void;
   onClosed: () => void; // 장갑 폐쇄 후 목록으로 이동
+  // 🛡️ 주주 인증 패널용 (Phase B)
+  currentUserData?: UserData | null;
 }
 
-const CommunityAdminPanel = ({ community, myFinger, pendingMembers, onApprove, onReject, onClosed }: Props) => {
+const CommunityAdminPanel = ({ community, myFinger, pendingMembers, onApprove, onReject, onClosed, currentUserData }: Props) => {
   // 설정 수정 상태
   const [editName, setEditName] = useState(community.name);
   const [editDesc, setEditDesc] = useState(community.description ?? '');
@@ -368,6 +371,15 @@ const CommunityAdminPanel = ({ community, myFinger, pendingMembers, onApprove, o
           />
         );
       })()}
+
+      {/* 🛡️ 주주 인증 관리 — 주식 장갑 전용, 대장만 */}
+      {isOwner && community.category === '주식' && currentUserData && (
+        <VerifyShareholderPanel
+          community={community}
+          currentUid={currentUserData.uid}
+          currentNickname={currentUserData.nickname}
+        />
+      )}
 
       {/* 장갑 폐쇄 — thumb 전용 */}
       {isOwner && (

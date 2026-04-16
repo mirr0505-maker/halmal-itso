@@ -557,3 +557,14 @@ functions/
 2. **DART API 키**: https://opendart.fss.or.kr → 인증키 신청
 3. **증권 API**: https://apiportal.koreainvestment.com → 계정 등록 → API 키 발급
 4. **Blaze 플랜 확인**: onSchedule + 외부 HTTP 호출 필요 (마라톤 전령이 이미 사용 중이면 OK)
+
+---
+
+## 13. 🛡️ 주주방 인증 체계 (주식 장갑 전용)
+
+> 상세 설계: **[SHAREHOLDER_TIER.md](./SHAREHOLDER_TIER.md)** | 미룬 작업: **[SHAREHOLDER_BACKLOG.md](./SHAREHOLDER_BACKLOG.md)**
+
+주주방(`community.category === '주식'`)에서 멤버의 실제 주식 보유 등급(🐟새우/🦈상어/🐋고래/🐳대왕고래)을 방장이 수동 인증하여 닉네임 배지로 표시하는 시스템.
+
+- **Phase A~C + H**: 수동 인증 트랙 (types.ts + VerifyShareholderPanel + 배지 전파 + 글/댓글 스냅샷)
+- **Phase E~F**: 마이데이터(Codef) 자동 인증 트랙 (BACKLOG에서 관리, 서비스 성장 후 도입)

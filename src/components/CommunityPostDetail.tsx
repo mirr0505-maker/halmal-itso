@@ -4,7 +4,8 @@
 import { useState, useEffect } from 'react';
 import { db } from '../firebase';
 import { collection, doc, setDoc, addDoc, updateDoc, deleteDoc, query, where, orderBy, onSnapshot, increment, serverTimestamp, arrayUnion, arrayRemove } from 'firebase/firestore';
-import type { CommunityPost, CommunityMember, UserData, FirestoreTimestamp } from '../types';
+import type { CommunityPost, CommunityMember, UserData, FirestoreTimestamp, ShareholderTier } from '../types';
+import { TIER_CONFIG, tierRangeLabel } from '../types';
 import { sanitizeHtml } from '../sanitize';
 import { calculateLevel, getReputationLabel, getReputationScore, formatKoreanNumber } from '../utils';
 import VerifiedBadgeComponent from './VerifiedBadge';
@@ -29,9 +30,11 @@ interface Props {
   followerCounts?: Record<string, number>;
   members: CommunityMember[];
   onClose: () => void;
+  // 🛡️ Phase C: 주주방 tier 배지 표시용 (community.category 전달)
+  communityCategory?: string;
 }
 
-const CommunityPostDetail = ({ post, currentUserData, allUsers = {}, followerCounts = {}, members, onClose }: Props) => {
+const CommunityPostDetail = ({ post, currentUserData, allUsers = {}, followerCounts = {}, members, onClose, communityCategory }: Props) => {
   const [livePost, setLivePost] = useState(post);
   const [comments, setComments] = useState<CommunityComment[]>([]);
   const [newComment, setNewComment] = useState('');
@@ -224,7 +227,7 @@ const CommunityPostDetail = ({ post, currentUserData, allUsers = {}, followerCou
                   <div className="flex flex-col min-w-0">
                     <div className="flex items-center gap-1.5">
                       <span className="text-[15px] font-[1000] text-slate-900 truncate">{livePost.author}</span>
-                      <VerifiedBadgeComponent verified={members.find(m => m.userId === livePost.author_id)?.verified} size="sm" showDate={false} />
+                      <VerifiedBadgeComponent verified={members.find(m => m.userId === livePost.author_id)?.verified} size="sm" showDate={false} showTier={communityCategory === '주식'} />
                     </div>
                     <span className="text-[11px] font-bold text-slate-500 truncate">
                       Lv {displayLevel} · {repLabel} · 깐부수 {formatKoreanNumber(realFollowers)}
@@ -271,6 +274,17 @@ const CommunityPostDetail = ({ post, currentUserData, allUsers = {}, followerCou
               </div>
             );
           })()}
+          {/* 🛡️ Phase H: 주주방 tier 스냅샷 — 글 작성자의 등급 범위 표시 (보유수 미노출) */}
+          {communityCategory === '주식' && (() => {
+            const postMember = members.find(m => m.userId === livePost.author_id);
+            const tier = postMember?.verified?.tier as ShareholderTier | undefined;
+            if (!tier) return null;
+            return (
+              <p className="text-[10px] text-slate-500 font-bold italic mt-1">
+                💡 이 의견은 {TIER_CONFIG[tier].emoji} {TIER_CONFIG[tier].label}({tierRangeLabel(tier)}주) 주주가 작성했습니다
+              </p>
+            );
+          })()}
         </div>
 
         {/* 🚀 댓글 목록 — DebateBoard 패턴 */}
@@ -306,7 +320,7 @@ const CommunityPostDetail = ({ post, currentUserData, allUsers = {}, followerCou
                     <div className="flex flex-col min-w-0">
                       <div className="flex items-center gap-1.5">
                         <span className="text-[12px] font-[1000] text-slate-800 leading-none">{c.author}</span>
-                        <VerifiedBadgeComponent verified={members.find(m => m.userId === c.author_id)?.verified} size="sm" showDate={false} />
+                        <VerifiedBadgeComponent verified={members.find(m => m.userId === c.author_id)?.verified} size="sm" showDate={false} showTier={communityCategory === '주식'} />
                         <span className="text-[9px] font-bold text-slate-300">{formatTime(c.createdAt)}</span>
                       </div>
                       <span className="text-[9px] text-slate-400 font-bold leading-tight mt-0.5">

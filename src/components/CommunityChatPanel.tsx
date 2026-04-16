@@ -76,7 +76,7 @@ function ChatAuthorLine({ message, community, members }: { message: ChatMessage;
         <span className="text-[9px] font-[1000] text-blue-500 bg-blue-50 px-1.5 py-0.5 rounded">{badgeValue}</span>
       )}
       {message.authorVerified && (
-        <VerifiedBadgeComponent verified={message.authorVerified} size="sm" showDate={false} />
+        <VerifiedBadgeComponent verified={message.authorVerified} size="sm" showDate={false} showTier={community.category === '주식'} />
       )}
     </div>
   );

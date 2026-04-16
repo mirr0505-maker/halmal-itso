@@ -178,6 +178,7 @@ const CommunityFeed = ({ currentUserData, joinedCommunityIds, allUsers, communit
           followerCounts={followerCounts}
           members={modalMembers}
           onClose={() => { setSelectedPost(null); setModalMembers([]); }}
+          communityCategory={_communities.find(c => c.id === selectedPost.communityId)?.category}
         />
       )}
     </div>

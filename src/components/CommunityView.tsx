@@ -570,8 +570,8 @@ const CommunityView = ({ community, currentUserData, allUsers, followerCounts = 
                     <div className="flex items-center gap-1.5 flex-wrap min-w-0">
                       <span className="text-[13px] font-bold text-slate-800">{m.nickname}</span>
                       <span className={`text-[10px] font-black px-1.5 py-0.5 rounded ${meta.colorCls}`}>{meta.emoji} {meta.label}</span>
-                      {/* 🚀 Phase 6: 인증 배지 */}
-                      <VerifiedBadgeComponent verified={m.verified} size="sm" />
+                      {/* 🚀 Phase 6: 인증 배지 + Phase C: 주주 tier */}
+                      <VerifiedBadgeComponent verified={m.verified} size="sm" showTier={community.category === '주식'} />
                     </div>
                   </div>
                   {/* 관리자 액션 (thumb/index만, 본인 제외) */}
@@ -651,6 +651,7 @@ const CommunityView = ({ community, currentUserData, allUsers, followerCounts = 
           onApprove={handleApprove}
           onReject={handleReject}
           onClosed={onClosed ?? onBack}
+          currentUserData={currentUserData}
         />
       )}
 
@@ -730,7 +731,7 @@ const CommunityView = ({ community, currentUserData, allUsers, followerCounts = 
                       <div className="flex flex-col min-w-0">
                         <div className="flex items-center gap-1">
                           <span className="text-[11px] font-[1000] text-slate-900 truncate leading-none">{post.author}</span>
-                          <VerifiedBadgeComponent verified={members.find(m => m.userId === post.author_id)?.verified} size="sm" showDate={false} />
+                          <VerifiedBadgeComponent verified={members.find(m => m.userId === post.author_id)?.verified} size="sm" showDate={false} showTier={community.category === '주식'} />
                         </div>
                         <span className="text-[9px] font-bold text-slate-400 truncate tracking-tight">
                           Lv {calculateLevel(authorData?.exp || 0)} · {getReputationLabel(authorData ? getReputationScore(authorData) : 0)} · 깐부수 {formatKoreanNumber(followerCounts[post.author] || 0)}
@@ -785,6 +786,7 @@ const CommunityView = ({ community, currentUserData, allUsers, followerCounts = 
           followerCounts={followerCounts}
           members={members}
           onClose={() => setSelectedPost(null)}
+          communityCategory={community.category}
         />
       )}
     </div>

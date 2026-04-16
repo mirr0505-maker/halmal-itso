@@ -5,6 +5,32 @@
 //      파일에 흩어지면 오타(중점 `·` vs 하이픈 `-` 등) 1글자로 조용히 오동작. 상수로 고정.
 export const EXILE_CATEGORY = '유배·귀양지' as const;
 
+// ═══════════════════════════════════════════════════════
+// 🛡️ 주주방 인증 체계 (SHAREHOLDER_TIER.md 참조)
+// ═══════════════════════════════════════════════════════
+export type ShareholderTier = 'shrimp' | 'shark' | 'whale' | 'megawhale';
+
+export const TIER_CONFIG = {
+  shrimp:    { emoji: '🐟', label: '새우',    min: 1,      max: 999 },
+  shark:     { emoji: '🦈', label: '상어',    min: 1000,   max: 9999 },
+  whale:     { emoji: '🐋', label: '고래',    min: 10000,  max: 99999 },
+  megawhale: { emoji: '🐳', label: '대왕고래', min: 100000, max: Infinity },
+} as const;
+
+export const getTierFromQuantity = (qty: number): ShareholderTier => {
+  if (qty >= 100000) return 'megawhale';
+  if (qty >= 10000)  return 'whale';
+  if (qty >= 1000)   return 'shark';
+  return 'shrimp';
+};
+
+export const tierRangeLabel = (tier: ShareholderTier): string => ({
+  shrimp: '1~999',
+  shark: '1천~1만',
+  whale: '1만~10만',
+  megawhale: '10만+',
+}[tier]);
+
 // 🚀 FirestoreTimestamp: Firestore Timestamp 최소 구조 (서버·클라이언트 양쪽 호환)
 export interface FirestoreTimestamp {
   seconds: number;
@@ -332,6 +358,9 @@ export interface VerifiedBadge {
   verifiedBy: string;          // thumb/index의 UID
   verifiedByNickname: string;  // 부여 시점 닉네임 스냅샷
   label: string;               // "주주", "홀더", "거주민" 등 (없으면 "인증")
+  // 🛡️ 주주방 전용 — 등급 + 인증 출처 (SHAREHOLDER_TIER.md §5)
+  tier?: ShareholderTier;
+  source?: 'manual' | 'mydata' | 'manual_override';
 }
 
 // ════════════════════════════════════════════════════════════
@@ -413,6 +442,12 @@ export interface Community {
   // 🧤 닉네임 배지 — 가입 답변 중 채팅/댓글 닉네임 옆에 표시할 필드 키
   // 예: 'shares' → 주식수(K단위), 'custom_xxx' → 커스텀 질문 답변
   displayBadgeKey?: string;
+  // 🛡️ 주주방 전용 — 종목 설정 (SHAREHOLDER_TIER.md §9)
+  shareholderSettings?: {
+    stockCode: string;       // 종목코드 (예: "005930")
+    stockName: string;       // 종목명 (예: "삼성전자")
+    enableMydata: boolean;   // Phase E~F 마이데이터 인증 활성화 (기본 false)
+  };
 }
 
 export interface CommunityMember {

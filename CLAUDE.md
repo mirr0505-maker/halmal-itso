@@ -14,6 +14,8 @@
 - **MARKET.md** — 🏪 강변 시장 설계서. 가판대(단건 판매) + 단골장부(구독 상점) + 광고 수익 쉐어.
 - **STOREHOUSE.md** — 🏚️ 놀부의 텅 빈 곳간(유배귀양지) 설계서. 4진 아웃 + 속죄금 + 깐부 리셋 + 사약 시스템.
 - **ADSMARKET.md** — ADSMARKET 광고 시스템 상세 설계서.
+- **SHAREHOLDER_TIER.md** — 🛡️ 주주방 인증 체계 설계서. 등급(새우/상어/고래/대왕고래) + 방장 인증 패널 + 배지 전파.
+- **SHAREHOLDER_BACKLOG.md** — 주주방 인증 미룬 작업 레지스트리 (Phase E~F Codef 연동, 증거 이미지 presigned URL 등).
 - **GEMINI.md** — 범용 AI 개발 원칙 (코드 품질, Firebase 규칙 등).
 - **src/types.ts** — TypeScript 인터페이스 전체. 새 타입 추가 시 여기에만 작성.
 
