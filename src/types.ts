@@ -277,6 +277,9 @@ export interface KanbuRoom {
   creatorNickname: string;
   creatorLevel: number;
   createdAt: FirestoreTimestamp;
+  // 🚀 깐부방 업그레이드 — 멤버십 관리
+  memberCount?: number;       // 가입 멤버 수
+  memberIds?: string[];       // 가입 멤버 UID 목록 (접근 제어 + 가입 판단)
 }
 
 export interface KanbuChat {

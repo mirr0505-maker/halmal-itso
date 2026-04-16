@@ -1,5 +1,8 @@
-// src/components/KanbuRoomList.tsx — 입장 가능한 깐부방 목록
+// src/components/KanbuRoomList.tsx — 깐부방 찾기 (카드 그리드, CommunityList 패턴)
+// 🚀 업그레이드: 단순 리스트 → 카드 그리드 + 가입/입장 분기
 import { useState } from 'react';
+import { db } from '../firebase';
+import { doc, updateDoc, arrayUnion, increment } from 'firebase/firestore';
 import type { KanbuRoom, UserData } from '../types';
 
 interface Props {
@@ -8,114 +11,89 @@ interface Props {
   onCreateRoom: () => void;
   currentUserLevel: number;
   allUsers: Record<string, UserData>;
+  currentUserData?: UserData | null;
+  friends?: string[];
 }
 
-const KanbuRoomList = ({ rooms, onRoomClick, onCreateRoom, currentUserLevel }: Props) => {
-  const [showLevelAlert, setShowLevelAlert] = useState(false);
+const KanbuRoomList = ({ rooms, onRoomClick, currentUserData, friends = [] }: Props) => {
+  const [joiningId, setJoiningId] = useState<string | null>(null);
 
-  const handleCreateClick = () => {
-    if (currentUserLevel < 3) {
-      setShowLevelAlert(true);
+  // 깐부 관계 확인 (방 개설자가 내 깐부인지)
+  const isKanbuOf = (room: KanbuRoom) =>
+    room.creatorId === currentUserData?.uid || friends.includes(room.creatorNickname);
+
+  // 가입 처리 — memberIds에 추가
+  const handleJoin = async (e: React.MouseEvent, room: KanbuRoom) => {
+    e.stopPropagation();
+    if (!currentUserData || joiningId) return;
+    if (!isKanbuOf(room)) {
+      alert('깐부 관계인 사람의 방에만 가입할 수 있습니다.');
       return;
     }
-    onCreateRoom();
-  };
-
-  const getTimeAgo = (timestamp: { seconds: number } | null | undefined) => {
-    if (!timestamp) return '';
-    const diff = Math.floor((Date.now() - timestamp.seconds * 1000) / 1000);
-    if (diff < 60) return '방금 전';
-    if (diff < 3600) return `${Math.floor(diff / 60)}분 전`;
-    if (diff < 86400) return `${Math.floor(diff / 3600)}시간 전`;
-    return new Date(timestamp.seconds * 1000).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' });
+    setJoiningId(room.id);
+    try {
+      await updateDoc(doc(db, 'kanbu_rooms', room.id), {
+        memberIds: arrayUnion(currentUserData.uid),
+        memberCount: increment(1),
+      });
+      onRoomClick(room);
+    } finally {
+      setJoiningId(null);
+    }
   };
 
   return (
-    <div className="w-full animate-in fade-in duration-300">
-      {/* 🚀 헤더: CategoryHeader와 동일 스타일 — 전체 너비 좌측 정렬 */}
-      <div className="sticky top-0 z-30 bg-[#F8FAFC]/80 backdrop-blur-md pt-2">
-        <div className="flex items-center border-b border-slate-200 h-[36px] px-4">
-          <div className="flex items-center gap-3 overflow-hidden">
-            <div className="flex items-center gap-1.5 shrink-0">
-              <span className="text-blue-600 font-black text-[15px]">#</span>
-              <h2 className="text-[14px] font-[1000] text-slate-900 tracking-tighter whitespace-nowrap">깐부방</h2>
-            </div>
-            <div className="w-px h-3 bg-slate-200 shrink-0 mx-1" />
-            <p className="text-[12px] font-bold text-slate-500 truncate tracking-tight break-keep">
-              내 깐부가 개설한 방에 입장할 수 있어요. 내 깐부의 이야기에 주목해 보세요
-            </p>
-            <div className="w-px h-3 bg-slate-200 shrink-0 mx-1" />
-            <button
-              onClick={handleCreateClick}
-              className="flex items-center gap-0.5 text-[11px] font-bold text-slate-400 hover:text-blue-500 transition-colors shrink-0 whitespace-nowrap"
-            >
-              <span className="text-[10px]">+</span>새 깐부방
-            </button>
-          </div>
-        </div>
-        <div className="h-3" />
-      </div>
-
-      {/* 컨텐츠 영역 — 중앙 정렬 */}
-      <div className="max-w-2xl mx-auto">
-      {/* 레벨 부족 알림 */}
-      {showLevelAlert && (
-        <div className="mb-4 flex items-center gap-3 bg-rose-50 border border-rose-200 rounded-xl px-4 py-3">
-          <svg className="w-4 h-4 text-rose-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
-          </svg>
-          <span className="text-[12px] font-bold text-rose-700 flex-1">깐부방을 개설 할 수 있는 레벨이 충족되지 못하였습니다</span>
-          <button onClick={() => setShowLevelAlert(false)} className="text-rose-300 hover:text-rose-500 transition-colors">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-      )}
-
-      {/* 방 목록 */}
+    <div className="w-full pb-20">
       {rooms.length === 0 ? (
-        <div className="py-24 text-center">
-          <p className="text-slate-300 font-[1000] text-[18px]">깐부방이 당신을 기다리고 있어요!</p>
-          <p className="text-slate-300 font-bold text-[14px] mt-2">깐부를 맺고 직접 방을 개설해보세요.</p>
+        <div className="py-40 text-center text-slate-400 font-bold text-sm italic">
+          새로운 깐부방이 아직 없어요.
         </div>
       ) : (
-        <div className="flex flex-col gap-3">
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-3">
           {rooms.map(room => {
+            const canJoin = isKanbuOf(room);
             return (
               <div
                 key={room.id}
-                onClick={() => onRoomClick(room)}
-                className="bg-white border border-slate-100 rounded-2xl px-5 py-4 cursor-pointer hover:border-blue-200 hover:shadow-sm transition-all group"
+                onClick={() => canJoin ? handleJoin({ stopPropagation: () => {} } as React.MouseEvent, room) : undefined}
+                className={`border border-slate-100 rounded-xl overflow-hidden transition-all group bg-white ${canJoin ? 'cursor-pointer hover:border-blue-300 hover:shadow-lg' : 'opacity-70'}`}
               >
-                <div className="flex items-center gap-3">
-                  <div className="w-11 h-11 rounded-xl bg-slate-100 overflow-hidden border border-slate-200 shrink-0">
-                    <img src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${room.creatorNickname}`} alt="" className="w-full h-full object-cover" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-0.5">
-                      <h4 className="text-[14px] font-[1000] text-slate-900 group-hover:text-blue-600 transition-colors truncate tracking-tight">
+                <div className="h-2 w-full bg-slate-300" />
+                <div className="px-4 py-3">
+                  <div className="flex items-start justify-between gap-2 mb-1">
+                    <div className="min-w-0">
+                      <h3 className="text-[14px] font-[1000] text-slate-900 group-hover:text-blue-600 transition-colors truncate">
                         {room.title}
-                      </h4>
-                      <span className="text-[9px] font-black text-blue-500 bg-blue-50 px-1.5 py-0.5 rounded-md shrink-0">Lv{room.creatorLevel}</span>
+                      </h3>
+                      {room.description && (
+                        <p className="text-[12px] font-bold text-slate-400 mt-0.5 line-clamp-1">{room.description}</p>
+                      )}
                     </div>
-                    {room.description && (
-                      <p className="text-[11px] font-bold text-slate-400 truncate">{room.description}</p>
-                    )}
-                    <p className="text-[10px] font-bold text-slate-300 mt-0.5">
-                      {room.creatorNickname} · {getTimeAgo(room.createdAt)}
-                    </p>
                   </div>
-                  <svg className="w-4 h-4 text-slate-200 group-hover:text-blue-400 transition-colors shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 5l7 7-7 7" />
-                  </svg>
+                  <div className="flex items-center justify-between mt-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-bold text-slate-400">
+                        {room.creatorNickname} · 멤버 {room.memberCount || 1}명
+                      </span>
+                    </div>
+                    {canJoin ? (
+                      <button
+                        onClick={(e) => handleJoin(e, room)}
+                        disabled={joiningId === room.id}
+                        className="px-3 py-1 rounded-lg text-[11px] font-bold bg-blue-600 text-white hover:bg-blue-700 transition-colors disabled:opacity-50"
+                      >
+                        {joiningId === room.id ? '가입 중...' : '가입'}
+                      </button>
+                    ) : (
+                      <span className="text-[10px] font-bold text-slate-300">🔒 깐부만</span>
+                    )}
+                  </div>
                 </div>
               </div>
             );
           })}
         </div>
       )}
-      </div>
     </div>
   );
 };

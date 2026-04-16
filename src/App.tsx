@@ -57,6 +57,7 @@ const OneCutList = lazy(() => import('./components/OneCutList'));
 const CreatePostBox = lazy(() => import('./components/CreatePostBox'));
 const CreateOneCutBox = lazy(() => import('./components/CreateOneCutBox'));
 const KanbuRoomList = lazy(() => import('./components/KanbuRoomList'));
+const MyKanbuRoomList = lazy(() => import('./components/MyKanbuRoomList'));
 const KanbuRoomView = lazy(() => import('./components/KanbuRoomView'));
 const CreateKanbuRoomModal = lazy(() => import('./components/CreateKanbuRoomModal'));
 const RankingView = lazy(() => import('./components/RankingView'));
@@ -158,6 +159,8 @@ function App() {
   // 🚀 우리들의 따뜻한 장갑: 커뮤니티 상태
   // 🚀 장갑찾기가 기본 탭 (사용자가 커뮤니티를 발견하도록 유도)
   const [gloveSubTab, setGloveSubTab] = useState<'feed' | 'mine' | 'list'>('list');
+  // 🚀 깐부방 업그레이드 — 서브탭
+  const [kanbuSubTab, setKanbuSubTab] = useState<'list' | 'mine'>('list');
   const [selectedCommunity, setSelectedCommunity] = useState<Community | null>(null);
   const [isCreateCommunityOpen, setIsCreateCommunityOpen] = useState(false);
   const [selectedFriend, setSelectedFriend] = useState<string | null>(null);
@@ -654,12 +657,70 @@ function App() {
       );
     }
 
+    // 🚀 깐부방 업그레이드 — 우리들의 장갑 패턴 (2컬럼 + 탭 + 헤더)
     if (activeMenu === 'kanbu_room') {
       if (selectedRoom) {
         const roomPosts = allRootPosts.filter(p => p.kanbuRoomId === selectedRoom.id);
         return <KanbuRoomView room={selectedRoom} roomPosts={roomPosts} onBack={() => setSelectedRoom(null)} currentUserData={userData!} allUsers={allUsers} />;
       }
-      return <KanbuRoomList rooms={accessibleRooms} onRoomClick={setSelectedRoom} onCreateRoom={() => setIsCreateRoomOpen(true)} currentUserLevel={userData?.level || 1} allUsers={allUsers} />;
+      const myRooms = kanbuRooms.filter(r => r.creatorId === userData?.uid || r.memberIds?.includes(userData?.uid || ''));
+      const joinedRoomIds = myRooms.map(r => r.id);
+      const browseRooms = kanbuRooms.filter(r => !joinedRoomIds.includes(r.id));
+      return (
+        <div className="w-full animate-in fade-in">
+          {/* 헤더: # 깐부방 + 탭 + 만들기 */}
+          <div className="sticky top-0 z-30 bg-[#F8FAFC]/80 backdrop-blur-md pt-2">
+            <div className="flex items-center justify-between border-b border-slate-200 h-[44px] px-4 gap-3">
+              <div className="flex items-center gap-1.5 shrink-0">
+                <span className="text-blue-600 font-black text-[15px]">#</span>
+                <h2 className="text-[14px] font-[1000] text-slate-900 tracking-tighter whitespace-nowrap">깐부방</h2>
+                <div className="w-px h-3 bg-slate-200 mx-1.5 hidden md:block" />
+                <p className="text-[11px] font-bold text-slate-400 hidden md:block whitespace-nowrap">깐부끼리 소통하는 프라이빗 공간</p>
+              </div>
+              <div className="flex items-center gap-1 shrink-0">
+                {([
+                  { id: 'list', label: '깐부방 찾기', mobileOnly: false },
+                  { id: 'mine', label: '내 깐부방', mobileOnly: false },
+                ] as const).map(tab => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setKanbuSubTab(tab.id)}
+                    className={`${tab.mobileOnly ? 'md:hidden' : ''} flex items-center gap-1 px-2 py-1.5 rounded-lg border transition-all ${
+                      kanbuSubTab === tab.id
+                        ? 'bg-blue-50 border-blue-200 text-blue-700'
+                        : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'
+                    }`}
+                  >
+                    <span className="text-[11px] font-[1000] whitespace-nowrap">{tab.label}</span>
+                  </button>
+                ))}
+                <button
+                  onClick={() => setIsCreateRoomOpen(true)}
+                  className="flex items-center gap-0.5 px-2 py-1.5 rounded-lg bg-slate-900 hover:bg-blue-600 text-white border border-slate-900 hover:border-blue-600 transition-all"
+                >
+                  <svg className="w-3 h-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4" /></svg>
+                  <span className="text-[11px] font-[1000] whitespace-nowrap hidden md:inline">깐부방 만들기</span>
+                </button>
+              </div>
+            </div>
+            <div className="h-3" />
+          </div>
+          {/* 2컬럼: 메인 + 우측 사이드바 */}
+          <div className="flex gap-4 items-start px-4">
+            <div className="flex-1 min-w-0">
+              {kanbuSubTab === 'list' ? (
+                <KanbuRoomList rooms={browseRooms} onRoomClick={setSelectedRoom} onCreateRoom={() => setIsCreateRoomOpen(true)} currentUserLevel={userData?.level || 1} allUsers={allUsers} currentUserData={userData} friends={friends} />
+              ) : (
+                <MyKanbuRoomList rooms={myRooms} onRoomClick={setSelectedRoom} />
+              )}
+            </div>
+            {/* 우측: 내 깐부방 목록 (데스크톱) */}
+            <div className="hidden md:block w-56 shrink-0">
+              <MyKanbuRoomList rooms={myRooms} onRoomClick={setSelectedRoom} compact />
+            </div>
+          </div>
+        </div>
+      );
     }
 
     if (activeMenu === 'giant_tree') {
