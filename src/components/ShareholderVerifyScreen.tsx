@@ -201,6 +201,20 @@ const ShareholderVerifyScreen = ({ community, membership, currentUserData, onClo
             return <p className="text-[10px] font-bold text-slate-400">예상 등급: {TIER_CONFIG[t].emoji} {TIER_CONFIG[t].label}</p>;
           })()}
 
+          <p className="text-[9px] font-bold text-slate-400">🔒 스크린샷은 방장만 열람 가능하며, 인증 승인 후 30일 뒤 자동 삭제됩니다.</p>
+
+          {/* 등급 기준 */}
+          <div className="p-3 bg-slate-50 border border-slate-100 rounded-lg">
+            <p className="text-[9px] font-[1000] text-slate-400 mb-1">등급 기준</p>
+            <div className="grid grid-cols-2 gap-0.5">
+              {(Object.values(TIER_CONFIG)).map(cfg => (
+                <span key={cfg.label} className="text-[9px] font-bold text-slate-500">
+                  {cfg.emoji} {cfg.label}: {cfg.min.toLocaleString()}주{cfg.max === Infinity ? '+' : `~${cfg.max.toLocaleString()}주`}
+                </span>
+              ))}
+            </div>
+          </div>
+
           {error && <p className="text-[11px] font-bold text-red-500">{error}</p>}
 
           <button
@@ -217,6 +231,18 @@ const ShareholderVerifyScreen = ({ community, membership, currentUserData, onClo
       {method === 'mydata' && (
         <div className="space-y-4">
           {/* Step 1: 조회 전 */}
+          {/* 등급 기준 — 마이데이터 탭에서도 표시 */}
+          <div className="p-3 bg-slate-50 border border-slate-100 rounded-lg">
+            <p className="text-[9px] font-[1000] text-slate-400 mb-1">등급 기준</p>
+            <div className="grid grid-cols-2 gap-0.5">
+              {(Object.values(TIER_CONFIG)).map(cfg => (
+                <span key={cfg.label} className="text-[9px] font-bold text-slate-500">
+                  {cfg.emoji} {cfg.label}: {cfg.min.toLocaleString()}주{cfg.max === Infinity ? '+' : `~${cfg.max.toLocaleString()}주`}
+                </span>
+              ))}
+            </div>
+          </div>
+
           {mydataStep === 'idle' && (
             <>
               <div className="p-4 bg-slate-50 border border-slate-100 rounded-lg text-center">
