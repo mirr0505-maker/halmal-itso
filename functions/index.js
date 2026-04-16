@@ -448,3 +448,8 @@ exports.checkAutoSayak = checkAutoSayak;
 // 🛡️ 주주 인증 스크린샷 30일 자동 삭제 스케줄러
 const { cleanupShareholderScreenshots } = require("./shareholderCleanup");
 exports.cleanupShareholderScreenshots = cleanupShareholderScreenshots;
+
+// 🚀 깐부방 유료 게시판 결제 + 구독 만료
+const { joinPaidKanbuRoom, checkKanbuSubscriptionExpiry } = require("./kanbuPaid");
+exports.joinPaidKanbuRoom = joinPaidKanbuRoom;
+exports.checkKanbuSubscriptionExpiry = checkKanbuSubscriptionExpiry;

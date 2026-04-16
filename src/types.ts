@@ -145,6 +145,7 @@ export interface Post {
 
   // 🚀 깐부방 관련
   kanbuRoomId?: string;    // 소속 깐부방 ID
+  kanbuBoardType?: 'free' | 'paid_once' | 'paid_monthly';  // 🚀 깐부방 게시판 유형
 
   // 🚀 댓글 고정
   pinnedCommentId?: string; // 작성자가 고정한 댓글 ID
@@ -280,6 +281,13 @@ export interface KanbuRoom {
   // 🚀 깐부방 업그레이드 — 멤버십 관리
   memberCount?: number;       // 가입 멤버 수
   memberIds?: string[];       // 가입 멤버 UID 목록 (접근 제어 + 가입 판단)
+  // 🚀 유료 게시판 설정 — 개설자가 관리 탭에서 A/B 타입 개설
+  paidBoards?: {
+    once?: { enabled: boolean; price: number; title: string };     // A타입: 1회 결제
+    monthly?: { enabled: boolean; price: number; title: string };  // B타입: 월 구독
+  };
+  paidOnceMembers?: string[];     // 1회 결제 완료 (영구)
+  paidMonthlyMembers?: string[];  // 월 구독 활성 멤버
 }
 
 export interface KanbuChat {
