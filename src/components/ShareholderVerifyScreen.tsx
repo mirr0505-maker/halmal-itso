@@ -190,7 +190,7 @@ const ShareholderVerifyScreen = ({ community, membership, currentUserData, onClo
               type="number"
               value={selfReportedQty}
               onChange={e => { setSelfReportedQty(e.target.value); if (error) setError(null); }}
-              placeholder="보유수 입력"
+              placeholder="자기신고) 보유수 입력"
               min={1}
               className="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-[13px] font-bold text-slate-700 focus:outline-none focus:border-slate-400 placeholder:text-slate-300"
             />
