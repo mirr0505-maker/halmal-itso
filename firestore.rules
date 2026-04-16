@@ -135,11 +135,16 @@ service cloud.firestore {
         && request.resource.data.userId == request.auth.uid;
 
       // 본인 멤버십 수정 (탈퇴, 닉네임 동기화)
-      // 🔒 차단: verified·finger·joinStatus·banReason은 본인이 못 바꿈
+      // 🔒 차단: verified·finger·joinStatus·banReason은 일반 멤버가 못 바꿈
+      // 🛡️ 예외: 방장/부방장(thumb/index)은 자기 verified만 변경 가능 (주주 자기 인증)
       allow update: if request.auth != null
         && resource.data.userId == request.auth.uid
-        && !request.resource.data.diff(resource.data).affectedKeys()
-            .hasAny(['verified', 'finger', 'joinStatus', 'banReason']);
+        && (
+          !request.resource.data.diff(resource.data).affectedKeys()
+              .hasAny(['verified', 'finger', 'joinStatus', 'banReason'])
+          || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['verified'])
+              && resource.data.finger in ['thumb', 'index'])
+        );
 
       // 본인 멤버십 삭제 (탈퇴)
       allow delete: if request.auth != null
