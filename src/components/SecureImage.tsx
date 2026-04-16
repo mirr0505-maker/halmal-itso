@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react';
 import { auth } from '../firebase';
 
-const WORKER_URL = 'https://halmal-upload.mirr0505.workers.dev';
+const WORKER_URL = 'https://halmal-upload-worker.mirr0505.workers.dev';
 
 interface Props {
   r2Url: string;                    // 기존 R2 공개 URL (pub-xxx.r2.dev/uploads/...)

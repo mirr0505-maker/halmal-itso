@@ -234,7 +234,7 @@ const ShareholderVerifyScreen = ({ community, membership, currentUserData, onClo
               try {
                 const token = await (await import('../firebase')).auth.currentUser?.getIdToken();
                 if (!token) { setError('로그인이 필요합니다.'); return; }
-                const res = await fetch('https://halmal-upload.mirr0505.workers.dev/api/verify-shares', {
+                const res = await fetch('https://halmal-upload-worker.mirr0505.workers.dev/api/verify-shares', {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
                   body: JSON.stringify({

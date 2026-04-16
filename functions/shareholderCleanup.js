@@ -7,7 +7,7 @@ const { getFirestore, FieldValue } = require("firebase-admin/firestore");
 const db = getFirestore();
 
 // R2 파일 삭제 — upload-worker의 DELETE 엔드포인트 호출
-const WORKER_URL = "https://halmal-upload.mirr0505.workers.dev";
+const WORKER_URL = "https://halmal-upload-worker.mirr0505.workers.dev";
 
 async function deleteR2File(filePath, idToken) {
   try {
