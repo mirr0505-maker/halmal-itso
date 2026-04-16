@@ -249,13 +249,17 @@ const ShareholderVerifyScreen = ({ community, membership, currentUserData, onClo
                   return;
                 }
 
-                // verifyRequest에 마이데이터 결과 저장 (스크린샷 대신)
+                // verifyRequest에 마이데이터 결과 저장 (스크린샷 대신 API 결과)
                 await updateDoc(doc(db, 'community_memberships', membership.id), {
                   verifyRequest: {
                     screenshotUrl: '',
                     selfReportedQty: 0,
                     requestedAt: serverTimestamp(),
                     status: 'pending',
+                    // 🛡️ 마이데이터 전용 필드 — 방장 화면에서 구분 표시용
+                    source: 'mydata',
+                    suggestedTier: data.tier,
+                    mock: data.mock || false,
                   },
                   reverifyRequestedAt: null,
                 });

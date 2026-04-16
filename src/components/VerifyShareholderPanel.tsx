@@ -108,7 +108,9 @@ const VerifyShareholderPanel = ({ community, currentUid, currentNickname }: Prop
           verifiedByNickname: currentNickname,
           label: '주주',
           tier,
-          source: member.verifyRequest?.status === 'pending' ? 'screenshot' : 'manual',
+          source: member.verifyRequest?.status === 'pending'
+            ? ((member.verifyRequest as typeof member.verifyRequest & { source?: string })?.source === 'mydata' ? 'mydata' : 'screenshot')
+            : 'manual',
         },
         // 인증 요청이 있었으면 approved + approvedAt 기록 (30일 후 스크린샷 자동 만료)
         ...(member.verifyRequest ? {
@@ -324,7 +326,11 @@ const VerifyShareholderPanel = ({ community, currentUid, currentNickname }: Prop
               const mId = (m as CommunityMember & { id: string }).id || `${community.id}_${m.userId}`;
               const vr = m.verifyRequest;
               const hasPendingRequest = vr?.status === 'pending';
-              const suggestedTier = hasPendingRequest ? getTierFromQuantity(vr!.selfReportedQty) : null;
+              const vrAny = vr as typeof vr & { source?: string; suggestedTier?: string; mock?: boolean };
+              const isMydata = vrAny?.source === 'mydata';
+              const suggestedTier = hasPendingRequest
+                ? (isMydata && vrAny.suggestedTier ? vrAny.suggestedTier as ShareholderTier : getTierFromQuantity(vr!.selfReportedQty))
+                : null;
               return (
                 <div key={mId} className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
                   <div className="flex items-center gap-2 mb-2">
@@ -345,9 +351,15 @@ const VerifyShareholderPanel = ({ community, currentUid, currentNickname }: Prop
                   {/* 📸 멤버가 제출한 스크린샷 + 자기신고 보유수 */}
                   {hasPendingRequest && (
                     <div className="mb-2 p-2 bg-blue-50 border border-blue-100 rounded-lg">
-                      <p className="text-[10px] font-[1000] text-blue-700 mb-1.5">📸 인증 요청 (자기신고: {vr!.selfReportedQty.toLocaleString()}주 → 예상 {suggestedTier && TIER_CONFIG[suggestedTier].emoji} {suggestedTier && TIER_CONFIG[suggestedTier].label})</p>
-                      {vr!.screenshotUrl && (
-                        <SecureImage r2Url={vr!.screenshotUrl} alt="보유 현황" className="w-full max-h-[200px] object-contain rounded border border-slate-200 cursor-pointer" />
+                      {isMydata ? (
+                        <p className="text-[10px] font-[1000] text-emerald-700">📊 마이데이터 인증 {vrAny.mock ? '(테스트)' : ''} → 예상 {suggestedTier && TIER_CONFIG[suggestedTier].emoji} {suggestedTier && TIER_CONFIG[suggestedTier].label}</p>
+                      ) : (
+                        <>
+                          <p className="text-[10px] font-[1000] text-blue-700 mb-1.5">📸 스크린샷 인증 (자기신고: {vr!.selfReportedQty.toLocaleString()}주 → 예상 {suggestedTier && TIER_CONFIG[suggestedTier].emoji} {suggestedTier && TIER_CONFIG[suggestedTier].label})</p>
+                          {vr!.screenshotUrl && (
+                            <SecureImage r2Url={vr!.screenshotUrl} alt="보유 현황" className="w-full max-h-[200px] object-contain rounded border border-slate-200 cursor-pointer" />
+                          )}
+                        </>
                       )}
                     </div>
                   )}
