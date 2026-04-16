@@ -444,3 +444,7 @@ exports.sendToExile = sendToExile;
 exports.releaseFromExile = releaseFromExile;
 exports.executeSayak = executeSayak;
 exports.checkAutoSayak = checkAutoSayak;
+
+// 🛡️ 주주 인증 스크린샷 30일 자동 삭제 스케줄러
+const { cleanupShareholderScreenshots } = require("./shareholderCleanup");
+exports.cleanupShareholderScreenshots = cleanupShareholderScreenshots;

@@ -216,8 +216,75 @@ const ShareholderVerifyScreen = ({ community, membership, currentUserData, onClo
         disabled={submitting || uploading}
         className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg text-[13px] font-[1000] transition-colors"
       >
-        {submitting ? '제출 중...' : '인증 요청 제출'}
+        {submitting ? '제출 중...' : '📸 스크린샷 인증 요청 제출'}
       </button>
+
+      {/* 🛡️ 마이데이터 자동 인증 (Phase E — 현재 mock 모드) */}
+      {community.shareholderSettings?.stockCode && (
+        <div className="pt-4 border-t border-slate-100">
+          <p className="text-[11px] font-[1000] text-slate-600 mb-2">📊 마이데이터 자동 인증</p>
+          <p className="text-[10px] font-bold text-slate-400 mb-3">
+            증권사 API를 통해 보유수를 자동 조회합니다. (현재 테스트 모드)
+          </p>
+          <button
+            type="button"
+            onClick={async () => {
+              setSubmitting(true);
+              setError(null);
+              try {
+                const token = await (await import('../firebase')).auth.currentUser?.getIdToken();
+                if (!token) { setError('로그인이 필요합니다.'); return; }
+                const res = await fetch('https://halmal-upload.mirr0505.workers.dev/api/verify-shares', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                  body: JSON.stringify({
+                    stockCode: community.shareholderSettings!.stockCode,
+                    communityId: community.id,
+                  }),
+                });
+                const data = await res.json() as { success?: boolean; tier?: string; tierEmoji?: string; tierLabel?: string; message?: string; mock?: boolean; error?: string };
+                if (!data.success) { setError(data.error || '인증에 실패했습니다.'); return; }
+
+                // verifyRequest에 마이데이터 결과 저장 (스크린샷 대신)
+                await updateDoc(doc(db, 'community_memberships', membership.id), {
+                  verifyRequest: {
+                    screenshotUrl: '',
+                    selfReportedQty: 0,
+                    requestedAt: serverTimestamp(),
+                    status: 'pending',
+                  },
+                  reverifyRequestedAt: null,
+                });
+
+                // 방장에게 알림
+                if (community.creatorId) {
+                  await addDoc(collection(db, 'notifications', community.creatorId, 'items'), {
+                    type: 'shareholder_verify_submitted',
+                    fromNickname: currentUserData.nickname,
+                    communityId: community.id,
+                    communityName: community.name,
+                    message: `${currentUserData.nickname}님이 마이데이터 인증을 요청했습니다 (${data.mock ? 'Mock' : 'API'}: ${data.tierEmoji} ${data.tierLabel})`,
+                    createdAt: Timestamp.now(),
+                    read: false,
+                  });
+                }
+
+                alert(`${data.message}\n\n방장의 승인을 기다려주세요.`);
+                setSubmitted(true);
+              } catch (err) {
+                console.error('[ShareholderVerifyScreen] 마이데이터 인증 실패:', err);
+                setError('마이데이터 인증에 실패했습니다.');
+              } finally {
+                setSubmitting(false);
+              }
+            }}
+            disabled={submitting}
+            className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-lg text-[13px] font-[1000] transition-colors"
+          >
+            {submitting ? '조회 중...' : '📊 마이데이터로 자동 인증 (테스트)'}
+          </button>
+        </div>
+      )}
     </div>
   );
 };

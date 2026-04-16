@@ -124,66 +124,143 @@ export default {
 
     const corsHeaders = {
       'Access-Control-Allow-Origin': corsOrigin,
-      'Access-Control-Allow-Methods': 'POST, OPTIONS',
+      'Access-Control-Allow-Methods': 'POST, DELETE, GET, OPTIONS',
       'Access-Control-Allow-Headers': 'Content-Type, Authorization',
     };
 
-    // CORS preflight
     if (request.method === 'OPTIONS') {
       return new Response(null, { headers: corsHeaders });
     }
 
-    if (request.method !== 'POST') {
-      return new Response(JSON.stringify({ error: 'Method Not Allowed' }), {
-        status: 405, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
+    const url = new URL(request.url);
+    const json = (data: unknown, status = 200) =>
+      new Response(JSON.stringify(data), { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
-    // Firebase Auth 토큰 검증
+    // Firebase Auth 토큰 검증 (모든 엔드포인트 공통)
     const authHeader = request.headers.get('Authorization');
     if (!authHeader?.startsWith('Bearer ')) {
-      return new Response(JSON.stringify({ error: '인증이 필요합니다.' }), {
-        status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      return json({ error: '인증이 필요합니다.' }, 401);
     }
-
     const user = await verifyFirebaseToken(authHeader.slice(7));
     if (!user) {
-      return new Response(JSON.stringify({ error: '유효하지 않은 인증 토큰입니다.' }), {
-        status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      return json({ error: '유효하지 않은 인증 토큰입니다.' }, 401);
     }
 
-    // multipart/form-data 파싱
+    // ═══════════════════════════════════════════════════════
+    // 🗑️ DELETE /delete — R2 파일 삭제 (Cloud Function 스케줄러 + 관리자용)
+    // ═══════════════════════════════════════════════════════
+    if (request.method === 'DELETE' || (request.method === 'POST' && url.pathname === '/delete')) {
+      const body = await request.json().catch(() => ({})) as { filePath?: string };
+      const delPath = body.filePath || url.searchParams.get('path');
+      if (!delPath) return json({ error: 'filePath가 필요합니다.' }, 400);
+
+      const isAvatar = delPath.startsWith('avatars/');
+      const bucket = isAvatar ? env.AVATARS_BUCKET : env.UPLOADS_BUCKET;
+
+      try {
+        await bucket.delete(delPath);
+        return json({ success: true, deleted: delPath });
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'unknown';
+        return json({ error: `삭제 실패: ${message}` }, 500);
+      }
+    }
+
+    // ═══════════════════════════════════════════════════════
+    // 📸 GET /api/screenshot — R2 파일 프록시 (인증 필수, 직접 URL 비노출)
+    // ═══════════════════════════════════════════════════════
+    if (request.method === 'GET' && url.pathname === '/api/screenshot') {
+      const filePath = url.searchParams.get('path');
+      if (!filePath) return json({ error: 'path 파라미터가 필요합니다.' }, 400);
+
+      const bucket = filePath.startsWith('avatars/') ? env.AVATARS_BUCKET : env.UPLOADS_BUCKET;
+      const object = await bucket.get(filePath);
+      if (!object) return json({ error: '파일을 찾을 수 없습니다.' }, 404);
+
+      const headers = new Headers(corsHeaders);
+      headers.set('Content-Type', object.httpMetadata?.contentType || 'image/jpeg');
+      headers.set('Cache-Control', 'private, max-age=300');
+      return new Response(object.body, { headers });
+    }
+
+    // ═══════════════════════════════════════════════════════
+    // 🛡️ POST /api/verify-shares — Codef 주식잔고 조회 (mock 모드)
+    // Phase E: 실제 Codef 연동 시 환경변수 CODEF_CLIENT_ID 존재 여부로 분기
+    // ═══════════════════════════════════════════════════════
+    if (request.method === 'POST' && url.pathname === '/api/verify-shares') {
+      const body = await request.json().catch(() => ({})) as {
+        stockCode?: string;
+        communityId?: string;
+      };
+
+      if (!body.stockCode || !body.communityId) {
+        return json({ error: 'stockCode와 communityId가 필요합니다.' }, 400);
+      }
+
+      // 🔧 Mock 모드: Codef 키 없으면 고정 응답 반환
+      // 실제 연동 시: env.CODEF_CLIENT_ID 존재 → Codef API 호출
+      const isMock = true; // TODO: !env.CODEF_CLIENT_ID 로 전환
+
+      if (isMock) {
+        // Mock 응답: 종목코드에 따라 다른 보유수 시뮬레이션
+        const mockQuantities: Record<string, number> = {
+          '005930': 15000,  // 삼성전자 → 고래
+          '000660': 3500,   // SK하이닉스 → 상어
+          '035420': 500,    // NAVER → 새우
+          '051910': 150000, // LG화학 → 대왕고래
+        };
+        const qty = mockQuantities[body.stockCode] ?? 2000; // 기본: 상어
+        const tier = qty >= 100000 ? 'megawhale' : qty >= 10000 ? 'whale' : qty >= 1000 ? 'shark' : 'shrimp';
+        const tierLabels: Record<string, string> = { shrimp: '새우', shark: '상어', whale: '고래', megawhale: '대왕고래' };
+        const tierEmojis: Record<string, string> = { shrimp: '🐟', shark: '🦈', whale: '🐋', megawhale: '🐳' };
+
+        return json({
+          success: true,
+          mock: true,
+          tier,
+          tierLabel: tierLabels[tier],
+          tierEmoji: tierEmojis[tier],
+          stockCode: body.stockCode,
+          verifiedAt: new Date().toISOString(),
+          message: `[Mock] ${body.stockCode} 종목 ${qty.toLocaleString()}주 보유 → ${tierEmojis[tier]} ${tierLabels[tier]}`,
+        });
+      }
+
+      // TODO: 실제 Codef API 연동
+      // 1. Codef OAuth 토큰 발급
+      // 2. Connected ID로 주식잔고조회 API 호출
+      // 3. stockCode 매칭 → 보유수 추출 → tier 산정
+      // 4. 보유수는 반환하지 않음 (tier만)
+      return json({ error: 'Codef 연동이 아직 설정되지 않았습니다.' }, 501);
+    }
+
+    // ═══════════════════════════════════════════════════════
+    // 📤 POST /upload — 기존 R2 업로드 (변경 없음)
+    // ═══════════════════════════════════════════════════════
+    if (request.method !== 'POST') {
+      return json({ error: 'Method Not Allowed' }, 405);
+    }
+
     const formData = await request.formData();
     const file = formData.get('file') as File | null;
     const filePath = formData.get('filePath') as string | null;
 
     if (!file || !filePath) {
-      return new Response(JSON.stringify({ error: 'file과 filePath가 필요합니다.' }), {
-        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      return json({ error: 'file과 filePath가 필요합니다.' }, 400);
     }
 
-    // 파일 크기 제한: 10MB
     if (file.size > 10 * 1024 * 1024) {
-      return new Response(JSON.stringify({ error: '파일이 너무 큽니다. 10MB 이하만 가능합니다.' }), {
-        status: 413, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      return json({ error: '파일이 너무 큽니다. 10MB 이하만 가능합니다.' }, 413);
     }
 
     // 🔒 경로 보안: uploads/, promo/, avatars/ 경로는 본인 UID 폴더만 허용
-    // Why: 타인의 파일을 덮어쓰는 공격 방지
     if (filePath.startsWith('uploads/') || filePath.startsWith('promo/') || filePath.startsWith('avatars/') || filePath.startsWith('ad-banners/')) {
       const pathUid = filePath.split('/')[1];
       if (pathUid !== user.uid) {
-        return new Response(JSON.stringify({ error: '본인 폴더에만 업로드할 수 있습니다.' }), {
-          status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
+        return json({ error: '본인 폴더에만 업로드할 수 있습니다.' }, 403);
       }
     }
 
-    // 버킷 선택: avatars/ 경로 → AVATARS_BUCKET, 그 외 → UPLOADS_BUCKET
     const isAvatar = filePath.startsWith('avatars/');
     const bucket = isAvatar ? env.AVATARS_BUCKET : env.UPLOADS_BUCKET;
     const publicUrl = isAvatar ? env.PUBLIC_URL_AVATARS : env.PUBLIC_URL_UPLOADS;
@@ -193,15 +270,10 @@ export default {
       await bucket.put(filePath, arrayBuffer, {
         httpMetadata: { contentType: file.type },
       });
-
-      return new Response(JSON.stringify({ url: `${publicUrl}/${filePath}` }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      return json({ url: `${publicUrl}/${filePath}` });
     } catch (err) {
       const message = err instanceof Error ? err.message : 'unknown';
-      return new Response(JSON.stringify({ error: `업로드 실패: ${message}` }), {
-        status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      return json({ error: `업로드 실패: ${message}` }, 500);
     }
   },
 };

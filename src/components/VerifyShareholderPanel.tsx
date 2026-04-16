@@ -7,6 +7,7 @@ import { collection, query, where, onSnapshot, doc, setDoc, updateDoc, deleteFie
 import type { Community, CommunityMember, ShareholderTier } from '../types';
 import { TIER_CONFIG, tierRangeLabel, getTierFromQuantity } from '../types';
 import JoinAnswersDisplay from './JoinAnswersDisplay';
+import SecureImage from './SecureImage';
 
 interface Props {
   community: Community;
@@ -346,7 +347,7 @@ const VerifyShareholderPanel = ({ community, currentUid, currentNickname }: Prop
                     <div className="mb-2 p-2 bg-blue-50 border border-blue-100 rounded-lg">
                       <p className="text-[10px] font-[1000] text-blue-700 mb-1.5">📸 인증 요청 (자기신고: {vr!.selfReportedQty.toLocaleString()}주 → 예상 {suggestedTier && TIER_CONFIG[suggestedTier].emoji} {suggestedTier && TIER_CONFIG[suggestedTier].label})</p>
                       {vr!.screenshotUrl && (
-                        <img src={vr!.screenshotUrl} alt="보유 현황" className="w-full max-h-[200px] object-contain rounded border border-slate-200 cursor-pointer" onClick={() => window.open(vr!.screenshotUrl, '_blank')} />
+                        <SecureImage r2Url={vr!.screenshotUrl} alt="보유 현황" className="w-full max-h-[200px] object-contain rounded border border-slate-200 cursor-pointer" />
                       )}
                     </div>
                   )}
@@ -444,11 +445,9 @@ const VerifyShareholderPanel = ({ community, currentUid, currentNickname }: Prop
                       {isScreenshotExpired ? (
                         <p className="text-[10px] font-bold text-slate-400 italic">📸 스크린샷 만료됨 (30일 경과) — 재인증 요청 필요</p>
                       ) : (
-                        <div className="flex items-center justify-between">
-                          <button
-                            onClick={() => window.open(vr!.screenshotUrl, '_blank')}
-                            className="text-[10px] font-bold text-blue-500 hover:text-blue-700 transition-colors"
-                          >📸 스크린샷 보기 (자기신고: {vr!.selfReportedQty.toLocaleString()}주)</button>
+                        <div className="space-y-1.5">
+                          <p className="text-[10px] font-bold text-blue-500">📸 스크린샷 (자기신고: {vr!.selfReportedQty.toLocaleString()}주)</p>
+                          <SecureImage r2Url={vr!.screenshotUrl} alt="보유 현황" className="w-full max-h-[150px] object-contain rounded border border-slate-200" />
                           <span className="text-[9px] font-bold text-slate-300">{daysLeft}일 후 만료</span>
                         </div>
                       )}
