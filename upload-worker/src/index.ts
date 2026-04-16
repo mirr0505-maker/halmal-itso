@@ -8,6 +8,10 @@ export interface Env {
   ALLOWED_ORIGIN: string;
   PUBLIC_URL_UPLOADS: string;
   PUBLIC_URL_AVATARS: string;
+  // 🛡️ Codef API 연동 (Phase E)
+  CODEF_CLIENT_ID?: string;
+  CODEF_CLIENT_SECRET?: string;
+  CODEF_PUBLIC_KEY?: string;
 }
 
 // Firebase Auth ID Token 검증 — Google 공개키로 RS256 서명 확인
@@ -191,47 +195,87 @@ export default {
       const body = await request.json().catch(() => ({})) as {
         stockCode?: string;
         communityId?: string;
+        connectedId?: string;   // Codef Connected ID (실제 연동 시 필요)
+        organization?: string;  // 증권사 코드
       };
 
       if (!body.stockCode || !body.communityId) {
         return json({ error: 'stockCode와 communityId가 필요합니다.' }, 400);
       }
 
-      // 🔧 Mock 모드: Codef 키 없으면 고정 응답 반환
-      // 실제 연동 시: env.CODEF_CLIENT_ID 존재 → Codef API 호출
-      const isMock = true; // TODO: !env.CODEF_CLIENT_ID 로 전환
+      const tierLabels: Record<string, string> = { shrimp: '새우', shark: '상어', whale: '고래', megawhale: '대왕고래' };
+      const tierEmojis: Record<string, string> = { shrimp: '🐟', shark: '🦈', whale: '🐋', megawhale: '🐳' };
+      const calcTier = (qty: number) => qty >= 100000 ? 'megawhale' : qty >= 10000 ? 'whale' : qty >= 1000 ? 'shark' : 'shrimp';
 
-      if (isMock) {
-        // Mock 응답: 종목코드에 따라 다른 보유수 시뮬레이션
-        const mockQuantities: Record<string, number> = {
-          '005930': 15000,  // 삼성전자 → 고래
-          '000660': 3500,   // SK하이닉스 → 상어
-          '035420': 500,    // NAVER → 새우
-          '051910': 150000, // LG화학 → 대왕고래
-        };
-        const qty = mockQuantities[body.stockCode] ?? 2000; // 기본: 상어
-        const tier = qty >= 100000 ? 'megawhale' : qty >= 10000 ? 'whale' : qty >= 1000 ? 'shark' : 'shrimp';
-        const tierLabels: Record<string, string> = { shrimp: '새우', shark: '상어', whale: '고래', megawhale: '대왕고래' };
-        const tierEmojis: Record<string, string> = { shrimp: '🐟', shark: '🦈', whale: '🐋', megawhale: '🐳' };
+      // 🛡️ Codef 키 존재 시 → 샌드박스/실제 API 호출
+      if (env.CODEF_CLIENT_ID && env.CODEF_CLIENT_SECRET) {
+        try {
+          // 1. OAuth 토큰 발급
+          const tokenRes = await fetch('https://oauth.codef.io/oauth/token', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: `grant_type=client_credentials&client_id=${env.CODEF_CLIENT_ID}&client_secret=${env.CODEF_CLIENT_SECRET}`,
+          });
+          const tokenData = await tokenRes.json() as { access_token?: string };
+          if (!tokenData.access_token) {
+            return json({ error: 'Codef OAuth 토큰 발급 실패', details: tokenData }, 502);
+          }
 
-        return json({
-          success: true,
-          mock: true,
-          tier,
-          tierLabel: tierLabels[tier],
-          tierEmoji: tierEmojis[tier],
-          stockCode: body.stockCode,
-          verifiedAt: new Date().toISOString(),
-          message: `[Mock] ${body.stockCode} 종목 ${qty.toLocaleString()}주 보유 → ${tierEmojis[tier]} ${tierLabels[tier]}`,
-        });
+          // 2. 주식잔고조회 API (샌드박스: development.codef.io / 실제: api.codef.io)
+          const apiBase = 'https://development.codef.io'; // 샌드박스
+          const balanceRes = await fetch(`${apiBase}/v1/kr/stock/a/account/stock-balance-inquiry`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${tokenData.access_token}`,
+            },
+            body: JSON.stringify({
+              connectedId: body.connectedId || 'sandbox_connected_id',
+              organization: body.organization || '0247', // 기본: 삼성증권
+              account: '',
+              accountPassword: '',
+            }),
+          });
+          const balanceData = await balanceRes.json() as {
+            result?: { code?: string; message?: string };
+            data?: { resItemList?: Array<{ resItemCode?: string; resHoldingQty?: string; resItemName?: string }> };
+          };
+
+          // 샌드박스 응답 파싱
+          const items = balanceData?.data?.resItemList || [];
+          const matched = items.find((i: { resItemCode?: string }) => i.resItemCode === body.stockCode);
+          const qty = parseInt(matched?.resHoldingQty || '0', 10);
+          const tier = calcTier(qty);
+
+          return json({
+            success: true,
+            mock: false,
+            sandbox: true,
+            tier,
+            tierLabel: tierLabels[tier],
+            tierEmoji: tierEmojis[tier],
+            stockCode: body.stockCode,
+            verifiedAt: new Date().toISOString(),
+            message: `[Sandbox] ${body.stockCode} 종목 → ${tierEmojis[tier]} ${tierLabels[tier]}`,
+          });
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : 'unknown';
+          return json({ error: `Codef API 호출 실패: ${msg}` }, 502);
+        }
       }
 
-      // TODO: 실제 Codef API 연동
-      // 1. Codef OAuth 토큰 발급
-      // 2. Connected ID로 주식잔고조회 API 호출
-      // 3. stockCode 매칭 → 보유수 추출 → tier 산정
-      // 4. 보유수는 반환하지 않음 (tier만)
-      return json({ error: 'Codef 연동이 아직 설정되지 않았습니다.' }, 501);
+      // 🔧 Mock 모드: Codef 키 없으면 고정 응답 반환
+      const mockQuantities: Record<string, number> = {
+        '005930': 15000, '000660': 3500, '035420': 500, '051910': 150000,
+      };
+      const qty = mockQuantities[body.stockCode] ?? 2000;
+      const tier = calcTier(qty);
+      return json({
+        success: true, mock: true, tier,
+        tierLabel: tierLabels[tier], tierEmoji: tierEmojis[tier],
+        stockCode: body.stockCode, verifiedAt: new Date().toISOString(),
+        message: `[Mock] ${body.stockCode} 종목 ${qty.toLocaleString()}주 보유 → ${tierEmojis[tier]} ${tierLabels[tier]}`,
+      });
     }
 
     // ═══════════════════════════════════════════════════════
