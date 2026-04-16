@@ -17,7 +17,8 @@ interface Props {
 type VerifyMethod = 'screenshot' | 'mydata';
 type MydataStep = 'idle' | 'loading' | 'result' | 'submitted';
 
-const ShareholderVerifyScreen = ({ community, membership, currentUserData, onClose }: Props) => {
+const ShareholderVerifyScreen = ({ community, membership, currentUserData, onClose: _onClose }: Props) => {
+  void _onClose;
   const [method, setMethod] = useState<VerifyMethod>('screenshot');
   // 📸 스크린샷 state
   const [screenshotUrl, setScreenshotUrl] = useState('');
