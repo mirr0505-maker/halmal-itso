@@ -210,15 +210,21 @@ export default {
       // 🛡️ Codef 키 존재 시 → 샌드박스/실제 API 호출
       if (env.CODEF_CLIENT_ID && env.CODEF_CLIENT_SECRET) {
         try {
-          // 1. OAuth 토큰 발급
+          // 1. OAuth 토큰 발급 — Basic Auth 방식 (Codef 권장)
+          const basicAuth = btoa(`${env.CODEF_CLIENT_ID}:${env.CODEF_CLIENT_SECRET}`);
           const tokenRes = await fetch('https://oauth.codef.io/oauth/token', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: `grant_type=client_credentials&client_id=${env.CODEF_CLIENT_ID}&client_secret=${env.CODEF_CLIENT_SECRET}`,
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded',
+              'Authorization': `Basic ${basicAuth}`,
+            },
+            body: 'grant_type=client_credentials',
           });
-          const tokenData = await tokenRes.json() as { access_token?: string };
+          const tokenText = await tokenRes.text();
+          let tokenData: { access_token?: string };
+          try { tokenData = JSON.parse(tokenText); } catch { tokenData = {}; }
           if (!tokenData.access_token) {
-            return json({ error: 'Codef OAuth 토큰 발급 실패', details: tokenData }, 502);
+            return json({ error: 'Codef OAuth 토큰 발급 실패', status: tokenRes.status, details: tokenText.slice(0, 500) }, 502);
           }
 
           // 2. 주식잔고조회 API (샌드박스: development.codef.io / 실제: api.codef.io)

@@ -242,8 +242,12 @@ const ShareholderVerifyScreen = ({ community, membership, currentUserData, onClo
                     communityId: community.id,
                   }),
                 });
-                const data = await res.json() as { success?: boolean; tier?: string; tierEmoji?: string; tierLabel?: string; message?: string; mock?: boolean; error?: string };
-                if (!data.success) { setError(data.error || '인증에 실패했습니다.'); return; }
+                const data = await res.json() as { success?: boolean; tier?: string; tierEmoji?: string; tierLabel?: string; message?: string; mock?: boolean; error?: string; details?: string; status?: number };
+                if (!data.success) {
+                  console.error('[Codef] 응답:', data);
+                  setError(`인증 실패: ${data.error || '알 수 없는 오류'}${data.details ? ` (${data.details.slice(0, 100)})` : ''}`);
+                  return;
+                }
 
                 // verifyRequest에 마이데이터 결과 저장 (스크린샷 대신)
                 await updateDoc(doc(db, 'community_memberships', membership.id), {
