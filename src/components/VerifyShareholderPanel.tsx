@@ -218,36 +218,43 @@ const VerifyShareholderPanel = ({ community, currentUid, currentNickname }: Prop
     <div className="bg-white border border-slate-100 rounded-xl px-5 py-4 space-y-5">
       <p className="text-[12px] font-black text-slate-700">🛡️ 주주 인증 관리</p>
 
-      {/* 📌 종목 설정 */}
+      {/* 📌 종목 설정 — 1회 저장 후 잠금 (변경 시 기존 인증 무효화 위험) */}
       <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
         <p className="text-[10px] font-[1000] text-slate-500 uppercase tracking-widest mb-2">📌 종목 설정</p>
-        <div className="flex items-center gap-2">
-          <input
-            type="text"
-            value={stockCode}
-            onChange={e => setStockCode(e.target.value)}
-            placeholder="종목코드 (005930)"
-            className="flex-1 px-3 py-1.5 border border-slate-200 rounded-lg text-[12px] font-bold focus:outline-none focus:border-blue-400"
-          />
-          <input
-            type="text"
-            value={stockName}
-            onChange={e => setStockName(e.target.value)}
-            placeholder="종목명 (삼성전자)"
-            className="flex-1 px-3 py-1.5 border border-slate-200 rounded-lg text-[12px] font-bold focus:outline-none focus:border-blue-400"
-          />
-          <button
-            onClick={handleSaveSettings}
-            disabled={savingSettings || !stockCode.trim() || !stockName.trim()}
-            className="px-3 py-1.5 bg-slate-900 text-white text-[11px] font-[1000] rounded-lg hover:bg-slate-700 disabled:opacity-50 transition-colors shrink-0"
-          >
-            {savingSettings ? '저장 중...' : settingsSaved ? '✅ 저장됨' : '저장'}
-          </button>
-        </div>
-        {community.shareholderSettings?.stockCode && (
-          <p className="text-[10px] font-bold text-slate-400 mt-1.5">
-            현재: {community.shareholderSettings.stockName} ({community.shareholderSettings.stockCode})
-          </p>
+        {community.shareholderSettings?.stockCode ? (
+          <div className="flex items-center justify-between">
+            <p className="text-[13px] font-[1000] text-slate-800">
+              {community.shareholderSettings.stockName} ({community.shareholderSettings.stockCode})
+            </p>
+            <span className="text-[9px] font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded">🔒 설정 완료</span>
+          </div>
+        ) : (
+          <>
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                value={stockCode}
+                onChange={e => setStockCode(e.target.value)}
+                placeholder="종목코드 (005930)"
+                className="flex-1 px-3 py-1.5 border border-slate-200 rounded-lg text-[12px] font-bold focus:outline-none focus:border-blue-400"
+              />
+              <input
+                type="text"
+                value={stockName}
+                onChange={e => setStockName(e.target.value)}
+                placeholder="종목명 (삼성전자)"
+                className="flex-1 px-3 py-1.5 border border-slate-200 rounded-lg text-[12px] font-bold focus:outline-none focus:border-blue-400"
+              />
+              <button
+                onClick={handleSaveSettings}
+                disabled={savingSettings || !stockCode.trim() || !stockName.trim()}
+                className="px-3 py-1.5 bg-slate-900 text-white text-[11px] font-[1000] rounded-lg hover:bg-slate-700 disabled:opacity-50 transition-colors shrink-0"
+              >
+                {savingSettings ? '저장 중...' : settingsSaved ? '✅ 저장됨' : '저장'}
+              </button>
+            </div>
+            <p className="text-[9px] font-bold text-amber-600 mt-1.5">⚠️ 종목 설정은 저장 후 변경할 수 없습니다. 신중히 입력해주세요.</p>
+          </>
         )}
       </div>
 
