@@ -78,6 +78,7 @@ const VerifyShareholderPanel = ({ community, currentUid, currentNickname }: Prop
   );
 
   // 종목 설정 저장
+  const [settingsSaved, setSettingsSaved] = useState(false);
   const handleSaveSettings = async () => {
     if (!stockCode.trim() || !stockName.trim()) return;
     setSavingSettings(true);
@@ -87,6 +88,8 @@ const VerifyShareholderPanel = ({ community, currentUid, currentNickname }: Prop
         'shareholderSettings.stockName': stockName.trim(),
         'shareholderSettings.enableMydata': false,
       });
+      setSettingsSaved(true);
+      setTimeout(() => setSettingsSaved(false), 2000);
     } finally {
       setSavingSettings(false);
     }
@@ -238,7 +241,7 @@ const VerifyShareholderPanel = ({ community, currentUid, currentNickname }: Prop
             disabled={savingSettings || !stockCode.trim() || !stockName.trim()}
             className="px-3 py-1.5 bg-slate-900 text-white text-[11px] font-[1000] rounded-lg hover:bg-slate-700 disabled:opacity-50 transition-colors shrink-0"
           >
-            {savingSettings ? '저장 중...' : '저장'}
+            {savingSettings ? '저장 중...' : settingsSaved ? '✅ 저장됨' : '저장'}
           </button>
         </div>
         {community.shareholderSettings?.stockCode && (
