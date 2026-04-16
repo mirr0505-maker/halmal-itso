@@ -15,14 +15,14 @@ interface Props {
 }
 
 // 🛡️ TierSelector — 4등급 라디오 버튼 (재사용 가능)
-function TierSelector({ value, onChange }: { value: ShareholderTier | null; onChange: (t: ShareholderTier) => void }) {
+function TierSelector({ value, onChange }: { value: ShareholderTier | null; onChange: (t: ShareholderTier | null) => void }) {
   return (
     <div className="flex flex-wrap gap-1.5">
       {(Object.entries(TIER_CONFIG) as [ShareholderTier, typeof TIER_CONFIG[ShareholderTier]][]).map(([key, cfg]) => (
         <button
           key={key}
           type="button"
-          onClick={() => onChange(key)}
+          onClick={() => onChange(value === key ? null : key)}
           className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-[1000] border transition-all ${
             value === key
               ? 'bg-blue-50 text-blue-700 border-blue-300 ring-1 ring-blue-200'
@@ -46,7 +46,7 @@ const VerifyShareholderPanel = ({ community, currentUid, currentNickname }: Prop
   const [stockName, setStockName] = useState(community.shareholderSettings?.stockName || '');
   const [savingSettings, setSavingSettings] = useState(false);
   // 인증 대기 선택 state — memberId → tier
-  const [selectedTiers, setSelectedTiers] = useState<Record<string, ShareholderTier>>({});
+  const [selectedTiers, setSelectedTiers] = useState<Record<string, ShareholderTier | null>>({});
   const [processing, setProcessing] = useState<string | null>(null);
 
   // 실시간 멤버 구독 (active ring 멤버만 — pending 제외)
@@ -96,7 +96,7 @@ const VerifyShareholderPanel = ({ community, currentUid, currentNickname }: Prop
           verifiedAt: serverTimestamp(),
           verifiedBy: currentUid,
           verifiedByNickname: currentNickname,
-          label: '🛡️ 주주 인증',
+          label: '주주',
           tier,
           source: 'manual',
         },
@@ -180,6 +180,59 @@ const VerifyShareholderPanel = ({ community, currentUid, currentNickname }: Prop
           </p>
         )}
       </div>
+
+      {/* 🛡️ 방장(개설자) 자기 인증 — memberships 문서가 없을 수 있으므로 별도 처리 */}
+      {(() => {
+        const ownerMember = members.find(m => m.userId === currentUid);
+        const ownerHasTier = !!ownerMember?.verified?.tier;
+        // 방장이 memberships에 없거나 tier 미부여 상태일 때만 표시
+        if (ownerHasTier) return null;
+        return (
+          <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+            <p className="text-[10px] font-[1000] text-blue-700 uppercase tracking-widest mb-2">👑 내 등급 설정 (방장)</p>
+            <TierSelector
+              value={selectedTiers['__owner'] || null}
+              onChange={t => setSelectedTiers(prev => ({ ...prev, '__owner': t }))}
+            />
+            <button
+              onClick={async () => {
+                const tier = selectedTiers['__owner'];
+                if (!tier) { alert('등급을 선택해주세요.'); return; }
+                setProcessing('__owner');
+                try {
+                  const docId = ownerMember
+                    ? ((ownerMember as CommunityMember & { id: string }).id || `${community.id}_${currentUid}`)
+                    : `${community.id}_${currentUid}`;
+                  // memberships 문서가 없을 수 있으므로 set(merge)로 생성 또는 업데이트
+                  const { setDoc, doc: firestoreDoc } = await import('firebase/firestore');
+                  await setDoc(firestoreDoc(db, 'community_memberships', docId), {
+                    userId: currentUid,
+                    nickname: currentNickname,
+                    communityId: community.id,
+                    communityName: community.name,
+                    role: 'owner',
+                    finger: 'thumb',
+                    verified: {
+                      verifiedAt: serverTimestamp(),
+                      verifiedBy: currentUid,
+                      verifiedByNickname: currentNickname,
+                      label: '주주',
+                      tier,
+                      source: 'manual',
+                    },
+                  }, { merge: true });
+                } finally {
+                  setProcessing(null);
+                }
+              }}
+              disabled={!selectedTiers['__owner'] || processing === '__owner'}
+              className="mt-2 px-3 py-1.5 bg-blue-600 text-white text-[11px] font-[1000] rounded-lg hover:bg-blue-700 disabled:opacity-40 transition-colors"
+            >
+              {processing === '__owner' ? '처리 중...' : '내 등급 저장'}
+            </button>
+          </div>
+        );
+      })()}
 
       {/* 인증 대기 목록 */}
       <div>
