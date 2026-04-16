@@ -3,7 +3,7 @@
 // 인증 대기 + 인증 완료 목록 + TierSelector + 종목 설정
 import { useState, useEffect } from 'react';
 import { db } from '../firebase';
-import { collection, query, where, onSnapshot, doc, updateDoc, deleteField, serverTimestamp } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, doc, setDoc, updateDoc, deleteField, serverTimestamp } from 'firebase/firestore';
 import type { Community, CommunityMember, ShareholderTier } from '../types';
 import { TIER_CONFIG, tierRangeLabel } from '../types';
 import JoinAnswersDisplay from './JoinAnswersDisplay';
@@ -204,9 +204,7 @@ const VerifyShareholderPanel = ({ community, currentUid, currentNickname }: Prop
                   const docId = ownerMember
                     ? ((ownerMember as CommunityMember & { id: string }).id || `${community.id}_${currentUid}`)
                     : `${community.id}_${currentUid}`;
-                  // memberships 문서가 없을 수 있으므로 set(merge)로 생성 또는 업데이트
-                  const { setDoc, doc: firestoreDoc } = await import('firebase/firestore');
-                  await setDoc(firestoreDoc(db, 'community_memberships', docId), {
+                  await setDoc(doc(db, 'community_memberships', docId), {
                     userId: currentUid,
                     nickname: currentNickname,
                     communityId: community.id,
@@ -222,6 +220,9 @@ const VerifyShareholderPanel = ({ community, currentUid, currentNickname }: Prop
                       source: 'manual',
                     },
                   }, { merge: true });
+                } catch (err) {
+                  console.error('[VerifyShareholderPanel] 방장 자기 인증 실패:', err);
+                  alert('등급 저장에 실패했습니다. 다시 시도해주세요.');
                 } finally {
                   setProcessing(null);
                 }
