@@ -65,10 +65,16 @@ const VerifyShareholderPanel = ({ community, currentUid, currentNickname }: Prop
     return unsub;
   }, [community.id]);
 
-  // 인증 대기: verified 없는 멤버 (방장 제외 — 방장은 "내 등급 설정" 별도 섹션)
-  // 인증 완료: verified 있는 멤버 (방장 포함)
-  const unverified = members.filter(m => !m.verified?.tier && m.userId !== currentUid);
-  const verified = members.filter(m => !!m.verified?.tier);
+  // 인증 대기: verified 없는 멤버 + verifyRequest pending 멤버 (방장 제외)
+  // (이미 인증된 멤버라도 재인증 요청 제출 시 인증 대기에 표시)
+  const unverified = members.filter(m =>
+    m.userId !== currentUid &&
+    (!m.verified?.tier || m.verifyRequest?.status === 'pending')
+  );
+  // 인증 완료: verified 있고 pending 요청 없는 멤버 (방장 포함)
+  const verified = members.filter(m =>
+    !!m.verified?.tier && m.verifyRequest?.status !== 'pending'
+  );
 
   // 종목 설정 저장
   const handleSaveSettings = async () => {
