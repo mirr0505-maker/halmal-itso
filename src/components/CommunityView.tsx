@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { db } from '../firebase';
 import { collection, onSnapshot, query, where, orderBy, limit, doc, updateDoc, deleteDoc, deleteField, increment, arrayUnion, arrayRemove, serverTimestamp } from 'firebase/firestore';
 import type { Community, CommunityPost, CommunityMember, FingerRole, UserData, PromotionRules } from '../types';
-import { DEFAULT_PROMOTION_RULES } from '../types';
+import { DEFAULT_PROMOTION_RULES, TIER_CONFIG } from '../types';
 import { CHAT_MEMBER_LIMIT } from '../types';
 import TiptapEditor from './TiptapEditor';
 import CommunityAdminPanel from './CommunityAdminPanel';
@@ -572,15 +572,31 @@ const CommunityView = ({ community, currentUserData, allUsers, followerCounts = 
             const isSelf = m.userId === currentUserData?.uid;
             const hasAnswers = !!m.joinAnswers || !!m.joinMessage;
             return (
-              <div key={m.userId} className="px-5 py-3 border-b border-slate-50 last:border-0">
+              <div key={m.userId} className="px-5 py-3 border-b border-slate-100 last:border-0">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3 min-w-0">
                     <img src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${m.nickname}`} className="w-8 h-8 rounded-full bg-slate-50 shrink-0" alt="" />
-                    <div className="flex items-center gap-1.5 flex-wrap min-w-0">
-                      <span className="text-[13px] font-bold text-slate-800">{m.nickname}</span>
-                      <span className={`text-[10px] font-black px-1.5 py-0.5 rounded ${meta.colorCls}`}>{meta.emoji} {meta.label}</span>
-                      {/* 🚀 Phase 6: 인증 배지 + Phase C: 주주 tier */}
-                      <VerifiedBadgeComponent verified={m.verified} size="sm" showTier={community.category === '주식'} />
+                    <div className="flex flex-col min-w-0">
+                      <span className="text-[13px] font-bold text-slate-800 truncate">{m.nickname}</span>
+                      <div className="flex items-center gap-1 text-[10px] font-bold text-slate-400">
+                        <span>{meta.label}</span>
+                        {/* 🛡️ 주주방: tier 텍스트 + 인증 표시 (이모지 없이 깔끔하게) */}
+                        {community.category === '주식' && m.verified?.tier && (
+                          <>
+                            <span>·</span>
+                            <span className="text-slate-600">{TIER_CONFIG[m.verified.tier]?.label}</span>
+                            <span>·</span>
+                            <span className="text-slate-500">주주 인증</span>
+                          </>
+                        )}
+                        {/* 일반 커뮤니티: 기존 인증 배지 */}
+                        {community.category !== '주식' && m.verified && (
+                          <>
+                            <span>·</span>
+                            <VerifiedBadgeComponent verified={m.verified} size="sm" showDate={false} />
+                          </>
+                        )}
+                      </div>
                     </div>
                   </div>
                   {/* 관리자 액션 (thumb/index만, 본인 제외) */}
