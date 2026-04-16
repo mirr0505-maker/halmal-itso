@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { db } from '../firebase';
 import { collection, onSnapshot, query, where, orderBy, limit, doc, updateDoc, deleteDoc, deleteField, increment, arrayUnion, arrayRemove, serverTimestamp } from 'firebase/firestore';
 import type { Community, CommunityPost, CommunityMember, FingerRole, UserData, PromotionRules } from '../types';
-import { DEFAULT_PROMOTION_RULES, TIER_CONFIG } from '../types';
+import { DEFAULT_PROMOTION_RULES } from '../types';
 import { CHAT_MEMBER_LIMIT } from '../types';
 import TiptapEditor from './TiptapEditor';
 import CommunityAdminPanel from './CommunityAdminPanel';
@@ -44,8 +44,6 @@ const CommunityView = ({ community, currentUserData, allUsers, followerCounts = 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [selectedPost, setSelectedPost] = useState<CommunityPost | null>(null);
-  // 🛡️ 주주 인증 등록 화면 표시 여부
-  const [showVerifyScreen, setShowVerifyScreen] = useState(false);
   // 🚀 다섯 손가락 Phase 2 — 탭 + 멤버 상태
   const [activeTab, setActiveTab] = useState<'posts' | 'chat' | 'members' | 'admin' | 'verify'>('posts');
   const [members, setMembers] = useState<CommunityMember[]>([]);
