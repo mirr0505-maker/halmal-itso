@@ -472,6 +472,7 @@ export interface CommunityMember {
     selfReportedQty: number;         // 자기신고 보유수
     requestedAt: FirestoreTimestamp;
     status: 'pending' | 'approved' | 'rejected';
+    approvedAt?: FirestoreTimestamp;      // 승인 시점 (30일 후 스크린샷 자동 만료)
   };
   // 🛡️ 방장이 재인증 요청한 경우 (멤버에게 알림 → 재등록 유도)
   reverifyRequestedAt?: FirestoreTimestamp;

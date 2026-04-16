@@ -60,6 +60,19 @@
 
 ---
 
+## 🟡 스크린샷 R2 파일 30일 자동 삭제 스케줄러
+
+| 항목 | 내용 |
+|------|------|
+| **작업** | Cloud Function 스케줄러 — `verifyRequest.approvedAt` + 30일 경과한 멤버십 문서의 R2 스크린샷 파일 실제 삭제 + Firestore `verifyRequest.screenshotUrl` 필드 제거 |
+| **현재 상태** | UI에서 30일 경과 시 "📸 만료됨" 표시 + 열람 차단은 구현 완료. R2 파일 자체는 아직 영구 보관 |
+| **선행 조건** | `halmal-upload-worker`에 DELETE 엔드포인트 추가 (또는 Cloud Function에서 R2 API 직접 호출) |
+| **착수 시점** | Sprint 1 안정화 후 |
+| **구현 방식** | `functions/shareholderCleanup.js` — 매일 04:00 스케줄 (`checkAutoSayak` 패턴), `community_memberships` where `verifyRequest.approvedAt` + 30일 < now → R2 삭제 + Firestore 정리 |
+| **비용** | 0원 (Cloud Function + R2 무료 tier) |
+
+---
+
 ## 🗑️ 완전 제거 항목 (숙제 아님, 아예 미추진)
 
 | 항목 | 사유 |

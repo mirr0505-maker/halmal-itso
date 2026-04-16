@@ -109,8 +109,11 @@ const VerifyShareholderPanel = ({ community, currentUid, currentNickname }: Prop
           tier,
           source: member.verifyRequest?.status === 'pending' ? 'screenshot' : 'manual',
         },
-        // 인증 요청이 있었으면 approved로 변경
-        ...(member.verifyRequest ? { 'verifyRequest.status': 'approved' } : {}),
+        // 인증 요청이 있었으면 approved + approvedAt 기록 (30일 후 스크린샷 자동 만료)
+        ...(member.verifyRequest ? {
+          'verifyRequest.status': 'approved',
+          'verifyRequest.approvedAt': serverTimestamp(),
+        } : {}),
       });
     } finally {
       setProcessing(null);
@@ -394,18 +397,27 @@ const VerifyShareholderPanel = ({ community, currentUid, currentNickname }: Prop
               const mId = (m as CommunityMember & { id: string }).id || `${community.id}_${m.userId}`;
               const v = m.verified!;
               const tierCfg = v.tier ? TIER_CONFIG[v.tier] : null;
+              // 📸 스크린샷 30일 만료 체크
+              const vr = m.verifyRequest;
+              const hasScreenshot = vr?.screenshotUrl && vr?.status === 'approved';
+              const approvedMs = vr?.approvedAt
+                ? ((vr.approvedAt as unknown as { toMillis?: () => number }).toMillis?.() || (vr.approvedAt as unknown as { seconds: number }).seconds * 1000)
+                : 0;
+              const isScreenshotExpired = hasScreenshot && approvedMs > 0 && (Date.now() - approvedMs) > 30 * 24 * 60 * 60 * 1000;
+              const daysLeft = hasScreenshot && approvedMs > 0 ? Math.max(0, Math.ceil((approvedMs + 30 * 24 * 60 * 60 * 1000 - Date.now()) / (24 * 60 * 60 * 1000))) : 0;
               return (
-                <div key={mId} className="flex items-center justify-between p-3 bg-white border border-slate-100 rounded-lg">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <span className="text-[16px]">{tierCfg?.emoji || '🛡️'}</span>
-                    <div className="min-w-0">
-                      <span className="text-[12px] font-[1000] text-slate-800">{m.nickname}</span>
-                      <span className="text-[10px] font-bold text-slate-400 ml-1.5">
-                        {tierCfg?.label || '인증'} · {formatDate(v.verifiedAt)} · {v.source === 'screenshot' ? '📸 스크린샷' : v.source === 'mydata' ? '🔗 마이데이터' : '✏️ 수동'}
-                      </span>
+                <div key={mId} className="p-3 bg-white border border-slate-100 rounded-lg">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="text-[16px]">{tierCfg?.emoji || '🛡️'}</span>
+                      <div className="min-w-0">
+                        <span className="text-[12px] font-[1000] text-slate-800">{m.nickname}</span>
+                        <span className="text-[10px] font-bold text-slate-400 ml-1.5">
+                          {tierCfg?.label || '인증'} · {formatDate(v.verifiedAt)} · {v.source === 'screenshot' ? '📸 스크린샷' : v.source === 'mydata' ? '🔗 마이데이터' : '✏️ 수동'}
+                        </span>
+                      </div>
                     </div>
-                  </div>
-                  <div className="flex items-center gap-1.5 shrink-0">
+                    <div className="flex items-center gap-1.5 shrink-0">
                     {/* 등급 변경 — 인라인 셀렉트 */}
                     <select
                       value={v.tier || ''}
@@ -425,6 +437,23 @@ const VerifyShareholderPanel = ({ community, currentUid, currentNickname }: Prop
                       해제
                     </button>
                   </div>
+                  </div>
+                  {/* 📸 스크린샷 열람 (30일 보관) */}
+                  {hasScreenshot && (
+                    <div className="mt-2 pt-2 border-t border-slate-50">
+                      {isScreenshotExpired ? (
+                        <p className="text-[10px] font-bold text-slate-400 italic">📸 스크린샷 만료됨 (30일 경과) — 재인증 요청 필요</p>
+                      ) : (
+                        <div className="flex items-center justify-between">
+                          <button
+                            onClick={() => window.open(vr!.screenshotUrl, '_blank')}
+                            className="text-[10px] font-bold text-blue-500 hover:text-blue-700 transition-colors"
+                          >📸 스크린샷 보기 (자기신고: {vr!.selfReportedQty.toLocaleString()}주)</button>
+                          <span className="text-[9px] font-bold text-slate-300">{daysLeft}일 후 만료</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               );
             })}
