@@ -151,12 +151,12 @@ service cloud.firestore {
         && resource.data.userId == request.auth.uid;
 
       // 관리자(thumb/index)에 의한 타인 멤버십 수정 (강퇴·역할변경·승인·인증 부여/해제)
-      // 🔒 hasOnly: 허용된 키(finger·joinStatus·banReason·role·verified)만 변경 가능
-      // joinAnswers는 관리자도 수정 불가 (영구 보존)
+      // 🔒 hasOnly: 허용된 키만 변경 가능 (joinAnswers는 관리자도 수정 불가 — 영구 보존)
+      // 🛡️ verifyRequest·reverifyRequestedAt 추가: 주주 인증 요청 상태 관리
       allow update: if request.auth != null
         && resource.data.userId != request.auth.uid
         && request.resource.data.diff(resource.data).affectedKeys()
-            .hasOnly(['finger', 'joinStatus', 'banReason', 'role', 'verified'])
+            .hasOnly(['finger', 'joinStatus', 'banReason', 'role', 'verified', 'verifyRequest', 'reverifyRequestedAt'])
         && get(/databases/$(database)/documents/community_memberships/$(resource.data.communityId + '_' + request.auth.uid)).data.finger in ['thumb', 'index'];
 
       // 관리자에 의한 타인 멤버십 삭제 (강퇴·거절)
