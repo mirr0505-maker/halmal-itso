@@ -69,7 +69,7 @@ const CommunityView = ({ community, currentUserData, allUsers, followerCounts = 
   useEffect(() => {
     const q = query(collection(db, 'community_memberships'), where('communityId', '==', community.id));
     const unsub = onSnapshot(q, (snap) => {
-      const list = snap.docs.map(d => ({ ...d.data() } as CommunityMember));
+      const list = snap.docs.map(d => ({ id: d.id, ...d.data() } as CommunityMember & { id: string }));
       setMembers(list);
       if (currentUserData) {
         setCurrentMembership(list.find(m => m.userId === currentUserData.uid) ?? null);
