@@ -7,6 +7,7 @@ import AdSlot from './ads/AdSlot';
 import ThanksballModal from './ThanksballModal';
 import { db } from '../firebase';
 import { doc, deleteDoc, updateDoc, increment } from 'firebase/firestore';
+import { sharePost } from '../utils/share';
 
 interface Props {
   rootPost: Post;
@@ -68,19 +69,18 @@ const OneCutDetailView = ({
   const isMyPost = !!currentNickname && rootPost.author === currentNickname;
   const pinnedCommentId = rootPost.pinnedCommentId;
 
-  // 공유 URL 복사 — RootPostCard와 동일 방식
-  const handleCopyUrl = () => {
-    const shareToken = rootPost.id.split('_').slice(0, 2).join('_');
-    const shareUrl = `${window.location.origin}/p/${shareToken}`; // /p/ 경로 → ogRenderer (동적 OG 태그)
-    navigator.clipboard.writeText(shareUrl).then(() => {
+  // 🚀 공유 — 공용 헬퍼 sharePost() 사용 (Web Share API + fallback 클립보드, shareCount 내부 처리)
+  const handleCopyUrl = async () => {
+    const result = await sharePost({
+      postId: rootPost.id,
+      authorId: rootPost.author_id,
+      title: rootPost.title || '🍞 빵부스러기 | 글러브',
+      text: '',
+    });
+    if (result.status === 'copied') {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-      // 🚀 공유수 카운트: URL 복사 성공 시 posts.shareCount + users.totalShares +1
-      updateDoc(doc(db, 'posts', rootPost.id), { shareCount: increment(1) }).catch(() => {});
-      if (rootPost.author_id) {
-        updateDoc(doc(db, 'users', rootPost.author_id), { totalShares: increment(1) }).catch(() => {});
-      }
-    });
+    }
   };
 
   const formatTime = (timestamp: { seconds: number } | null | undefined) => {
