@@ -39,7 +39,7 @@ interface KanbuRoom {
   createdAt: any;
 
   // 🚀 2026-04-16 업그레이드
-  memberIds?: string[];                // 자유 게시판·채팅 접근용
+  memberIds?: string[];                // 자유 게시판·채팅 접근용 (개설 시 개설자 자동 포함)
   memberCount?: number;
   paidBoards?: {                       // 유료 A/B 설정 (관리 탭)
     once?:    { enabled: boolean; price: number; title: string };
@@ -49,7 +49,16 @@ interface KanbuRoom {
   paidMonthlyMembers?: string[];       // 유료 구독 멤버
 
   // 🔴 2026-04-16 라이브
-  liveSessionId?: string;              // 진행 중인 live_sessions 문서 ID
+  liveSessionId?: string;              // 진행 중인 live_sessions 문서 ID (카드 LIVE 배지 조건)
+
+  // 🚀 2026-04-17 카드 대형화
+  thumbnailUrl?: string;               // 16:9 대표 이미지 (R2 업로드, 미설정 시 그라데이션 폴백)
+  cardSettings?: {                     // 카드 표시 옵션 — 개설자 선택. 미정의 시 모두 true
+    showHostInfo?: boolean;            // 호스트 아바타·Lv·평판 스니펫
+    showMember?: boolean;              // 멤버 수
+    showThanksball?: boolean;          // 방 땡스볼 합계
+    showPaidPreview?: boolean;         // 유료/구독 최신글 제목 스니펫
+  };
 }
 ```
 
@@ -100,10 +109,27 @@ interface Post {
 ```
 
 ### 3.1 깐부방 찾기 레이아웃 (`KanbuRoomList.tsx`)
-- 그리드 `[repeat(auto-fill,minmax(260px,1fr))]`.
+- 그리드 `[repeat(auto-fill,minmax(320px,1fr))]` (2026-04-17 260 → 320 확대).
 - `firstSegment = rooms.slice(0, 6)` → 홍보 1줄 → `restSegment = rooms.slice(6)`.
-- 비깐부 방은 `🔒 깐부만` 표시 + opacity-70.
 - 홍보 필터: `promoEnabled && !expired && uid !== 본인 && !friends.includes(nickname)`.
+
+#### 카드 구조 (2026-04-17 전면 개편)
+```
+┌─ 16:9 표지 이미지 ──────────────────────┐
+│  [🔴 LIVE] ← liveSessionId 존재 시 좌상단 │
+│  [🔒 깐부만] ← 비깐부일 때 우상단          │
+├─ 🧑 호스트아바타 · 닉네임 · Lv.N · 평판 ─┤
+├─ 제목 (line-clamp-1) ─────────────────┤
+│  소개 (line-clamp-2)                    │
+├─ 🔒 유료글 "최신글 제목"                 │  ← showPaidPreview
+│  🔒 구독글 "최신글 제목"                 │
+├─ 👥 N · ⚾ N · 🤝깐부전용        [가입] ┘
+└────────────────────────────────────────┘
+```
+- 최신 유료/구독 1건: `allRootPosts.filter(p => p.kanbuRoomId===room.id && p.kanbuBoardType==='paid_once'|'paid_monthly')` 중 `createdAt` 최신순 1건.
+- 땡스볼 합계: `roomPosts.reduce((sum, p) => sum + (p.thanksballTotal||0), 0)` — Phase 1 MVP 옵션 A. 댓글 땡스볼은 제외(추후 CF 캐시로 개선 예정).
+- LIVE 배지: 빨간 pulse dot + 흰 텍스트. 모바일·데스크톱 공통.
+- `cardSettings` 미정의 → 모든 옵션 `true`로 해석 (기존 방 호환).
 
 ### 3.2 깐부방 5탭 (`KanbuRoomView.tsx`)
 | 탭 ID | 표시명 | 접근 조건 |
@@ -126,6 +152,15 @@ interface Post {
 - 유료 A/B 설정: enabled 토글 + price (볼) + title.
 - 멤버 강퇴 (`memberIds` arrayRemove + `paidOnceMembers`/`paidMonthlyMembers`에서도 제거).
 - 방 삭제 (`deleteDoc`).
+- **🎨 카드 설정** (2026-04-17 추가):
+  - 표지 이미지 업로드 / 교체 (R2, 16:9 권장)
+  - 표시 옵션 토글 4종 (호스트/멤버/땡스볼/유료프리뷰)
+  - 개설 시 생략했더라도 사후 추가/수정 가능
+
+### 3.5 방 개설 모달 (`CreateKanbuRoomModal.tsx`)
+- 제목(필수) · 소개(선택) · 16:9 표지(선택, R2 경로 `uploads/{uid}/kanburoom_thumb_{ts}.{ext}`).
+- 카드 표시 옵션 4종 체크박스 (기본 모두 on).
+- 제출 시 개설자를 `memberIds` + `memberCount:1` 로 자동 등록.
 
 ---
 
@@ -270,4 +305,4 @@ interface Post {
 
 ---
 
-*최종 수정: 2026-04-17 — 깐부방 게시글 홈 피드 격리 + 홍보 인터리브 + 게시판 그리드 카드 통일 반영.*
+*최종 수정: 2026-04-17 — 깐부방 카드 대형화 (16:9 표지·LIVE 배지·호스트·유료스니펫·땡스볼 합계) + cardSettings 표시 옵션 + 관리 탭 🎨 카드 설정 섹션 반영.*
