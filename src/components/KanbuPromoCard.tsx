@@ -44,11 +44,6 @@ const KanbuPromoCard = ({ userData, followerCount = 0, onClick }: Props) => {
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5">
             <span className="text-[13px] font-[1000] text-slate-900 truncate">{userData.nickname}</span>
-            {remaining && (
-              <span className={`text-[8px] font-bold px-1 py-0.5 rounded border ml-auto shrink-0 ${remaining.expired ? 'text-slate-400 bg-slate-50 border-slate-200' : 'text-amber-500 bg-amber-50 border-amber-100'}`}>
-                {remaining.text}
-              </span>
-            )}
           </div>
           <span className="text-[9px] font-bold text-slate-400">Lv{level} · {repLabel} · 깐부수 {followerCount}</span>
         </div>
@@ -77,9 +72,18 @@ const KanbuPromoCard = ({ userData, followerCount = 0, onClick }: Props) => {
         </p>
       )}
 
-      {/* 5. 조회수 */}
-      {(userData.promoViewCount || 0) > 0 && (
-        <p className="text-[9px] font-bold text-slate-300">👀 {userData.promoViewCount}회</p>
+      {/* 5. 조회수 + 게시 종료 */}
+      {((userData.promoViewCount || 0) > 0 || remaining) && (
+        <div className="flex items-center gap-2 text-[9px] font-bold">
+          {(userData.promoViewCount || 0) > 0 && (
+            <span className="text-slate-300">👀 {userData.promoViewCount}회</span>
+          )}
+          {remaining && (
+            <span className={remaining.expired ? 'text-slate-400' : 'text-amber-500'}>
+              {remaining.text}
+            </span>
+          )}
+        </div>
       )}
     </div>
   );
