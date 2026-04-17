@@ -658,10 +658,11 @@ function App() {
     }
 
     // 🚀 깐부방 업그레이드 — 우리들의 장갑 패턴 (2컬럼 + 탭 + 헤더)
-    if (activeMenu === 'kanbu_room') {
+    // ⚠️ selectedTopic 있으면 DiscussionView로 넘겨야 하므로 selectedTopic 없을 때만 KanbuRoomView
+    if (activeMenu === 'kanbu_room' && !selectedTopic) {
       if (selectedRoom) {
         const roomPosts = allRootPosts.filter(p => p.kanbuRoomId === selectedRoom.id);
-        return <KanbuRoomView room={selectedRoom} roomPosts={roomPosts} onBack={() => setSelectedRoom(null)} currentUserData={userData!} allUsers={allUsers} />;
+        return <KanbuRoomView room={selectedRoom} roomPosts={roomPosts} onBack={() => setSelectedRoom(null)} currentUserData={userData!} allUsers={allUsers} onPostClick={handleViewPost} />;
       }
       const myRooms = kanbuRooms.filter(r => r.creatorId === userData?.uid || r.memberIds?.includes(userData?.uid || ''));
       const joinedRoomIds = myRooms.map(r => r.id);
@@ -907,6 +908,11 @@ function App() {
       }
       return <DiscussionView rootPost={livePost} allPosts={allChildPosts.filter(p => p.rootId === livePost.id)} otherTopics={allRootPosts.filter(p => {
           if (p.id === livePost.id) return false;
+          // 🏠 깐부방 글: 같은 방 + 같은 boardType만 사이드바에 노출
+          if (livePost.kanbuRoomId) {
+            return p.kanbuRoomId === livePost.kanbuRoomId
+              && (p.kanbuBoardType || 'free') === (livePost.kanbuBoardType || 'free');
+          }
           const myStory = ['너와 나의 이야기'];
           const liveIsMyStory = !livePost.category || myStory.includes(livePost.category);
           if (liveIsMyStory) return !p.category || myStory.includes(p.category || '');

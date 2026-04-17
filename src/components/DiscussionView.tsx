@@ -111,10 +111,12 @@ const DiscussionView = ({
   //    "등록글" 기준(좋아요 3+ & 1시간) 적용 시 사이드바가 비는 문제 →
   //    likes·시간 필터를 스킵하고 isHiddenByExile(문제글 soft-delete)만 제외
   const isExile = rootPost.category === EXILE_CATEGORY;
+  const isKanbu = !!rootPost.kanbuRoomId;
   const relatedPosts = otherTopics.filter(topic => {
     if (topic.id === rootPost.id || topic.isOneCut) return false;
     if (topic.isHiddenByExile) return false;
-    if (isExile) return true;
+    // 🏚️ 유배·귀양지 / 🏠 깐부방: 좋아요·시간 필터 스킵 (해당 범위 전체 표시)
+    if (isExile || isKanbu) return true;
     if ((topic.likes || 0) < 3) return false;
     const createdMs = topic.createdAt?.seconds ? topic.createdAt.seconds * 1000 : 0;
     return (now - createdMs) >= 3600 * 1000;
@@ -227,7 +229,7 @@ const DiscussionView = ({
         currentNickname={currentNickname}
         allUsers={allUsers}
         followerCounts={followerCounts}
-        title={isExile ? '게시글 더보기' : '등록글 더보기'}
+        title={isExile || isKanbu ? '게시글 더보기' : '등록글 더보기'}
       />
     </div>
   );

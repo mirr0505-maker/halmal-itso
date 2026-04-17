@@ -8,8 +8,8 @@ import {
 } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import type { KanbuRoom, KanbuChat, Post, UserData, LiveSession } from '../types';
-import { calculateLevel } from '../utils';
 import LiveBoard from './LiveBoard';
+import KanbuBoardView from './KanbuBoardView';
 
 interface Props {
   room: KanbuRoom;
@@ -17,17 +17,16 @@ interface Props {
   onBack: () => void;
   currentUserData: UserData;
   allUsers: Record<string, UserData>;
+  onPostClick?: (post: Post) => void;    // 🆕 깐부방 글 상세보기 라우팅
 }
 
 type TabId = 'free_board' | 'paid_once' | 'paid_monthly' | 'chat' | 'members' | 'admin' | 'live';
 
-const KanbuRoomView = ({ room, roomPosts, onBack, currentUserData, allUsers }: Props) => {
+const KanbuRoomView = ({ room, roomPosts, onBack, currentUserData, allUsers, onPostClick }: Props) => {
   const [activeTab, setActiveTab] = useState<TabId>('free_board');
   const [chats, setChats] = useState<KanbuChat[]>([]);
   const [chatInput, setChatInput] = useState('');
   const [isSending, setIsSending] = useState(false);
-  const [postContent, setPostContent] = useState('');
-  const [isPostSubmitting, setIsPostSubmitting] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
   // 관리 탭 state
   const [editTitle, setEditTitle] = useState(room.title);
@@ -118,20 +117,6 @@ const KanbuRoomView = ({ room, roomPosts, onBack, currentUserData, allUsers }: P
     setChatInput(''); setIsSending(false);
   };
 
-  const submitPost = async (boardType: 'free' | 'paid_once' | 'paid_monthly') => {
-    if (!postContent.trim() || isPostSubmitting) return;
-    setIsPostSubmitting(true);
-    await setDoc(doc(db, 'posts', `room_post_${Date.now()}_${currentUserData.uid}`), {
-      author: currentUserData.nickname, author_id: currentUserData.uid,
-      title: null, content: postContent.trim(), category: null,
-      kanbuRoomId: room.id, kanbuBoardType: boardType,
-      parentId: null, rootId: null, side: 'left', type: 'comment',
-      authorInfo: { level: calculateLevel(currentUserData.exp || 0), friendCount: 0, totalLikes: currentUserData.likes },
-      createdAt: serverTimestamp(), likes: 0, dislikes: 0,
-    });
-    setPostContent(''); setIsPostSubmitting(false);
-  };
-
   // 유료 결제
   const handlePurchase = async (type: 'once' | 'monthly') => {
     const price = type === 'once' ? oncePrice : monthlyPrice;
@@ -186,49 +171,6 @@ const KanbuRoomView = ({ room, roomPosts, onBack, currentUserData, allUsers }: P
   const formatTime = (ts: { seconds: number } | null | undefined) => {
     if (!ts?.seconds) return '';
     return new Date(ts.seconds * 1000).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
-  };
-  const formatDate = (ts: { seconds: number } | null | undefined) => {
-    if (!ts?.seconds) return '';
-    const diff = Math.floor((Date.now() - ts.seconds * 1000) / 1000);
-    if (diff < 60) return '방금 전';
-    if (diff < 3600) return `${Math.floor(diff / 60)}분 전`;
-    if (diff < 86400) return `${Math.floor(diff / 3600)}시간 전`;
-    return new Date(ts.seconds * 1000).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' });
-  };
-
-  // 게시판 렌더 헬퍼
-  const renderBoard = (boardType: 'free' | 'paid_once' | 'paid_monthly') => {
-    const posts = roomPosts.filter(p => (p.kanbuBoardType || 'free') === boardType);
-    return (
-      <div className="flex flex-col flex-1 overflow-hidden">
-        <div className="flex-1 overflow-y-auto">
-          {posts.length === 0 ? (
-            <div className="py-16 text-center text-slate-300 font-bold text-[12px]">첫 글을 남겨보세요.</div>
-          ) : posts.map(post => (
-            <div key={post.id} className="px-4 py-3 border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
-              <div className="flex items-center gap-2 mb-1.5">
-                <img src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${post.author}`} alt="" className="w-6 h-6 rounded-full bg-slate-100" />
-                <span className="text-[11px] font-[1000] text-slate-700">{post.author}</span>
-                <span className="text-[9px] font-bold text-slate-300 ml-auto">{formatDate(post.createdAt)}</span>
-              </div>
-              <p className="text-[13px] font-medium text-slate-700 leading-relaxed pl-8 whitespace-pre-wrap">{post.content}</p>
-            </div>
-          ))}
-        </div>
-        <div className="border-t border-slate-100 px-4 py-3 shrink-0 bg-white">
-          <div className="flex gap-2">
-            <textarea value={postContent} onChange={e => setPostContent(e.target.value)}
-              onKeyDown={e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) submitPost(boardType); }}
-              placeholder="글을 남겨보세요... (Ctrl+Enter)" rows={2}
-              className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-[12px] font-bold text-slate-700 outline-none focus:border-slate-400 resize-none" />
-            <button onClick={() => submitPost(boardType)} disabled={!postContent.trim() || isPostSubmitting}
-              className="px-3 py-2 bg-slate-900 text-white rounded-xl text-[11px] font-[1000] hover:bg-blue-600 disabled:opacity-40 transition-colors shrink-0">
-              올리기
-            </button>
-          </div>
-        </div>
-      </div>
-    );
   };
 
   // 페이월 렌더
@@ -298,13 +240,23 @@ const KanbuRoomView = ({ room, roomPosts, onBack, currentUserData, allUsers }: P
       {/* 탭 컨텐츠 */}
       <div className="flex-1 overflow-hidden flex flex-col">
         {/* 📋 자유 게시판 */}
-        {activeTab === 'free_board' && renderBoard('free')}
+        {activeTab === 'free_board' && (
+          <KanbuBoardView room={room} boardType="free" posts={roomPosts} currentUserData={currentUserData} onPostClick={p => onPostClick?.(p)} />
+        )}
 
         {/* 🔒 유료 1회 */}
-        {activeTab === 'paid_once' && (isPaidOnceMember ? renderBoard('paid_once') : renderPaywall('once'))}
+        {activeTab === 'paid_once' && (
+          isPaidOnceMember
+            ? <KanbuBoardView room={room} boardType="paid_once" posts={roomPosts} currentUserData={currentUserData} onPostClick={p => onPostClick?.(p)} />
+            : renderPaywall('once')
+        )}
 
         {/* 🔒 유료 구독 */}
-        {activeTab === 'paid_monthly' && (isPaidMonthlyMember ? renderBoard('paid_monthly') : renderPaywall('monthly'))}
+        {activeTab === 'paid_monthly' && (
+          isPaidMonthlyMember
+            ? <KanbuBoardView room={room} boardType="paid_monthly" posts={roomPosts} currentUserData={currentUserData} onPostClick={p => onPostClick?.(p)} />
+            : renderPaywall('monthly')
+        )}
 
         {/* 🔴 라이브 */}
         {activeTab === 'live' && (
