@@ -73,7 +73,9 @@
 ├── revenue.js               # aggregateDailyRevenue — 일별 광고 수익 집계
 ├── fraud.js                 # detectFraud — 부정 클릭 감지
 ├── settlement.js            # processSettlements — 정산 처리
-├── kanbuPromo.js            # registerKanbuPromo — 깐부 홍보 카드 등록 (Lv2+, 기간제 과금)
+├── kanbuPromo.js            # registerKanbuPromo — 깐부 홍보 카드 등록 (Lv2+, 기간제 과금) → KANBU.md
+├── kanbuPaid.js             # joinPaidKanbuRoom + checkKanbuSubscriptionExpiry — 유료 게시판 결제·만료 → KANBU.md
+├── livePresence.js          # cleanupLivePresence — 🔴 라이브 좀비 참가자 정리 → KANBU.md §5
 ├── testCharge.js            # testChargeBall — 테스트용 땡스볼 충전
 ├── contentLength.js         # validateContentLength — 신포도와 여우 100자 제한 검증
 └── package.json             # 의존성: firebase-admin, firebase-functions, fast-xml-parser
@@ -139,9 +141,15 @@
     ├── ActivityMilestones.tsx # 활동 마일스톤 배지
     ├── MyContentTabs.tsx    # 마이페이지 내 탭 (게시글/한컷/댓글/아바타/깐부)
     ├── AvatarCollection.tsx # 아바타 컬렉션 선택 UI
-    ├── KanbuRoomList.tsx    # 깐부방 목록 (Lv3 이상 개설 가능)
-    ├── KanbuRoomView.tsx    # 깐부방 상세 (게시판 좌 + 실시간 채팅 우)
-    ├── CreateKanbuRoomModal.tsx # 깐부방 개설 모달
+    ├── KanbuRoomList.tsx    # 깐부방 찾기 (방 6개 → 홍보 4명 → 나머지 방 인터리브) → KANBU.md
+    ├── MyKanbuRoomList.tsx  # 나의 깐부방 (compact=true 시 사이드바) → KANBU.md
+    ├── KanbuRoomView.tsx    # 깐부방 상세 5탭 (자유/유료1회/유료구독/채팅/멤버 + 관리·라이브) → KANBU.md
+    ├── KanbuBoardView.tsx   # 게시판 1종 뷰 (홈 새글 동일 그리드 카드) → KANBU.md
+    ├── CreateKanbuPost.tsx  # 깐부방 게시판 글 작성 폼 → KANBU.md
+    ├── CreateKanbuRoomModal.tsx # 깐부방 개설 모달 (Lv3+)
+    ├── KanbuPromoCard.tsx   # 깐부 홍보 카드 (조회수·게시종료 동일 줄) → KANBU.md §7
+    ├── LiveBoard.tsx        # 🔴 텍스트 라이브 보드 → KANBU.md §5
+    ├── LiveVfxOverlay.tsx   # 🔴 땡스볼 VFX 오버레이 → KANBU.md §5
     ├── ThanksballModal.tsx  # 땡스볼 전송 모달 (볼 선택·메시지·티어 표시)
     ├── NotificationBell.tsx # 헤더 알림 벨 (땡스볼 수신 알림, 실시간 뱃지)
     ├── RankingView.tsx      # 랭킹 페이지 (좋아요·땡스볼·조회수 × 유저·글 6개 뷰)
@@ -173,8 +181,10 @@
 | `posts` | 루트 글 전용 (카테고리별 게시글) | `topic_timestamp_uid` |
 | `comments` | 댓글 전용 (모든 카테고리 통합) | `comment_timestamp_uid` |
 | `users` | 사용자 프로필, 레벨, 팔로우 등 | UID 키 + `nickname_닉네임` 키 이중 저장 |
-| `kanbu_rooms` | 깐부방 메타데이터 | 자동 ID |
+| `kanbu_rooms` | 깐부방 메타데이터 (paidBoards/paidOnceMembers/paidMonthlyMembers/liveSessionId 포함) → `KANBU.md` | 자동 ID |
 | `kanbu_rooms/{id}/chats` | 깐부방 실시간 채팅 | 자동 ID |
+| `kanbu_paid_subs` | 🏠 깐부방 월 구독 만료 추적 → `KANBU.md` | `{roomId}_{uid}` |
+| `live_sessions` | 🔴 깐부방 라이브 세션 (presence/live_chats/live_board/live_qna_queue 서브컬렉션) → `KANBU.md` §5 | 자동 ID |
 | `communities` | 커뮤니티 메타데이터 (장갑) | `community_timestamp_uid` |
 | `community_memberships` | 커뮤니티 멤버십 플랫 컬렉션 (userId 역조회용) | `{communityId}_{userId}` |
 | `community_posts` | 커뮤니티 게시글 (크로스-커뮤니티 피드 쿼리 가능) | `cpost_timestamp_uid` |
@@ -266,8 +276,9 @@ interface Post {
   linkedPostId?: string;      // 연계된 원본 게시글 ID
   linkedPostTitle?: string;   // 연계된 원본 게시글 제목 (솔로몬 연계글 작성 시 저장, 상세글 바로가기에 사용)
 
-  // 깐부방 관련 필드
+  // 깐부방 관련 필드 → KANBU.md §1.2 (홈/카테고리/랭킹 피드에서 kanbuRoomId 존재 글 전면 제외)
   kanbuRoomId?: string;       // 소속 깐부방 ID
+  kanbuBoardType?: 'free' | 'paid_once' | 'paid_monthly'; // 깐부방 내 게시판 구분
 
   // 댓글 고정 (너와 나의 이야기 등)
   pinnedCommentId?: string;   // 작성자가 고정한 댓글 ID
@@ -289,23 +300,8 @@ interface Thanksball {
   isPaid: boolean;     // false = 가상볼(현재), true = 실결제(향후)
 }
 
-interface KanbuRoom {
-  id: string;
-  title: string;
-  description?: string;
-  creatorNickname: string;
-  creatorId: string;
-  creatorLevel: number;
-  createdAt: any;
-}
-
-interface KanbuChat {
-  id: string;
-  author: string;
-  authorId: string;
-  content: string;
-  createdAt: any;
-}
+// KanbuRoom / KanbuChat / LiveSession / LiveBoardLine 등 깐부방 타입 상세는 KANBU.md §2 참조.
+// 핵심 필드만 요약: KanbuRoom { memberIds, paidBoards, paidOnceMembers, paidMonthlyMembers, liveSessionId }
 ```
 
 ---
@@ -322,8 +318,8 @@ interface KanbuChat {
 | `knowledge_seller` | 황금알을 낳는 거위 | 황금알을 낳는 거위 | Q&A 보드 (구: 지식 소매상 → migrate 완료) |
 | `bone_hitting` | 신포도와 여우 | 신포도와 여우 | 명언, 짧은 글 (구: 뼈때리는 글 → migrate 완료) |
 | `local_news` | 마법 수정 구슬 | 마법 수정 구슬 | 정보 공유 보드 (구: 현지 소식 → migrate 완료) |
-| `friends` | 깐부 맺기 | (UI 전용) | 홍보 카드 기반 깐부 매칭. Lv2+ 유저가 이미지·키워드·공약을 등록하면 카드 노출. 클릭 시 팝업 상세(공개프로필+깐부맺기). `users/{uid}.promoEnabled/promoImageUrl/promoKeywords/promoMessage` |
-| `kanbu_room` | 깐부방 | (subcollection) | 우리들의 장갑 패턴 2컬럼(메인+사이드바) + 탭(깐부방 찾기/내 깐부방). 방 내부 5탭: 📋 자유 게시판 / 🔒 유료 1회(A타입) / 🔒 유료 구독(B타입) / 💬 채팅 / 👥 멤버 + ⚙️ 관리(개설자). 유료 게시판 수수료: Lv별 20~30% (강변 시장 동일). `memberIds[]` 멤버십 + `paidOnceMembers[]`/`paidMonthlyMembers[]`. CF: `joinPaidKanbuRoom`(결제+수수료 분배) + `checkKanbuSubscriptionExpiry`(월 만료). Firestore: `kanbu_rooms/{roomId}/chats` + `kanbu_paid_subs/{roomId}_{uid}` |
+| `friends` | 깐부 맺기 | (UI 전용) | Lv2+ 홍보 카드(이미지·키워드·공약). 깐부방 찾기 화면에도 홍보 인터리브(방 6개→홍보 4명→나머지 방). 자세한 내용 → `KANBU.md` |
+| `kanbu_room` | 깐부방 | (subcollection) | 5탭 방(자유/유료1회/유료구독/채팅/멤버 + 관리·🔴라이브). 유료 게시판 A/B + Lv별 수수료 20~30%. 깐부방 게시글은 홈/카테고리/랭킹/한컷 피드에서 격리(`kanbuRoomId` 필터). 자세한 내용 → `KANBU.md` |
 | `glove` | 우리들의 장갑 | (커뮤니티) | 다섯 손가락 운영 체제 (thumb·index·middle·ring·pinky). 가입방식 3종(open·approval·password), minLevel 제한, 공지 고정, 알림 opt-in, 중지 자동 산정. 대표 이미지(`thumbnailUrl`) + 채팅 바탕화면(`chatBgUrl`) R2 업로드. 자세한 내용 → `GLOVE.md` |
 | `marathon_herald` | 마라톤의 전령 | 마라톤의 전령 | 뉴스 속보 봇 전용 채널. 속보 키워드(속보·단독·지진·폭발·테러·비상계엄 6개) 포함 기사만 Firestore 저장. `newsType: 'breaking'`→🚨 속보(빨간 pulse 배지). 좋아요 임계값 없이 즉시 노출. 홈 새글 피드에도 포함. 댓글: pandora 공감/의심 2컬럼. 원본 기사 `linkUrl` → RootPostCard [🔗 바로가기] 버튼. Cloud Functions 매 10분 자동 등록, 분대별 1개 언론사 순차 수집(MBC·연합뉴스TV·연합뉴스·경향신문·동아일보·뉴시스). |
 | `market` | 강변 시장 | 크리에이터 이코노미 | 가판대(단건 판매 Lv3+) + 단골장부(구독 상점 Lv5+). 레벨별 수수료(30/25/20%). 자세한 내용 → `MARKET.md` |
@@ -485,28 +481,8 @@ interface KanbuChat {
 ## 📌 향후 과제 (TODO)
 
 ### 깐부방 호스트 공백 처리 로직 (Host Vacancy Handler) — 🟡 MID
-**우선순위**: 유배귀양지 기능 출시 전까지 반드시 구현
-
-**배경**: 깐부방 호스트(방장)가 여러 사유로 자리를 비울 수 있음
-- ① 회원 탈퇴 (정상 탈퇴)
-- ② 유배귀양지 해금 시 (유배 시스템에서 자동 호출)
-- ③ 사약(Sayak) 처분 시 (영구 추방)
-- ④ 계정 장기 미접속/휴면 처리 시 (추후 정책 수립)
-
-**공통 처리 로직**:
-1. **방장 위임 (Host Transfer)**: `kanbu_rooms/{roomId}/members`의 `joinedAt` 오름차순 첫 번째 멤버에게 자동 위임 → 시스템 알림 + 공지 메시지 게시
-2. **멤버 0명인 경우**: 방 즉시 해체 (`status: 'dissolved'` soft delete)
-3. **유예 기간 (Grace Period)**: 위임 후 7일, 활성 상태면 정상 운영 유지
-
-**Firestore 스키마 추가**:
-- `kanbu_rooms/{roomId}.hostTransferredAt: Timestamp | null`
-- `kanbu_rooms/{roomId}.hostTransferReason: 'withdrawal' | 'exile_release' | 'sayak' | 'dormant'`
-
-**구현 위치**: `functions/kanbu/handleHostVacancy.ts` (독립 유틸로 분리 — 유배/탈퇴 양쪽에서 호출)
-
-**미결정 사항**:
-- 위임받은 멤버의 거부 옵션 여부 (사전 동의 vs 사후 알림)
-- 유예 기간 7일 적정성 (3일/2주 대안)
+**우선순위**: 유배귀양지 해금 CF(`releaseFromExile`) 출시 전까지 필수.
+**상세**: `KANBU.md §9.1` 참조 (4개 사유, 공통 처리 로직, Firestore 스키마, 구현 위치, 미결정 사항).
 
 ### 유배귀양지 시스템 — 🔴 미개발
 - `releaseFromExile()` Cloud Function이 호스트 공백 처리 로직 호출 필요

@@ -1,5 +1,34 @@
 ## 8. 현재 구현 상태 (2026-03-24 기준, 코드 실측)
 
+### 🏠 깐부방 Phase 2 — 게시판 UX 정리 & 홈 피드 격리 (2026-04-17)
+> 설계: [KANBU.md](./KANBU.md)
+
+- [x] **깐부방 찾기 홍보 인터리브** — 방 6개(2줄) → 🤝 깐부맺기 홍보 4명(1줄) → 나머지 방. 홈 피드의 한컷·잉크병 인터리브 패턴과 통일
+  - 홍보 필터: `promoEnabled && !expired && uid !== 본인 && !friends.includes(nickname)`
+  - 홍보 카드 클릭 → 공개 프로필 모달 (홈 패턴 동일)
+  - 헤더 "깐부맺기 →" 버튼 → `friends` 메뉴로 이동
+- [x] **홍보 카드 게시 종료 표시 이동** — 닉네임 옆 배지 제거 → `👀 N회 · 게시 종료 N일` 조회수와 같은 줄에 텍스트 표시. 만료 시 slate-400 / 활성 시 amber-500
+- [x] **깐부방 게시판 3종 글카드 통일** — 긴 바 목록 → **홈 새글 동일 그리드 카드** (`[repeat(auto-fill,minmax(280px,1fr))]`)
+  - 시간 → 제목 → 본문 프리뷰(이미지 숨김) → 이미지 → 아바타/Lv/평판/깐부수 → 댓글/땡스볼/좋아요 완전 동일 구조
+  - `KanbuBoardView` props 확장: `allUsers`, `followerCounts`, `commentCounts` 주입 → 실시간 저자 데이터 바인딩
+- [x] **홈·카테고리·랭킹·한컷 피드 격리** — `App.tsx basePosts` 필터에 `!p.kanbuRoomId` 추가
+  - 깐부방 글은 참새들의 방앗간·카테고리 뷰·랭킹·한컷 어디에도 노출되지 않음
+  - 깐부방 내부 `KanbuBoardView` 에서만 열람
+  - 이유: 깐부방은 사적 공간, 오픈 피드의 품질·시간 기준과 다른 맥락
+- [x] **문서 리팩터링** — 깐부방 관련 설계 내용을 `blueprint.md`에서 `KANBU.md`로 분리 (GLOVE/MARKET/INKWELL 패턴). blueprint는 §3/4/5 요약 + 참조만 유지
+
+### 🔴 라이브 이코노미 Phase 4-A (2026-04-16)
+> 설계: [halmal-itso-live-economy.md](./halmal-itso-live-economy.md) | 구현: [KANBU.md](./KANBU.md) §5
+
+- [x] **텍스트 라이브 MVP** — 호스트가 3스타일(normal/highlight/title) 라인 추가 → 참가자 실시간 열람
+  - `LiveBoard.tsx`: 보드 + 상태바(경과시간/활성유저수) + 참가자 ⚾ 티어 선택 버튼
+  - 관리 탭에서 라이브 진입 UI를 분리 → 채팅 탭 옆 독립 탭(`live`)으로 이동
+- [x] **Presence 하트비트** — 클라이언트 60초 ping, 서버 120초 stale cutoff, unmount 시 즉시 삭제
+  - `src/hooks/useLivePresence.ts` + Cloud Function `cleanupLivePresence`(매 1분 스케줄러)
+- [x] **VFX 오버레이** — 땡스볼 티어별 애니메이션 (bronze 2s · silver 5s · gold 10s · legend 15s)
+  - `LiveVfxOverlay.tsx` 큐 기반 순차 재생 + `prefers-reduced-motion` 지원
+- [x] **라이브 땡스볼** — `live_sessions.totalThanksball` 참가자 누적 (Rules: `hasOnly(['totalThanksball'])`) + 복합 인덱스 `live_chats: type+createdAt`
+
 ### 🏠 깐부방 업그레이드 (2026-04-16)
 
 - [x] **레이아웃 리뉴얼** — 우리들의 장갑 패턴 적용: 헤더(# 깐부방 + 탭 + 만들기) + 2컬럼(메인+사이드바)
