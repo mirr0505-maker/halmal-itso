@@ -136,7 +136,12 @@ const RootPostCard = ({
               className="text-[10px] font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded-sm uppercase tracking-widest cursor-pointer hover:bg-blue-100 hover:text-blue-700 hover:-translate-x-0.5 transition-all duration-150 select-none"
               title="목록으로 돌아가기"
             >
-              ← {getCategoryDisplayName(post.category)}
+              {/* 🏠 깐부방 글은 category=null이라 getCategoryDisplayName 기본값("참새들의 방앗간")이 잘못 나옴 → 보드 타입별 라벨 */}
+              ← {post.kanbuRoomId
+                ? (post.kanbuBoardType === 'paid_once' ? '유료 게시판 (1회)'
+                  : post.kanbuBoardType === 'paid_monthly' ? '유료 게시판 (구독)'
+                  : '자유 게시판')
+                : getCategoryDisplayName(post.category)}
             </span>
             <span className="text-[11px] font-bold text-slate-400">{formatTime(post.createdAt)}</span>
           </div>
