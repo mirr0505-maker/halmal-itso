@@ -290,6 +290,15 @@ export interface KanbuRoom {
   paidMonthlyMembers?: string[];  // 월 구독 활성 멤버
   // 🔴 라이브 세션 현재 상태 (활성 세션이 있으면 LIVE 배지 표시)
   liveSessionId?: string | null;
+  // 🚀 2026-04-17: 대표 이미지 (16:9) R2 업로드, 미설정 시 그라데이션 폴백
+  thumbnailUrl?: string;
+  // 🚀 2026-04-17: 카드 표시 옵션 — 개설자가 관리 탭에서 on/off. 미정의 시 모두 true
+  cardSettings?: {
+    showHostInfo?: boolean;       // 호스트 아바타/Lv/평판 스니펫 (기본 true)
+    showMember?: boolean;         // 멤버 수 (기본 true)
+    showThanksball?: boolean;     // 방 땡스볼 합계 (기본 true)
+    showPaidPreview?: boolean;    // 유료/구독 최신글 제목 (기본 true)
+  };
 }
 
 // ═══════════════════════════════════════════════════════

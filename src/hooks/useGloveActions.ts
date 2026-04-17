@@ -23,18 +23,26 @@ export function useGloveActions({
   setGloveSubTab,
   setIsCreateRoomOpen,
 }: GloveActionDeps) {
-  // 깐부방 생성
-  const handleCreateRoom = async (data: Pick<KanbuRoom, 'title' | 'description'>) => {
+  // 깐부방 생성 — 🚀 2026-04-17: thumbnailUrl + cardSettings 저장
+  const handleCreateRoom = async (data: Pick<KanbuRoom, 'title' | 'description'> & {
+    thumbnailUrl?: string;
+    cardSettings?: KanbuRoom['cardSettings'];
+  }) => {
     if (!userData) return;
     const roomId = `room_${Date.now()}_${userData.uid}`;
-    await setDoc(doc(db, 'kanbu_rooms', roomId), {
+    const payload: Record<string, unknown> = {
       title: data.title,
       description: data.description || '',
       creatorId: userData.uid,
       creatorNickname: userData.nickname,
       creatorLevel: calculateLevel(userData.exp || 0),
       createdAt: serverTimestamp(),
-    });
+      memberIds: [userData.uid],  // 개설자 자동 멤버 등록
+      memberCount: 1,
+    };
+    if (data.thumbnailUrl) payload.thumbnailUrl = data.thumbnailUrl;
+    if (data.cardSettings) payload.cardSettings = data.cardSettings;
+    await setDoc(doc(db, 'kanbu_rooms', roomId), payload);
     setIsCreateRoomOpen(false);
   };
 

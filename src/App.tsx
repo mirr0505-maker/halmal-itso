@@ -710,7 +710,7 @@ function App() {
           <div className="flex gap-4 items-start px-4">
             <div className="flex-1 min-w-0">
               {kanbuSubTab === 'list' ? (
-                <KanbuRoomList rooms={browseRooms} onRoomClick={setSelectedRoom} onCreateRoom={() => setIsCreateRoomOpen(true)} currentUserLevel={userData?.level || 1} allUsers={allUsers} currentUserData={userData} friends={friends} onFriendsClick={() => setActiveMenu('friends')} onPromoUserClick={(user) => setPublicProfileNick(user.nickname)} followerCounts={followerCounts} />
+                <KanbuRoomList rooms={browseRooms} onRoomClick={setSelectedRoom} onCreateRoom={() => setIsCreateRoomOpen(true)} currentUserLevel={userData?.level || 1} allUsers={allUsers} currentUserData={userData} friends={friends} onFriendsClick={() => setActiveMenu('friends')} onPromoUserClick={(user) => setPublicProfileNick(user.nickname)} followerCounts={followerCounts} allRootPosts={allRootPosts} />
               ) : (
                 <MyKanbuRoomList rooms={myRooms} onRoomClick={setSelectedRoom} />
               )}
@@ -1249,7 +1249,7 @@ function App() {
       </div></main></div>
       {isCreateRoomOpen && (
         <Suspense fallback={null}>
-          <CreateKanbuRoomModal onSubmit={handleCreateRoom} onClose={() => setIsCreateRoomOpen(false)} />
+          <CreateKanbuRoomModal onSubmit={handleCreateRoom} onClose={() => setIsCreateRoomOpen(false)} userUid={userData?.uid} />
         </Suspense>
       )}
       {selectedPost && (

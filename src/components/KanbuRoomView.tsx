@@ -34,6 +34,14 @@ const KanbuRoomView = ({ room, roomPosts, onBack, currentUserData, allUsers, onP
   const [editTitle, setEditTitle] = useState(room.title);
   const [editDesc, setEditDesc] = useState(room.description || '');
   const [savingSettings, setSavingSettings] = useState(false);
+  // 🚀 2026-04-17: 카드 설정 state (표지·표시 옵션) — 관리 탭에서 사후 수정 가능
+  const [editThumbnailFile, setEditThumbnailFile] = useState<File | null>(null);
+  const [editThumbnailPreview, setEditThumbnailPreview] = useState<string | null>(null);
+  const [isUploadingThumb, setIsUploadingThumb] = useState(false);
+  const [showHostInfo, setShowHostInfo] = useState(room.cardSettings?.showHostInfo !== false);
+  const [showMember, setShowMember] = useState(room.cardSettings?.showMember !== false);
+  const [showThanksball, setShowThanksball] = useState(room.cardSettings?.showThanksball !== false);
+  const [showPaidPreview, setShowPaidPreview] = useState(room.cardSettings?.showPaidPreview !== false);
   // 유료 설정 state
   const [onceEnabled, setOnceEnabled] = useState(room.paidBoards?.once?.enabled || false);
   const [oncePrice, setOncePrice] = useState(room.paidBoards?.once?.price || 10);
@@ -149,6 +157,27 @@ const KanbuRoomView = ({ room, roomPosts, onBack, currentUserData, allUsers, onP
       });
       alert('설정이 저장되었습니다.');
     } finally { setSavingSettings(false); }
+  };
+
+  // 🚀 관리: 카드 설정 저장 (표지 교체 + 표시 옵션)
+  const saveCardSettings = async () => {
+    setIsUploadingThumb(true);
+    try {
+      const payload: Record<string, unknown> = {
+        cardSettings: { showHostInfo, showMember, showThanksball, showPaidPreview },
+      };
+      if (editThumbnailFile) {
+        const { uploadToR2 } = await import('../uploadToR2');
+        const ext = editThumbnailFile.name.split('.').pop() || 'jpg';
+        const filePath = `uploads/${currentUserData.uid}/kanburoom_thumb_${Date.now()}.${ext}`;
+        const url = await uploadToR2(editThumbnailFile, filePath);
+        if (url) payload.thumbnailUrl = url;
+      }
+      await updateDoc(doc(db, 'kanbu_rooms', room.id), payload);
+      alert('카드 설정이 저장되었습니다.');
+      setEditThumbnailFile(null);
+      if (editThumbnailPreview) { URL.revokeObjectURL(editThumbnailPreview); setEditThumbnailPreview(null); }
+    } finally { setIsUploadingThumb(false); }
   };
 
   // 관리: 멤버 강퇴
@@ -431,6 +460,70 @@ const KanbuRoomView = ({ room, roomPosts, onBack, currentUserData, allUsers, onP
                 className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-[12px] font-bold focus:outline-none focus:border-slate-400" />
               <input type="text" value={editDesc} onChange={e => setEditDesc(e.target.value)} placeholder="설명 (선택)"
                 className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-[12px] font-bold focus:outline-none focus:border-slate-400" />
+            </div>
+
+            {/* 🚀 카드 설정 (표지 이미지 + 표시 옵션) */}
+            <div className="bg-white border border-slate-100 rounded-xl p-4 space-y-3">
+              <p className="text-[12px] font-[1000] text-slate-700">🎨 카드 설정</p>
+              <p className="text-[10px] font-bold text-slate-400 -mt-1">깐부방 찾기 화면 카드에 노출되는 정보</p>
+
+              {/* 표지 이미지 */}
+              <div>
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1.5">방 표지 (16:9)</label>
+                {editThumbnailPreview ? (
+                  <div className="relative">
+                    <div className="aspect-[16/9] rounded-lg overflow-hidden border border-slate-200">
+                      <img src={editThumbnailPreview} alt="" className="w-full h-full object-cover" />
+                    </div>
+                    <button onClick={() => { setEditThumbnailFile(null); if (editThumbnailPreview) URL.revokeObjectURL(editThumbnailPreview); setEditThumbnailPreview(null); }}
+                      className="absolute top-1.5 right-1.5 bg-white/90 rounded-full w-6 h-6 flex items-center justify-center shadow-sm">
+                      <svg className="w-3 h-3 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" /></svg>
+                    </button>
+                  </div>
+                ) : room.thumbnailUrl ? (
+                  <div className="relative">
+                    <div className="aspect-[16/9] rounded-lg overflow-hidden border border-slate-200">
+                      <img src={room.thumbnailUrl} alt="" className="w-full h-full object-cover" />
+                    </div>
+                    <label className="absolute bottom-1.5 right-1.5 bg-white/90 hover:bg-white rounded-full px-2.5 py-1 text-[10px] font-bold text-slate-600 cursor-pointer shadow-sm">
+                      교체
+                      <input type="file" accept="image/*" className="hidden" onChange={e => {
+                        const f = e.target.files?.[0];
+                        if (f) { setEditThumbnailFile(f); setEditThumbnailPreview(URL.createObjectURL(f)); }
+                      }} />
+                    </label>
+                  </div>
+                ) : (
+                  <label className="flex flex-col items-center justify-center aspect-[16/9] rounded-lg border-2 border-dashed border-slate-200 cursor-pointer hover:border-blue-300 transition-colors">
+                    <svg className="w-7 h-7 text-slate-300 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                    <span className="text-[10px] font-bold text-slate-400">표지 이미지 업로드</span>
+                    <input type="file" accept="image/*" className="hidden" onChange={e => {
+                      const f = e.target.files?.[0];
+                      if (f) { setEditThumbnailFile(f); setEditThumbnailPreview(URL.createObjectURL(f)); }
+                    }} />
+                  </label>
+                )}
+              </div>
+
+              {/* 표시 옵션 토글 */}
+              <div className="flex flex-col gap-1 border border-slate-100 rounded-lg p-2 bg-slate-50/50">
+                {[
+                  { label: '호스트 정보 (Lv·평판)',    v: showHostInfo,   s: setShowHostInfo   },
+                  { label: '멤버 수',                   v: showMember,     s: setShowMember     },
+                  { label: '땡스볼 합계',               v: showThanksball, s: setShowThanksball },
+                  { label: '유료/구독 최신글 스니펫',   v: showPaidPreview,s: setShowPaidPreview},
+                ].map((o, i) => (
+                  <label key={i} className="flex items-center justify-between cursor-pointer py-0.5">
+                    <span className="text-[11px] font-bold text-slate-600">{o.label}</span>
+                    <input type="checkbox" checked={o.v} onChange={e => o.s(e.target.checked)} className="w-3.5 h-3.5 accent-blue-600" />
+                  </label>
+                ))}
+              </div>
+
+              <button onClick={saveCardSettings} disabled={isUploadingThumb}
+                className="w-full py-2 bg-slate-900 hover:bg-slate-700 disabled:opacity-40 text-white rounded-lg text-[11px] font-[1000] transition-colors">
+                {isUploadingThumb ? '저장 중...' : '카드 설정 저장'}
+              </button>
             </div>
 
             {/* 방 삭제 */}
