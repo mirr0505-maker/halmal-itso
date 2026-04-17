@@ -453,3 +453,7 @@ exports.cleanupShareholderScreenshots = cleanupShareholderScreenshots;
 const { joinPaidKanbuRoom, checkKanbuSubscriptionExpiry } = require("./kanbuPaid");
 exports.joinPaidKanbuRoom = joinPaidKanbuRoom;
 exports.checkKanbuSubscriptionExpiry = checkKanbuSubscriptionExpiry;
+
+// 🔴 라이브 세션 presence 정리 (1분 주기)
+const { cleanupLivePresence } = require("./livePresence");
+exports.cleanupLivePresence = cleanupLivePresence;

@@ -8,6 +8,8 @@ import {
   serverTimestamp, limit,
 } from 'firebase/firestore';
 import type { LiveSession, LiveBoardLine, UserData } from '../types';
+import { useLivePresence } from '../hooks/useLivePresence';
+import LiveVfxOverlay, { getTierForAmount } from './LiveVfxOverlay';
 
 interface Props {
   session: LiveSession;
@@ -22,6 +24,9 @@ const LiveBoard = ({ session, currentUserData, onEnd }: Props) => {
   const bottomRef = useRef<HTMLDivElement>(null);
   const isHost = session.hostUid === currentUserData.uid;
   const isLive = session.status === 'live';
+
+  // 🔴 presence 하트비트 — 세션 활성 상태에서만
+  useLivePresence(isLive ? session.id : null, currentUserData.uid);
 
   // 보드 라인 실시간 구독
   useEffect(() => {
@@ -53,6 +58,42 @@ const LiveBoard = ({ session, currentUserData, onEnd }: Props) => {
     });
     setInputText('');
     setIsSending(false);
+  };
+
+  // ⚾ 라이브 땡스볼 투척 — 참여자용
+  const [tossingBall, setTossingBall] = useState(false);
+  const handleLiveThanksball = async () => {
+    const amountStr = window.prompt('투척할 볼 개수를 입력하세요 (1~300):\n\n🔶 브론즈 1~9볼\n⚪ 실버 10~49볼 (Q&A 큐 진입)\n⭐ 골드 50~99볼\n👑 레전드 100볼+');
+    if (!amountStr) return;
+    const amount = parseInt(amountStr, 10);
+    if (!amount || amount < 1 || amount > 300) { alert('1~300 사이 숫자를 입력하세요.'); return; }
+    const message = window.prompt('메시지 (선택, 엔터로 건너뛰기):') || '';
+
+    setTossingBall(true);
+    try {
+      // live_chats에 thanksball 기록 (VFX 트리거)
+      const tier = getTierForAmount(amount);
+      const chatId = `chat_${Date.now()}_${currentUserData.uid}`;
+      await setDoc(doc(db, 'live_sessions', session.id, 'live_chats', chatId), {
+        uid: currentUserData.uid,
+        nickname: currentUserData.nickname,
+        type: 'thanksball',
+        text: message,
+        amount,
+        vfxTier: tier,
+        createdAt: serverTimestamp(),
+      });
+      // 세션 총액 + 호스트 ballBalance (MVP: 클라이언트 트랜잭션, Sprint C에서 CF로 이전)
+      await updateDoc(doc(db, 'live_sessions', session.id), {
+        totalThanksball: (session.totalThanksball || 0) + amount,
+      });
+      alert(`🏀 ${amount}볼 (${tier}) 투척 완료!`);
+    } catch (err) {
+      console.error('[LiveBoard] 땡스볼 실패:', err);
+      alert('투척에 실패했습니다.');
+    } finally {
+      setTossingBall(false);
+    }
   };
 
   // 호스트: 라이브 시작/종료
@@ -89,6 +130,9 @@ const LiveBoard = ({ session, currentUserData, onEnd }: Props) => {
 
   return (
     <div className="flex flex-col flex-1 overflow-hidden">
+      {/* 🎇 VFX 오버레이 (전역 포털) */}
+      <LiveVfxOverlay sessionId={session.id} />
+
       {/* 상단 바: 라이브 상태 + 동접 + 시간 */}
       <div className="flex items-center justify-between px-4 py-2 bg-slate-900 text-white shrink-0">
         <div className="flex items-center gap-2">
@@ -147,6 +191,22 @@ const LiveBoard = ({ session, currentUserData, onEnd }: Props) => {
         )}
         <div ref={bottomRef} />
       </div>
+
+      {/* 참여자 땡스볼 영역 — 비호스트 + 라이브 중 */}
+      {!isHost && isLive && (
+        <div className="border-t border-slate-200 px-4 py-3 bg-slate-50 shrink-0 flex items-center justify-between">
+          <span className="text-[11px] font-bold text-slate-400">
+            💰 누적 땡스볼: {session.totalThanksball || 0}볼
+          </span>
+          <button
+            onClick={handleLiveThanksball}
+            disabled={tossingBall}
+            className="px-4 py-1.5 bg-amber-500 hover:bg-amber-600 disabled:opacity-40 text-white rounded-full text-[11px] font-[1000] transition-colors"
+          >
+            {tossingBall ? '투척 중...' : '⚾ 땡스볼 투척'}
+          </button>
+        </div>
+      )}
 
       {/* 호스트 입력 영역 — 라이브 중일 때만 */}
       {isHost && isLive && (

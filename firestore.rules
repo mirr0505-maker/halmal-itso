@@ -126,7 +126,9 @@ service cloud.firestore {
       allow delete: if false;
       match /live_board/{lineId} {
         allow read: if request.auth != null;
-        allow create: if request.auth != null;
+        // 🔒 호스트만 보드에 작성 가능
+        allow create: if request.auth != null
+          && get(/databases/$(database)/documents/live_sessions/$(sessionId)).data.hostUid == request.auth.uid;
         allow update, delete: if false;
       }
       match /live_chats/{chatId} {
@@ -134,6 +136,11 @@ service cloud.firestore {
         allow create: if request.auth != null
           && request.resource.data.uid == request.auth.uid;
         allow update, delete: if false;
+      }
+      // 🔴 presence: 본인만 자기 문서 쓰기·삭제. Cloud Scheduler가 좀비 정리.
+      match /presence/{uid} {
+        allow read: if request.auth != null;
+        allow write, delete: if request.auth != null && request.auth.uid == uid;
       }
     }
 
