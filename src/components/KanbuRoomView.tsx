@@ -18,11 +18,13 @@ interface Props {
   currentUserData: UserData;
   allUsers: Record<string, UserData>;
   onPostClick?: (post: Post) => void;    // 🆕 깐부방 글 상세보기 라우팅
+  followerCounts?: Record<string, number>;
+  commentCounts?: Record<string, number>;
 }
 
 type TabId = 'free_board' | 'paid_once' | 'paid_monthly' | 'chat' | 'members' | 'admin' | 'live';
 
-const KanbuRoomView = ({ room, roomPosts, onBack, currentUserData, allUsers, onPostClick }: Props) => {
+const KanbuRoomView = ({ room, roomPosts, onBack, currentUserData, allUsers, onPostClick, followerCounts = {}, commentCounts = {} }: Props) => {
   const [activeTab, setActiveTab] = useState<TabId>('free_board');
   const [chats, setChats] = useState<KanbuChat[]>([]);
   const [chatInput, setChatInput] = useState('');
@@ -241,20 +243,20 @@ const KanbuRoomView = ({ room, roomPosts, onBack, currentUserData, allUsers, onP
       <div className="flex-1 overflow-hidden flex flex-col">
         {/* 📋 자유 게시판 */}
         {activeTab === 'free_board' && (
-          <KanbuBoardView room={room} boardType="free" posts={roomPosts} currentUserData={currentUserData} onPostClick={p => onPostClick?.(p)} />
+          <KanbuBoardView room={room} boardType="free" posts={roomPosts} currentUserData={currentUserData} onPostClick={p => onPostClick?.(p)} allUsers={allUsers} followerCounts={followerCounts} commentCounts={commentCounts} />
         )}
 
         {/* 🔒 유료 1회 */}
         {activeTab === 'paid_once' && (
           isPaidOnceMember
-            ? <KanbuBoardView room={room} boardType="paid_once" posts={roomPosts} currentUserData={currentUserData} onPostClick={p => onPostClick?.(p)} />
+            ? <KanbuBoardView room={room} boardType="paid_once" posts={roomPosts} currentUserData={currentUserData} onPostClick={p => onPostClick?.(p)} allUsers={allUsers} followerCounts={followerCounts} commentCounts={commentCounts} />
             : renderPaywall('once')
         )}
 
         {/* 🔒 유료 구독 */}
         {activeTab === 'paid_monthly' && (
           isPaidMonthlyMember
-            ? <KanbuBoardView room={room} boardType="paid_monthly" posts={roomPosts} currentUserData={currentUserData} onPostClick={p => onPostClick?.(p)} />
+            ? <KanbuBoardView room={room} boardType="paid_monthly" posts={roomPosts} currentUserData={currentUserData} onPostClick={p => onPostClick?.(p)} allUsers={allUsers} followerCounts={followerCounts} commentCounts={commentCounts} />
             : renderPaywall('monthly')
         )}
 

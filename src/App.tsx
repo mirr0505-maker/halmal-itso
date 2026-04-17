@@ -662,7 +662,7 @@ function App() {
     if (activeMenu === 'kanbu_room' && !selectedTopic) {
       if (selectedRoom) {
         const roomPosts = allRootPosts.filter(p => p.kanbuRoomId === selectedRoom.id);
-        return <KanbuRoomView room={selectedRoom} roomPosts={roomPosts} onBack={() => setSelectedRoom(null)} currentUserData={userData!} allUsers={allUsers} onPostClick={handleViewPost} />;
+        return <KanbuRoomView room={selectedRoom} roomPosts={roomPosts} onBack={() => setSelectedRoom(null)} currentUserData={userData!} allUsers={allUsers} onPostClick={handleViewPost} followerCounts={followerCounts} commentCounts={commentCounts} />;
       }
       const myRooms = kanbuRooms.filter(r => r.creatorId === userData?.uid || r.memberIds?.includes(userData?.uid || ''));
       const joinedRoomIds = myRooms.map(r => r.id);
