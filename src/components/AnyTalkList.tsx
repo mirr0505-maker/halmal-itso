@@ -250,10 +250,10 @@ const AnyTalkList = ({
               <div className="my-2 py-2">
                 <div className="flex items-center justify-between mb-3">
                   <span className="text-[13px] font-[1000] text-slate-700 flex items-center gap-1.5">
-                    🎞️ 한컷
+                    🍞 빵부스러기
                   </span>
                   <button onClick={onOneCutMoreClick} className="text-[11px] font-bold text-slate-500 hover:text-violet-600 transition-colors flex items-center gap-0.5">
-                    한컷 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7"/></svg>
+                    빵부스러기 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7"/></svg>
                   </button>
                 </div>
                 {/* 🚀 한컷 인라인 카드: OneCutList.tsx와 동일 형태 (이미지+제목+작성자+좋아요) */}
