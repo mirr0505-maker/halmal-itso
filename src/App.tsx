@@ -710,7 +710,7 @@ function App() {
           <div className="flex gap-4 items-start px-4">
             <div className="flex-1 min-w-0">
               {kanbuSubTab === 'list' ? (
-                <KanbuRoomList rooms={browseRooms} onRoomClick={setSelectedRoom} onCreateRoom={() => setIsCreateRoomOpen(true)} currentUserLevel={userData?.level || 1} allUsers={allUsers} currentUserData={userData} friends={friends} />
+                <KanbuRoomList rooms={browseRooms} onRoomClick={setSelectedRoom} onCreateRoom={() => setIsCreateRoomOpen(true)} currentUserLevel={userData?.level || 1} allUsers={allUsers} currentUserData={userData} friends={friends} onFriendsClick={() => setActiveMenu('friends')} onPromoUserClick={(user) => setPublicProfileNick(user.nickname)} followerCounts={followerCounts} />
               ) : (
                 <MyKanbuRoomList rooms={myRooms} onRoomClick={setSelectedRoom} />
               )}
