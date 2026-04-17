@@ -114,6 +114,29 @@ service cloud.firestore {
       match /{sub=**} { allow read: if true; allow write: if request.auth != null; }
     }
 
+    // 🔴 라이브 세션 (Phase 4-A 텍스트 라이브)
+    match /live_sessions/{sessionId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null
+        && request.resource.data.hostUid == request.auth.uid
+        && request.resource.data.status == 'ready';
+      allow update: if request.auth != null
+        && (resource.data.hostUid == request.auth.uid
+            || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['activeUsers']));
+      allow delete: if false;
+      match /live_board/{lineId} {
+        allow read: if request.auth != null;
+        allow create: if request.auth != null;
+        allow update, delete: if false;
+      }
+      match /live_chats/{chatId} {
+        allow read: if request.auth != null;
+        allow create: if request.auth != null
+          && request.resource.data.uid == request.auth.uid;
+        allow update, delete: if false;
+      }
+    }
+
     // 우리들의 장갑 — 커뮤니티 목록은 비로그인도 읽기 가능, 생성/수정은 로그인 필요
     match /communities/{id} {
       allow read: if true;

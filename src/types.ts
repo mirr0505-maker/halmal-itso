@@ -288,6 +288,36 @@ export interface KanbuRoom {
   };
   paidOnceMembers?: string[];     // 1회 결제 완료 (영구)
   paidMonthlyMembers?: string[];  // 월 구독 활성 멤버
+  // 🔴 라이브 세션 현재 상태 (활성 세션이 있으면 LIVE 배지 표시)
+  liveSessionId?: string | null;
+}
+
+// ═══════════════════════════════════════════════════════
+// 🔴 깐부방 라이브 이코노미 (Phase 4-A 텍스트 라이브)
+// ═══════════════════════════════════════════════════════
+export type LiveSessionStatus = 'ready' | 'live' | 'ended' | 'killed';
+
+export interface LiveSession {
+  id: string;
+  roomId: string;                    // 소속 깐부방
+  hostUid: string;
+  hostNickname: string;
+  title: string;
+  type: 'text';                      // Phase 4-A: 텍스트 전용. 향후 'audio' | 'onlab' 추가
+  status: LiveSessionStatus;
+  startedAt: FirestoreTimestamp | null;
+  endedAt: FirestoreTimestamp | null;
+  activeUsers: number;               // 동접 수 (하트비트 기반)
+  totalThanksball: number;           // 누적 후원
+  createdAt: FirestoreTimestamp;
+}
+
+export interface LiveBoardLine {
+  id: string;
+  order: number;                     // 표시 순서
+  text: string;                      // 한 문장 단위
+  style: 'normal' | 'highlight' | 'title';
+  committedAt: FirestoreTimestamp;
 }
 
 export interface KanbuChat {

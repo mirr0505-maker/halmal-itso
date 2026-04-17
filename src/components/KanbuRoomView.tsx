@@ -3,12 +3,13 @@
 import { useState, useEffect, useRef } from 'react';
 import { db, functions } from '../firebase';
 import {
-  collection, onSnapshot, query, orderBy, limit, doc, setDoc, updateDoc, deleteDoc,
+  collection, onSnapshot, query, orderBy, limit, where, doc, setDoc, updateDoc, deleteDoc,
   serverTimestamp, arrayRemove, increment,
 } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
-import type { KanbuRoom, KanbuChat, Post, UserData } from '../types';
+import type { KanbuRoom, KanbuChat, Post, UserData, LiveSession } from '../types';
 import { calculateLevel } from '../utils';
+import LiveBoard from './LiveBoard';
 
 interface Props {
   room: KanbuRoom;
@@ -18,7 +19,7 @@ interface Props {
   allUsers: Record<string, UserData>;
 }
 
-type TabId = 'free_board' | 'paid_once' | 'paid_monthly' | 'chat' | 'members' | 'admin';
+type TabId = 'free_board' | 'paid_once' | 'paid_monthly' | 'chat' | 'members' | 'admin' | 'live';
 
 const KanbuRoomView = ({ room, roomPosts, onBack, currentUserData, allUsers }: Props) => {
   const [activeTab, setActiveTab] = useState<TabId>('free_board');
@@ -40,6 +41,9 @@ const KanbuRoomView = ({ room, roomPosts, onBack, currentUserData, allUsers }: P
   const [monthlyPrice, setMonthlyPrice] = useState(room.paidBoards?.monthly?.price || 20);
   const [monthlyTitle, setMonthlyTitle] = useState(room.paidBoards?.monthly?.title || '유료 게시판 (구독)');
   const [purchasing, setPurchasing] = useState(false);
+  // 🔴 라이브 세션 state
+  const [liveSession, setLiveSession] = useState<LiveSession | null>(null);
+  const [creatingLive, setCreatingLive] = useState(false);
 
   const isCreator = room.creatorId === currentUserData.uid;
   const isPaidOnceMember = room.paidOnceMembers?.includes(currentUserData.uid) || isCreator;
@@ -51,6 +55,50 @@ const KanbuRoomView = ({ room, roomPosts, onBack, currentUserData, allUsers }: P
   // 수수료율 (강변 시장 동일)
   const feeRate = (room.creatorLevel || 1) >= 7 ? 0.20 : (room.creatorLevel || 1) >= 5 ? 0.25 : 0.30;
   const feePercent = Math.round(feeRate * 100);
+
+  // 🔴 라이브 세션 실시간 구독 — 활성(ready/live) 세션이 있는지 감지
+  useEffect(() => {
+    const q = query(
+      collection(db, 'live_sessions'),
+      where('roomId', '==', room.id),
+      where('status', 'in', ['ready', 'live']),
+      limit(1),
+    );
+    return onSnapshot(q, snap => {
+      if (!snap.empty) {
+        setLiveSession({ id: snap.docs[0].id, ...snap.docs[0].data() } as LiveSession);
+      } else {
+        setLiveSession(null);
+      }
+    });
+  }, [room.id]);
+
+  // 🔴 라이브 세션 생성
+  const createLiveSession = async () => {
+    const title = window.prompt('라이브 제목을 입력하세요:');
+    if (!title?.trim()) return;
+    setCreatingLive(true);
+    try {
+      const sessionId = `live_${Date.now()}_${currentUserData.uid}`;
+      await setDoc(doc(db, 'live_sessions', sessionId), {
+        roomId: room.id,
+        hostUid: currentUserData.uid,
+        hostNickname: currentUserData.nickname,
+        title: title.trim(),
+        type: 'text',
+        status: 'ready',
+        startedAt: null,
+        endedAt: null,
+        activeUsers: 0,
+        totalThanksball: 0,
+        createdAt: serverTimestamp(),
+      });
+      await updateDoc(doc(db, 'kanbu_rooms', room.id), { liveSessionId: sessionId });
+      setActiveTab('live');
+    } finally {
+      setCreatingLive(false);
+    }
+  };
 
   // 채팅 실시간 구독
   useEffect(() => {
@@ -210,6 +258,8 @@ const KanbuRoomView = ({ room, roomPosts, onBack, currentUserData, allUsers }: P
     { id: 'free_board', label: '📋 자유 게시판' },
     ...(hasOnceBoard ? [{ id: 'paid_once' as TabId, label: `🔒 ${room.paidBoards!.once!.title}` }] : []),
     ...(hasMonthlyBoard ? [{ id: 'paid_monthly' as TabId, label: `🔒 ${room.paidBoards!.monthly!.title}` }] : []),
+    // 🔴 라이브 탭 — 활성 세션이 있으면 LIVE 배지
+    ...(liveSession ? [{ id: 'live' as TabId, label: `🔴 LIVE ${liveSession.status === 'live' ? `(${liveSession.activeUsers || 0})` : '(대기)'}` }] : []),
     { id: 'chat', label: `💬 채팅 ${chats.length > 0 ? `(${chats.length})` : ''}` },
     { id: 'members', label: `👥 멤버 ${memberIds.length}` },
     ...(isCreator ? [{ id: 'admin' as TabId, label: '⚙️ 관리' }] : []),
@@ -250,6 +300,18 @@ const KanbuRoomView = ({ room, roomPosts, onBack, currentUserData, allUsers }: P
 
         {/* 🔒 유료 구독 */}
         {activeTab === 'paid_monthly' && (isPaidMonthlyMember ? renderBoard('paid_monthly') : renderPaywall('monthly'))}
+
+        {/* 🔴 라이브 */}
+        {activeTab === 'live' && liveSession && (
+          <LiveBoard
+            session={liveSession}
+            currentUserData={currentUserData}
+            onEnd={() => {
+              updateDoc(doc(db, 'kanbu_rooms', room.id), { liveSessionId: null });
+              setActiveTab('free_board');
+            }}
+          />
+        )}
 
         {/* 💬 채팅 */}
         {activeTab === 'chat' && (
@@ -322,6 +384,19 @@ const KanbuRoomView = ({ room, roomPosts, onBack, currentUserData, allUsers }: P
         {/* ⚙️ 관리 */}
         {activeTab === 'admin' && isCreator && (
           <div className="flex-1 overflow-y-auto p-4 space-y-5">
+            {/* 🔴 라이브 시작 */}
+            <div className="bg-white border border-slate-100 rounded-xl p-4">
+              <p className="text-[12px] font-[1000] text-slate-700 mb-3">🔴 텍스트 라이브</p>
+              {liveSession ? (
+                <p className="text-[11px] font-bold text-slate-400">현재 활성 세션이 있습니다. 🔴 LIVE 탭에서 관리하세요.</p>
+              ) : (
+                <button onClick={createLiveSession} disabled={creatingLive}
+                  className="w-full py-2.5 bg-red-500 hover:bg-red-600 disabled:opacity-40 text-white rounded-lg text-[12px] font-[1000] transition-colors">
+                  {creatingLive ? '생성 중...' : '🔴 텍스트 라이브 시작하기'}
+                </button>
+              )}
+            </div>
+
             {/* 유료 게시판 설정 */}
             <div className="bg-white border border-slate-100 rounded-xl p-4 space-y-4">
               <p className="text-[12px] font-[1000] text-slate-700">💰 유료 게시판 설정</p>
