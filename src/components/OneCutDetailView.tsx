@@ -344,7 +344,26 @@ const OneCutDetailView = ({
             <AdSlot position="bottom" postCategory="한컷" postId={rootPost.id} postAuthorId={rootPost.author_id} postAuthorLevel={displayLevel} type="creator" adSlotEnabled={!!(rootPost as unknown as { adSlotEnabled?: boolean }).adSlotEnabled} />
           </div>
 
-          {/* 🚀 작성자 정보 + 인터랙션 바 — RootPostCard 박스 스타일 */}
+          {/* 🚀 하단 통계 띠 — 마라톤의 전령(RootPostCard) 스타일: 평문 텍스트 */}
+          <div className="flex items-center justify-between text-[13px] font-bold text-slate-500 bg-white border-t border-slate-100 px-4 md:px-8 py-2">
+            <div className="flex gap-4">
+              <span>댓글 <span className="font-black text-slate-700">{formatKoreanNumber(commentCounts[rootPost.id] || 0)}</span></span>
+              <span>좋아요 <span className="font-black text-slate-700">{formatKoreanNumber(rootPost.likes || 0)}</span></span>
+              {(rootPost.thanksballTotal || 0) > 0 && (
+                <span>땡스볼 <span className="font-black text-amber-500">{rootPost.thanksballTotal}</span></span>
+              )}
+            </div>
+            {goldStarCount > 0 && (
+              <div className="flex items-center gap-0.5">
+                <svg className="w-3.5 h-3.5 text-amber-400 fill-current" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                </svg>
+                <span className="text-[11px] font-[1000] text-amber-500">{goldStarCount}</span>
+              </div>
+            )}
+          </div>
+
+          {/* 🚀 작성자 정보 + 액션 버튼 — RootPostCard 박스 스타일 (공유 제거, flex-wrap 모바일 대응) */}
           <div className="border-t border-slate-100 px-4 md:px-8 py-4">
             <div className="flex flex-col md:flex-row items-center justify-between gap-4 p-4 border border-slate-100 rounded-2xl bg-slate-50/30">
               {/* 좌: 아바타 + 이름 + 레벨 */}
@@ -359,33 +378,8 @@ const OneCutDetailView = ({
                   </span>
                 </div>
               </div>
-              {/* 우: 댓글 + 공유 + 좋아요 + 땡스볼 + 깐부 */}
-              <div className="flex items-center gap-2 w-full md:w-auto">
-                {/* 댓글수 */}
-                <span className="flex-1 md:flex-none flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border bg-white text-slate-400 border-slate-200 text-[12px] font-[1000] whitespace-nowrap">
-                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
-                  {formatKoreanNumber(commentCounts[rootPost.id] || 0)}
-                </span>
-                {/* 공유 */}
-                <button
-                  onClick={handleCopyUrl}
-                  className={`flex-1 md:flex-none flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border text-[12px] font-[1000] whitespace-nowrap transition-all ${copied ? 'bg-emerald-50 text-emerald-500 border-emerald-200' : 'bg-white text-slate-400 border-slate-200 hover:bg-slate-50'}`}
-                >
-                  {copied ? (
-                    <><svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7"/></svg>복사됨</>
-                  ) : (
-                    <><svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/></svg>공유</>
-                  )}
-                </button>
-                {/* 🚀 골드스타 */}
-                {goldStarCount > 0 && (
-                  <div className="flex items-center gap-0.5 px-2 py-1.5 rounded-xl bg-amber-50 border border-amber-200 shrink-0">
-                    <svg className="w-3.5 h-3.5 text-amber-400 fill-current" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
-                    </svg>
-                    <span className="text-[11px] font-[1000] text-amber-500">{goldStarCount}</span>
-                  </div>
-                )}
+              {/* 우: 좋아요 + 땡스볼 + 깐부 (공유는 우상단 헤더만, 댓글수는 통계띠만) */}
+              <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
                 <button
                   onClick={() => onLikeClick?.(null, rootPost.id)}
                   className={`flex-1 md:flex-none flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl transition-all duration-300 font-[1000] text-[12px] whitespace-nowrap ${isLikedByMe ? 'bg-[#FF2E56] text-white ring-2 ring-rose-300 scale-105' : 'bg-white text-rose-400 border border-rose-200 hover:bg-rose-50'}`}
