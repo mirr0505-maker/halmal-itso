@@ -472,7 +472,7 @@ const KanbuRoomView = ({ room, roomPosts, onBack, currentUserData, allUsers, onP
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1.5">방 표지 (16:9)</label>
                 {editThumbnailPreview ? (
                   <div className="relative">
-                    <div className="aspect-[16/9] rounded-lg overflow-hidden border border-slate-200">
+                    <div className="aspect-[16/9] rounded-lg overflow-hidden border border-slate-200 max-w-[240px]">
                       <img src={editThumbnailPreview} alt="" className="w-full h-full object-cover" />
                     </div>
                     <button onClick={() => { setEditThumbnailFile(null); if (editThumbnailPreview) URL.revokeObjectURL(editThumbnailPreview); setEditThumbnailPreview(null); }}
@@ -482,7 +482,7 @@ const KanbuRoomView = ({ room, roomPosts, onBack, currentUserData, allUsers, onP
                   </div>
                 ) : room.thumbnailUrl ? (
                   <div className="relative">
-                    <div className="aspect-[16/9] rounded-lg overflow-hidden border border-slate-200">
+                    <div className="aspect-[16/9] rounded-lg overflow-hidden border border-slate-200 max-w-[240px]">
                       <img src={room.thumbnailUrl} alt="" className="w-full h-full object-cover" />
                     </div>
                     <label className="absolute bottom-1.5 right-1.5 bg-white/90 hover:bg-white rounded-full px-2.5 py-1 text-[10px] font-bold text-slate-600 cursor-pointer shadow-sm">
@@ -494,7 +494,7 @@ const KanbuRoomView = ({ room, roomPosts, onBack, currentUserData, allUsers, onP
                     </label>
                   </div>
                 ) : (
-                  <label className="flex flex-col items-center justify-center aspect-[16/9] rounded-lg border-2 border-dashed border-slate-200 cursor-pointer hover:border-blue-300 transition-colors">
+                  <label className="flex flex-col items-center justify-center aspect-[16/9] max-w-[240px] rounded-lg border-2 border-dashed border-slate-200 cursor-pointer hover:border-blue-300 transition-colors">
                     <svg className="w-7 h-7 text-slate-300 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
                     <span className="text-[10px] font-bold text-slate-400">표지 이미지 업로드</span>
                     <input type="file" accept="image/*" className="hidden" onChange={e => {
