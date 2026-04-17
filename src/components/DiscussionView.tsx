@@ -1,6 +1,8 @@
 // src/components/DiscussionView.tsx — 일반 게시글 상세 뷰 (2컬럼 레이아웃)
-import React, { useEffect } from 'react';
-import type { Post, UserData } from '../types';
+import React, { useEffect, useState } from 'react';
+import { db } from '../firebase';
+import { doc, onSnapshot } from 'firebase/firestore';
+import type { Post, UserData, KanbuRoom } from '../types';
 import { EXILE_CATEGORY } from '../types';
 import RootPostCard from './RootPostCard';
 import DebateBoard from './DebateBoard';
@@ -112,6 +114,22 @@ const DiscussionView = ({
   //    likes·시간 필터를 스킵하고 isHiddenByExile(문제글 soft-delete)만 제외
   const isExile = rootPost.category === EXILE_CATEGORY;
   const isKanbu = !!rootPost.kanbuRoomId;
+
+  // 🔒 깐부방 유료 게시판 접근 검증 — 글 상세 URL 직접 접근 차단
+  const [kanbuRoom, setKanbuRoom] = useState<KanbuRoom | null>(null);
+  useEffect(() => {
+    if (!rootPost.kanbuRoomId) return;
+    return onSnapshot(doc(db, 'kanbu_rooms', rootPost.kanbuRoomId), snap => {
+      if (snap.exists()) setKanbuRoom({ id: snap.id, ...snap.data() } as KanbuRoom);
+    });
+  }, [rootPost.kanbuRoomId]);
+
+  const isPaidBoard = rootPost.kanbuBoardType === 'paid_once' || rootPost.kanbuBoardType === 'paid_monthly';
+  const paidAccessOk = !isPaidBoard
+    || !kanbuRoom
+    || kanbuRoom.creatorId === userData?.uid
+    || (rootPost.kanbuBoardType === 'paid_once' && kanbuRoom.paidOnceMembers?.includes(userData?.uid || ''))
+    || (rootPost.kanbuBoardType === 'paid_monthly' && kanbuRoom.paidMonthlyMembers?.includes(userData?.uid || ''));
   const relatedPosts = otherTopics.filter(topic => {
     if (topic.id === rootPost.id || topic.isOneCut) return false;
     if (topic.isHiddenByExile) return false;
@@ -126,6 +144,28 @@ const DiscussionView = ({
   const realFollowers = followerCounts[rootPost.author] || 0;
   const displayLevel = calculateLevel(authorData?.exp || 0);
   const displayLikes = authorData ? authorData.likes : (rootPost.authorInfo?.totalLikes || 0);
+
+  // 🔒 유료 게시판 접근 차단 — 페이월 화면
+  if (isPaidBoard && !paidAccessOk && kanbuRoom) {
+    const label = rootPost.kanbuBoardType === 'paid_once' ? '1회 결제' : '월 구독';
+    const boardTitle = rootPost.kanbuBoardType === 'paid_once'
+      ? kanbuRoom.paidBoards?.once?.title
+      : kanbuRoom.paidBoards?.monthly?.title;
+    return (
+      <div className="w-full max-w-[640px] mx-auto py-20 px-6 text-center animate-in fade-in">
+        <p className="text-[40px] mb-4">🔒</p>
+        <p className="text-[15px] font-[1000] text-slate-800 mb-2">{boardTitle || '유료 게시판'}</p>
+        <p className="text-[12px] font-bold text-slate-500 mb-6">
+          이 글은 {label} 멤버만 열람할 수 있습니다.<br />
+          깐부방에 입장하여 결제 후 이용해주세요.
+        </p>
+        <button onClick={() => onBack?.()}
+          className="px-5 py-2 bg-slate-900 hover:bg-slate-700 text-white rounded-lg text-[12px] font-[1000] transition-colors">
+          목록으로 돌아가기
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-12 gap-4 w-full max-w-[1600px] mx-auto animate-in fade-in duration-700 items-start pb-20">
