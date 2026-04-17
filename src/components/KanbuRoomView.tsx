@@ -259,8 +259,13 @@ const KanbuRoomView = ({ room, roomPosts, onBack, currentUserData, allUsers }: P
     ...(hasOnceBoard ? [{ id: 'paid_once' as TabId, label: `🔒 ${room.paidBoards!.once!.title}` }] : []),
     ...(hasMonthlyBoard ? [{ id: 'paid_monthly' as TabId, label: `🔒 ${room.paidBoards!.monthly!.title}` }] : []),
     // 🔴 라이브 탭 — 활성 세션이 있으면 LIVE 배지
-    ...(liveSession ? [{ id: 'live' as TabId, label: `🔴 LIVE ${liveSession.status === 'live' ? `(${liveSession.activeUsers || 0})` : '(대기)'}` }] : []),
     { id: 'chat', label: `💬 채팅 ${chats.length > 0 ? `(${chats.length})` : ''}` },
+    // 🔴 라이브 탭 — 방장은 항상 표시(시작 버튼), 참여자는 활성 세션 있을 때만
+    ...(isCreator || liveSession
+      ? [{ id: 'live' as TabId, label: liveSession
+            ? `🔴 LIVE ${liveSession.status === 'live' ? `(${liveSession.activeUsers || 0})` : '(대기)'}`
+            : '🔴 텍스트 라이브' }]
+      : []),
     { id: 'members', label: `👥 멤버 ${memberIds.length}` },
     ...(isCreator ? [{ id: 'admin' as TabId, label: '⚙️ 관리' }] : []),
   ];
@@ -302,15 +307,31 @@ const KanbuRoomView = ({ room, roomPosts, onBack, currentUserData, allUsers }: P
         {activeTab === 'paid_monthly' && (isPaidMonthlyMember ? renderBoard('paid_monthly') : renderPaywall('monthly'))}
 
         {/* 🔴 라이브 */}
-        {activeTab === 'live' && liveSession && (
-          <LiveBoard
-            session={liveSession}
-            currentUserData={currentUserData}
-            onEnd={() => {
-              updateDoc(doc(db, 'kanbu_rooms', room.id), { liveSessionId: null });
-              setActiveTab('free_board');
-            }}
-          />
+        {activeTab === 'live' && (
+          liveSession ? (
+            <LiveBoard
+              session={liveSession}
+              currentUserData={currentUserData}
+              onEnd={() => {
+                updateDoc(doc(db, 'kanbu_rooms', room.id), { liveSessionId: null });
+                setActiveTab('free_board');
+              }}
+            />
+          ) : isCreator ? (
+            <div className="flex-1 flex items-center justify-center p-6">
+              <div className="text-center max-w-sm">
+                <p className="text-[32px] mb-3">🔴</p>
+                <p className="text-[14px] font-[1000] text-slate-800 mb-2">텍스트 라이브</p>
+                <p className="text-[12px] font-bold text-slate-400 mb-5">
+                  깐부들에게 실시간으로 글을 전달할 수 있습니다. 종료하면 보드 내용이 아카이브됩니다.
+                </p>
+                <button onClick={createLiveSession} disabled={creatingLive}
+                  className="px-6 py-2.5 bg-red-500 hover:bg-red-600 disabled:opacity-40 text-white rounded-lg text-[12px] font-[1000] transition-colors">
+                  {creatingLive ? '생성 중...' : '🔴 텍스트 라이브 시작하기'}
+                </button>
+              </div>
+            </div>
+          ) : null
         )}
 
         {/* 💬 채팅 */}
@@ -384,19 +405,6 @@ const KanbuRoomView = ({ room, roomPosts, onBack, currentUserData, allUsers }: P
         {/* ⚙️ 관리 */}
         {activeTab === 'admin' && isCreator && (
           <div className="flex-1 overflow-y-auto p-4 space-y-5">
-            {/* 🔴 라이브 시작 */}
-            <div className="bg-white border border-slate-100 rounded-xl p-4">
-              <p className="text-[12px] font-[1000] text-slate-700 mb-3">🔴 텍스트 라이브</p>
-              {liveSession ? (
-                <p className="text-[11px] font-bold text-slate-400">현재 활성 세션이 있습니다. 🔴 LIVE 탭에서 관리하세요.</p>
-              ) : (
-                <button onClick={createLiveSession} disabled={creatingLive}
-                  className="w-full py-2.5 bg-red-500 hover:bg-red-600 disabled:opacity-40 text-white rounded-lg text-[12px] font-[1000] transition-colors">
-                  {creatingLive ? '생성 중...' : '🔴 텍스트 라이브 시작하기'}
-                </button>
-              )}
-            </div>
-
             {/* 유료 게시판 설정 */}
             <div className="bg-white border border-slate-100 rounded-xl p-4 space-y-4">
               <p className="text-[12px] font-[1000] text-slate-700">💰 유료 게시판 설정</p>
