@@ -921,12 +921,13 @@ function App() {
     }
 
     if (activeMenu === 'ranking') {
-      return <RankingView allRootPosts={allRootPosts.filter(p => !p.isOneCut)} allUsers={allUsers} onPostClick={handleViewPost} />;
+      return <RankingView allRootPosts={allRootPosts.filter(p => !p.isOneCut && !p.kanbuRoomId)} allUsers={allUsers} onPostClick={handleViewPost} />;
     }
 
     if (activeMenu === 'onecut') {
       // 🚀 한컷 메뉴: 일반 홈 피드와 동일한 탭 필터 적용 (새글=2시간 이내, 등록글=2시간+좋아요3, 인기=좋아요10, 최고=좋아요30)
       const onecutAll = allRootPosts.filter(p => {
+        if (p.kanbuRoomId) return false;
         if (!(p.isOneCut || p.category === '한컷')) return false;
         if (p.isHiddenByExile) return false;
         const authorData = allUsers[`nickname_${p.author}`];
@@ -961,12 +962,13 @@ function App() {
       const status = authorData?.sanctionStatus;
       return !!(status && (status.startsWith('exiled_') || status === 'banned'));
     };
-    let basePosts = allRootPosts.filter(p => !p.isOneCut && p.category !== 'magic_inkwell' && p.category !== EXILE_CATEGORY && !p.isHiddenByExile && !isAuthorExiled(p));
+    // 🏠 깐부방 게시판 글(kanbuRoomId 존재)은 홈/카테고리 피드(참새들의 방앗간 포함)에서 완전 제외 — 깐부방 내부에서만 노출
+    let basePosts = allRootPosts.filter(p => !p.isOneCut && p.category !== 'magic_inkwell' && p.category !== EXILE_CATEGORY && !p.isHiddenByExile && !isAuthorExiled(p) && !p.kanbuRoomId);
 
     if (activeMenu !== 'home' && MENU_MESSAGES[activeMenu]) {
       const menuInfo = MENU_MESSAGES[activeMenu];
       const categoryKey = menuInfo.title;
-      basePosts = allRootPosts.filter(p => !p.isOneCut && !p.isHiddenByExile && !isAuthorExiled(p) && ( // 카테고리 뷰: 마라톤 포함 전체에서 필터
+      basePosts = allRootPosts.filter(p => !p.isOneCut && !p.isHiddenByExile && !isAuthorExiled(p) && !p.kanbuRoomId && ( // 카테고리 뷰: 마라톤 포함 전체에서 필터
         // 🚀 참새들의 방앗간(구 너와 나의 이야기): DB category는 "너와 나의 이야기" 유지
         activeMenu === 'my_story'
           ? (p.category === "너와 나의 이야기" || p.category === undefined)
