@@ -266,6 +266,19 @@ exports.fetchMarathonNews = onSchedule(
   }
 );
 
+// 🚀 ogRenderer 이미지 화이트리스트
+// Why: 본문 <img>·이미지 필드에서 추출한 URL이 R2/자사 도메인인지 검증해 트래킹·피싱 URL 차단
+// 설정 방법: functions/.env 에 쉼표 구분으로 추가 (예: OG_IMAGE_ALLOWED_HOSTS=halmal-itso.web.app,pub-xxx.r2.dev)
+// 비어있으면 아래 기본값 사용
+const OG_IMAGE_ALLOWED_HOSTS = (() => {
+  const raw = process.env.OG_IMAGE_ALLOWED_HOSTS;
+  if (raw && raw.trim()) return raw.split(",").map(s => s.trim()).filter(Boolean);
+  return [
+    "halmal-itso.web.app",
+    "pub-9e6af273cd034aa6b7857343d0745224.r2.dev",
+  ];
+})();
+
 // 🚀 ogRenderer: /p/{postId} 요청 시 글 OG 태그를 동적으로 채운 HTML 반환
 // SNS 봇(카카오·페이스북·트위터 등)이 크롤링할 때 글 제목·이미지·설명이 반영됨
 exports.ogRenderer = onRequest(
@@ -321,16 +334,52 @@ exports.ogRenderer = onRequest(
 
       if (!snap.empty) {
         const post = snap.docs[0].data();
-        title = post.title ? `${post.title} — ${SITE_NAME}` : SITE_NAME;
+        // 카카오 권장 제목 40자 공간 확보 — 사이트명은 og:site_name으로 이미 노출
+        title = post.title || SITE_NAME;
 
         // 본문에서 텍스트만 추출해 description 생성 (HTML 태그 제거, 120자 제한)
         const rawText = (post.content || "").replace(/<[^>]+>/g, "").trim();
         description = rawText.slice(0, 120) + (rawText.length > 120 ? "..." : "") || description;
 
-        if (post.imageUrl) {
-          image = post.imageUrl;
-        } else if (post.linkUrl) {
-          // 🚀 이미지 없을 때 원본 기사 linkUrl의 OG 이미지를 폴백으로 사용
+        // 🚀 image 폴백 체인 — 첫 유효 값 채택
+        // 우선순위: imageUrls[0] → imageUrl → thumbnailUrl → 본문 첫 <img> → linkUrl OG → 로고
+        // 1~4단계는 OG_IMAGE_ALLOWED_HOSTS 화이트리스트 적용(자사 R2·호스팅만 허용)
+        // 5단계(linkUrl OG)는 외부 뉴스 도메인이라 화이트리스트 미적용(https:// 검증만)
+        const isHttps = (v) =>
+          typeof v === "string" && v.startsWith("https://") && v.length > 10;
+        const isAllowedImageUrl = (v) => {
+          if (!isHttps(v)) return false;
+          try {
+            const u = new URL(v);
+            if (OG_IMAGE_ALLOWED_HOSTS.includes(u.hostname)) return true;
+            console.warn(`[ogRenderer] Image URL rejected (not in allowlist): ${v}`);
+            return false;
+          } catch {
+            return false;
+          }
+        };
+
+        let resolvedImage = null;
+
+        // 1) 배열형 이미지 (빵부스러기 등, 최대 4장)
+        if (Array.isArray(post.imageUrls) && isAllowedImageUrl(post.imageUrls[0])) {
+          resolvedImage = post.imageUrls[0];
+        }
+        // 2) 단일 imageUrl (기존)
+        if (!resolvedImage && isAllowedImageUrl(post.imageUrl)) {
+          resolvedImage = post.imageUrl;
+        }
+        // 3) 별도 썸네일 필드
+        if (!resolvedImage && isAllowedImageUrl(post.thumbnailUrl)) {
+          resolvedImage = post.thumbnailUrl;
+        }
+        // 4) Tiptap 본문 내 첫 <img src="https://..."> — 본문에만 이미지 박힌 경우
+        if (!resolvedImage && typeof post.content === "string") {
+          const imgMatch = post.content.match(/<img[^>]+src=["'](https:\/\/[^"']+)["']/i);
+          if (imgMatch && isAllowedImageUrl(imgMatch[1])) resolvedImage = imgMatch[1];
+        }
+        // 5) linkUrl의 외부 OG 이미지 (마라톤 뉴스 등) — 외부 도메인이라 화이트리스트 미적용
+        if (!resolvedImage && post.linkUrl) {
           try {
             const ogRes = await fetch(post.linkUrl, {
               headers: { "User-Agent": "Mozilla/5.0 (compatible; GLoveBot/1.0)" },
@@ -341,10 +390,12 @@ exports.ogRenderer = onRequest(
               const ogHtml = await ogRes.text();
               const ogImgMatch = ogHtml.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i)
                 || ogHtml.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i);
-              if (ogImgMatch) image = ogImgMatch[1];
+              if (ogImgMatch && isHttps(ogImgMatch[1])) resolvedImage = ogImgMatch[1];
             }
           } catch { /* 폴백 실패 시 기본 이미지 유지 */ }
         }
+
+        if (resolvedImage) image = resolvedImage;
       }
     } catch (e) {
       console.error("[ogRenderer] Firestore 조회 실패:", e);
@@ -381,7 +432,8 @@ exports.ogRenderer = onRequest(
 <body></body>
 </html>`;
 
-    res.set("Cache-Control", "public, max-age=300, s-maxage=300");
+    // 브라우저 짧게(글 수정 반영) · CDN 1시간 · stale-while-revalidate 24h
+    res.set("Cache-Control", "public, max-age=60, s-maxage=3600, stale-while-revalidate=86400");
     res.status(200).send(html);
   }
 );
