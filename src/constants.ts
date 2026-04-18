@@ -21,6 +21,19 @@ export const EXTERNAL_URLS = {
   LINK_PREVIEW_WORKER: 'https://halmal-link-preview.mirr0505.workers.dev', // OG 링크 미리보기 Worker
 } as const;
 
+// 🚀 OG 이미지 화이트리스트 — 클라이언트·서버 일관성 유지용
+// Why: Kakao Share content.imageUrl(클라)과 ogRenderer Cloud Function(서버) 양쪽에서
+//      동일한 호스트 집합을 참조해야 SNS 카드 이미지가 일치. 둘 중 한쪽이 이미지를
+//      걸러내면 Kakao는 로고, 페북·X는 본문 이미지처럼 카드 간 불일치 발생.
+// ⚠️ 이 배열은 functions/index.js의 OG_IMAGE_ALLOWED_HOSTS 상수 기본값 배열과
+//    완전히 동일해야 함. 서버가 functions/.env의 OG_IMAGE_ALLOWED_HOSTS 환경변수로
+//    오버라이드될 수 있으며, 해당 env 추가·변경 시 이 파일도 반드시 동기화할 것.
+//    (클라는 빌드 타임 정적 배열 — 런타임 env 주입 없음)
+export const OG_IMAGE_ALLOWED_HOSTS = [
+  'halmal-itso.web.app',
+  'pub-9e6af273cd034aa6b7857343d0745224.r2.dev',
+] as const;
+
 // 🚀 깐부맺기 메뉴 — 현재 테스트/개발 단계라 허용 닉네임만 표시
 // TODO: 실 서비스 전환 시 이 배열 제거 후 전체 유저 표시로 변경
 export const FRIENDS_MENU_ALLOWED_NICKNAMES = ["깐부1호", "깐부2호", "깐부3호", "깐부4호", "깐부5호", "깐부6호", "깐부7호", "깐부8호", "깐부9호", "깐부10호", "불량깐부1호", "불량깐부2호", "불량깐부3호", "흑무영"];
