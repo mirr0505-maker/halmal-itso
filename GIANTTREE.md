@@ -35,7 +35,7 @@
 ## 3. 참여자 구분 — 하이브리드 성장 시스템
 
 ### 직계 전파자 (Node)
-- **진입 경로**: 카톡 URL (`?tree={treeId}&node={parentNodeId}`)
+- **진입 경로**: 카톡 URL (`/p/tree_{treeId}?node={parentNodeId}` — ogRenderer 동적 OG 경유. 구 포맷 `?tree=&node=`도 하위호환 유지)
 - **판별**: `parentNodeId` 존재
 - **트리 카운트**: 정식 노드, `totalNodes` 증가
 - **전파권**: 3명에게 추가 전파 가능
@@ -222,6 +222,6 @@ type            : 'node' | 'leaf'  // 직계 vs 잎사귀 구분
 ## 13. 핵심 기술 고려사항
 
 - **트리 조회 비용**: 노드가 많아지면 전체 서브컬렉션 구독 비용이 큼 → 초기에는 `limit(50)` + 페이지네이션
-- **전파 URL**: `https://halmal-itso.web.app/?tree={treeId}&node={parentNodeId}` — 링크 수신자가 해당 노드의 자식으로 자동 연결
-- **카카오 공유 카드**: 제목 + "전파 참여하기" 버튼
+- **전파 URL**: `https://halmal-itso.web.app/p/tree_{treeId}?node={parentNodeId}` — ogRenderer Cloud Function이 SNS 봇에는 동적 OG 카드(🌳 제목·본문 발췌·대표 이미지)를, 일반 브라우저에는 구 포맷(`/?tree=&node=`) 리다이렉트를 응답. 기존에 공유된 `?tree=&node=` 링크는 `App.tsx getDeepLinkParams`가 계속 인식하므로 하위호환 유지.
+- **카카오 공유 카드**: `shareGiantTree()` (src/utils/share.ts) — Kakao JS SDK는 OG를 크롤링하지 않으므로 `content.imageUrl`을 서버 ogRenderer와 동일 정책(본문 첫 `<img>` → `og-image.jpg` 폴백)으로 직접 주입해 카카오톡·페북·X 카드 일관성 확보.
 - **Firestore Rules**: `giant_trees/{id}` — create 로그인, update 작성자+title/content만, delete 작성자만. 서브컬렉션은 로그인 사용자 write 허용.

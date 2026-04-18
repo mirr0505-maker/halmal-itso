@@ -7,28 +7,10 @@ import {
 } from 'firebase/firestore';
 import type { GiantTree, GiantTreeNode, GiantTreeLeaf, UserData } from '../types';
 import GiantTreeMap from './GiantTreeMap';
+import { shareGiantTree } from '../utils/share';
 
 // 🚀 카카오톡 공유 SDK 타입 선언
 declare global { interface Window { Kakao: any; } }
-
-// 🚀 카카오톡 공유 실행 함수
-// nodeId가 있으면 해당 노드 하위로 진입하는 URL, 없으면 작성자 루트 URL
-const shareKakao = (treeId: string, nodeId: string | null, title: string) => {
-  if (!window.Kakao?.isInitialized()) return;
-  const url = nodeId
-    ? `https://halmal-itso.web.app/?tree=${treeId}&node=${nodeId}`
-    : `https://halmal-itso.web.app/?tree=${treeId}`;
-  window.Kakao.Share.sendDefault({
-    objectType: 'feed',
-    content: {
-      title: '🌳 거대 나무 — 주장 전파',
-      description: title,
-      imageUrl: 'https://halmal-itso.web.app/og-image.jpg',
-      link: { mobileWebUrl: url, webUrl: url },
-    },
-    buttons: [{ title: '전파 참여하기', link: { mobileWebUrl: url, webUrl: url } }],
-  });
-};
 
 interface Props {
   tree: GiantTree;
@@ -252,9 +234,10 @@ const GiantTreeDetail = ({ tree: treeProp, currentNickname, currentUserData, all
   };
 
   // 🚀 전파 URL 복사 — 내 노드 ID를 부모로 지정하는 링크 생성
+  // URL 포맷: /p/tree_{id}?node={nodeId} — ogRenderer Cloud Function이 동적 OG 생성
   const handleCopySpreadUrl = () => {
     if (!myNodeId) return;
-    const url = `${window.location.origin}/?tree=${tree.id}&node=${myNodeId}`;
+    const url = `${window.location.origin}/p/${tree.id}?node=${encodeURIComponent(myNodeId)}`;
     navigator.clipboard.writeText(url).then(() => {
       setCopiedUrl(true);
       setTimeout(() => setCopiedUrl(false), 2000);
@@ -397,9 +380,9 @@ const GiantTreeDetail = ({ tree: treeProp, currentNickname, currentUserData, all
     }
   };
 
-  // 🚀 작성자 URL 복사 핸들러
+  // 🚀 작성자 URL 복사 핸들러 — 루트 공유 (node 쿼리 없음)
   const handleCopyAuthorUrl = () => {
-    const url = `${window.location.origin}/?tree=${tree.id}`;
+    const url = `${window.location.origin}/p/${tree.id}`;
     navigator.clipboard.writeText(url).then(() => {
       setCopiedAuthorUrl(true);
       setTimeout(() => setCopiedAuthorUrl(false), 2000);
@@ -597,7 +580,7 @@ const GiantTreeDetail = ({ tree: treeProp, currentNickname, currentUserData, all
           <p className="text-[11px] font-bold text-emerald-600 mb-2">아래 링크를 3명에게 공유하면 주장이 전파됩니다.</p>
           <div className="flex items-center gap-2">
             <div className="flex-1 bg-white border border-emerald-200 rounded-xl px-3 py-2 text-[11px] font-bold text-slate-500 truncate">
-              {`${window.location.origin}/?tree=${tree.id}`}
+              {`${window.location.origin}/p/${tree.id}`}
             </div>
             <button
               onClick={handleCopyAuthorUrl}
@@ -606,7 +589,7 @@ const GiantTreeDetail = ({ tree: treeProp, currentNickname, currentUserData, all
               {copiedAuthorUrl ? '복사됨!' : '링크 복사'}
             </button>
             <button
-              onClick={() => shareKakao(tree.id, null, tree.title)}
+              onClick={() => shareGiantTree(tree, null)}
               className="shrink-0 px-3 py-2 text-[11px] font-[1000] rounded-xl bg-yellow-400 text-yellow-900 hover:bg-yellow-500 transition-all"
             >
               💬 카카오
@@ -661,7 +644,7 @@ const GiantTreeDetail = ({ tree: treeProp, currentNickname, currentUserData, all
               <p className="text-[11px] font-bold text-emerald-600 mb-2">아래 링크를 공유하면, 지인 · 친구들이 이 주장을 이어서 전파할 수 있습니다.</p>
               <div className="flex items-center gap-2">
                 <div className="flex-1 bg-white border border-emerald-200 rounded-xl px-3 py-2 text-[11px] font-bold text-slate-500 truncate">
-                  {`${window.location.origin}/?tree=${tree.id}&node=${myNodeId}`}
+                  {`${window.location.origin}/p/${tree.id}?node=${encodeURIComponent(myNodeId!)}`}
                 </div>
                 <button
                   onClick={handleCopySpreadUrl}
@@ -670,7 +653,7 @@ const GiantTreeDetail = ({ tree: treeProp, currentNickname, currentUserData, all
                   {copiedUrl ? '복사됨!' : '링크 복사'}
                 </button>
                 <button
-                  onClick={() => shareKakao(tree.id, myNodeId!, tree.title)}
+                  onClick={() => shareGiantTree(tree, myNodeId!)}
                   className="shrink-0 px-3 py-2 text-[11px] font-[1000] rounded-xl bg-yellow-400 text-yellow-900 hover:bg-yellow-500 transition-all"
                 >
                   💬 카카오
