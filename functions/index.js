@@ -296,106 +296,131 @@ exports.ogRenderer = onRequest(
     }
 
     const postId = pathMatch[1];
+    // 🚀 node 쿼리 — giant_trees 전파 링크의 부모 노드 지정용 (posts에서는 무시)
+    const nodeId = typeof req.query.node === "string" ? req.query.node : null;
 
-    // postId는 "topic_타임스탬프" 형식 — Firestore에서 해당 글 조회
-    // posts 컬렉션에서 ID가 postId로 시작하는 문서 탐색 (공유 토큰은 topic_timestamp까지)
+    // postId는 "topic_{ts}" (posts) 또는 "tree_{ts}_{uid}" (giant_trees) — prefix로 컬렉션 분기
     let title = SITE_NAME;
     let description = "GLove에서 이 글을 확인해 보세요.";
     let image = DEFAULT_IMAGE;
-    let canonicalUrl = `${APP_URL}/p/${postId}`;
+    // canonical URL에 node 쿼리 보존 — SNS 미리보기 URL 일관성
+    const nodeQuery = nodeId ? `?node=${encodeURIComponent(nodeId)}` : "";
+    let canonicalUrl = `${APP_URL}/p/${postId}${nodeQuery}`;
+
+    // 🚀 이미지 검증 헬퍼 — posts·giant_trees 분기 양쪽에서 재사용 (try 블록 밖 함수 스코프)
+    const isHttps = (v) =>
+      typeof v === "string" && v.startsWith("https://") && v.length > 10;
+    const isAllowedImageUrl = (v) => {
+      if (!isHttps(v)) return false;
+      try {
+        const u = new URL(v);
+        if (OG_IMAGE_ALLOWED_HOSTS.includes(u.hostname)) return true;
+        console.warn(`[ogRenderer] Image URL rejected (not in allowlist): ${v}`);
+        return false;
+      } catch {
+        return false;
+      }
+    };
 
     try {
-      // 1순위: postId가 완전한 문서 ID인 경우 직접 조회
-      let snap = null;
-      const directDoc = await db.collection("posts").doc(postId).get();
-      if (directDoc.exists) {
-        snap = { empty: false, docs: [directDoc] };
-      }
-
-      // 2순위: shareToken 필드로 조회 (신규 글 — useFirestoreActions에서 저장)
-      if (!snap || snap.empty) {
-        const tokenSnap = await db.collection("posts")
-          .where("shareToken", "==", postId)
-          .limit(1)
-          .get();
-        if (!tokenSnap.empty) snap = tokenSnap;
-      }
-
-      // 3순위: 문서 ID prefix 범위 검색 (기존 글 호환)
-      if (!snap || snap.empty) {
-        const querySnap = await db.collection("posts")
-          .orderBy(FieldPath.documentId())
-          .startAt(postId)
-          .endAt(postId + "\uf8ff")
-          .limit(1)
-          .get();
-        snap = querySnap;
-      }
-
-      if (!snap.empty) {
-        const post = snap.docs[0].data();
-        // 카카오 권장 제목 40자 공간 확보 — 사이트명은 og:site_name으로 이미 노출
-        title = post.title || SITE_NAME;
-
-        // 본문에서 텍스트만 추출해 description 생성 (HTML 태그 제거, 120자 제한)
-        const rawText = (post.content || "").replace(/<[^>]+>/g, "").trim();
-        description = rawText.slice(0, 120) + (rawText.length > 120 ? "..." : "") || description;
-
-        // 🚀 image 폴백 체인 — 첫 유효 값 채택
-        // 우선순위: imageUrls[0] → imageUrl → thumbnailUrl → 본문 첫 <img> → linkUrl OG → 로고
-        // 1~4단계는 OG_IMAGE_ALLOWED_HOSTS 화이트리스트 적용(자사 R2·호스팅만 허용)
-        // 5단계(linkUrl OG)는 외부 뉴스 도메인이라 화이트리스트 미적용(https:// 검증만)
-        const isHttps = (v) =>
-          typeof v === "string" && v.startsWith("https://") && v.length > 10;
-        const isAllowedImageUrl = (v) => {
-          if (!isHttps(v)) return false;
-          try {
-            const u = new URL(v);
-            if (OG_IMAGE_ALLOWED_HOSTS.includes(u.hostname)) return true;
-            console.warn(`[ogRenderer] Image URL rejected (not in allowlist): ${v}`);
-            return false;
-          } catch {
-            return false;
+      // 🚀 giant_trees 분기: "tree_" 프리픽스는 posts로 fallthrough 금지
+      // Why: tree ID 포맷 tree_{ts}_{uid}는 posts ID와 네임스페이스 겹치지 않음
+      if (postId.startsWith("tree_")) {
+        const treeDoc = await db.collection("giant_trees").doc(postId).get();
+        if (treeDoc.exists) {
+          const tree = treeDoc.data();
+          // 🌳 프리픽스: SNS 카드에서 거대나무 컨텐츠 시각 구분 (제목 평균 17자, 여유 충분)
+          title = `🌳 ${tree.title || "거대 나무"}`;
+          // 본문 HTML 제거 후 120자 (posts와 동일 rawText 로직)
+          const rawText = (tree.content || "").replace(/<[^>]+>/g, "").trim();
+          description = rawText.slice(0, 120) + (rawText.length > 120 ? "..." : "") || description;
+          // tree는 imageUrl/imageUrls/thumbnailUrl 필드 미보유 — 본문 첫 <img> 단일 단계
+          if (typeof tree.content === "string") {
+            const imgMatch = tree.content.match(/<img[^>]+src=["'](https:\/\/[^"']+)["']/i);
+            if (imgMatch && isAllowedImageUrl(imgMatch[1])) image = imgMatch[1];
           }
-        };
-
-        let resolvedImage = null;
-
-        // 1) 배열형 이미지 (빵부스러기 등, 최대 4장)
-        if (Array.isArray(post.imageUrls) && isAllowedImageUrl(post.imageUrls[0])) {
-          resolvedImage = post.imageUrls[0];
+        } else {
+          console.warn(`[ogRenderer] giant_trees/${postId} not found`);
         }
-        // 2) 단일 imageUrl (기존)
-        if (!resolvedImage && isAllowedImageUrl(post.imageUrl)) {
-          resolvedImage = post.imageUrl;
-        }
-        // 3) 별도 썸네일 필드
-        if (!resolvedImage && isAllowedImageUrl(post.thumbnailUrl)) {
-          resolvedImage = post.thumbnailUrl;
-        }
-        // 4) Tiptap 본문 내 첫 <img src="https://..."> — 본문에만 이미지 박힌 경우
-        if (!resolvedImage && typeof post.content === "string") {
-          const imgMatch = post.content.match(/<img[^>]+src=["'](https:\/\/[^"']+)["']/i);
-          if (imgMatch && isAllowedImageUrl(imgMatch[1])) resolvedImage = imgMatch[1];
-        }
-        // 5) linkUrl의 외부 OG 이미지 (마라톤 뉴스 등) — 외부 도메인이라 화이트리스트 미적용
-        if (!resolvedImage && post.linkUrl) {
-          try {
-            const ogRes = await fetch(post.linkUrl, {
-              headers: { "User-Agent": "Mozilla/5.0 (compatible; GLoveBot/1.0)" },
-              signal: AbortSignal.timeout(5000),
-              redirect: "follow",
-            });
-            if (ogRes.ok) {
-              const ogHtml = await ogRes.text();
-              const ogImgMatch = ogHtml.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i)
-                || ogHtml.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i);
-              if (ogImgMatch && isHttps(ogImgMatch[1])) resolvedImage = ogImgMatch[1];
-            }
-          } catch { /* 폴백 실패 시 기본 이미지 유지 */ }
+      } else {
+        // 1순위: postId가 완전한 문서 ID인 경우 직접 조회
+        let snap = null;
+        const directDoc = await db.collection("posts").doc(postId).get();
+        if (directDoc.exists) {
+          snap = { empty: false, docs: [directDoc] };
         }
 
-        if (resolvedImage) image = resolvedImage;
+        // 2순위: shareToken 필드로 조회 (신규 글 — useFirestoreActions에서 저장)
+        if (!snap || snap.empty) {
+          const tokenSnap = await db.collection("posts")
+            .where("shareToken", "==", postId)
+            .limit(1)
+            .get();
+          if (!tokenSnap.empty) snap = tokenSnap;
+        }
+
+        // 3순위: 문서 ID prefix 범위 검색 (기존 글 호환)
+        if (!snap || snap.empty) {
+          const querySnap = await db.collection("posts")
+            .orderBy(FieldPath.documentId())
+            .startAt(postId)
+            .endAt(postId + "\uf8ff")
+            .limit(1)
+            .get();
+          snap = querySnap;
+        }
+
+        if (!snap.empty) {
+          const post = snap.docs[0].data();
+          // 카카오 권장 제목 40자 공간 확보 — 사이트명은 og:site_name으로 이미 노출
+          title = post.title || SITE_NAME;
+
+          // 본문에서 텍스트만 추출해 description 생성 (HTML 태그 제거, 120자 제한)
+          const rawText = (post.content || "").replace(/<[^>]+>/g, "").trim();
+          description = rawText.slice(0, 120) + (rawText.length > 120 ? "..." : "") || description;
+
+          // 🚀 image 폴백 체인 — 첫 유효 값 채택
+          // 우선순위: imageUrls[0] → imageUrl → thumbnailUrl → 본문 첫 <img> → linkUrl OG → 로고
+          // 1~4단계는 OG_IMAGE_ALLOWED_HOSTS 화이트리스트 적용(자사 R2·호스팅만 허용)
+          // 5단계(linkUrl OG)는 외부 뉴스 도메인이라 화이트리스트 미적용(https:// 검증만)
+          let resolvedImage = null;
+
+          // 1) 배열형 이미지 (빵부스러기 등, 최대 4장)
+          if (Array.isArray(post.imageUrls) && isAllowedImageUrl(post.imageUrls[0])) {
+            resolvedImage = post.imageUrls[0];
+          }
+          // 2) 단일 imageUrl (기존)
+          if (!resolvedImage && isAllowedImageUrl(post.imageUrl)) {
+            resolvedImage = post.imageUrl;
+          }
+          // 3) 별도 썸네일 필드
+          if (!resolvedImage && isAllowedImageUrl(post.thumbnailUrl)) {
+            resolvedImage = post.thumbnailUrl;
+          }
+          // 4) Tiptap 본문 내 첫 <img src="https://..."> — 본문에만 이미지 박힌 경우
+          if (!resolvedImage && typeof post.content === "string") {
+            const imgMatch = post.content.match(/<img[^>]+src=["'](https:\/\/[^"']+)["']/i);
+            if (imgMatch && isAllowedImageUrl(imgMatch[1])) resolvedImage = imgMatch[1];
+          }
+          // 5) linkUrl의 외부 OG 이미지 (마라톤 뉴스 등) — 외부 도메인이라 화이트리스트 미적용
+          if (!resolvedImage && post.linkUrl) {
+            try {
+              const ogRes = await fetch(post.linkUrl, {
+                headers: { "User-Agent": "Mozilla/5.0 (compatible; GLoveBot/1.0)" },
+                signal: AbortSignal.timeout(5000),
+                redirect: "follow",
+              });
+              if (ogRes.ok) {
+                const ogHtml = await ogRes.text();
+                const ogImgMatch = ogHtml.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i)
+                  || ogHtml.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i);
+                if (ogImgMatch && isHttps(ogImgMatch[1])) resolvedImage = ogImgMatch[1];
+              }
+            } catch { /* 폴백 실패 시 기본 이미지 유지 */ }
+          }
+
+          if (resolvedImage) image = resolvedImage;
+        }
       }
     } catch (e) {
       console.error("[ogRenderer] Firestore 조회 실패:", e);
@@ -424,9 +449,16 @@ exports.ogRenderer = onRequest(
   <link rel="icon" type="image/svg+xml" href="/vite.svg" />
   <!-- 앱으로 리다이렉트: SNS 봇은 JS 미실행이므로 OG만 읽고 종료 -->
   <script>
-    // postId를 쿼리 파라미터로 전달하여 앱이 해당 글을 자동으로 오픈
-    const postId = "${postId}";
-    window.location.replace("/?post=" + postId);
+    // 🚀 tree_ 프리픽스면 SPA의 ?tree=&node= 딥링크 파서로, 아니면 기존 ?post=
+    // Why: App.tsx의 getDeepLinkParams가 기존에 tree/node/post 3종 모두 인식
+    const idOrToken = ${JSON.stringify(postId)};
+    const nodeId = ${JSON.stringify(nodeId)};
+    if (idOrToken.indexOf("tree_") === 0) {
+      const q = nodeId ? ("&node=" + encodeURIComponent(nodeId)) : "";
+      window.location.replace("/?tree=" + encodeURIComponent(idOrToken) + q);
+    } else {
+      window.location.replace("/?post=" + encodeURIComponent(idOrToken));
+    }
   </script>
 </head>
 <body></body>
