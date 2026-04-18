@@ -1179,13 +1179,17 @@ function App() {
               <line x1="1" y1="12" x2="11" y2="12" stroke="#7c3aed" />
               <line x1="1" y1="18" x2="11" y2="18" stroke="#7c3aed" />
             </svg>
-            <h1 className="text-[26px] font-[1000] italic tracking-tighter shrink-0">
-              <span className="text-red-500">G</span><span className="text-blue-600">L</span><span className="text-slate-900">ove</span>
+            <h1 className="text-[26px] font-[1000] tracking-tighter shrink-0 flex items-baseline gap-0">
+              <span className="text-red-500" style={{ fontFamily: "'Pretendard Variable', Pretendard, sans-serif" }}>글</span>
+              <span className="text-blue-600" style={{ fontFamily: "'Pretendard Variable', Pretendard, sans-serif" }}>러브</span>
+              <span className="italic text-[14px] font-bold text-slate-500 ml-1">beta</span>
             </h1>
           </div>
-          {/* 모바일: GLove 로고만 (터치 시 홈 이동, ≡ 버튼은 하단 탭바로 이동) */}
-          <h1 className="flex md:hidden text-[26px] font-[1000] italic tracking-tighter cursor-pointer shrink-0" onClick={goHome}>
-            <span className="text-red-500">G</span><span className="text-blue-600">L</span><span className="text-slate-900">ove</span>
+          {/* 모바일: 글러브 beta 로고만 (터치 시 홈 이동, ≡ 버튼은 하단 탭바로 이동) */}
+          <h1 className="flex md:hidden text-[26px] font-[1000] tracking-tighter cursor-pointer shrink-0 items-baseline gap-0" onClick={goHome}>
+            <span className="text-red-500" style={{ fontFamily: "'Pretendard Variable', Pretendard, sans-serif" }}>글</span>
+            <span className="text-blue-600" style={{ fontFamily: "'Pretendard Variable', Pretendard, sans-serif" }}>러브</span>
+            <span className="italic text-[14px] font-bold text-slate-500 ml-1">beta</span>
           </h1>
           <div className="hidden md:flex gap-1.5 items-center px-4 border-l border-slate-100" onClick={(e) => e.stopPropagation()}>
             <span className="text-[9px] font-black text-slate-300 uppercase tracking-tighter mr-1">Dev:</span>
