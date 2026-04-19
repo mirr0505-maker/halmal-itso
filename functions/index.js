@@ -51,7 +51,7 @@ async function fetchRSS(feedUrl) {
   try {
     const resp = await fetch(feedUrl, {
       signal: AbortSignal.timeout(10_000),
-      headers: { "User-Agent": "Mozilla/5.0 (compatible; GLove-MarathonHerald/1.0)" },
+      headers: { "User-Agent": "Mozilla/5.0 (compatible; GeuLove-MarathonHerald/1.0)" },
     });
     if (!resp.ok) {
       console.warn(`[피드오류] HTTP ${resp.status}: ${feedUrl}`);
@@ -407,7 +407,7 @@ exports.ogRenderer = onRequest(
           if (!resolvedImage && post.linkUrl) {
             try {
               const ogRes = await fetch(post.linkUrl, {
-                headers: { "User-Agent": "Mozilla/5.0 (compatible; GLoveBot/1.0)" },
+                headers: { "User-Agent": "Mozilla/5.0 (compatible; GeuLoveBot/1.0)" },
                 signal: AbortSignal.timeout(5000),
                 redirect: "follow",
               });
