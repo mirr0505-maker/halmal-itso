@@ -2,14 +2,15 @@
 // 호스트: 텍스트 입력 → 참여자 화면에 실시간 렌더링
 // 참여자: 보드 실시간 구독 (읽기 전용)
 import { useState, useEffect, useRef } from 'react';
-import { db } from '../firebase';
+import { db, functions } from '../firebase';
 import {
   collection, onSnapshot, query, orderBy, doc, setDoc, updateDoc,
   serverTimestamp, limit,
 } from 'firebase/firestore';
+import { httpsCallable } from 'firebase/functions';
 import type { LiveSession, LiveBoardLine, UserData } from '../types';
 import { useLivePresence } from '../hooks/useLivePresence';
-import LiveVfxOverlay, { getTierForAmount } from './LiveVfxOverlay';
+import LiveVfxOverlay from './LiveVfxOverlay';
 
 interface Props {
   session: LiveSession;
@@ -71,26 +72,21 @@ const LiveBoard = ({ session, currentUserData, onEnd }: Props) => {
 
     setTossingBall(true);
     try {
-      // live_chats에 thanksball 기록 (VFX 트리거)
-      const tier = getTierForAmount(amount);
-      const chatId = `chat_${Date.now()}_${currentUserData.uid}`;
-      await setDoc(doc(db, 'live_sessions', session.id, 'live_chats', chatId), {
-        uid: currentUserData.uid,
-        nickname: currentUserData.nickname,
-        type: 'thanksball',
-        text: message,
+      // 🔒 sendThanksball CF 경유 — ballBalance 차감 + live_chats/live_sessions 원자 갱신
+      // Why: 이전엔 클라가 live_sessions를 직접 increment해서 잔액 차감 없이 무한 투척 가능했음
+      const sendFn = httpsCallable(functions, 'sendThanksball');
+      await sendFn({
+        clientRequestId: crypto.randomUUID(),
+        recipientUid: session.hostUid,
         amount,
-        vfxTier: tier,
-        createdAt: serverTimestamp(),
+        message: message.trim() || null,
+        liveSessionId: session.id,
       });
-      // 세션 총액 + 호스트 ballBalance (MVP: 클라이언트 트랜잭션, Sprint C에서 CF로 이전)
-      await updateDoc(doc(db, 'live_sessions', session.id), {
-        totalThanksball: (session.totalThanksball || 0) + amount,
-      });
-      alert(`🏀 ${amount}볼 (${tier}) 투척 완료!`);
-    } catch (err) {
+      alert(`🏀 ${amount}볼 투척 완료!`);
+    } catch (err: unknown) {
       console.error('[LiveBoard] 땡스볼 실패:', err);
-      alert('투척에 실패했습니다.');
+      const msg = (err as { message?: string })?.message || '투척에 실패했습니다.';
+      alert(msg);
     } finally {
       setTossingBall(false);
     }
