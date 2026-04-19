@@ -274,6 +274,7 @@ const OG_IMAGE_ALLOWED_HOSTS = (() => {
   const raw = process.env.OG_IMAGE_ALLOWED_HOSTS;
   if (raw && raw.trim()) return raw.split(",").map(s => s.trim()).filter(Boolean);
   return [
+    "geulove.com",
     "halmal-itso.web.app",
     "pub-9e6af273cd034aa6b7857343d0745224.r2.dev",
   ];
@@ -284,9 +285,9 @@ const OG_IMAGE_ALLOWED_HOSTS = (() => {
 exports.ogRenderer = onRequest(
   { region: "asia-northeast3", timeoutSeconds: 10, memory: "128MiB" },
   async (req, res) => {
-    const APP_URL = "https://halmal-itso.web.app";
-    const DEFAULT_IMAGE = `${APP_URL}/og-image.jpg?v=2`;
-    const SITE_NAME = "GLove";
+    const APP_URL = "https://geulove.com";
+    const DEFAULT_IMAGE = `${APP_URL}/og-image.png`;
+    const SITE_NAME = "글러브 GeuLove";
 
     // URL 패턴: /p/{postId}
     const pathMatch = req.path.match(/^\/p\/(.+)$/);
@@ -301,7 +302,7 @@ exports.ogRenderer = onRequest(
 
     // postId는 "topic_{ts}" (posts) 또는 "tree_{ts}_{uid}" (giant_trees) — prefix로 컬렉션 분기
     let title = SITE_NAME;
-    let description = "GLove에서 이 글을 확인해 보세요.";
+    let description = "글러브 GeuLove에서 이 글을 확인해 보세요.";
     let image = DEFAULT_IMAGE;
     // canonical URL에 node 쿼리 보존 — SNS 미리보기 URL 일관성
     const nodeQuery = nodeId ? `?node=${encodeURIComponent(nodeId)}` : "";
@@ -446,7 +447,8 @@ exports.ogRenderer = onRequest(
   <meta name="twitter:title"       content="${escapeHtml(title)}" />
   <meta name="twitter:description" content="${escapeHtml(description)}" />
   <meta name="twitter:image"       content="${escapeHtml(image)}" />
-  <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+  <link rel="icon" type="image/png" href="/favicon.png" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
   <!-- 앱으로 리다이렉트: SNS 봇은 JS 미실행이므로 OG만 읽고 종료 -->
   <script>
     // 🚀 tree_ 프리픽스면 SPA의 ?tree=&node= 딥링크 파서로, 아니면 기존 ?post=
