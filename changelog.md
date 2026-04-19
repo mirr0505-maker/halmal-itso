@@ -361,7 +361,7 @@
   - `handleLike`, `PostCard.handleDelete`: `rootId` 유무로 컬렉션 자동 분기.
 
 - [x] **SNS 공유 OG 태그 및 브랜딩 (2026-03-25)**:
-  - `index.html`: 타이틀·og:title·og:site_name·twitter:title 전면 변경 → **"글러브(Geulove) - 글러브, 집단지성의 힘"** (기존: "할말있소 — 집단지성의 힘")
+  - `index.html`: 타이틀·og:title·og:site_name·twitter:title 전면 변경 → **"글러브(Geulove) - 집단지성의 힘"** (기존: "할말있소 — 집단지성의 힘")
   - og:image: 글러브(Geulove) 로고 이미지(`og-image.jpg`, 243KB)를 `public/` 폴더에 배치 → Firebase Hosting에서 직접 서빙(`https://halmal-itso.web.app/og-image.jpg`). R2 경유 시 카카오 크롤러 접근 불가 이슈 해결.
   - 카카오톡 OG 캐시 초기화 후 이미지·타이틀 정상 표시 확인.
 
@@ -739,7 +739,7 @@
   - 하단 탭바: 홈 → ≡메뉴(드로어 열기)로 교체. 왼손 접근 최적화.
   - 상단: ≡ 삼색선 제거, 글러브(Geulove) 로고만 남김 (터치 시 홈).
   - 삼색선: 자주·빨강·파랑 (PC·모바일 동일).
-  - 브랜드 컬러: blue-600 → violet-600 계열 전환. 글러브(Geulove) 로고는 G빨강 L파랑 유지.
+  - 브랜드 컬러: blue-600 → violet-600 계열 전환. 글러브(Geulove) 로고는 G빨강 L파랑 유지 — G/L 색 설명은 과거 2글자 로고 기준.
 
 - [x] **테스트 계정 5개 레벨·평판 설정 (2026-04-05 v35)**:
   - 깐부1(Lv1,중립) 깐부2(Lv2,약간우호) 깐부3(Lv3,우호) 깐부4(Lv4,매우우호) 깐부5(Lv5,확고).
