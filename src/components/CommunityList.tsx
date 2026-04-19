@@ -42,14 +42,14 @@ const CommunityList = ({ communities, currentUserData, joinedCommunityIds, onCom
   return (
     <div className="w-full pb-20">
       {/* 카테고리 필터 칩 */}
-      <div className="flex items-center gap-1.5 px-1 pb-4 overflow-x-auto">
+      <div className="flex items-center gap-1 px-1 pb-4 flex-wrap">
         {ALL_CATEGORIES.map(cat => (
           <button
             key={cat}
             onClick={() => setSelectedCategory(cat)}
-            className={`shrink-0 px-3 py-1.5 rounded-full text-[11px] font-[1000] transition-all ${
+            className={`px-2 py-1 rounded text-[10px] font-[1000] transition-all ${
               selectedCategory === cat
-                ? 'bg-blue-600 text-white shadow-sm'
+                ? 'bg-blue-600 text-white'
                 : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
             }`}
           >
