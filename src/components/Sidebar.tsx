@@ -405,7 +405,11 @@ const Sidebar = ({ activeMenu, setActiveMenu, kanbuRoomCount = 0, currentNicknam
       </nav>
       
       <div className="p-4 flex items-baseline gap-1.5 shrink-0">
-        <span className="text-[11px] font-[1000] italic tracking-tighter text-[#7c3aed]">GLove</span>
+        <span className="flex items-baseline gap-0 text-[11px] font-[1000] tracking-tighter">
+          <span className="text-red-500" style={{ fontFamily: "'Pretendard Variable', Pretendard, sans-serif" }}>글</span>
+          <span className="text-blue-600" style={{ fontFamily: "'Pretendard Variable', Pretendard, sans-serif" }}>러브</span>
+          <span className="italic text-[7px] font-bold text-slate-500 ml-0.5">beta</span>
+        </span>
         <span className="text-[8px] font-bold tracking-tight text-[#7c3aed]">집단지성의 힘</span>
       </div>
     </aside>
