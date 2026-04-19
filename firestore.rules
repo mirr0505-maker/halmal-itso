@@ -32,11 +32,12 @@ service cloud.firestore {
       allow delete: if request.auth != null
         && resource.data.author_id == request.auth.uid;
       // update: 작성자 본인이거나, 카운터/상태 필드만 변경하는 경우 허용
-      // Why: 좋아요·댓글수·조회수·공유수·땡스볼 등은 타인도 업데이트해야 함
+      // Why: 좋아요·댓글수·조회수·공유수는 타인도 업데이트해야 함
+      // 🔒 thanksballTotal 제거(Phase B) — sendThanksball CF(Admin SDK)가 독점 증가, 클라 위조 차단
       allow update: if request.auth != null
         && (resource.data.author_id == request.auth.uid
           || request.resource.data.diff(resource.data).affectedKeys()
-              .hasOnly(['likes', 'likedBy', 'commentCount', 'viewCount', 'shareCount', 'thanksballTotal']));
+              .hasOnly(['likes', 'likedBy', 'commentCount', 'viewCount', 'shareCount']));
 
       // ════════════════════════════════════════════════════════
       // 🖋️ 마르지 않는 잉크병 — 유료 회차 본문 보안 분리
@@ -59,10 +60,11 @@ service cloud.firestore {
           && get(/databases/$(database)/documents/posts/$(id)).data.author_id == request.auth.uid;
       }
 
-      // 기존 서브컬렉션 (댓글 등) — private_data 외 나머지는 기존 규칙 유지
+      // 기존 서브컬렉션 (thanksBalls 등) — 읽기만 허용, 쓰기는 CF Admin SDK만
+      // Why(Phase E): 클라는 thanksBalls 위조 쓰기가 불필요(CF가 전담) → write false로 공격면 제거
       // ⚠️ private_data는 위에서 별도 match로 처리되므로 여기서 제외됨
       //    Firestore는 더 구체적인 match를 우선 적용함
-      match /{sub=**} { allow read: if true; allow write: if request.auth != null; }
+      match /{sub=**} { allow read: if true; allow write: if false; }
     }
     match /comments/{id} {
       allow read: if true;
@@ -95,8 +97,9 @@ service cloud.firestore {
           resource.data.author_id == request.auth.uid
           ||
           // 누구나 카운터 필드만 수정
+          // 🔒 thanksballTotal 제거(Phase B) — sendThanksball CF(Admin SDK) 전용
           request.resource.data.diff(resource.data).affectedKeys()
-              .hasOnly(['likes', 'likedBy', 'thanksballTotal'])
+              .hasOnly(['likes', 'likedBy'])
           ||
           // 🖋️ 잉크병 회차 작가 — isDeleted: true 마킹만 가능 (false 복원/타필드 변경 차단)
           (
@@ -106,7 +109,8 @@ service cloud.firestore {
             && get(/databases/$(database)/documents/series/$(get(/databases/$(database)/documents/posts/$(resource.data.rootId)).data.seriesId)).data.authorId == request.auth.uid
           )
         );
-      match /{sub=**} { allow read: if true; allow write: if request.auth != null; }
+      // 🔒 댓글 서브컬렉션 — 읽기만 허용, 쓰기는 CF Admin SDK만 (Phase E)
+      match /{sub=**} { allow read: if true; allow write: if false; }
     }
     match /kanbu_rooms/{id} {
       allow read: if true;
@@ -120,10 +124,10 @@ service cloud.firestore {
       allow create: if request.auth != null
         && request.resource.data.hostUid == request.auth.uid
         && request.resource.data.status == 'ready';
+      // 🔒 totalThanksball 제거 — sendThanksball CF(Admin SDK) 전용 (클라 잔액 차감 우회 차단)
       allow update: if request.auth != null
         && (resource.data.hostUid == request.auth.uid
-            || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['activeUsers'])
-            || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['totalThanksball']));
+            || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['activeUsers']));
       allow delete: if false;
       match /live_board/{lineId} {
         allow read: if request.auth != null;
@@ -132,11 +136,11 @@ service cloud.firestore {
           && get(/databases/$(database)/documents/live_sessions/$(sessionId)).data.hostUid == request.auth.uid;
         allow update, delete: if false;
       }
+      // 🔒 live_chats: sendThanksball CF(Admin SDK) 전용 — 클라 직접 생성 차단
+      // Why: VFX 트리거 이벤트를 위조하면 가짜 투척 연출 가능
       match /live_chats/{chatId} {
         allow read: if request.auth != null;
-        allow create: if request.auth != null
-          && request.resource.data.uid == request.auth.uid;
-        allow update, delete: if false;
+        allow write: if false;
       }
       // 🔴 presence: 본인만 자기 문서 쓰기·삭제. Cloud Scheduler가 좀비 정리.
       match /presence/{uid} {
@@ -205,11 +209,12 @@ service cloud.firestore {
       // Why: 좋아요(likes/likedBy)·댓글수(commentCount)·땡스볼(thanksballTotal) 등
       //       카운터 필드는 일반 로그인 사용자도 업데이트해야 하므로, 해당 필드만 별도 허용
       //       isBlinded는 관리자 전용 — 카운터 목록에서 제외하여 관리자 검증을 반드시 거치도록 함
+      // 🔒 thanksballTotal 제거(Phase B) — sendThanksball CF(Admin SDK) 전용
       allow update: if request.auth != null
         && (resource.data.author_id == request.auth.uid
           || get(/databases/$(database)/documents/community_memberships/$(resource.data.communityId + '_' + request.auth.uid)).data.finger in ['thumb', 'index']
           || request.resource.data.diff(resource.data).affectedKeys()
-              .hasOnly(['likes', 'likedBy', 'commentCount', 'thanksballTotal']));
+              .hasOnly(['likes', 'likedBy', 'commentCount']));
       allow delete: if request.auth != null
         && (resource.data.author_id == request.auth.uid
           || get(/databases/$(database)/documents/community_memberships/$(resource.data.communityId + '_' + request.auth.uid)).data.finger in ['thumb', 'index']);
@@ -227,10 +232,11 @@ service cloud.firestore {
         && request.resource.data.author_id == request.auth.uid;
       // 본인 메시지: deleted 플래그 + 이모지 반응
       // 타인 메시지: 이모지 반응만 (reactions.* 필드)
+      // 🔒 thanksballTotal/thanksballSenders 제거(Phase B) — sendThanksball CF(Admin SDK) 전용
       allow update: if request.auth != null
         && (resource.data.author_id == request.auth.uid
           || request.resource.data.diff(resource.data).affectedKeys()
-              .hasOnly(['reactions', 'thanksballTotal', 'thanksballSenders']));
+              .hasOnly(['reactions']));
       allow delete: if false;
     }
 
@@ -282,12 +288,14 @@ service cloud.firestore {
       allow update: if request.auth != null
         && id.matches('nickname_.*')
         && resource.data.uid == request.auth.uid;
-      // 타인 문서: likes·totalShares·ballReceived·ballSpent만 허용 (카운터 증가용)
+      // 타인 문서: likes·totalShares·promoViewCount만 허용 (카운터 증가용)
+      // 🔒 ballReceived·ballSpent 제거 — 평판 점수 조작 차단 (Cloud Function Admin SDK 전용)
+      // Why: (likes×2)+(totalShares×3)+(ballReceived×5) 평판 공식에서 ballReceived 직접 쓰기는 위조 위험
       allow update: if request.auth != null
         && request.auth.uid != id
         && !id.matches('nickname_.*')
         && request.resource.data.diff(resource.data).affectedKeys()
-            .hasOnly(['likes', 'totalShares', 'ballReceived', 'ballSpent', 'promoViewCount']);
+            .hasOnly(['likes', 'totalShares', 'promoViewCount']);
       // 관리자: pendingRevenue/pendingThanksBall 원복용 (정산 거절 시)
       allow update: if isAdmin()
         && request.resource.data.diff(resource.data).affectedKeys()
@@ -306,9 +314,12 @@ service cloud.firestore {
       allow update, delete: if request.auth != null
         && request.auth.uid == nick;
     }
+    // 🔒 sentBalls — 읽기는 본인만, 쓰기는 sendThanksball CF(Admin SDK) 전용 (Phase E)
+    // Why: 클라가 sentBalls에 가짜 송금 이력을 심어 평판·감사 로그를 흐리는 공격 차단
     match /sentBalls/{nick}/items/{itemId} {
-      allow read, write: if request.auth != null
+      allow read: if request.auth != null
         && request.auth.uid == nick;
+      allow write: if false;
     }
 
     // ════════════════════════════════════════════════════════
@@ -352,6 +363,27 @@ service cloud.firestore {
     // 실제 접근 제어는 AdAdminPage의 isAdmin 체크 (닉네임 화이트리스트)
     match /platform_revenue/{docId} {
       allow read: if request.auth != null;
+      allow write: if false;
+    }
+
+    // 💰 땡스볼 트랜잭션 멱등키 — Cloud Function 전용 (재시도 이중 차감 차단)
+    // Why: sendThanksball이 clientRequestId를 키로 중복 호출을 ball_transactions/{id} 존재 여부로 판별
+    match /ball_transactions/{txId} {
+      allow read: if false;
+      allow write: if false;
+    }
+
+    // 💰 땡스볼 잔액 일일 스냅샷 — Cloud Function(snapshotBallBalance) 전용
+    // Why: 장부 정합성 검증의 기준점 — 클라 접근 불허, 관리자도 Admin SDK/콘솔로만
+    match /ball_balance_snapshots/{docId} {
+      allow read: if false;
+      allow write: if false;
+    }
+
+    // 💰 감사 이상치 로그 — 관리자 read 전용, 쓰기는 auditBallBalance CF만
+    // Why: 잔액 불일치는 보안 이슈 — 관리자 대시보드에서 조회 가능
+    match /audit_anomalies/{docId} {
+      allow read: if isAdmin();
       allow write: if false;
     }
 

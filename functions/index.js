@@ -543,3 +543,10 @@ exports.checkKanbuSubscriptionExpiry = checkKanbuSubscriptionExpiry;
 // 🔴 라이브 세션 presence 정리 (1분 주기)
 const { cleanupLivePresence } = require("./livePresence");
 exports.cleanupLivePresence = cleanupLivePresence;
+
+// 💰 땡스볼 장부 감사 — 일일 스냅샷 + 장부↔잔액 정합성 검증
+// Why: ball_transactions 원장과 users.ballBalance 사이 불일치 탐지 (유출·위조 조기 경보)
+const { snapshotBallBalance } = require("./ballSnapshot");
+const { auditBallBalance } = require("./ballAudit");
+exports.snapshotBallBalance = snapshotBallBalance;
+exports.auditBallBalance = auditBallBalance;
