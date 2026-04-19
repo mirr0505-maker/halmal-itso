@@ -182,7 +182,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **프리뷰**: `npm run preview` (빌드 결과 로컬 확인, 기본 포트 4173)
 - **린트**: `npm run lint` (또는 `npx eslint . --fix`로 자동 수정)
 - **테스트 스위트 없음** — `package.json`에 `test` 스크립트 미구성. UI 변경은 개발 서버 실행 후 브라우저 확인.
-- **테스트 계정**: 깐부1호, 깐부2호, 깐부3호, 깐부4호, 깐부5호 (헤더 Dev 버튼으로 전환)
+- **테스트 계정**: 깐부1~10호 (Lv1~10, exp/likes 레벨·평판 초기값 세팅) + 불량깐부1~3호 (Lv3/4/5, 유배 시스템 테스트용). 헤더 Dev 버튼으로 전환. 정의: [src/constants.ts](src/constants.ts) `TEST_ACCOUNTS`.
 - **호스팅 배포**: `firebase deploy --only hosting` (사용자 명시 요청 시에만)
 - **Functions 배포**: `firebase deploy --only functions` (사용자 명시 요청 시에만)
 - **Workers 배포**: `cd workers && npx wrangler deploy` / `cd upload-worker && npx wrangler deploy` (각각 별도 실행)
