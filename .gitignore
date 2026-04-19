@@ -36,3 +36,9 @@ migrate.cjs
 # 🖋️ 시드 스크립트 — 로그인 정보(이메일/비밀번호) 포함되므로 커밋 금지
 scripts/seed-inkwell.mjs
 scripts/seed-inkwell-episodes.mjs
+
+# Claude Code CLI 로컬 설정
+.claude/
+
+# Cloudflare Workers 빌드 산출물
+upload-worker/.wrangler/
