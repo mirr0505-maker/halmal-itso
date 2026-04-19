@@ -1,5 +1,18 @@
 ## 8. 현재 구현 상태 (2026-03-24 기준, 코드 실측)
 
+### 🎨 브랜드 전환 — 글러브 GeuLove · geulove.com (2026-04-19)
+> 설계: [BRANDING.md](./BRANDING.md)
+
+- [x] **도메인 전환**: `geulove.com` 연결 (Firebase 기본 `halmal-itso.web.app`은 내부 유지)
+- [x] **OG/SNS 브랜딩**: `index.html` 타이틀·og:title·og:description·twitter:*·apple-touch-icon·favicon·theme-color(#7c3aed) 전면 교체 → **"글러브 GeuLove"**
+- [x] **ogRenderer Cloud Function**: `APP_URL=https://geulove.com`, `SITE_NAME="글러브 GeuLove"`, `OG_IMAGE_ALLOWED_HOSTS`에 `geulove.com` 추가. User-Agent `GeuLove-MarathonHerald/1.0`, `GeuLoveBot/1.0`, `GeuLove-InfoBot/1.0`으로 통일
+- [x] **헤더 로고 한글화**: `GLove`(2글자 영문) → **`글러브 beta`** (Pretendard Variable, 글=red·러브=blue·beta=이탤릭 slate). App.tsx 데스크톱+모바일 + Sidebar 푸터 3곳 동일 스타일
+- [x] **.md 문서 일괄 치환** (4파일 12곳): `GLove` → `글러브(Geulove)` (`changelog.md` 8곳, `GLOVE.md` 2곳, `STOREHOUSE.md`+`storehouse-dev-plan.md` L5 각 1곳)
+- [x] **BRANDING.md 신규**: 브랜드 전환 타임라인 + 현재 표기 규칙 + 치환 금지 식별자 9 카테고리 레지스트리 (Firestore 컬렉션, CF 모듈, 타입, 컴포넌트, hook, 메뉴 키, 변수명, BOT_UID, 고유명사)
+- [x] **blueprint.md v39**: 프로젝트 개요 테이블에 "서비스 브랜드/공식 도메인/브랜드 레지스트리" 3행 추가, `Firebase Hㅁosting` 오타 수정
+- [x] **CLAUDE.md**: 빅 픽처 위에 브랜드 한 줄 + BRANDING.md 링크
+- [x] **ProfileHeader bio 폴백**: "GLove 회원입니다" → "글러브 회원입니다"
+
 ### 🏠 깐부방 Phase 2 — 게시판 UX 정리 & 홈 피드 격리 (2026-04-17)
 > 설계: [KANBU.md](./KANBU.md)
 
