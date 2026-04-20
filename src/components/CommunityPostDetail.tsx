@@ -142,7 +142,8 @@ const CommunityPostDetail = ({ post, currentUserData, allUsers = {}, followerCou
     if (!window.confirm('이 댓글을 삭제하시겠습니까?')) return;
     await deleteDoc(doc(db, 'community_post_comments', comment.id));
     await updateDoc(doc(db, 'community_posts', post.id), { commentCount: increment(-1) });
-    if (comment.author_id) updateDoc(doc(db, 'users', comment.author_id), { exp: increment(-2) }).catch(() => {});
+    // 🛡️ Anti-Abuse Commit 5a: 삭제 시 exp 감소 제거
+    // Why: Rules가 exp 감소 차단. Phase B CF 이관 예정 (§5.2.2)
   };
 
   // 🚀 댓글 수정 저장

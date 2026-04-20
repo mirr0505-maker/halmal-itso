@@ -110,8 +110,8 @@ const OneCutDetailView = ({
     if (!window.confirm('댓글을 삭제하시겠습니까?')) return;
     await deleteDoc(doc(db, 'comments', comment.id));
     await updateDoc(doc(db, 'posts', rootPost.id), { commentCount: increment(-1) });
-    // 🚀 EXP 차감: 댓글 삭제 -2
-    if (comment.author_id) updateDoc(doc(db, 'users', comment.author_id), { exp: increment(-2) }).catch(() => {});
+    // 🛡️ Anti-Abuse Commit 5a: 삭제 시 exp 감소 제거
+    // Why: Rules가 exp 감소 차단. Phase B CF 이관 예정 (§5.2.2)
   };
 
   // 댓글 수정 저장
@@ -227,9 +227,8 @@ const OneCutDetailView = ({
                         if (!window.confirm('정말 영구히 파기하겠소?')) return;
                         try {
                           await deleteDoc(doc(db, 'posts', rootPost.id));
-                          if (rootPost.author_id) {
-                            updateDoc(doc(db, 'users', rootPost.author_id), { exp: increment(-2) }).catch(() => {});
-                          }
+                          // 🛡️ Anti-Abuse Commit 5a: 삭제 시 exp 감소 제거
+                          // Why: Rules가 exp 감소 차단. Phase B CF 이관 예정 (§5.2.2)
                           onBack?.();
                         } catch (err) {
                           console.error('한컷 삭제 실패:', err);

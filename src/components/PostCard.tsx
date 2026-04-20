@@ -1,7 +1,7 @@
 // src/components/PostCard.tsx
 import { useState } from 'react';
 import { db } from '../firebase';
-import { doc, deleteDoc, updateDoc, increment } from 'firebase/firestore';
+import { doc, deleteDoc, updateDoc } from 'firebase/firestore';
 import type { Post, UserData } from '../types';
 import { formatKoreanNumber, getReputationLabel, getReputationScore, calculateLevel } from '../utils';
 import { sanitizeHtml, extractText } from '../sanitize';
@@ -48,8 +48,8 @@ const PostCard = ({
       try {
         const col = post.rootId ? 'comments' : 'posts';
         await deleteDoc(doc(db, col, post.id));
-        // 🚀 EXP 차감: 삭제 시 -2
-        if (post.author_id) updateDoc(doc(db, 'users', post.author_id), { exp: increment(-2) }).catch(() => {});
+        // 🛡️ Anti-Abuse Commit 5a: 삭제 시 exp 감소 제거
+        // Why: Rules가 exp 감소 차단. Phase B CF 이관 예정 (§5.2.2)
       } catch (e) { console.error(e); }
     }
   };

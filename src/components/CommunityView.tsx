@@ -171,7 +171,8 @@ const CommunityView = ({ community, currentUserData, allUsers, followerCounts = 
     setPosts(prev => prev.filter(p => p.id !== post.id));
     if (selectedPost?.id === post.id) setSelectedPost(null);
     await deleteDoc(doc(db, 'community_posts', post.id));
-    if (post.author_id) updateDoc(doc(db, 'users', post.author_id), { exp: increment(-2) }).catch(() => {});
+    // 🛡️ Anti-Abuse Commit 5a: 삭제 시 exp 감소 제거
+    // Why: Rules가 exp 감소 차단. Phase B CF 이관 예정 (§5.2.2)
   };
 
   // 🚀 자동 승급: 새내기→멤버→핵심멤버 (promotionRules 기반)
