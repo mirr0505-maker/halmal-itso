@@ -333,18 +333,22 @@ function App() {
     // 🚀 공유 링크 로딩 중: 글을 찾는 동안 로딩 스피너 표시 (10초 타임아웃)
     if (pendingSharedPostId) return (
       <div className="w-full flex flex-col items-center justify-center py-40 gap-3">
-        <h1 className="text-[36px] font-[1000] italic tracking-tighter animate-logo-pulse text-slate-900">
-          글러브 GeuLove
+        <h1 className="text-[36px] font-[1000] italic tracking-tighter animate-logo-pulse">
+          <span className="text-red-500">글</span><span className="text-blue-600">러브</span>
+          <span className="text-slate-900"> </span>
+          <span className="text-red-500">G</span><span className="text-slate-900">eu</span><span className="text-blue-600">L</span><span className="text-slate-900">ove</span>
         </h1>
         <p className="text-[11px] font-black text-slate-400 tracking-tight">공유된 글을 불러오는 중...</p>
       </div>
     );
     if (isLoading) return (
       <div className="w-full flex flex-col items-center justify-center py-40 gap-3">
-        <h1 className="text-[36px] font-[1000] italic tracking-tighter animate-logo-pulse text-slate-900">
-          글러브 GeuLove
+        <h1 className="text-[36px] font-[1000] italic tracking-tighter animate-logo-pulse">
+          <span className="text-red-500">글</span><span className="text-blue-600">러브</span>
+          <span className="text-slate-900"> </span>
+          <span className="text-red-500">G</span><span className="text-slate-900">eu</span><span className="text-blue-600">L</span><span className="text-slate-900">ove</span>
         </h1>
-        <p className="text-[11px] font-black text-violet-300 tracking-tight">집단지성의 힘</p>
+        <p className="text-[11px] font-black text-violet-600 tracking-tight">집단지성의 힘</p>
       </div>
     );
     
