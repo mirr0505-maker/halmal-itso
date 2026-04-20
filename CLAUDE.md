@@ -92,7 +92,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ### Cloudflare Workers
 - **halmal-link-preview** (링크 미리보기): `workers/src/index.ts` | 배포: `cd workers && npx wrangler deploy`
 - **halmal-upload-worker** (R2 업로드 프록시): `upload-worker/src/index.ts` | 배포: `cd upload-worker && npx wrangler deploy`
-- CORS 허용: `halmal-itso.web.app` + `localhost:5173/4173`
+- CORS 허용: `geulove.com` + `halmal-itso.web.app` + `localhost:5173/4173` (2개 Worker 코드 내 `allowedOrigins` 배열 동기화 필수)
 - **Workers 코드 수정 시**: Firebase deploy와 별개로 각 디렉토리에서 `npx wrangler deploy` 별도 실행 필요
 
 ### HTML 렌더링
