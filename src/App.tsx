@@ -63,7 +63,7 @@ const CreateKanbuRoomModal = lazy(() => import('./components/CreateKanbuRoomModa
 const RankingView = lazy(() => import('./components/RankingView'));
 const GiantTreeView = lazy(() => import('./components/GiantTreeView'));
 const CreateDebate = lazy(() => import('./components/CreateDebate')); // 연계글 팝업 전용
-// 🚀 ADSMARKET: 광고주 센터
+// 🚀 ADSMARKET: 박씨 물고오는 제비 (광고 경매 시장)
 const AdvertiserCenter = lazy(() => import('./components/advertiser/AdvertiserCenter'));
 const AdAdminPage = lazy(() => import('./components/admin/AdAdminPage'));
 const FriendsView = lazy(() => import('./components/FriendsView'));
@@ -333,16 +333,16 @@ function App() {
     // 🚀 공유 링크 로딩 중: 글을 찾는 동안 로딩 스피너 표시 (10초 타임아웃)
     if (pendingSharedPostId) return (
       <div className="w-full flex flex-col items-center justify-center py-40 gap-3">
-        <h1 className="text-[36px] font-[1000] italic tracking-tighter animate-logo-pulse">
-          <span className="text-red-500">G</span><span className="text-blue-600">L</span><span className="text-slate-900">ove</span>
+        <h1 className="text-[36px] font-[1000] italic tracking-tighter animate-logo-pulse text-slate-900">
+          글러브 GeuLove
         </h1>
         <p className="text-[11px] font-black text-slate-400 tracking-tight">공유된 글을 불러오는 중...</p>
       </div>
     );
     if (isLoading) return (
       <div className="w-full flex flex-col items-center justify-center py-40 gap-3">
-        <h1 className="text-[36px] font-[1000] italic tracking-tighter animate-logo-pulse">
-          <span className="text-red-500">G</span><span className="text-blue-600">L</span><span className="text-slate-900">ove</span>
+        <h1 className="text-[36px] font-[1000] italic tracking-tighter animate-logo-pulse text-slate-900">
+          글러브 GeuLove
         </h1>
         <p className="text-[11px] font-black text-violet-300 tracking-tight">집단지성의 힘</p>
       </div>
@@ -438,7 +438,7 @@ function App() {
       />;
     }
 
-    // 🚀 ADSMARKET: 광고주 센터
+    // 🚀 ADSMARKET: 박씨 물고오는 제비 (광고 경매 시장)
     if (activeMenu === 'adsmarket') {
       if (!userData) return (
         <div className="py-20 text-center text-slate-300 font-bold">로그인 후 이용할 수 있습니다.</div>

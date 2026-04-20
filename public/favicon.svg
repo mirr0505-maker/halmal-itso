@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <text
+    x="16"
+    y="26"
+    text-anchor="middle"
+    font-family="system-ui, -apple-system, 'Segoe UI', 'Pretendard Variable', Pretendard, sans-serif"
+    font-weight="900"
+    font-size="28"
+    font-style="italic"
+    letter-spacing="-2.5"
+  ><tspan fill="#ef4444">G</tspan><tspan fill="#2563eb">L</tspan></text>
+</svg>

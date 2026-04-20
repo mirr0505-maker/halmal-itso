@@ -1,4 +1,4 @@
-// src/components/advertiser/AdvertiserCenter.tsx — 광고주 센터 메인 (탭 기반)
+// src/components/advertiser/AdvertiserCenter.tsx — 박씨 물고오는 제비(광고 경매 시장) 메인 (탭 기반)
 // 🚀 대시보드 · 내 광고 · 충전 · 설정 4탭
 import { useState, useEffect } from 'react';
 import { db, auth } from '../../firebase';
@@ -57,7 +57,8 @@ const AdvertiserCenter = ({ onBack }: Props) => {
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
           <button onClick={onBack} className="text-[11px] font-black text-slate-400 hover:text-slate-700 transition-colors">← 돌아가기</button>
-          <h2 className="text-[18px] font-[1000] text-slate-900">📢 광고주 센터</h2>
+          <h2 className="text-[18px] font-[1000] text-slate-900">📢 박씨 물고오는 제비</h2>
+          <span className="text-[10px] font-bold text-slate-500">광고 경매 시장</span>
           <span className="text-[10px] font-bold text-slate-400">{account.businessName}</span>
         </div>
         <button onClick={() => setShowCreateForm(true)}
