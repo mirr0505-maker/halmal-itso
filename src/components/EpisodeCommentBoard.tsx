@@ -136,8 +136,11 @@ const EpisodeCommentBoard = ({ episodeId, authorId, comments, currentUserUid, cu
         likes: Math.max(0, (comment.likes || 0) + diff),
         likedBy: isLiked ? arrayRemove(currentUserNickname) : arrayUnion(currentUserNickname),
       });
-      if (comment.author_id) {
-        await updateDoc(doc(db, 'users', comment.author_id), { likes: increment(diff * 3) });
+      // 🛡️ Anti-Abuse Commit 5b: 좋아요 취소(diff=-1) 시 타인 users.likes 업데이트 스킵
+      // Why: Rules §4.2.2가 타인 users.likes 감소 차단
+      //      comments의 likedBy/likes는 정상 동작 (UX 영향 없음)
+      if (diff === 1 && comment.author_id) {
+        await updateDoc(doc(db, 'users', comment.author_id), { likes: increment(3) });
       }
       const newLikes = (comment.likes || 0) + diff;
       if (diff === 1 && newLikes === 3 && comment.author_id) {

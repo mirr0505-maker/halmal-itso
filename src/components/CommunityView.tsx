@@ -415,10 +415,11 @@ const CommunityView = ({ community, currentUserData, allUsers, followerCounts = 
       likes: Math.max(0, (post.likes || 0) + diff),
       likedBy: isLiked ? arrayRemove(currentUserData.nickname) : arrayUnion(currentUserData.nickname),
     });
-    // 🚀 좋아요 수신 시 글 작성자 활동지수 반영 — App.tsx handleLike와 동일 기준(±3)
-    // Why: 장갑 글 좋아요도 일반 글과 동등한 활동 보상을 받아야 함
-    if (post.author_id) {
-      await updateDoc(doc(db, 'users', post.author_id), { likes: increment(diff * 3) });
+    // 🛡️ Anti-Abuse Commit 5b: 좋아요 취소(diff=-1) 시 타인 users.likes 업데이트 스킵
+    // Why: Rules §4.2.2가 타인 users.likes 감소 차단
+    //      posts/comments의 likedBy/likes는 정상 동작 (UX 영향 없음)
+    if (diff === 1 && post.author_id) {
+      await updateDoc(doc(db, 'users', post.author_id), { likes: increment(3) });
     }
   };
 
