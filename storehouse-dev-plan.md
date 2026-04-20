@@ -244,65 +244,6 @@
 - 자연스럽게 탈출 자금으로 집중됨
 - 담합/자금세탁 경로 원천 차단
 
-**구현 보강 (2026-04-15):**
-- `functions/thanksball.js` `sendThanksball` 트랜잭션이 수신자의 `ballReceived`(평판 누적)만 증가시키고 `ballBalance`(실사용 잔액)를 빠뜨리던 버그 수정 → 두 필드 동시 증가
-- 효과: 유배자가 받은 땡스볼로 즉시 속죄금(`releaseFromExile`의 ballBalance 차감) 결제 가능. 일반 유저 간 전송도 되쓰기 가능으로 정상 동작
-- 과거 누적분은 소급 반영 없음. 적용 이후 신규 전송분부터 즉시 반영
-
-### 2.6 유배글 상세 & 댓글 화면 (Detail View)
-
-**레이아웃 (2026-04-14 변경):**
-
-```
-┌─────────────────────────────────────────────────┐
-│  ← 목록으로    [⋮ 더보기]       (🚫 공유 버튼 없음)  │
-├─────────────────────────────────────────────────┤
-│  본문 카드 (RootPostCard)                        │
-│  작성자: 곳간 거주자 #NNNN (익명)                 │
-├─────────────────────────────────────────────────┤
-│  🟢 동의 N        ·        🔴 반대 N              │
-├─────────────────────┬───────────────────────────┤
-│  (좌) 동의 댓글      │  (우) 반대 댓글            │
-│  - 지그재그 배치     │  - 시간순 배치             │
-│  - 익명 닉네임       │  - 익명 닉네임             │
-│  ...                │  ...                      │
-├─────────────────────┴───────────────────────────┤
-│  [댓글 입력…]  (동의/반대 각 컬럼 하단 인라인 입력) │
-└─────────────────────────────────────────────────┘
-```
-
-**핵심 변경:**
-- **Pandora 보드 스타일 채택** — `DiscussionView.tsx` `CATEGORY_RULES['유배·귀양지'].boardType = 'pandora'`
-  - 동의/반대 댓글이 좌우 2컬럼으로 시간순 지그재그 표시
-  - 각 컬럼 **하단에 인라인 댓글 입력폼** 배치 (placeholder: `댓글을 입력하세요...`)
-- **공유 버튼 제거** — STOREHOUSE.md §3.3 Sandbox Policy에 따라 상세글 우상단 공유 버튼 숨김
-- **이미지/링크 첨부 숨김** — `hideAttachment: true`로 유해 콘텐츠 확산 차단
-- **레거시 CommentExile.tsx** — pandora 분기에서 자동 비활성화. 파일은 존속하되 실제 미사용 (향후 정리 가능)
-
-### 2.7 사이드바(관련 글) 정책 — "게시글 더보기"
-
-- **기본 정책(일반 카테고리):** `DiscussionView.tsx`의 `relatedPosts` 필터가 "좋아요 3+ & 1시간 경과"(CLAUDE.md 등록글 기준)를 요구하며 제목은 **"등록글 더보기"**
-- **유배·귀양지 전용 완화 (2026-04-15):**
-  - 곳간(lv1)/귀양지(lv2)/절해고도(lv3) 3단계 모두 적용
-  - 좋아요·시간 필터 **스킵** — 트래픽이 적어 기본 정책 적용 시 사이드바가 빈 상태로 유지되는 UX 문제 해결
-  - `isHiddenByExile`(문제글 soft-delete)은 **계속 제외** — 처분 후 숨김 글이 사이드바로 부활하지 않도록 방어
-  - 사이드바 제목을 **"게시글 더보기"**로 표기하여 기준 차이 명시 ("등록글"은 CLAUDE.md 고유 용어이므로 기준 다를 때 오용 방지)
-- **구현:** `DiscussionView.tsx` `isExile` 분기 + `RelatedPostsSidebar.tsx` `title` prop
-
-### 2.8 글작성 진입 가드 — 비유배자의 곳간 체류 중 "+ 새 글"
-
-- **문제:** 비유배 유저가 관전 목적으로 곳간(`activeMenu === 'exile_place'`)에 체류 중 헤더의 보라색 `+ 새 글` 버튼을 누르면 `CREATE_MENU_COMPONENTS['exile_place'] = CreateExile`이 렌더되어 유배글 작성 폼으로 진입
-- **수정 (2026-04-14):** `App.tsx` 헤더 버튼 `onClick`에 가드 추가
-  - `activeMenu === 'exile_place' && !isExiled` → `setActiveMenu('home')` 먼저 호출 후 `setIsCreateOpen(true)` → 홈 카테고리 선택 화면으로 진입
-  - 유배자는 App.tsx 라우팅 가드(`useEffect`)가 즉시 `exile_place`로 복귀시키므로 `CreateExile` 폼 그대로 유지
-- **모바일 중앙 + 버튼은 이미 `setActiveMenu('home')` 선행 → 영향 없음**
-- **`ExileMainPage` 헤더의 "+ 글 작성" 버튼은 `myLevel && myLevel === activeTab` 조건으로 유배자에게만 노출 → 영향 없음**
-
-### 2.9 헤더·관전자 안내 문구 간소화 (2026-04-14)
-
-- **헤더 서브타이틀:** `"유배·귀양지, 사회적으로 비난 받을 글로 인하여 여기에 갇혔습니다. 반성하고 속죄하시오"` → `"유배·귀양지, 사회적으로 비난 받을 글로 인하여 여기에 갇혔습니다."` ("반성하고 속죄하시오" 제거)
-- **관전자 안내 배너 전체 제거** — 기존에 비유배 유저 진입 시 표시되던 3줄 안내(거친 표현/익명화/외부 공유 금지)는 모두 삭제. 안내 내용은 그대로 유효하며 STOREHOUSE.md에서 문서적으로 보존(§3, §11.3, §11.4)
-
 ---
 
 ## 3. 공유 기능 차단 (Sandbox Policy)
@@ -321,13 +262,6 @@
 ### 3.2 샌드박스 원칙
 
 유배지 콘텐츠는 **앱 내부에서만 소비 가능**. 외부로 유출되지 않도록 모든 export 경로를 차단. 단, 화면 캡처(스크린샷)는 기술적으로 완벽히 막을 수 없으므로 워터마크(유저ID, 타임스탬프)를 표시하여 추적 가능성을 확보.
-
-### 3.3 구현 현황 (Implementation)
-
-- ✅ **상세글 우상단 공유 버튼 숨김** — `RootPostCard.tsx`에서 `post.category === '유배·귀양지'`일 때 버튼 미렌더링
-- ✅ **외부 공유 URL 생성 차단** — `sharePost()` 헬퍼 호출 경로 자체를 진입 단계에서 막음
-- ⏳ 카카오톡/외부 SNS 공유 — 현재 전 서비스에 미구현 (추후 공유 기능 확장 시 유배·귀양지는 예외 처리 필수)
-- ⏳ 스크린샷 워터마크 — 미구현 (TODO)
 
 ---
 
@@ -846,23 +780,9 @@ function App() {
 
 - **리스크:** 악성 유저가 오히려 관심을 즐김
 - **대응:**
-  - ✅ 유배자 닉네임 자동 익명화 (`곳간 거주자 #NNNN`)
+  - 유배자 닉네임 자동 익명화 (`곳간 거주자 #4821`)
   - 프로필 직접 조회 제한
   - 본인은 자기 ID 알지만, 타인은 익명으로만 인지
-
-#### 11.4.1 구현 상세 (Implementation)
-
-- **헬퍼:** `src/utils.ts` — `anonymizeExileNickname(uid: string): string`
-  - FNV-1a 32bit 해시 기반 결정적 변환 → 0000~9999 4자리 숫자
-  - 반환 형식: `곳간 거주자 #${4자리 패딩 숫자}` (예: `곳간 거주자 #4821`)
-  - **결정적(Deterministic):** 동일 `uid`는 언제 호출되어도 항상 동일 번호 → "유배 기간 중 닉네임 일관성" 요건 충족
-  - Cloud Function 의존 없음 (클라이언트 순수 함수)
-- **적용 위치:** `src/hooks/useFirestoreActions.ts`
-  - `handlePostSubmit` — `postData.category === '유배·귀양지'`일 때 `author` 필드를 익명 닉네임으로 치환
-  - `handleInlineReply` / `handleCommentSubmit` — `selectedTopic.category === '유배·귀양지'`일 때 동일 치환
-  - `author_id`는 항상 실제 `uid` 저장 → 본인 수정/삭제 권한 및 관리자 추적 유지
-- **본인 표시:** 본인이 자기 글을 볼 때도 익명 닉네임 표시 (author_id로 수정·삭제 버튼 노출 판정)
-- **기존 글 마이그레이션:** 없음. 적용 시점 이후 신규 작성 글·댓글부터 익명화
 
 ### 11.5 신고 남용
 
@@ -933,50 +853,40 @@ function App() {
 
 ## 14. 구현 우선순위 (Implementation Phases)
 
-### Phase 1 — MVP (필수) ✅ 완료 (2026-04-14)
+### Phase 1 — MVP (필수)
 
-- [x] `users` 컬렉션 확장 필드 추가 (types.ts `UserData` + `SANCTION_POLICIES`)
-- [x] Firestore Rules 작성 (bail_history/release_history/banned_phones/sanction_log/exile_posts/exile_comments)
-- [x] `sendToExile` / `releaseFromExile` Cloud Function (`functions/storehouse.js`)
-- [x] 라우팅 가드 (App.tsx useEffect + Sidebar `isExiled`)
-- [x] 유배귀양지 메인 페이지 3탭 (`ExileMainPage.tsx`)
-- [x] 상태 카드 + 반성 기간 카운트다운 + 속죄금 결제 버튼
-- [x] 관리자 대시보드 [유배 보내기] 탭 (`admin/ExileManagement.tsx`)
-- [x] 사약 화면 (`SayakScreen.tsx`) — 10초 카운트다운 + 강제 로그아웃
-- [x] 테스트 계정: 불량깐부1~3호 (Lv3/4/5)
+- [ ] `users` 컬렉션 확장 필드 추가
+- [ ] Firestore Rules 작성
+- [ ] `sendToExile` / `releaseFromExile` Cloud Function
+- [ ] 라우팅 가드
+- [ ] 유배귀양지 메인 페이지 (3탭)
+- [ ] 상태 카드 + 속죄금 결제 버튼
+- [ ] 관리자 대시보드의 [유배 보내기] 버튼
 
-### Phase 2 — 핵심 기능 ✅ 완료 (2026-04-14)
+### Phase 2 — 핵심 기능
 
-- [x] `exile_posts` 게시판 구현 (`ExileBoard.tsx`)
-- [x] 일반 유저의 유배지 관전 뷰 (익명 닉네임 "곳간 거주자 #NNNN")
-- [x] 땡스볼 송금 가드 — 유배자 송금 차단 (수신 허용)
-- [x] 깐부 리셋 로직 (Phase 1 `releaseFromExile`에서 양방향 제거)
-- [x] 공개 프로필 "🏚️ 수감 중 · N범" 배지 + "☠️ 사약" 배지
-- [x] 내 정보 페이지 상단 경고 배너 (처분 사유 + 곳간 이동 안내)
+- [ ] `exile_posts` 게시판 구현
+- [ ] 일반 유저의 유배지 관전 뷰
+- [ ] 땡스볼 송금 흐름 (일반→유배자)
+- [ ] 깐부 리셋 로직
+- [ ] 공개 프로필 "수감 중" 표시
+- [ ] 내 정보 페이지 제한
 
-### Phase 3 — 강화 기능 (일부 완료 2026-04-14)
+### Phase 3 — 강화 기능
 
-- [x] 사약 시스템 + SayakScreen 연출 (Phase 1에서 이미 완성)
-- [x] `executeSayak` Cloud Function — 자산 몰수 + 모든 글 soft delete + banned_phones 등록 + 깐부 리셋 + 감사 로그
-- [x] `checkAutoSayak` 스케줄러 — 매일 04:00, 유배 90일 경과 자동 사약
-- [x] 문제 글 soft delete (`isHiddenByExile`) + 피드 필터링 (Step 3a)
-- [x] `sendToExile` postId 파라미터로 신고 대상 글 자동 숨김
-- [x] 관리자 [☠️ 직권 사약] UI
-- [ ] Firebase Phone Auth 연동 (별도 발급 필요)
-- [ ] `banned_phones` 블랙리스트 가입 차단 (Phone Auth 선결)
+- [ ] 사약 시스템 + 연출
+- [ ] `executeSayak` Cloud Function
+- [ ] `checkAutoSayak` 스케줄러
+- [ ] Firebase Phone Auth 연동
+- [ ] `banned_phones` 블랙리스트
 
-### Phase 4 — 완성도 (일부 완료)
+### Phase 4 — 완성도
 
-- [ ] 유배지 일러스트/사운드 (에셋 발주 필요)
-- [ ] 애니메이션 연출 (곳간 문 열림 등)
-- [x] 익명화 처리 (Phase 2에서 완료 — `곳간 거주자 #NNNN`)
-- [ ] 로컬라이제이션 (영어/일본어)
-- [x] 이의 제기 채널 (2026-04-14) — 유배자 `AppealForm` + 관리자 `AppealReview` 탭
-
-### 관리자 추가 기능 (2026-04-14)
-
-- [x] 플랫폼 수익 대시보드에 속죄금 소각(`penalty`) + 사약 자산 몰수(`sayak_seized`) 카드
-- [x] 현재 유배자 목록 (ExileManagement 내) — 4단계별 배지 + 90일 초과 경고 + 반성기간 남은 일수
+- [ ] 유배지 일러스트/사운드
+- [ ] 애니메이션 연출
+- [ ] 익명화 처리
+- [ ] 로컬라이제이션
+- [ ] 이의 제기 채널
 
 ---
 

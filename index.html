@@ -3,26 +3,38 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>GLove</title>
-    <meta name="description" content="지금 공유드리는 글을 확인해 보세요. 커뮤니티 플랫폼 GLove에서 다양한 주제글들을 확인하실 수 있습니다." />
+    <title>글러브 GeuLove</title>
+    <meta name="description" content="지금 공유드리는 글을 확인해 보세요. 커뮤니티 플랫폼 글러브 GeuLove에서 다양한 주제글들을 확인하실 수 있습니다." />
 
     <!-- Open Graph — 카카오톡·페이스북·슬랙 등 링크 미리보기 -->
     <meta property="og:type"        content="website" />
-    <meta property="og:site_name"   content="GLove" />
-    <meta property="og:title"       content="GLove" />
-    <meta property="og:description" content="지금 공유드리는 글을 확인해 보세요. 커뮤니티 플랫폼 GLove에서 다양한 주제글들을 확인하실 수 있습니다." />
-    <meta property="og:url"         content="https://halmal-itso.web.app" />
-    <meta property="og:image" content="https://halmal-itso.web.app/og-image.jpg" />
+    <meta property="og:site_name"   content="글러브 GeuLove" />
+    <meta property="og:title"       content="글러브 GeuLove" />
+    <meta property="og:description" content="지금 공유드리는 글을 확인해 보세요. 커뮤니티 플랫폼 글러브 GeuLove에서 다양한 주제글들을 확인하실 수 있습니다." />
+    <meta property="og:url"         content="https://geulove.com" />
+    <meta property="og:image"       content="https://geulove.com/og-image.png" />
     <meta property="og:image:width"  content="1200" />
     <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt"   content="글러브 GeuLove 로고" />
+    <meta property="og:locale"      content="ko_KR" />
 
     <!-- Twitter Card — X(트위터) 공유용 -->
     <meta name="twitter:card"        content="summary_large_image" />
-    <meta name="twitter:title"       content="GLove" />
-    <meta name="twitter:description" content="지금 공유드리는 글을 확인해 보세요. 커뮤니티 플랫폼 GLove에서 다양한 주제글들을 확인하실 수 있습니다." />
+    <meta name="twitter:title"       content="글러브 GeuLove" />
+    <meta name="twitter:description" content="지금 공유드리는 글을 확인해 보세요. 커뮤니티 플랫폼 글러브 GeuLove에서 다양한 주제글들을 확인하실 수 있습니다." />
+    <meta name="twitter:image"       content="https://geulove.com/og-image.png" />
 
-    <!-- 파비콘 -->
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <!-- 파비콘 — SVG 우선(브라우저 탭에 빨강 G + 파랑 L), PNG는 구형 브라우저 fallback -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+
+    <!-- 테마 컬러 (모바일 브라우저 상단바) -->
+    <meta name="theme-color" content="#7c3aed" />
+
+    <!-- 🚀 Pretendard 한글 웹폰트 — 헤더 로고 "글러브" 전용 (Variable 폰트, 공식 jsDelivr CDN) -->
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
+    <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.css" />
 
     <!-- 카카오 JavaScript SDK — 거대 나무 전파 공유 -->
     <script src="https://t1.kakaocdn.net/kakao_js_sdk/2.7.2/kakao.min.js"

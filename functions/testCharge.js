@@ -12,8 +12,10 @@ exports.testChargeBall = onCall(
     const uid = request.auth.uid;
     const { amount } = request.data;
 
-    if (typeof amount !== "number" || amount <= 0 || amount > 1000) {
-      throw new HttpsError("invalid-argument", "1~1000 범위의 충전 금액을 입력하세요.");
+    // 🔒 정수·범위 검증 — NaN/Infinity/소수점 차단 (thanksball과 동일 패턴)
+    // Why: increment(NaN)이 ballBalance 필드를 NaN으로 오염시키면 감사·정산이 전부 깨짐
+    if (typeof amount !== "number" || !Number.isInteger(amount) || amount < 1 || amount > 1000) {
+      throw new HttpsError("invalid-argument", "1~1000 범위의 정수 금액을 입력하세요.");
     }
 
     await db.collection("users").doc(uid).update({

@@ -30,6 +30,7 @@ export const EXTERNAL_URLS = {
 //    오버라이드될 수 있으며, 해당 env 추가·변경 시 이 파일도 반드시 동기화할 것.
 //    (클라는 빌드 타임 정적 배열 — 런타임 env 주입 없음)
 export const OG_IMAGE_ALLOWED_HOSTS = [
+  'geulove.com',
   'halmal-itso.web.app',
   'pub-9e6af273cd034aa6b7857343d0745224.r2.dev',
 ] as const;

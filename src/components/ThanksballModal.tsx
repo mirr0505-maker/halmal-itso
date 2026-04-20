@@ -1,5 +1,5 @@
 // src/components/ThanksballModal.tsx
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import type { UserData } from '../types';
 import { THANKSBALL } from '../constants';
 import { auth, functions } from '../firebase';
@@ -45,6 +45,9 @@ const ThanksballModal = ({ postId, postAuthor, postTitle, currentNickname: _curr
   const [done, setDone] = useState(false);
   const [error, setError] = useState('');
 
+  // 🔒 멱등키: 모달 1개 인스턴스당 1개 UUID 고정 — 재시도 시 같은 값 재사용으로 이중 차감 차단
+  const requestIdRef = useRef<string>(crypto.randomUUID());
+
   const finalAmount = custom !== '' ? Math.max(1, parseInt(custom) || 1) : selected;
   const tier = getTier(finalAmount);
 
@@ -65,6 +68,7 @@ const ThanksballModal = ({ postId, postAuthor, postTitle, currentNickname: _curr
       // 🚀 Cloud Function 호출 — ballBalance 직접 수정 Rules 차단 대응
       const sendFn = httpsCallable(functions, 'sendThanksball');
       await sendFn({
+        clientRequestId: requestIdRef.current,
         recipientUid,
         amount: finalAmount,
         message: message.trim() || null,

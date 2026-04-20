@@ -7,7 +7,7 @@ import { useState } from 'react';
 import ThanksballModal from './ThanksballModal';
 import type { Post, UserData } from '../types';
 import { db } from '../firebase';
-import { doc, updateDoc, deleteDoc, increment } from 'firebase/firestore';
+import { doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { formatKoreanNumber, getReputationLabel, getReputationScore, calculateLevel } from '../utils';
 
 interface Props {
@@ -58,8 +58,8 @@ const OneCutCommentBoard = ({
     if (!window.confirm('정말 삭제하시겠소?')) return;
     const col = post.rootId ? 'comments' : 'posts';
     await deleteDoc(doc(db, col, post.id));
-    // 🚀 EXP 차감: 삭제 -2
-    if (post.author_id) updateDoc(doc(db, 'users', post.author_id), { exp: increment(-2) }).catch(() => {});
+    // 🛡️ Anti-Abuse Commit 5a: 삭제 시 exp 감소 제거
+    // Why: Rules가 exp 감소 차단. Phase B CF 이관 예정 (§5.2.2)
   };
 
   const pinnedCommentId = rootPost.pinnedCommentId;

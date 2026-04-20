@@ -63,7 +63,7 @@ const CreateKanbuRoomModal = lazy(() => import('./components/CreateKanbuRoomModa
 const RankingView = lazy(() => import('./components/RankingView'));
 const GiantTreeView = lazy(() => import('./components/GiantTreeView'));
 const CreateDebate = lazy(() => import('./components/CreateDebate')); // 연계글 팝업 전용
-// 🚀 ADSMARKET: 광고주 센터
+// 🚀 ADSMARKET: 박씨 물고오는 제비 (광고 경매 시장)
 const AdvertiserCenter = lazy(() => import('./components/advertiser/AdvertiserCenter'));
 const AdAdminPage = lazy(() => import('./components/admin/AdAdminPage'));
 const FriendsView = lazy(() => import('./components/FriendsView'));
@@ -333,16 +333,16 @@ function App() {
     // 🚀 공유 링크 로딩 중: 글을 찾는 동안 로딩 스피너 표시 (10초 타임아웃)
     if (pendingSharedPostId) return (
       <div className="w-full flex flex-col items-center justify-center py-40 gap-3">
-        <h1 className="text-[36px] font-[1000] italic tracking-tighter animate-logo-pulse">
-          <span className="text-red-500">G</span><span className="text-blue-600">L</span><span className="text-slate-900">ove</span>
+        <h1 className="text-[36px] font-[1000] italic tracking-tighter animate-logo-pulse text-slate-900">
+          글러브 GeuLove
         </h1>
         <p className="text-[11px] font-black text-slate-400 tracking-tight">공유된 글을 불러오는 중...</p>
       </div>
     );
     if (isLoading) return (
       <div className="w-full flex flex-col items-center justify-center py-40 gap-3">
-        <h1 className="text-[36px] font-[1000] italic tracking-tighter animate-logo-pulse">
-          <span className="text-red-500">G</span><span className="text-blue-600">L</span><span className="text-slate-900">ove</span>
+        <h1 className="text-[36px] font-[1000] italic tracking-tighter animate-logo-pulse text-slate-900">
+          글러브 GeuLove
         </h1>
         <p className="text-[11px] font-black text-violet-300 tracking-tight">집단지성의 힘</p>
       </div>
@@ -438,7 +438,7 @@ function App() {
       />;
     }
 
-    // 🚀 ADSMARKET: 광고주 센터
+    // 🚀 ADSMARKET: 박씨 물고오는 제비 (광고 경매 시장)
     if (activeMenu === 'adsmarket') {
       if (!userData) return (
         <div className="py-20 text-center text-slate-300 font-bold">로그인 후 이용할 수 있습니다.</div>
@@ -1179,13 +1179,17 @@ function App() {
               <line x1="1" y1="12" x2="11" y2="12" stroke="#7c3aed" />
               <line x1="1" y1="18" x2="11" y2="18" stroke="#7c3aed" />
             </svg>
-            <h1 className="text-[26px] font-[1000] italic tracking-tighter shrink-0">
-              <span className="text-red-500">G</span><span className="text-blue-600">L</span><span className="text-slate-900">ove</span>
+            <h1 className="text-[26px] font-[1000] tracking-tighter shrink-0 flex items-baseline gap-0">
+              <span className="text-red-500" style={{ fontFamily: "'Pretendard Variable', Pretendard, sans-serif" }}>글</span>
+              <span className="text-blue-600" style={{ fontFamily: "'Pretendard Variable', Pretendard, sans-serif" }}>러브</span>
+              <span className="italic text-[14px] font-bold text-slate-500 ml-1">beta</span>
             </h1>
           </div>
-          {/* 모바일: GLove 로고만 (터치 시 홈 이동, ≡ 버튼은 하단 탭바로 이동) */}
-          <h1 className="flex md:hidden text-[26px] font-[1000] italic tracking-tighter cursor-pointer shrink-0" onClick={goHome}>
-            <span className="text-red-500">G</span><span className="text-blue-600">L</span><span className="text-slate-900">ove</span>
+          {/* 모바일: 글러브 beta 로고만 (터치 시 홈 이동, ≡ 버튼은 하단 탭바로 이동) */}
+          <h1 className="flex md:hidden text-[26px] font-[1000] tracking-tighter cursor-pointer shrink-0 items-baseline gap-0" onClick={goHome}>
+            <span className="text-red-500" style={{ fontFamily: "'Pretendard Variable', Pretendard, sans-serif" }}>글</span>
+            <span className="text-blue-600" style={{ fontFamily: "'Pretendard Variable', Pretendard, sans-serif" }}>러브</span>
+            <span className="italic text-[14px] font-bold text-slate-500 ml-1">beta</span>
           </h1>
           <div className="hidden md:flex gap-1.5 items-center px-4 border-l border-slate-100" onClick={(e) => e.stopPropagation()}>
             <span className="text-[9px] font-black text-slate-300 uppercase tracking-tighter mr-1">Dev:</span>

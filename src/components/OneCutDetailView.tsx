@@ -110,8 +110,8 @@ const OneCutDetailView = ({
     if (!window.confirm('댓글을 삭제하시겠습니까?')) return;
     await deleteDoc(doc(db, 'comments', comment.id));
     await updateDoc(doc(db, 'posts', rootPost.id), { commentCount: increment(-1) });
-    // 🚀 EXP 차감: 댓글 삭제 -2
-    if (comment.author_id) updateDoc(doc(db, 'users', comment.author_id), { exp: increment(-2) }).catch(() => {});
+    // 🛡️ Anti-Abuse Commit 5a: 삭제 시 exp 감소 제거
+    // Why: Rules가 exp 감소 차단. Phase B CF 이관 예정 (§5.2.2)
   };
 
   // 댓글 수정 저장
@@ -192,16 +192,16 @@ const OneCutDetailView = ({
       <div className="col-span-1 md:col-span-8 flex flex-col">
         <section className="rounded-none flex flex-col mb-0 bg-white">
 
-          {/* 헤더: ← 한컷 / 경과시간 / 공유 / 수정·삭제 */}
+          {/* 헤더: ← 헨젤의 빵부스러기 / 경과시간 / 공유 / 수정·삭제 */}
           <div className="flex-1 flex flex-col pt-8 px-4 md:px-8 pb-4">
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-3">
                 <span
                   onClick={onBack}
                   className="text-[10px] font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded-sm uppercase tracking-widest cursor-pointer hover:bg-blue-100 hover:text-blue-700 hover:-translate-x-0.5 transition-all duration-150 select-none"
-                  title="한컷 목록으로 돌아가기"
+                  title="헨젤의 빵부스러기 목록으로 돌아가기"
                 >
-                  ← 한컷
+                  ← 헨젤의 빵부스러기
                 </span>
                 <span className="text-[11px] font-bold text-slate-400">{formatTime(rootPost.createdAt)}</span>
               </div>
@@ -227,9 +227,8 @@ const OneCutDetailView = ({
                         if (!window.confirm('정말 영구히 파기하겠소?')) return;
                         try {
                           await deleteDoc(doc(db, 'posts', rootPost.id));
-                          if (rootPost.author_id) {
-                            updateDoc(doc(db, 'users', rootPost.author_id), { exp: increment(-2) }).catch(() => {});
-                          }
+                          // 🛡️ Anti-Abuse Commit 5a: 삭제 시 exp 감소 제거
+                          // Why: Rules가 exp 감소 차단. Phase B CF 이관 예정 (§5.2.2)
                           onBack?.();
                         } catch (err) {
                           console.error('한컷 삭제 실패:', err);

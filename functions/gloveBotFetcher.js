@@ -31,7 +31,7 @@ async function fetchGoogleNewsRss(keyword) {
   const url = `https://news.google.com/rss/search?q=${encoded}&hl=ko&gl=KR&ceid=KR:ko`;
 
   const response = await fetch(url, {
-    headers: { "User-Agent": "GLove-InfoBot/1.0" },
+    headers: { "User-Agent": "GeuLove-InfoBot/1.0" },
     signal: AbortSignal.timeout(10000), // 10초 타임아웃
   });
   if (!response.ok) {
@@ -207,7 +207,7 @@ exports.fetchBotDart = onSchedule(
         // 2. DART API 호출
         const apiUrl = `https://opendart.fss.or.kr/api/list.json?crtfc_key=${DART_API_KEY}&corp_code=${infoBot.corpCode}&bgn_de=${startDate}&end_de=${endDate}&page_count=10&sort=date&sort_mth=desc`;
         const response = await fetch(apiUrl, {
-          headers: { "User-Agent": "GLove-InfoBot/1.0" },
+          headers: { "User-Agent": "GeuLove-InfoBot/1.0" },
           signal: AbortSignal.timeout(15000),
         });
 

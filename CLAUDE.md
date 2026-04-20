@@ -1,6 +1,20 @@
-# CLAUDE.md — Claude Code 전용 지침
+# CLAUDE.md
 
-이 파일은 Claude Code가 **할말있소(HALMAL-ITSO)** 프로젝트에서 작업할 때 반드시 따라야 하는 지침입니다.
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+할말있소(HALMAL-ITSO) — Firebase 기반 한국어 커뮤니티 플랫폼. 이 파일은 Claude Code가 작업할 때 반드시 따라야 하는 지침입니다.
+
+**서비스 브랜드**: 글러브 GeuLove (도메인 `geulove.com`, 헤더 표기 `글러브 beta`). 프로젝트 공식명 `할말있소(HALMAL-ITSO)`는 시스템 계층(저장소·Firebase 프로젝트 ID)에 보존. 브랜드 전환 이력 및 치환 금지 식별자는 [BRANDING.md](./BRANDING.md) 참조.
+
+---
+
+## 빅 픽처 아키텍처
+
+- **프론트**: React 19 + Vite 7 + TypeScript 5.9 + Tailwind v4 + Tiptap 3 에디터
+- **백엔드**: Firebase (Firestore + Auth + Cloud Functions `asia-northeast3`) + Cloudflare Workers 2개(`halmal-link-preview`, `halmal-upload-worker`) + Cloudflare R2 오브젝트 스토리지
+- **데이터 흐름**: 클라이언트 `onSnapshot` 실시간 구독 → `App.tsx` 전역 상태 → props drilling. 민감 필드(볼 잔액·플랫폼 수익·유배 sanction·에피소드 결제 등)는 Firestore Rules가 클라이언트 쓰기를 차단하므로 **반드시 Cloud Function callable 경유**.
+- **이미지 업로드 경로**: 브라우저 → `halmal-upload-worker`(Firebase Auth ID Token 검증) → R2 바인딩 직접 저장. 클라이언트에 R2 API 키 없음.
+- **주요 서브시스템**: 깐부방 / 장갑(커뮤니티) / 잉크병(연재) / 강변시장 / 거대나무 / 유배귀양지 — 각각 독립 설계서 있음(아래 참조).
 
 ---
 
@@ -43,14 +57,16 @@
 - Firestore 자동 생성 ID 금지 → `topic_timestamp_uid` / `comment_timestamp_uid` 형식 사용
   - **예외**: `notifications/{uid}/items`, `sentBalls/{uid}/items`, `giant_trees/{id}/leaves` — 보조 데이터는 `addDoc` 자동 ID 허용
 - 실시간 리스너: `onSnapshot` (App.tsx 또는 개별 컴포넌트에서 관리)
-- 컬렉션: `posts`, `comments`, `users`, `kanbu_rooms`, `notifications`, `sentBalls`, `communities`, `community_posts`, `community_memberships`, `community_post_comments`, `giant_trees`, `marathon_dedup`, `series`, `unlocked_episodes`, `series_subscriptions`, `platform_revenue`, `glove_bot_payments`, `glove_bot_dedup`, `dart_corp_map`, `market_items`, `market_purchases`, `market_shops`, `market_subscriptions`, `market_ad_revenues`, `bail_history`, `release_history`, `banned_phones`, `sanction_log`, `exile_posts`, `exile_comments`, `kanbu_paid_subs`
-- **Firestore Security Rules 차단 필드**: `ballBalance`, `promoEnabled`, `promoExpireAt`, `promoPlan`, `promoUpdatedAt` — 클라이언트 직접 수정 불가, 반드시 Cloud Function 경유
-- **Rules read/write 전면 차단 컬렉션**: `platform_revenue`, `glove_bot_payments`(대장 본인 read만 허용), `glove_bot_dedup`, `banned_phones`, `sanction_log`(관리자만 read), `bail_history`/`release_history`(본인만 read) — Admin SDK / Cloud Function 전용
+- 컬렉션: `posts`, `comments`, `users`, `kanbu_rooms`, `notifications`, `sentBalls`, `communities`, `community_posts`, `community_memberships`, `community_post_comments`, `giant_trees`, `marathon_dedup`, `series`, `unlocked_episodes`, `series_subscriptions`, `platform_revenue`, `glove_bot_payments`, `glove_bot_dedup`, `dart_corp_map`, `market_items`, `market_purchases`, `market_shops`, `market_subscriptions`, `market_ad_revenues`, `bail_history`, `release_history`, `banned_phones`, `sanction_log`, `exile_posts`, `exile_comments`, `kanbu_paid_subs`, `ball_transactions`, `ball_balance_snapshots`, `audit_anomalies`
+- **Firestore Security Rules 차단 필드**: `ballBalance`, `thanksballTotal`(Phase B — CF Admin SDK 전용), `promoEnabled`, `promoExpireAt`, `promoPlan`, `promoUpdatedAt` — 클라이언트 직접 수정 불가, 반드시 Cloud Function 경유
+- **Rules read/write 전면 차단 컬렉션**: `platform_revenue`, `glove_bot_payments`(대장 본인 read만 허용), `glove_bot_dedup`, `banned_phones`, `sanction_log`(관리자만 read), `bail_history`/`release_history`(본인만 read), `ball_transactions`(땡스볼 멱등키·원장 — read/write 전면 차단), `ball_balance_snapshots`(일일 잔액 스냅샷), `audit_anomalies`(관리자만 read), `sentBalls/*`(읽기는 본인만, write false) — Admin SDK / Cloud Function 전용
 - **🏚️ sanction 필드**: `sanctionStatus`, `strikeCount`, `requiredBail`, `sanctionExpiresAt`, `phoneVerified`, `phoneHash` — 클라이언트 직접 수정 불가, 반드시 Cloud Function(`sendToExile`/`releaseFromExile`) 경유
 
 ### Cloud Functions (서울 리전, `functions/` 디렉토리)
 - `index.js` — 진입점 (fetchMarathonNews + 분리 모듈 re-export)
-- `thanksball.js` — `sendThanksball`: 땡스볼 전송 (잔액 차감·수신자 누적·알림). posts.author_id 우선 조회로 수신자 UID 확보. 수신자 `ballReceived`(평판 누적) + `ballBalance`(실사용 잔액) **동시 증가** — 받은 땡스볼은 되쓰기/유배 속죄금으로 사용 가능.
+- `thanksball.js` — `sendThanksball`: 땡스볼 전송 (잔액 차감·수신자 누적·알림). posts.author_id 우선 조회로 수신자 UID 확보. 수신자 `ballReceived`(평판 누적) + `ballBalance`(실사용 잔액) **동시 증가** — 받은 땡스볼은 되쓰기/유배 속죄금으로 사용 가능. 🔒 단일 트랜잭션 멱등 처리: `ball_transactions/{clientRequestId}` 마커로 재시도 이중 차감 차단. `MAX_AMOUNT_PER_TX=10000` 1회 상한, 정수·자기송금 검증(트랜잭션 내부 재확인). 원장 필드: schemaVersion/balanceBefore/balanceAfter/receiverBalanceBefore/receiverBalanceAfter/platformFee/sourceType/chatRef.
+- `ballSnapshot.js` — `snapshotBallBalance`: 매일 04:00 KST 모든 유저의 ballBalance/ballReceived/ballSpent를 `ball_balance_snapshots/{yyyyMMdd}_{uid}`에 저장 (400건 배치).
+- `ballAudit.js` — `auditBallBalance`: 매일 04:30 KST 전일·금일 스냅샷 + 24h `ball_transactions` 집계로 `expected = yesterday - outflow + inflow` 교차 검증. `diff < 0`이면 `audit_anomalies/{yyyyMMdd}_{uid}`에 critical 기록.
 - `testCharge.js` — `testChargeBall`: 테스트용 볼 충전
 - `kanbuPromo.js` — `registerKanbuPromo`: 깐부 홍보 카드 등록 (Lv2+, 기간제)
 - `kanbuPaid.js` — `joinPaidKanbuRoom`: 깐부방 유료 게시판 결제(1회/구독, 수수료 Lv별 20~30%, pendingRevenue 누적). `checkKanbuSubscriptionExpiry`: 매일 09:00 월 구독 만료 처리
@@ -76,7 +92,7 @@
 ### Cloudflare Workers
 - **halmal-link-preview** (링크 미리보기): `workers/src/index.ts` | 배포: `cd workers && npx wrangler deploy`
 - **halmal-upload-worker** (R2 업로드 프록시): `upload-worker/src/index.ts` | 배포: `cd upload-worker && npx wrangler deploy`
-- CORS 허용: `halmal-itso.web.app` + `localhost:5173/4173`
+- CORS 허용: `geulove.com` + `halmal-itso.web.app` + `localhost:5173/4173` (2개 Worker 코드 내 `allowedOrigins` 배열 동기화 필수)
 - **Workers 코드 수정 시**: Firebase deploy와 별개로 각 디렉토리에서 `npx wrangler deploy` 별도 실행 필요
 
 ### HTML 렌더링
@@ -161,10 +177,15 @@
 
 ## 개발·테스트 환경
 
-- 테스트 계정: 깐부1호, 깐부2호, 깐부3호, 깐부4호, 깐부5호 (헤더 Dev 버튼으로 전환)
-- 빌드: `npm run build`
-- 배포: `firebase deploy --only hosting`
-- 린트: `npx eslint . --fix`
+- **개발 서버**: `npm run dev` (Vite, 기본 포트 5173)
+- **빌드**: `npm run build` (`tsc -b && vite build` — 빌드 에러 0 유지 필수)
+- **프리뷰**: `npm run preview` (빌드 결과 로컬 확인, 기본 포트 4173)
+- **린트**: `npm run lint` (또는 `npx eslint . --fix`로 자동 수정)
+- **테스트 스위트 없음** — `package.json`에 `test` 스크립트 미구성. UI 변경은 개발 서버 실행 후 브라우저 확인.
+- **테스트 계정**: 깐부1~10호 (Lv1~10, exp/likes 레벨·평판 초기값 세팅) + 불량깐부1~3호 (Lv3/4/5, 유배 시스템 테스트용). 헤더 Dev 버튼으로 전환. 정의: [src/constants.ts](src/constants.ts) `TEST_ACCOUNTS`.
+- **호스팅 배포**: `firebase deploy --only hosting` (사용자 명시 요청 시에만)
+- **Functions 배포**: `firebase deploy --only functions` (사용자 명시 요청 시에만)
+- **Workers 배포**: `cd workers && npx wrangler deploy` / `cd upload-worker && npx wrangler deploy` (각각 별도 실행)
 
 ---
 

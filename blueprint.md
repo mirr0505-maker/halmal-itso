@@ -2,7 +2,7 @@
 
 이 문서는 **할말있소(HALMAL-ITSO)** 프로젝트의 설계 원칙, 현재 구현 상태, 그리고 AI 개발자의 **절대적 행동 지침**을 담은 단일 진실 소스(Single Source of Truth)입니다.
 
-> 최종 갱신: 2026-04-11 v38 (잉크병 전체 Phase + 톤다운 + 공유 통합)  |  현재 브랜치: `main`
+> 최종 갱신: 2026-04-19 v39 (브랜드 전환 — 글러브 GeuLove · geulove.com)  |  현재 브랜치: `main`
 
 ---
 
@@ -21,12 +21,15 @@
 
 | 항목 | 내용 |
 |------|------|
-| **프로젝트명** | 할말있소 (HALMAL-ITSO) |
+| **프로젝트명 (시스템)** | 할말있소 (HALMAL-ITSO) — 저장소·Firebase 프로젝트 ID |
+| **서비스 브랜드** | 글러브 GeuLove (헤더 표기: `글러브 beta`) |
+| **공식 도메인** | `geulove.com` (Firebase 기본 `halmal-itso.web.app` 연결) |
 | **의미** | "I have something to say" — 자유 토론 커뮤니티 |
 | **대상** | 한국어 사용자 |
 | **유형** | 소셜 토론 플랫폼 (멀티 카테고리) |
-| **배포** | Firebase Hㅁosting |
+| **배포** | Firebase Hosting |
 | **저장소** | `e:\halmal-itso` (Windows) |
+| **브랜드 레지스트리** | [BRANDING.md](./BRANDING.md) — 전환 이력 + 치환 금지 식별자 |
 
 ---
 
@@ -487,3 +490,29 @@ interface Thanksball {
 ### 유배귀양지 시스템 — 🔴 미개발
 - `releaseFromExile()` Cloud Function이 호스트 공백 처리 로직 호출 필요
 - 상세 설계 미정
+
+### 💳 PG 연동 (옵션 B — 공급사 선정 후 일괄 진행) — 🔴 대기
+**배경**: 현재 `functions/testCharge.js`는 Admin SDK로 ballBalance를 즉시 증가시키는 25줄 스텁. PG 연동 전 단계이므로 상태 머신·웹훅·환불·멱등성 모두 부재. PG 공급사(토스페이먼츠/포트원/나이스페이 등) 선정 후 3단계를 한 번에 구현·배포.
+
+**사전 결정 필요 사항**
+- PG 공급사 선정 (수수료율·정산 주기·웹훅 방식 비교)
+- 환불 정책: 사용 이력 있을 시(잔액 < 환불액) 처리 방법 — 음수 잔액 허용 / 환불 거부 / 부분 환불 중 택1
+- 충전 상품 SKU (1000볼/5000볼/…) 및 원화 가격표
+- 환급(출금) 가능 여부 — 전자금융업 등록 필요성 검토
+
+**1단계 — 원장 스키마 (Rules 기반 데이터 모델)**
+- 신규 컬렉션 `charge_transactions/{chargeId}` (read/write false, Admin SDK 전용)
+- 필드: `schemaVersion`, `uid`, `amount(볼)`, `krwAmount(원)`, `status(pending|completed|failed|refunded|cancelled)`, `pgProvider`, `pgOrderId`, `pgPaymentKey`, `pgRawResponse`, `idempotencyKey`, `createdAt`, `completedAt`, `failedAt`, `refundedAt`, `failureReason`, `refundReason`, `balanceBefore`, `balanceAfter`
+- `firestore.rules`에 해당 컬렉션 완전 차단 블록 추가
+
+**2단계 — 결제 생성·확정 골격**
+- `initiateChargeBall` callable: pending 상태 `charge_transactions` 생성 + PG 결제창 URL/결제키 반환 (ballBalance 미변경)
+- `chargeWebhook` onRequest: PG 서명 검증 → `charge_transactions` 트랜잭션 로드 → 상태 pending→completed 전환 + ballBalance increment + 멱등성 보장(이미 completed면 200 OK 즉시 반환)
+- 클라이언트는 `initiate` 호출 → PG 결제창 → 웹훅 도착 후 `onSnapshot`으로 status 감지 → UI 전환
+
+**3단계 — 환불·취소 경로**
+- `refundCharge` callable (관리자 전용): `charge_transactions.status='completed'` 문서 대상 → PG 환불 API 호출 → status `refunded` 전환 + ballBalance `decrement` (잔액 부족 시 사전 결정 정책 적용)
+- `chargeWebhookCancel` onRequest: PG 결제 취소 웹훅 수신 시 pending→cancelled 처리 (ballBalance 미변경, 안전함)
+- 감사 로그 연동: `ball_transactions`에 `sourceType='charge_refund'`로 함께 기록해 일일 감사(`auditBallBalance`)와 정합성 유지
+
+**참고**: 이 항목은 옵션 B(공급사 선정 후 일괄 배포)로 확정. 공급사 선정 전까지 `testChargeBall`은 그대로 유지.

@@ -1,5 +1,18 @@
 ## 8. 현재 구현 상태 (2026-03-24 기준, 코드 실측)
 
+### 🎨 브랜드 전환 — 글러브 GeuLove · geulove.com (2026-04-19)
+> 설계: [BRANDING.md](./BRANDING.md)
+
+- [x] **도메인 전환**: `geulove.com` 연결 (Firebase 기본 `halmal-itso.web.app`은 내부 유지)
+- [x] **OG/SNS 브랜딩**: `index.html` 타이틀·og:title·og:description·twitter:*·apple-touch-icon·favicon·theme-color(#7c3aed) 전면 교체 → **"글러브 GeuLove"**
+- [x] **ogRenderer Cloud Function**: `APP_URL=https://geulove.com`, `SITE_NAME="글러브 GeuLove"`, `OG_IMAGE_ALLOWED_HOSTS`에 `geulove.com` 추가. User-Agent `GeuLove-MarathonHerald/1.0`, `GeuLoveBot/1.0`, `GeuLove-InfoBot/1.0`으로 통일
+- [x] **헤더 로고 한글화**: `GLove`(2글자 영문) → **`글러브 beta`** (Pretendard Variable, 글=red·러브=blue·beta=이탤릭 slate). App.tsx 데스크톱+모바일 + Sidebar 푸터 3곳 동일 스타일
+- [x] **.md 문서 일괄 치환** (4파일 12곳): `GLove` → `글러브(Geulove)` (`changelog.md` 8곳, `GLOVE.md` 2곳, `STOREHOUSE.md`+`storehouse-dev-plan.md` L5 각 1곳)
+- [x] **BRANDING.md 신규**: 브랜드 전환 타임라인 + 현재 표기 규칙 + 치환 금지 식별자 9 카테고리 레지스트리 (Firestore 컬렉션, CF 모듈, 타입, 컴포넌트, hook, 메뉴 키, 변수명, BOT_UID, 고유명사)
+- [x] **blueprint.md v39**: 프로젝트 개요 테이블에 "서비스 브랜드/공식 도메인/브랜드 레지스트리" 3행 추가, `Firebase Hㅁosting` 오타 수정
+- [x] **CLAUDE.md**: 빅 픽처 위에 브랜드 한 줄 + BRANDING.md 링크
+- [x] **ProfileHeader bio 폴백**: "GLove 회원입니다" → "글러브 회원입니다"
+
 ### 🏠 깐부방 Phase 2 — 게시판 UX 정리 & 홈 피드 격리 (2026-04-17)
 > 설계: [KANBU.md](./KANBU.md)
 
@@ -230,9 +243,9 @@
 - [x] **골드스타(Gold Star)**: Lv5 이상 유저가 좋아요 시 금색 별(★) 카운트 표시. 새글(any) 탭 제외한 모든 뷰(등록글/인기글/최고글/깐부글/카테고리 뷰)에서 카드 우측 상단에 노출. 카운트 0이면 표시 안 함. (구: 골드하트 → 골드스타로 교체, SVG star path 사용)
 - [x] **상세글 뒤로가기**: `RootPostCard` 좌측 상단 파란 카테고리 버튼 클릭 시 `activeMenu` 유지하며 목록으로 복귀. 화살표(←) + hover 효과 추가. `onBack` prop: App→DiscussionView→RootPostCard 체인.
 - [x] **댓글 UX 수정**: 너와 나의 이야기(구 나의 이야기 포함) 카테고리에서 댓글 남기기 폼 표시 제거. 동의/비동의 카운트 `allowDisagree=false` 카테고리에서 미표시.
-- [x] **헤더 브랜드**: GLove 로고 옆 "집단지성의 힘" 서브텍스트 추가.
+- [x] **헤더 브랜드**: 글러브(Geulove) 로고 옆 "집단지성의 힘" 서브텍스트 추가.
 - [x] **사이드바 구조 개편**: 깐부방+깐부맺기 동일 섹션(구분선 아래), 내정보 별도 섹션. 깐부방 배지 색상: `bg-blue-100 text-blue-600` (구: rose 계열).
-- [x] **로딩 애니메이션 교체**: 말 뛰어가기 이미지 → pulsing GLove 로고 (`@keyframes logo-pulse`: opacity 0→1, scale 0.92→1, 1.4s ease-in-out infinite). `index.css`에 정의, `.animate-logo-pulse` 클래스 적용.
+- [x] **로딩 애니메이션 교체**: 말 뛰어가기 이미지 → pulsing 글러브(Geulove) 로고 (`@keyframes logo-pulse`: opacity 0→1, scale 0.92→1, 1.4s ease-in-out infinite). `index.css`에 정의, `.animate-logo-pulse` 클래스 적용.
 - [x] **너와 나의 이야기 댓글 UX 개선**:
   - 댓글 입력: 단일 라인 `<input>` (구: 여러 줄 textarea).
   - 레이아웃: 입력란 + 바로 아래 "댓글 달기" 버튼.
@@ -361,8 +374,8 @@
   - `handleLike`, `PostCard.handleDelete`: `rootId` 유무로 컬렉션 자동 분기.
 
 - [x] **SNS 공유 OG 태그 및 브랜딩 (2026-03-25)**:
-  - `index.html`: 타이틀·og:title·og:site_name·twitter:title 전면 변경 → **"GLove - 글러브, 집단지성의 힘"** (기존: "할말있소 — 집단지성의 힘")
-  - og:image: GLove 로고 이미지(`og-image.jpg`, 243KB)를 `public/` 폴더에 배치 → Firebase Hosting에서 직접 서빙(`https://halmal-itso.web.app/og-image.jpg`). R2 경유 시 카카오 크롤러 접근 불가 이슈 해결.
+  - `index.html`: 타이틀·og:title·og:site_name·twitter:title 전면 변경 → **"글러브(Geulove) - 집단지성의 힘"** (기존: "할말있소 — 집단지성의 힘")
+  - og:image: 글러브(Geulove) 로고 이미지(`og-image.jpg`, 243KB)를 `public/` 폴더에 배치 → Firebase Hosting에서 직접 서빙(`https://halmal-itso.web.app/og-image.jpg`). R2 경유 시 카카오 크롤러 접근 불가 이슈 해결.
   - 카카오톡 OG 캐시 초기화 후 이미지·타이틀 정상 표시 확인.
 
 - [x] **게시글 URL OG 미리보기 개선 (2026-03-25)**:
@@ -426,7 +439,7 @@
 
 - [x] **모바일 반응형 UI (2026-03-28)**:
   - **헤더**: `h-[56px] md:h-[64px]`. Dev 버튼·검색창 `hidden md:flex`. 모바일 우측 햄버거 버튼(☰) 추가.
-  - **모바일 드로어 메뉴**: 햄버거 클릭 시 `fixed inset-0 z-[60] md:hidden` 오버레이 + 좌측 슬라이드 Sidebar(`mobile=true`). Sidebar에 `mobile`, `onClose` prop 추가, 모바일 전용 헤더(GLove 로고 + × 닫기버튼) 포함.
+  - **모바일 드로어 메뉴**: 햄버거 클릭 시 `fixed inset-0 z-[60] md:hidden` 오버레이 + 좌측 슬라이드 Sidebar(`mobile=true`). Sidebar에 `mobile`, `onClose` prop 추가, 모바일 전용 헤더(글러브(Geulove) 로고 + × 닫기버튼) 포함.
   - **하단 네비게이션 바**: `fixed bottom-0 md:hidden h-14` — 홈·새글·알림·내정보·메뉴 5탭. 메인 컨텐츠 하단 여백 `pb-28` 추가.
   - **내정보 로그아웃 버튼**: MyPage 하단에 `onLogout` prop 버튼 추가 → 모바일에서 내정보 탭에서 로그아웃 가능.
 
@@ -608,7 +621,7 @@
   - `ogRenderer` 함수 이미 배포 완료. Firestore 조회 3단계 폴백(직접ID → shareToken → prefix 범위검색).
 
   **모바일 네비게이션 전면 재설계**
-  - **헤더**: 좌측 `≡`(드로어 열기) + GLove 텍스트(홈) 분리. 우측 햄버거 제거 → 알림벨 + 아바타(내정보) / 로그인 버튼.
+  - **헤더**: 좌측 `≡`(드로어 열기) + 글러브(Geulove) 텍스트(홈) 분리. 우측 햄버거 제거 → 알림벨 + 아바타(내정보) / 로그인 버튼.
   - **하단 탭바 5탭 (텍스트 없음)**: 홈·한컷·⊕새글(중앙 돌출 파란 원형 `-mt-5`)·장갑·랭킹. active = filled 아이콘, inactive = outline 아이콘. 장갑 이모지 → SVG outline 아이콘으로 통일.
   - **중복 제거**: 우측상단 햄버거 + 하단 메뉴 버튼 모두 제거 → 좌측 ≡ 하나만 드로어 트리거.
 
@@ -737,9 +750,9 @@
 
 - [x] **모바일 UX 개선 (2026-04-05 v35)**:
   - 하단 탭바: 홈 → ≡메뉴(드로어 열기)로 교체. 왼손 접근 최적화.
-  - 상단: ≡ 삼색선 제거, GLove 로고만 남김 (터치 시 홈).
+  - 상단: ≡ 삼색선 제거, 글러브(Geulove) 로고만 남김 (터치 시 홈).
   - 삼색선: 자주·빨강·파랑 (PC·모바일 동일).
-  - 브랜드 컬러: blue-600 → violet-600 계열 전환. GLove 로고는 G빨강 L파랑 유지.
+  - 브랜드 컬러: blue-600 → violet-600 계열 전환. 글러브(Geulove) 로고는 G빨강 L파랑 유지 — G/L 색 설명은 과거 2글자 로고 기준.
 
 - [x] **테스트 계정 5개 레벨·평판 설정 (2026-04-05 v35)**:
   - 깐부1(Lv1,중립) 깐부2(Lv2,약간우호) 깐부3(Lv3,우호) 깐부4(Lv4,매우우호) 깐부5(Lv5,확고).

@@ -121,8 +121,11 @@ const CommunityPostDetail = ({ post, currentUserData, allUsers = {}, followerCou
       likes: Math.max(0, (livePost.likes || 0) + diff),
       likedBy: isLiked ? arrayRemove(currentUserData.nickname) : arrayUnion(currentUserData.nickname),
     });
-    if (post.author_id) {
-      await updateDoc(doc(db, 'users', post.author_id), { likes: increment(diff * 3) });
+    // 🛡️ Anti-Abuse Commit 5b: 좋아요 취소(diff=-1) 시 타인 users.likes 업데이트 스킵
+    // Why: Rules §4.2.2가 타인 users.likes 감소 차단
+    //      posts/comments의 likedBy/likes는 정상 동작 (UX 영향 없음)
+    if (diff === 1 && post.author_id) {
+      await updateDoc(doc(db, 'users', post.author_id), { likes: increment(3) });
     }
   };
 
@@ -142,7 +145,8 @@ const CommunityPostDetail = ({ post, currentUserData, allUsers = {}, followerCou
     if (!window.confirm('이 댓글을 삭제하시겠습니까?')) return;
     await deleteDoc(doc(db, 'community_post_comments', comment.id));
     await updateDoc(doc(db, 'community_posts', post.id), { commentCount: increment(-1) });
-    if (comment.author_id) updateDoc(doc(db, 'users', comment.author_id), { exp: increment(-2) }).catch(() => {});
+    // 🛡️ Anti-Abuse Commit 5a: 삭제 시 exp 감소 제거
+    // Why: Rules가 exp 감소 차단. Phase B CF 이관 예정 (§5.2.2)
   };
 
   // 🚀 댓글 수정 저장

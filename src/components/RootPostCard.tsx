@@ -1,7 +1,7 @@
 // src/components/RootPostCard.tsx
 import { useState, useEffect } from 'react';
 import { db } from '../firebase';
-import { doc, deleteDoc, updateDoc, increment } from 'firebase/firestore';
+import { doc, deleteDoc } from 'firebase/firestore';
 import type { Post, UserData } from '../types';
 import { EXILE_CATEGORY } from '../types';
 import { getReputationLabel, getReputationScore, formatKoreanNumber, getCategoryDisplayName, calculateLevel } from '../utils';
@@ -113,8 +113,8 @@ const RootPostCard = ({
     if (window.confirm("정말 영구히 파기하겠소?")) {
       try {
         await deleteDoc(doc(db, "posts", post.id));
-        // 🚀 EXP 차감: 글 삭제 -2
-        if (post.author_id) updateDoc(doc(db, 'users', post.author_id), { exp: increment(-2) }).catch(() => {});
+        // 🛡️ Anti-Abuse Commit 5a: 삭제 시 exp 감소 제거
+        // Why: Rules가 exp 감소 차단. Phase B CF 이관 예정 (§5.2.2)
         if (onDeleteSuccess) onDeleteSuccess();
         else window.location.reload();
       } catch (error) { console.error("삭제 실패:", error); }

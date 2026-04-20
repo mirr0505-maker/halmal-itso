@@ -219,8 +219,10 @@ export function useFirestoreActions({
     try {
       await updateDoc(doc(db, 'users', userData.uid), {
         friendList: isFriend ? arrayRemove(author) : arrayUnion(author),
-        // 🚀 EXP: 깐부 맺기 +10, 해제 -15 (먹튀 방지)
-        exp: increment(isFriend ? -15 : 10),
+        // 🛡️ Anti-Abuse Commit 5: 해제 페널티 제거 (-15 → 0)
+        // Why: Rules §4.2.2가 exp 감소 차단 → 해제 시 permission-denied 방지
+        //      §5.2.1의 맺기 +10→+2 완화는 이번 커밋 범위 밖 (별도 커밋)
+        exp: increment(isFriend ? 0 : 10),
       });
     } catch (e) { console.error(e); }
   };
@@ -252,8 +254,12 @@ export function useFirestoreActions({
         likes: Math.max(0, (targetPost.likes || 0) + diff),
         likedBy: isLiked ? arrayRemove(userData.nickname) : arrayUnion(userData.nickname),
       });
-      if (targetPost.author_id) {
-        await updateDoc(doc(db, 'users', targetPost.author_id), { likes: increment(diff * 3) });
+      // 🛡️ Anti-Abuse Commit 5: 좋아요 취소(diff=-1) 시 타인 users.likes 업데이트 스킵
+      // Why: Rules §4.2.2가 타인 users.likes 감소 차단 → permission-denied 방지
+      //      posts/comments의 likedBy/likes는 정상 동작 (UX 영향 없음)
+      //      정밀 카운팅 보정은 Phase B+ auditReputationAnomalies CF에서
+      if (diff === 1 && targetPost.author_id) {
+        await updateDoc(doc(db, 'users', targetPost.author_id), { likes: increment(3) });
       }
       // 🚀 등록글 EXP: 좋아요 3개 달성 시 작성자에게 exp +5 (1회만)
       // 조건: 좋아요가 2→3이 되는 순간 (diff=+1이고 기존 likes가 2)

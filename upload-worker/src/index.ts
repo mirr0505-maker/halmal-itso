@@ -120,6 +120,8 @@ export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const allowedOrigins = [
       env.ALLOWED_ORIGIN,
+      'https://geulove.com',          // 🎨 2026-04-20 브랜드 도메인 전환
+      'https://halmal-itso.web.app',  // Firebase 기본 도메인 (폴백)
       'http://localhost:5173',
       'http://localhost:4173',
     ];

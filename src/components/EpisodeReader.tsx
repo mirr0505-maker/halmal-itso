@@ -325,9 +325,11 @@ const EpisodeReader = ({ postId, currentUserUid, currentUserNickname, onBack, on
         likedBy: isLiked ? arrayRemove(currentUserNickname) : arrayUnion(currentUserNickname),
       });
 
-      // 2. 작가 평판 ±3
-      if (episode.author_id) {
-        await updateDoc(doc(db, 'users', episode.author_id), { likes: increment(diff * 3) });
+      // 🛡️ Anti-Abuse Commit 5b: 좋아요 취소(diff=-1) 시 타인 users.likes 업데이트 스킵
+      // Why: Rules §4.2.2가 타인 users.likes 감소 차단
+      //      posts의 likedBy/likes는 정상 동작 (UX 영향 없음)
+      if (diff === 1 && episode.author_id) {
+        await updateDoc(doc(db, 'users', episode.author_id), { likes: increment(3) });
       }
 
       // 3. series.totalLikes 동기화 (Rules 화이트리스트 포함됨)

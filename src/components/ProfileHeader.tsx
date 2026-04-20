@@ -53,7 +53,7 @@ const ProfileHeader = ({
         
         <div className="flex flex-col gap-2 mb-4 items-center md:items-start">
           <p className="text-[13px] text-slate-500 font-bold leading-relaxed max-w-md italic">
-            "{userData.bio || "안녕하세요. GLove 회원입니다."}"
+            "{userData.bio || "안녕하세요. 글러브 회원입니다."}"
           </p>
 
           <div className="flex items-center gap-2 flex-wrap justify-center md:justify-start">

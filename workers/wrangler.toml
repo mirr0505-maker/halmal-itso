@@ -3,4 +3,6 @@ main = "src/index.ts"
 compatibility_date = "2024-01-01"
 
 [vars]
+# ALLOWED_ORIGIN: 기본 허용 도메인 (추가 도메인은 src/index.ts allowedOrigins 배열에 하드코딩)
+# TODO: 멀티 도메인 지원 시 콤마 구분 문자열로 전환
 ALLOWED_ORIGIN = "https://halmal-itso.web.app"
