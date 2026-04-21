@@ -1,6 +1,6 @@
 // src/components/RelatedPostsSidebar.tsx — 게시글 상세 우측 사이드바: 같은 카테고리 관련 글 목록
 import type { Post, UserData } from '../types';
-import { formatKoreanNumber, getReputationLabel, getReputationScore, getCategoryDisplayName, calculateLevel } from '../utils';
+import { formatKoreanNumber, getReputationLabel, getReputation, getCategoryDisplayName, calculateLevel } from '../utils';
 import { sanitizeHtml, extractFirstImage } from '../sanitize';
 
 interface Props {
@@ -90,7 +90,7 @@ const RelatedPostsSidebar = ({
                     <div className="flex flex-col min-w-0">
                       <span className="text-[11px] font-[1000] text-slate-900 truncate leading-none mb-0.5">{topic.author}</span>
                       <span className="text-[9px] font-bold text-slate-400 truncate">
-                        Lv {topicLevel} · {getReputationLabel(topicAuthorData ? getReputationScore(topicAuthorData) : topicLikes)} · 깐부수 {formatKoreanNumber(topicFollowers)}
+                        Lv {topicLevel} · {getReputationLabel(topicAuthorData ? getReputation(topicAuthorData) : topicLikes)} · 깐부수 {formatKoreanNumber(topicFollowers)}
                       </span>
                     </div>
                   </div>

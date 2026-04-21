@@ -8,6 +8,7 @@ import {
 import type { GiantTree, GiantTreeNode, GiantTreeLeaf, UserData } from '../types';
 import GiantTreeMap from './GiantTreeMap';
 import { shareGiantTree } from '../utils/share';
+import { buildExpLevelUpdate } from '../utils';
 
 // 🚀 카카오톡 공유 SDK 타입 선언
 declare global { interface Window { Kakao: any; } }
@@ -208,8 +209,8 @@ const GiantTreeDetail = ({ tree: treeProp, currentNickname, currentUserData, all
       if (selectedSide === 'agree' && tree.author_id !== currentUserData.uid) {
         await updateDoc(doc(db, 'users', tree.author_id), { likes: increment(2) });
       }
-      // 🚀 EXP: 전파 참여 +3
-      await updateDoc(doc(db, 'users', currentUserData.uid), { exp: increment(3) });
+      // 🚀 EXP: 전파 참여 +3 — level 동시 쓰기 (옵션 B)
+      await updateDoc(doc(db, 'users', currentUserData.uid), buildExpLevelUpdate(currentUserData.exp, 3));
 
       // 6. 🚀 작성자에게 전파 알림 발송 (자기 나무 참여 제외)
       if (tree.author_id !== currentUserData.uid) {
@@ -368,8 +369,8 @@ const GiantTreeDetail = ({ tree: treeProp, currentNickname, currentUserData, all
       await setDoc(doc(db, 'giant_trees', tree.id, 'participants', currentUserData.uid), {
         joinedAt: serverTimestamp(), type: 'leaf',
       });
-      // 🚀 EXP: 잎사귀 참여 +1
-      await updateDoc(doc(db, 'users', currentUserData.uid), { exp: increment(1) });
+      // 🚀 EXP: 잎사귀 참여 +1 — level 동시 쓰기 (옵션 B)
+      await updateDoc(doc(db, 'users', currentUserData.uid), buildExpLevelUpdate(currentUserData.exp, 1));
       setHasLeafed(true);
       setComment('');
       setSelectedSide(null);

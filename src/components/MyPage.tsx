@@ -692,7 +692,7 @@ const MyPage = ({
                                     </div>
                                   </div>
                                   {isMutual ? (
-                                    <span className="text-[10px] font-black text-emerald-500 bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-100">서로 깐부</span>
+                                    <span className="text-[10px] font-black text-emerald-500 bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-100">🤝 맞깐부</span>
                                   ) : (
                                     <button onClick={() => onToggleFriend(fname)} className="text-[10px] font-black text-blue-500 bg-white px-3 py-1.5 rounded-lg border border-blue-100 shadow-sm hover:bg-blue-50 transition-all">+ 깐부맺기</button>
                                   )}

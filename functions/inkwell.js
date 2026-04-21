@@ -7,6 +7,7 @@
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const { onDocumentCreated, onDocumentDeleted } = require("firebase-functions/v2/firestore");
 const { getFirestore, FieldValue, Timestamp } = require("firebase-admin/firestore");
+const { buildExpLevelUpdate } = require("./utils/levelSync");
 
 const db = getFirestore();
 
@@ -78,7 +79,8 @@ exports.unlockEpisode = onCall(
       const buyerSnap = await tx.get(buyerRef);
       if (!buyerSnap.exists) throw new HttpsError("not-found", "사용자를 찾을 수 없습니다.");
 
-      const currentBalance = buyerSnap.data().ballBalance || 0;
+      const buyerData = buyerSnap.data();
+      const currentBalance = buyerData.ballBalance || 0;
       if (currentBalance < price) {
         throw new HttpsError("failed-precondition", "땡스볼이 부족합니다.");
       }
@@ -87,11 +89,11 @@ exports.unlockEpisode = onCall(
       const platformFee = Math.floor(price * PLATFORM_FEE_RATE);
       const authorRevenue = price - platformFee;
 
-      // 구매자: 잔액 차감 + 누적 지출 + EXP +2 (구매자가 내는 금액은 price 그대로)
+      // 구매자: 잔액 차감 + 누적 지출 + EXP +2 (level 동시 쓰기 — 옵션 B)
       tx.update(buyerRef, {
         ballBalance: currentBalance - price,
         ballSpent: FieldValue.increment(price),
-        exp: FieldValue.increment(2),
+        ...buildExpLevelUpdate(FieldValue, buyerData.exp, 2),
       });
 
       // 작가: ballReceived 누적 (수수료 차감 후 순수익)

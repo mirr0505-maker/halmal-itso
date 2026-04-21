@@ -2,8 +2,9 @@
 import { useState, useEffect } from 'react';
 import { db, auth } from '../firebase';
 import { onAuthStateChanged, getRedirectResult } from 'firebase/auth';
-import { collection, onSnapshot, doc, setDoc, updateDoc, increment, serverTimestamp, query, where, getDocs } from 'firebase/firestore';
+import { collection, onSnapshot, doc, setDoc, updateDoc, serverTimestamp, query, where, getDocs } from 'firebase/firestore';
 import type { Post, KanbuRoom, Community, UserData } from '../types';
+import { buildExpLevelUpdate } from '../utils';
 
 export function useFirebaseListeners() {
   const [allRootPosts, setAllRootPosts] = useState<Post[]>([]);
@@ -95,10 +96,10 @@ export function useFirebaseListeners() {
             if (!data.exp && (data.likes || 0) > 0) {
               updateDoc(doc(db, 'users', user.uid), { exp: data.likes }).catch(() => {});
             }
-            // 🚀 출석 EXP: 1일 1회 +5 — lastLoginDate와 오늘 비교
+            // 🚀 출석 EXP: 1일 1회 +5 — lastLoginDate와 오늘 비교 (level 동시 쓰기, 옵션 B)
             const today = new Date().toISOString().slice(0, 10);
             if (data.lastLoginDate !== today) {
-              updateDoc(doc(db, 'users', user.uid), { exp: increment(5), lastLoginDate: today }).catch(() => {});
+              updateDoc(doc(db, 'users', user.uid), { ...buildExpLevelUpdate(data.exp, 5), lastLoginDate: today }).catch(() => {});
             }
           } else {
             // 🚀 displayName 없으면 자동 생성 skip — 호출자 setDoc이 승자가 되도록

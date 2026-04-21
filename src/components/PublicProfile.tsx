@@ -1,7 +1,8 @@
 // src/components/PublicProfile.tsx — 공개 프로필 (다른 사람이 보는 나)
 // 🚀 진입점: 우측 상단 아바타 클릭 (본인), 글카드 작성자 닉네임 클릭 (타인)
 import type { Post, UserData } from '../types';
-import { formatKoreanNumber, calculateLevel, getLevelProgress, getNextLevelExp, getReputationScore, getReputationLabel, getReputationStyle, getReputationProgress, getNextReputationThreshold } from '../utils';
+import { formatKoreanNumber, calculateLevel, getLevelProgress, getNextLevelExp, getReputation, getReputationLabel, getReputationStyle, getReputationProgress, getNextReputationThreshold } from '../utils';
+import ReputationAvatar from './ReputationAvatar';
 
 interface Props {
   targetNickname: string;
@@ -32,7 +33,7 @@ const PublicProfile = ({
   const level = calculateLevel(exp);
   const levelPct = getLevelProgress(exp);
   const nextLevelExp = getNextLevelExp(exp);
-  const repScore = getReputationScore(userData);
+  const repScore = getReputation(userData);
   const repLabel = getReputationLabel(repScore);
   const repStyle = getReputationStyle(repScore);
   const repPct = getReputationProgress(repScore);
@@ -78,9 +79,8 @@ const PublicProfile = ({
       {/* 1. Identity — 아바타 + 닉네임 + 레벨 + 평판 */}
       <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 mb-3">
         <div className="flex items-center gap-4 mb-4">
-          <div className="w-20 h-20 rounded-full overflow-hidden border-2 border-slate-200 bg-slate-50 shrink-0">
-            <img src={userData.avatarUrl || `https://api.dicebear.com/7.x/adventurer/svg?seed=${targetNickname}`} alt="" className="w-full h-full object-cover" />
-          </div>
+          {/* 🏅 이중 링 아바타 — 바깥(평판) + 안쪽(레벨) — REPUTATION_V2 §6.4 시범 적용 */}
+          <ReputationAvatar user={userData} size="lg" showTooltip={false} />
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1">
               <h2 className="text-[18px] font-[1000] text-slate-900 truncate">{targetNickname}</h2>
@@ -125,7 +125,7 @@ const PublicProfile = ({
         {!isMe && currentNickname && (
           <div className="flex items-center gap-2 mb-4">
             {isMutual ? (
-              <span className="flex-1 text-center py-2 text-[12px] font-[1000] text-emerald-600 bg-emerald-50 rounded-xl border border-emerald-200">서로 깐부 ✓</span>
+              <span className="flex-1 text-center py-2 text-[12px] font-[1000] text-emerald-600 bg-emerald-50 rounded-xl border border-emerald-200">🤝 맞깐부</span>
             ) : isFriend ? (
               <button onClick={() => onToggleFriend(targetNickname)} className="flex-1 py-2 text-[12px] font-[1000] text-slate-400 bg-slate-50 rounded-xl border border-slate-200 hover:bg-slate-100 transition-colors">깐부해제</button>
             ) : (

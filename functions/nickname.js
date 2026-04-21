@@ -178,9 +178,10 @@ async function cascadeNicknameUpdate(uid, oldNickname, newNickname) {
 
 // 🔧 관리자 전용 — reserved_nicknames 초기 seed
 // Why: 운영 필수 예약어를 DB에 한 번 주입. 이미 존재하는 문서는 merge.
-//      isAdmin 체크(흑무영 닉네임)로 무단 호출 차단.
+//      isAdmin 체크(PLATFORM_ADMIN_NICKNAMES 화이트리스트)로 무단 호출 차단.
 const SEED_RESERVED_NICKNAMES = [
   "흑무영",
+  "Admin",
   "admin",
   "claude",
   "운영자",
@@ -195,7 +196,8 @@ exports.seedReservedNicknames = onCall(
   async (request) => {
     if (!request.auth) throw new HttpsError("unauthenticated", "로그인이 필요합니다.");
     const callerSnap = await db.collection("users").doc(request.auth.uid).get();
-    if (!callerSnap.exists || callerSnap.data().nickname !== "흑무영") {
+    const ADMIN_NICKNAMES = ["흑무영", "Admin"];
+    if (!callerSnap.exists || !ADMIN_NICKNAMES.includes(callerSnap.data().nickname)) {
       throw new HttpsError("permission-denied", "관리자만 호출 가능합니다.");
     }
 

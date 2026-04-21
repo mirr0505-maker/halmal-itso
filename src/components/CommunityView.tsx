@@ -16,7 +16,7 @@ import ShareholderVerifyScreen from './ShareholderVerifyScreen';
 import VerifyShareholderPanel from './VerifyShareholderPanel';
 import { sanitizeHtml } from '../sanitize';
 import { uploadToR2 } from '../uploadToR2';
-import { calculateLevel, getReputationLabel, getReputationScore, formatKoreanNumber } from '../utils';
+import { calculateLevel, getReputationLabel, getReputation, formatKoreanNumber, buildExpLevelUpdate, calculateExpForPost } from '../utils';
 
 // 🚀 다섯 손가락 Phase 2 — 손가락 배지 정의
 const FINGER_META: Record<FingerRole, { emoji: string; label: string; colorCls: string }> = {
@@ -368,9 +368,13 @@ const CommunityView = ({ community, currentUserData, allUsers, followerCounts = 
         createdAt: serverTimestamp(),
       });
       batch.update(doc(db, 'communities', community.id), { postCount: increment(1) });
-      // 🚀 EXP: 장갑 글 작성 +2 (10자 이상일 때만)
-      if (newContent.replace(/<[^>]*>/g, '').trim().length >= 10) {
-        batch.update(doc(db, 'users', currentUserData.uid), { exp: increment(2) });
+      // 🚀 EXP: 장갑 글 작성 — LEVEL_V2 §3.2.1 품질 가중치 + level 동시 쓰기 (옵션 B)
+      const postExp = calculateExpForPost(newContent, {
+        hasImage: /<img\s/i.test(newContent),
+        hasLink: /https?:\/\//.test(newContent),
+      });
+      if (postExp > 0) {
+        batch.update(doc(db, 'users', currentUserData.uid), buildExpLevelUpdate(currentUserData.exp, postExp));
       }
 
       // 🚀 알림 구독자 push — 50명 이하이면 같은 batch에 포함 (원자성 보장)
@@ -782,7 +786,7 @@ const CommunityView = ({ community, currentUserData, allUsers, followerCounts = 
                           <VerifiedBadgeComponent verified={members.find(m => m.userId === post.author_id)?.verified} size="sm" showDate={false} showTier={community.category === '주식'} />
                         </div>
                         <span className="text-[9px] font-bold text-slate-400 truncate tracking-tight">
-                          Lv {calculateLevel(authorData?.exp || 0)} · {getReputationLabel(authorData ? getReputationScore(authorData) : 0)} · 깐부수 {formatKoreanNumber(followerCounts[post.author] || 0)}
+                          Lv {calculateLevel(authorData?.exp || 0)} · {getReputationLabel(authorData ? getReputation(authorData) : 0)} · 깐부수 {formatKoreanNumber(followerCounts[post.author] || 0)}
                         </span>
                       </div>
                     </div>

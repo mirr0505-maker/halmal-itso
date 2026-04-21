@@ -5,7 +5,7 @@ import { db } from '../firebase';
 import { collection, query, where, orderBy, onSnapshot, getDocs } from 'firebase/firestore';
 import type { CommunityPost, Community, UserData, CommunityMember } from '../types';
 import { sanitizeHtml } from '../sanitize';
-import { calculateLevel, getReputationLabel, getReputationScore, formatKoreanNumber } from '../utils';
+import { calculateLevel, getReputationLabel, getReputation, formatKoreanNumber } from '../utils';
 import CommunityPostDetail from './CommunityPostDetail';
 import ThanksballModal from './ThanksballModal';
 
@@ -123,7 +123,7 @@ const CommunityFeed = ({ currentUserData, joinedCommunityIds, allUsers, communit
                 <div className="flex flex-col min-w-0">
                   <span className="text-[11px] font-[1000] text-slate-900 truncate leading-none mb-0.5">{post.author}</span>
                   <span className="text-[9px] font-bold text-slate-400 truncate tracking-tight">
-                    Lv {calculateLevel(authorData?.exp || 0)} · {getReputationLabel(authorData ? getReputationScore(authorData) : 0)} · 깐부수 {formatKoreanNumber(followerCounts[post.author] || 0)}
+                    Lv {calculateLevel(authorData?.exp || 0)} · {getReputationLabel(authorData ? getReputation(authorData) : 0)} · 깐부수 {formatKoreanNumber(followerCounts[post.author] || 0)}
                   </span>
                 </div>
               </div>

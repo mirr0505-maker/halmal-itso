@@ -6,7 +6,7 @@ import type { Post, UserData } from '../types';
 import { CATEGORY_RULES } from './DiscussionView';
 import { db } from '../firebase';
 import { doc, updateDoc, deleteDoc, collection, query, where, onSnapshot } from 'firebase/firestore';
-import { formatKoreanNumber, getReputationLabel, getReputationScore, calculateLevel } from '../utils';
+import { formatKoreanNumber, getReputationLabel, getReputation, calculateLevel } from '../utils';
 import { uploadToR2 } from '../uploadToR2';
 
 interface Props {
@@ -297,7 +297,7 @@ const DebateBoard = ({
                           <span className="text-[9px] font-bold text-slate-300">{formatTime(post.createdAt)}</span>
                         </div>
                         <span className="text-[9px] text-slate-400 font-bold leading-tight mt-0.5">
-                          Lv {displayLevel} · {getReputationLabel(authorData ? getReputationScore(authorData) : displayLikes)} · 깐부수 {formatKoreanNumber(realFollowers)}
+                          Lv {displayLevel} · {getReputationLabel(authorData ? getReputation(authorData) : displayLikes)} · 깐부수 {formatKoreanNumber(realFollowers)}
                         </span>
                       </div>
                     </div>

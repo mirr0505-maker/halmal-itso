@@ -1,6 +1,6 @@
 import type { UserData } from '../types';
 // src/components/ActivityMilestones.tsx
-import { getReputationProgress, getReputationStyle, getLevelStyle, getReputationLabel, getReputationScore, calculateLevel } from '../utils';
+import { getReputationProgress, getReputationStyle, getLevelStyle, getReputationLabel, getReputation, calculateLevel } from '../utils';
 
 interface ActivityMilestonesProps {
   userData: UserData;
@@ -11,8 +11,8 @@ interface ActivityMilestonesProps {
 }
 
 const ActivityMilestones = ({ userData, rootCount, formalCount, commentCount, totalThanksball = 0 }: ActivityMilestonesProps) => {
-  // 🚀 평판 점수: 좋아요 + 공유수×2 (getReputationScore 사용)
-  const repScore = getReputationScore(userData);
+  // 🏅 평판 점수 — V2 공식 + 캐시 우선 (REPUTATION_V2.md §5.2.2)
+  const repScore = getReputation(userData);
   const reputationLabel = getReputationLabel(repScore);
   const repProgress = getReputationProgress(repScore);
   const expProgress = userData.exp || 0;

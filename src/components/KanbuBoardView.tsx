@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { db } from '../firebase';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import type { Post, UserData, KanbuRoom } from '../types';
-import { calculateLevel, formatKoreanNumber, getReputationLabel, getReputationScore } from '../utils';
+import { calculateLevel, formatKoreanNumber, getReputationLabel, getReputation } from '../utils';
 import { sanitizeHtml, extractText, extractFirstImage } from '../sanitize';
 import CreateKanbuPost from './CreateKanbuPost';
 
@@ -126,7 +126,7 @@ const KanbuBoardView = ({ room, boardType, posts, currentUserData, onPostClick, 
                       <div className="flex flex-col min-w-0">
                         <span className="text-[11px] font-[1000] truncate leading-none mb-0.5 text-slate-900">{post.author}</span>
                         <span className="text-[9px] font-bold truncate tracking-tight text-slate-500">
-                          Lv {displayLevel} · {getReputationLabel(authorData ? getReputationScore(authorData) : displayLikes)} · 깐부수 {formatKoreanNumber(realFollowers)}
+                          Lv {displayLevel} · {getReputationLabel(authorData ? getReputation(authorData) : displayLikes)} · 깐부수 {formatKoreanNumber(realFollowers)}
                         </span>
                       </div>
                     </div>

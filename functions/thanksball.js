@@ -2,6 +2,7 @@
 // 🚀 클라이언트에서 ballBalance 직접 수정 차단됨 → Admin SDK로 처리
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const { getFirestore, FieldValue, Timestamp } = require("firebase-admin/firestore");
+const { buildExpLevelUpdate } = require("./utils/levelSync");
 
 const db = getFirestore();
 
@@ -149,11 +150,11 @@ exports.sendThanksball = onCall(
       const receiverBalanceBefore = receiverData.ballBalance || 0;
       const receiverBalanceAfter = receiverBalanceBefore + amount;
 
-      // 5. 발신자 차감 + 최근 송금 시각 갱신
+      // 5. 발신자 차감 + 최근 송금 시각 갱신 (EXP +1, level 동시 쓰기 — 옵션 B)
       tx.update(senderRef, {
         ballBalance: currentBalance - amount,
         ballSpent: FieldValue.increment(amount),
-        exp: FieldValue.increment(1),
+        ...buildExpLevelUpdate(FieldValue, senderData.exp, 1),
         lastThanksballSentAt: Timestamp.now(),
       });
 

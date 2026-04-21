@@ -40,7 +40,7 @@ const FormalBoard = ({ agreePosts, disagreePosts, onPostClick, currentUserData, 
 
     return (
       <span className="text-[10px] font-bold text-slate-400 ml-2">
-        Lv.{info.level} · 깐부수 {info.friendCount} · 좋아요 {info.totalLikes.toLocaleString()}
+        Lv.{info.level} · 깐부 {info.friendCount}명 · 좋아요 {info.totalLikes.toLocaleString()}
       </span>
     );
   };

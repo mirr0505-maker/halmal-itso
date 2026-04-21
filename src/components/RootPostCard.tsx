@@ -4,7 +4,7 @@ import { db } from '../firebase';
 import { doc, deleteDoc } from 'firebase/firestore';
 import type { Post, UserData } from '../types';
 import { EXILE_CATEGORY } from '../types';
-import { getReputationLabel, getReputationScore, formatKoreanNumber, getCategoryDisplayName, calculateLevel } from '../utils';
+import { getReputationLabel, getReputation, formatKoreanNumber, getCategoryDisplayName, calculateLevel } from '../utils';
 import { CATEGORY_RULES } from './DiscussionView';
 import LinkPreviewCard from './LinkPreviewCard';
 import type { OgData } from './LinkPreviewCard';
@@ -269,7 +269,7 @@ const RootPostCard = ({
             <div className="flex flex-col">
               <span className="font-[1000] text-[15px] text-slate-900 mb-0.5">{post.author}</span>
               <span className="text-[11px] text-slate-500 font-bold">
-                Lv {userData.level} · {getReputationLabel(getReputationScore(userData))} · 깐부수 {formatKoreanNumber(friendCount)}
+                Lv {userData.level} · {getReputationLabel(authorData ? getReputation(authorData) : userData.likes)} · 깐부수 {formatKoreanNumber(friendCount)}
               </span>
             </div>
           </div>

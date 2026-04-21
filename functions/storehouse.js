@@ -9,9 +9,10 @@ const { getFirestore, FieldValue, Timestamp } = require("firebase-admin/firestor
 const db = getFirestore();
 
 // 🏚️ 관리자 닉네임 화이트리스트 (클라이언트 PLATFORM_ADMIN_NICKNAMES와 동일)
-const ADMIN_NICKNAMES = ["흑무영"];
+const ADMIN_NICKNAMES = ["흑무영", "Admin"];
 
-// 🏚️ 단계별 정책 — storehouse-dev-plan.md §1.1 기준
+// 🏚️ 단계별 정책 — STOREHOUSE.md §1.1 기준
+// ⚠️ src/constants.ts SANCTION_POLICIES와 반드시 동기화 (CF는 Node 런타임이라 TS import 불가)
 const SANCTION_POLICIES = [
   { level: 1, status: "exiled_lv1", reflectionDays: 3,  bailAmount: 10 },
   { level: 2, status: "exiled_lv2", reflectionDays: 7,  bailAmount: 50 },

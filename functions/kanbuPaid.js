@@ -5,11 +5,18 @@ const { getFirestore, FieldValue, Timestamp } = require("firebase-admin/firestor
 
 const db = getFirestore();
 
-// 레벨별 수수료율 (강변 시장 동일)
+// 🏪 레벨별 수수료율 — 높은 레벨일수록 크리에이터 유리 (강변시장 market.js MARKET_FEE_RATES와 동일 구조)
+// ⚠️ src/constants.ts KANBU_FEE_RATES와 반드시 동기화 (CF는 Node 런타임이라 TS import 불가)
+const KANBU_FEE_RATES = {
+  default: 0.30, // Lv3~4: 30%
+  lv5: 0.25,     // Lv5~6: 25%
+  lv7: 0.20,     // Lv7+:  20%
+};
+
 function getFeeRate(level) {
-  if (level >= 7) return 0.20;
-  if (level >= 5) return 0.25;
-  return 0.30;
+  if (level >= 7) return KANBU_FEE_RATES.lv7;
+  if (level >= 5) return KANBU_FEE_RATES.lv5;
+  return KANBU_FEE_RATES.default;
 }
 
 // 🚀 유료 깐부방 결제 — 1회 결제 or 월 구독

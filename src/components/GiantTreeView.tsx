@@ -3,7 +3,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { db } from '../firebase';
 import { collection, query, orderBy, limit, onSnapshot } from 'firebase/firestore';
 import type { GiantTree, UserData } from '../types';
-import { getReputationLabel, getReputationScore } from '../utils';
+import { getReputationLabel, getReputation } from '../utils';
 import CreateGiantTree from './CreateGiantTree';
 import GiantTreeDetail from './GiantTreeDetail';
 
@@ -89,7 +89,7 @@ const GiantTreeView = ({ currentNickname, currentUserData, allUsers = {}, initia
 
   // 🚀 useMemo: 나무 심기 권한 상태
   const plantStatus = useMemo(() => {
-    const rep = getReputationLabel(currentUserData ? getReputationScore(currentUserData) : 0);
+    const rep = getReputationLabel(currentUserData ? getReputation(currentUserData) : 0);
     const maxActive = MAX_ACTIVE_TREES[rep] || 0;
     const myActiveTrees = trees.filter(t =>
       t.author_id === currentUserData?.uid && !(t.totalNodes >= t.maxSpread) && !t.circuitBroken

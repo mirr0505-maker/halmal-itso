@@ -1,7 +1,7 @@
 // src/components/KanbuPromoModal.tsx — 깐부 홍보 팝업 상세
 // 🚀 메인 이미지 + 키워드 + 공약 + 공개프로필 요약 + 깐부맺기 버튼
 import type { UserData } from '../types';
-import { calculateLevel, getReputationLabel, getReputationScore, getLevelProgress, getReputationProgress } from '../utils';
+import { calculateLevel, getReputationLabel, getReputation, getLevelProgress, getReputationProgress } from '../utils';
 
 interface KanbuPromo {
   promoImageUrl?: string;
@@ -20,7 +20,7 @@ interface Props {
 
 const KanbuPromoModal = ({ userData, isFriend, isMutual, onToggleFriend, onViewProfile, onClose }: Props) => {
   const level = calculateLevel(userData.exp || 0);
-  const repScore = getReputationScore(userData);
+  const repScore = getReputation(userData);
   const repLabel = getReputationLabel(repScore);
   const levelPct = getLevelProgress(userData.exp || 0);
   const repPct = getReputationProgress(repScore);
@@ -89,7 +89,7 @@ const KanbuPromoModal = ({ userData, isFriend, isMutual, onToggleFriend, onViewP
             <button onClick={onClose} className="px-3 py-2.5 rounded-xl text-[12px] font-[1000] text-slate-400 bg-slate-50 hover:bg-slate-100 transition-colors">닫기</button>
             <button onClick={onViewProfile} className="flex-1 py-2.5 rounded-xl text-[12px] font-[1000] text-slate-600 bg-white border border-slate-200 hover:bg-slate-50 transition-colors">공개프로필 보기</button>
             {isMutual ? (
-              <span className="flex-1 text-center py-2.5 rounded-xl text-[12px] font-[1000] text-emerald-600 bg-emerald-50 border border-emerald-200">서로 깐부 ✓</span>
+              <span className="flex-1 text-center py-2.5 rounded-xl text-[12px] font-[1000] text-emerald-600 bg-emerald-50 border border-emerald-200">🤝 맞깐부</span>
             ) : isFriend ? (
               <button onClick={onToggleFriend} className="flex-1 py-2.5 rounded-xl text-[12px] font-[1000] text-slate-400 bg-slate-50 border border-slate-200 hover:bg-slate-100 transition-colors">깐부해제</button>
             ) : (

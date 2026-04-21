@@ -1,6 +1,6 @@
 // src/components/ActivityStats.tsx
 import type { UserData } from '../types';
-import { getReputationLabel, getReputationScore, calculateLevel } from '../utils';
+import { getReputationLabel, getReputation, calculateLevel } from '../utils';
 
 // 통계 항목 내부 타입 — 선택적 플래그로 스타일 분기
 interface StatItem {
@@ -24,7 +24,7 @@ interface ActivityStatsProps {
 }
 
 const ActivityStats = ({ userData, rootCount, totalThanksball = 0, joinedGloveCount = 0, glovePostCount = 0 }: ActivityStatsProps) => {
-  const reputationLabel = getReputationLabel(getReputationScore(userData));
+  const reputationLabel = getReputationLabel(getReputation(userData));
   const ballBalance = userData.ballBalance || 0;
 
   const statItems: StatItem[] = [

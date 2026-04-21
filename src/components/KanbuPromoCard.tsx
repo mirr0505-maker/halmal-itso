@@ -1,6 +1,6 @@
 // src/components/KanbuPromoCard.tsx — 깐부 홍보 카드 (목록용 컴팩트)
 import type { UserData } from '../types';
-import { calculateLevel, getReputationLabel, getReputationScore } from '../utils';
+import { calculateLevel, getReputationLabel, getReputation } from '../utils';
 
 interface KanbuPromo {
   promoImageUrl?: string;
@@ -18,7 +18,7 @@ interface Props {
 
 const KanbuPromoCard = ({ userData, followerCount = 0, onClick }: Props) => {
   const level = calculateLevel(userData.exp || 0);
-  const repLabel = getReputationLabel(getReputationScore(userData));
+  const repLabel = getReputationLabel(getReputation(userData));
 
   // 🚀 남은 기간 표시
   const getRemaining = () => {

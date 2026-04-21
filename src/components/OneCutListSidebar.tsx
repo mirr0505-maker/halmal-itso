@@ -1,6 +1,6 @@
 // src/components/OneCutListSidebar.tsx — 한컷 상세 화면 우측 사이드바: 다른 한컷 목록
 import type { Post, UserData } from '../types';
-import { formatKoreanNumber, getReputationLabel, getReputationScore, calculateLevel } from '../utils';
+import { formatKoreanNumber, getReputationLabel, getReputation, calculateLevel } from '../utils';
 
 interface Props {
   oneCuts: Post[];
@@ -72,7 +72,7 @@ const OneCutListSidebar = ({ oneCuts, allPosts = [], onOneCutClick, commentCount
                 </div>
                 <div className="flex flex-col min-w-0">
                   <span className="text-[9px] font-black text-slate-700 truncate">{topic.author}</span>
-                  <span className="text-[8px] font-bold text-slate-400 truncate">Lv{tLevel} · {getReputationLabel(tAuthor ? getReputationScore(tAuthor) : tLikes)} · 깐부수 {formatKoreanNumber(tFollowers)}</span>
+                  <span className="text-[8px] font-bold text-slate-400 truncate">Lv{tLevel} · {getReputationLabel(tAuthor ? getReputation(tAuthor) : tLikes)} · 깐부수 {formatKoreanNumber(tFollowers)}</span>
                 </div>
               </div>
 

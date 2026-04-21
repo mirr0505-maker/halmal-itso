@@ -7,7 +7,7 @@ import { collection, doc, setDoc, addDoc, updateDoc, deleteDoc, query, where, or
 import type { CommunityPost, CommunityMember, UserData, FirestoreTimestamp, ShareholderTier } from '../types';
 import { TIER_CONFIG, tierRangeLabel } from '../types';
 import { sanitizeHtml } from '../sanitize';
-import { calculateLevel, getReputationLabel, getReputationScore, formatKoreanNumber } from '../utils';
+import { calculateLevel, getReputationLabel, getReputation, formatKoreanNumber, buildExpLevelUpdate, calculateExpForPost } from '../utils';
 import VerifiedBadgeComponent from './VerifiedBadge';
 import ThanksballModal from './ThanksballModal';
 
@@ -88,8 +88,12 @@ const CommunityPostDetail = ({ post, currentUserData, allUsers = {}, followerCou
         createdAt: serverTimestamp(),
       });
       await updateDoc(doc(db, 'community_posts', post.id), { commentCount: increment(1) });
-      if (newComment.trim().length >= 10) {
-        await updateDoc(doc(db, 'users', currentUserData.uid), { exp: increment(2) });
+      // 🚀 EXP: 장갑 댓글 — LEVEL_V2 §3.2.1 품질 가중치 + level 동시 쓰기 (옵션 B)
+      const commentExp = calculateExpForPost(newComment.trim(), {
+        hasLink: /https?:\/\//.test(newComment),
+      });
+      if (commentExp > 0) {
+        await updateDoc(doc(db, 'users', currentUserData.uid), buildExpLevelUpdate(currentUserData.exp, commentExp));
       }
       // 🚀 Phase 8: 댓글 알림 (글 작성자에게, 본인 제외)
       if (post.author_id && post.author_id !== currentUserData.uid) {
@@ -218,7 +222,7 @@ const CommunityPostDetail = ({ post, currentUserData, allUsers = {}, followerCou
           {(() => {
             const authorData = allUsers[`nickname_${livePost.author}`];
             const displayLevel = calculateLevel(authorData?.exp || 0);
-            const repLabel = getReputationLabel(authorData ? getReputationScore(authorData) : 0);
+            const repLabel = getReputationLabel(authorData ? getReputation(authorData) : 0);
             const realFollowers = followerCounts[livePost.author] || 0;
             const isMyPost = currentUserData && livePost.author_id === currentUserData.uid;
             return (
@@ -299,7 +303,7 @@ const CommunityPostDetail = ({ post, currentUserData, allUsers = {}, followerCou
           {sortedComments.map(c => {
             const cAuthorData = allUsers[`nickname_${c.author}`];
             const cLevel = calculateLevel(cAuthorData?.exp || 0);
-            const cRepLabel = getReputationLabel(cAuthorData ? getReputationScore(cAuthorData) : 0);
+            const cRepLabel = getReputationLabel(cAuthorData ? getReputation(cAuthorData) : 0);
             const cFollowers = followerCounts[c.author] || 0;
             const cIsLiked = currentUserData && c.likedBy?.includes(currentUserData.nickname);
             const cIsMine = currentUserData && c.author_id === currentUserData.uid;

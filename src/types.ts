@@ -38,6 +38,30 @@ export interface FirestoreTimestamp {
   toDate?: () => Date;
 }
 
+// ═══════════════════════════════════════════════════════
+// 🏅 평판 V2 (REPUTATION_V2.md §7.1 UserData 확장)
+// ═══════════════════════════════════════════════════════
+// 본 5단계(Phase A/B/C) + Prestige 3단계(Phase C에서만 활성)
+export type TierKey =
+  | 'neutral'
+  | 'slightlyFriendly'
+  | 'friendly'
+  | 'veryFriendly'
+  | 'firm'
+  | 'legend'   // Phase C
+  | 'awe'      // Phase C
+  | 'mythic';  // Phase C
+
+// 어뷰징 플래그 — CF 'detectAbuse*' 계열이 설정, 클라이언트 수정 불가(Rules)
+export interface AbuseFlags {
+  shortPostSpam?: boolean;      // 10자 글 스팸 50%+
+  circularThanksball?: boolean; // 맞땡스볼 의심
+  multiAccount?: boolean;       // 다계정 (Phase C)
+  massFollowUnfollow?: boolean; // 깐부 펌프 (선택)
+  flaggedAt?: FirestoreTimestamp;
+  flaggedReason?: string;
+}
+
 // 🚀 UserData: users 컬렉션 문서 구조 — allUsers Record의 값 타입
 export interface UserData {
   uid: string;
@@ -50,7 +74,14 @@ export interface UserData {
   points?: number;        // 포인트 (레거시)
   bio?: string;           // 자기소개
   avatarUrl?: string;     // 커스텀 프로필 이미지 URL
-  friendList?: string[];  // 깐부 닉네임 목록
+  /**
+   * 내가 맺은 깐부(팔로우 중인 유저)의 닉네임 목록 — KANBU_V2 §3.3·§5.1
+   * - UI 표기: "깐부 N명" (내가 소비하는 축, 유튜브 '구독 중인 채널'에 해당)
+   * - 단방향 팔로우 (상대 동의 불필요 · 상대 문서에 쓰기 없음)
+   * - 깐부수(나를 맺은 수)는 followerCounts 전역 집계로 실시간 계산 — users 문서 미저장
+   * - Phase D(유저 10,000+)에 UID 배열로 마이그레이션 예정 (같은 필드명 유지)
+   */
+  friendList?: string[];
   blockList?: string[];   // 차단 유저 닉네임 목록
   subscriberCount?: number;
   isPhoneVerified?: boolean;
@@ -73,6 +104,14 @@ export interface UserData {
   phoneVerified?: boolean;           // 휴대폰 인증 여부
   phoneHash?: string | null;         // sha256(phoneNumber) — 블랙리스트 매칭용
   phoneVerifiedAt?: FirestoreTimestamp | null;
+  // 🏅 평판 V2 (REPUTATION_V2.md §7.1) — CF만 쓰기, 클라이언트 read-only
+  reputationCached?: number;                // 최종 평판 점수 (v2-R 공식 결과)
+  reputationTierCached?: TierKey;           // 캐시된 Tier
+  reputationUpdatedAt?: FirestoreTimestamp; // 캐시 갱신 시각
+  lastActiveAt?: FirestoreTimestamp;        // 의미 있는 활동 최근 시각 (decay 입력)
+  abuseFlags?: AbuseFlags;                  // 어뷰징 감점 입력
+  grandfatheredPrestigeTier?: 'legend' | 'awe' | 'mythic'; // Phase C 경계값 조정 시 보호
+  grandfatheredAt?: FirestoreTimestamp;
 }
 
 // 🏚️ 유배 상태
@@ -86,11 +125,7 @@ export interface SanctionPolicy {
   bailAmount: number;       // 속죄금 (볼)
 }
 
-export const SANCTION_POLICIES: SanctionPolicy[] = [
-  { level: 1, status: 'exiled_lv1', reflectionDays: 3,  bailAmount: 10 },
-  { level: 2, status: 'exiled_lv2', reflectionDays: 7,  bailAmount: 50 },
-  { level: 3, status: 'exiled_lv3', reflectionDays: 30, bailAmount: 300 },
-];
+// 🏚️ SANCTION_POLICIES 상수는 src/constants.ts로 이관 (types.ts는 타입 전용 유지)
 
 export interface AuthorInfo {
   level: number;

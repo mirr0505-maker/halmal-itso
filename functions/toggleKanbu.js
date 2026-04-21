@@ -5,6 +5,7 @@
 //   Admin SDK 경유 → Firestore Rules exp increase-only 가드 우회(정상)
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const { getFirestore, FieldValue } = require("firebase-admin/firestore");
+const { calculateLevel } = require("./utils/levelSync");
 
 const db = getFirestore();
 const COOLDOWN_MS = 5000;
@@ -46,9 +47,11 @@ exports.toggleKanbu = onCall(
       const expDelta = isFriend ? -2 : 2;
       const nextExp = Math.max(0, (u.exp || 0) + expDelta);
 
+      // 🚀 옵션 B — exp·level 동시 쓰기 (LEVEL_V2.md §5)
       tx.update(userRef, {
         friendList: nextFriends,
         exp: nextExp,
+        level: calculateLevel(nextExp),
         lastFriendToggleAt: FieldValue.serverTimestamp(),
       });
 

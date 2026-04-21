@@ -1,7 +1,7 @@
 // src/components/AnyTalkList.tsx
 import React, { useState } from 'react';
 import type { Post, UserData } from '../types';
-import { formatKoreanNumber, getReputationLabel, getReputationScore, getCategoryDisplayName, calculateLevel } from '../utils';
+import { formatKoreanNumber, getReputationLabel, getReputation, getCategoryDisplayName, calculateLevel } from '../utils';
 import { sanitizeHtml, extractText, extractFirstImage } from '../sanitize';
 import KanbuPromoCard from './KanbuPromoCard';
 import KanbuPromoModal from './KanbuPromoModal';
@@ -203,7 +203,7 @@ const AnyTalkList = ({
                     <div className="flex flex-col min-w-0">
                       <span className={`text-[11px] font-[1000] truncate leading-none mb-0.5 ${isDark ? 'text-white' : 'text-slate-900'}`}>{post.author}</span>
                       <span className={`text-[9px] font-bold truncate tracking-tight ${isDark ? 'text-slate-500' : 'text-slate-500'}`}>
-                        Lv {displayLevel} · {getReputationLabel(authorData ? getReputationScore(authorData) : displayLikes)} · 깐부수 {formatKoreanNumber(realFollowers)}
+                        Lv {displayLevel} · {getReputationLabel(authorData ? getReputation(authorData) : displayLikes)} · 깐부수 {formatKoreanNumber(realFollowers)}
                       </span>
                     </div>
                   </div>
@@ -328,7 +328,7 @@ const AnyTalkList = ({
                               </div>
                               <div className="flex flex-col min-w-0">
                                 <span className="text-[11px] font-[1000] text-slate-900 truncate leading-none mb-0.5">{post.author}</span>
-                                <span className="text-[9px] font-bold text-slate-500 truncate tracking-tight">Lv {displayLevel} · {getReputationLabel(authorData ? getReputationScore(authorData) : displayLikes)} · 깐부수 {formatKoreanNumber(realFollowers)}</span>
+                                <span className="text-[9px] font-bold text-slate-500 truncate tracking-tight">Lv {displayLevel} · {getReputationLabel(authorData ? getReputation(authorData) : displayLikes)} · 깐부수 {formatKoreanNumber(realFollowers)}</span>
                               </div>
                             </div>
                             <div className="flex items-center gap-2 shrink-0 text-[10px] font-black text-slate-500">
@@ -459,7 +459,7 @@ const AnyTalkList = ({
                               <div className="flex flex-col min-w-0">
                                 <span className="text-[11px] font-[1000] text-slate-900 truncate leading-none mb-0.5">{post.author}</span>
                                 <span className="text-[9px] font-bold text-slate-500 truncate tracking-tight">
-                                  Lv {displayLevel} · {getReputationLabel(authorData ? getReputationScore(authorData) : displayLikes)} · 깐부수 {formatKoreanNumber(realFollowers)}
+                                  Lv {displayLevel} · {getReputationLabel(authorData ? getReputation(authorData) : displayLikes)} · 깐부수 {formatKoreanNumber(realFollowers)}
                                 </span>
                               </div>
                             </div>

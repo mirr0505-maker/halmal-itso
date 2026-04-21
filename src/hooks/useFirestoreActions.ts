@@ -8,7 +8,7 @@ import type { Dispatch, SetStateAction, FormEvent } from 'react';
 import type { Post, UserData } from '../types';
 import { EXILE_CATEGORY } from '../types';
 import type { MenuId } from '../components/Sidebar';
-import { isEligibleForExp, anonymizeExileNickname } from '../utils';
+import { anonymizeExileNickname, buildExpLevelUpdate, calculateExpForPost } from '../utils';
 
 // 🚀 Rate Limit 쿨다운 (클라이언트 사이드)
 const RATE_LIMIT = {
@@ -86,9 +86,13 @@ export function useFirestoreActions({
           createdAt: serverTimestamp(), likes: 0, dislikes: 0, shareToken,
           contentTextLength: contentPlainText.length,
         });
-        // 🚀 EXP: 새글 작성 +2 (10자 이상일 때만)
-        if (isEligibleForExp(postData.content || '')) {
-          await updateDoc(doc(db, 'users', userData.uid), { exp: increment(2) });
+        // 🚀 EXP: 새글 작성 — LEVEL_V2 §3.2.1 품질 가중치 (길이·이미지·링크) + level 동시 쓰기 (옵션 B)
+        const postExp = calculateExpForPost(postData.content || '', {
+          hasImage: !!(postData.imageUrl || (postData.imageUrls && postData.imageUrls.length > 0)),
+          hasLink: !!postData.linkUrl || /https?:\/\//.test(postData.content || ''),
+        });
+        if (postExp > 0) {
+          await updateDoc(doc(db, 'users', userData.uid), buildExpLevelUpdate(userData.exp, postExp));
         }
         lastPostTime = Date.now();
       }
@@ -118,9 +122,13 @@ export function useFirestoreActions({
         createdAt: serverTimestamp(), likes: 0, dislikes: 0, shareToken,
         contentTextLength: contentPlainText.length,
       });
-      // 🚀 EXP: 연계글 작성 +2 (10자 이상일 때만)
-      if (isEligibleForExp(postData.content || '')) {
-        await updateDoc(doc(db, 'users', userData.uid), { exp: increment(2) });
+      // 🚀 EXP: 연계글 작성 — LEVEL_V2 §3.2.1 품질 가중치 + level 동시 쓰기 (옵션 B)
+      const linkedPostExp = calculateExpForPost(postData.content || '', {
+        hasImage: !!(postData.imageUrl || (postData.imageUrls && postData.imageUrls.length > 0)),
+        hasLink: !!postData.linkUrl || /https?:\/\//.test(postData.content || ''),
+      });
+      if (linkedPostExp > 0) {
+        await updateDoc(doc(db, 'users', userData.uid), buildExpLevelUpdate(userData.exp, linkedPostExp));
       }
       setIsCreateOpen(false);
       setLinkedPostSide(null);
@@ -161,9 +169,13 @@ export function useFirestoreActions({
         ...(linkUrl ? { linkUrl } : {}),
       });
       await updateDoc(doc(db, 'posts', selectedTopic.id), { commentCount: increment(1) });
-      // 🚀 EXP: 댓글 작성 +2 (10자 이상일 때만)
-      if (isEligibleForExp(content)) {
-        await updateDoc(doc(db, 'users', userData.uid), { exp: increment(2) });
+      // 🚀 EXP: 댓글 작성 — LEVEL_V2 §3.2.1 품질 가중치 + level 동시 쓰기 (옵션 B)
+      const replyExp = calculateExpForPost(content, {
+        hasImage: !!imageUrl,
+        hasLink: !!linkUrl || /https?:\/\//.test(content),
+      });
+      if (replyExp > 0) {
+        await updateDoc(doc(db, 'users', userData.uid), buildExpLevelUpdate(userData.exp, replyExp));
       }
       lastCommentTime = Date.now();
     } catch (e: unknown) {
@@ -199,9 +211,12 @@ export function useFirestoreActions({
         createdAt: serverTimestamp(), likes: 0, dislikes: 0,
       });
       await updateDoc(doc(db, 'posts', selectedTopic.id), { commentCount: increment(1) });
-      // 🚀 EXP: 댓글 작성 +2 (10자 이상일 때만)
-      if (isEligibleForExp(newContent)) {
-        await updateDoc(doc(db, 'users', userData.uid), { exp: increment(2) });
+      // 🚀 EXP: 댓글 작성 — LEVEL_V2 §3.2.1 품질 가중치 + level 동시 쓰기 (옵션 B)
+      const commentExp = calculateExpForPost(newContent, {
+        hasLink: /https?:\/\//.test(newContent),
+      });
+      if (commentExp > 0) {
+        await updateDoc(doc(db, 'users', userData.uid), buildExpLevelUpdate(userData.exp, commentExp));
       }
       lastCommentTime = Date.now();
       setNewTitle('');
@@ -289,8 +304,8 @@ export function useFirestoreActions({
     if (sessionStorage.getItem(sessionKey)) return;
     sessionStorage.setItem(sessionKey, '1');
     updateDoc(doc(db, 'posts', post.id), { viewCount: increment(1) }).catch(() => {});
-    // 🚀 EXP: 글 조회 +1 (로그인 유저, 타인 글, 글당 1회)
-    updateDoc(doc(db, 'users', userData.uid), { exp: increment(1) }).catch(() => {});
+    // 🚀 EXP: 글 조회 +1 (로그인 유저, 타인 글, 글당 1회) — level 동시 쓰기 (옵션 B)
+    updateDoc(doc(db, 'users', userData.uid), buildExpLevelUpdate(userData.exp, 1)).catch(() => {});
   };
 
   // 🚀 공유수 카운트: URL 복사 버튼 클릭 시 두 곳 동시 +1

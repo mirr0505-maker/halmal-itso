@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { db } from '../firebase';
 import { doc, deleteDoc, updateDoc } from 'firebase/firestore';
 import type { Post, UserData } from '../types';
-import { formatKoreanNumber, getReputationLabel, getReputationScore, calculateLevel } from '../utils';
+import { formatKoreanNumber, getReputationLabel, getReputation, calculateLevel } from '../utils';
 import { sanitizeHtml, extractText } from '../sanitize';
 
 interface Props {
@@ -93,7 +93,7 @@ const PostCard = ({
               </div>
               {/* 🚀 평판 정보 복구 (Lv 1 · 중립 · 깐부 0) */}
               <span className="text-[9px] font-bold text-slate-400 mt-0.5 leading-none">
-                Lv {displayLevel} · {getReputationLabel(authorData ? getReputationScore(authorData) : displayLikes)} · 깐부수 {formatKoreanNumber(realFollowers)}
+                Lv {displayLevel} · {getReputationLabel(authorData ? getReputation(authorData) : displayLikes)} · 깐부수 {formatKoreanNumber(realFollowers)}
               </span>
             </div>
             {/* 🚀 아바타 라인 우측: 좋아요 · 땡스볼 · 답글 · 수정 · 삭제 · 핀 */}

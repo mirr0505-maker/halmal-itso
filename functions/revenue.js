@@ -39,6 +39,7 @@ exports.aggregateDailyRevenue = onSchedule(
     });
 
     let totalRevenue = 0;
+    // ⚠️ src/constants.ts LEVEL_TABLE과 반드시 동기화 (CF는 Node 런타임이라 TS import 불가)
     const LEVEL_TABLE = [0, 30, 100, 250, 500, 1000, 2000, 4000, 7000, 10000];
 
     for (const [authorId, events] of Object.entries(authorMap)) {

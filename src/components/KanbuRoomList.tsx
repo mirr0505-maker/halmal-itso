@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { db } from '../firebase';
 import { doc, updateDoc, arrayUnion, increment } from 'firebase/firestore';
 import type { KanbuRoom, Post, UserData } from '../types';
-import { calculateLevel, formatKoreanNumber, getReputationLabel, getReputationScore } from '../utils';
+import { calculateLevel, formatKoreanNumber, getReputationLabel, getReputation } from '../utils';
 import KanbuPromoCard from './KanbuPromoCard';
 
 interface Props {
@@ -86,7 +86,7 @@ const KanbuRoomList = ({ rooms, onRoomClick, currentUserData, friends = [], allU
 
     const hostData = allUsers[room.creatorId] || allUsers[`nickname_${room.creatorNickname}`];
     const hostLevel = calculateLevel(hostData?.exp || 0);
-    const hostRepLabel = getReputationLabel(getReputationScore(hostData || { likes: 0, ballReceived: 0, totalShares: 0 } as UserData));
+    const hostRepLabel = getReputationLabel(hostData ? getReputation(hostData) : 0);
     const isLive = !!room.liveSessionId;
     const { latestOnce, latestMonthly, totalThanksball } = showPaid || showBall ? roomMeta(room) : { latestOnce: undefined, latestMonthly: undefined, totalThanksball: 0 };
 

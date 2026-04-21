@@ -10,7 +10,7 @@ import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '../firebase';
 import type { Post, Series, EpisodePrivateContent, UserData } from '../types';
 import { formatCount } from '../utils/inkwell';
-import { calculateLevel, formatKoreanNumber, getReputationLabel, getReputationScore } from '../utils';
+import { calculateLevel, formatKoreanNumber, getReputationLabel, getReputation } from '../utils';
 import { sharePost } from '../utils/share';
 import PaywallOverlay from './PaywallOverlay';
 import EpisodeCommentBoard from './EpisodeCommentBoard';
@@ -621,11 +621,7 @@ const EpisodeReader = ({ postId, currentUserUid, currentUserNickname, onBack, on
           {(() => {
             const authorData = (episode.author_id && allUsers[episode.author_id]) || allUsers[`nickname_${episode.author}`];
             const displayLevel = calculateLevel(authorData?.exp || 0);
-            const repScore = getReputationScore({
-              likes: authorData?.likes || 0,
-              totalShares: authorData?.totalShares || 0,
-              ballReceived: authorData?.ballReceived || 0,
-            });
+            const repScore = authorData ? getReputation(authorData) : 0;
             const realFollowers = followerCounts[episode.author || ''] || 0;
             const isLiked = !!(currentUserNickname && episode.likedBy?.includes(currentUserNickname));
             // 🚀 골드스타: Lv5+ 유저가 좋아요한 수 (RootPostCard 동일 로직)

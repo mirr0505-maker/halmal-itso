@@ -1,7 +1,7 @@
 // src/components/OneCutList.tsx
 import React, { useState } from 'react';
 import type { Post, UserData } from '../types';
-import { formatKoreanNumber, getReputationLabel, getReputationScore, calculateLevel } from '../utils';
+import { formatKoreanNumber, getReputationLabel, getReputation, calculateLevel } from '../utils';
 
 interface Props {
   posts: Post[];
@@ -125,7 +125,7 @@ const OneCutList = ({ posts, allPosts, onTopicClick, onLikeClick, currentNicknam
                   </div>
                   <div className="flex flex-col min-w-0">
                     <span className="text-[11px] font-[1000] text-slate-900 truncate leading-none mb-0.5">{post.author}</span>
-                    <span className="text-[9px] font-bold text-slate-400 truncate tracking-tight">Lv {displayLevel} · {getReputationLabel(authorData ? getReputationScore(authorData) : displayLikes)} · 깐부수 {formatKoreanNumber(realFollowers)}</span>
+                    <span className="text-[9px] font-bold text-slate-400 truncate tracking-tight">Lv {displayLevel} · {getReputationLabel(authorData ? getReputation(authorData) : displayLikes)} · 깐부수 {formatKoreanNumber(realFollowers)}</span>
                   </div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0 text-[10px] font-black text-slate-300">

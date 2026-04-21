@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { db } from '../firebase';
 import { collection, doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import type { UserData } from '../types';
-import { getReputationLabel, getReputationScore, calculateLevel } from '../utils';
+import { getReputationLabel, getReputation, calculateLevel } from '../utils';
 import { MAX_SPREAD_BY_REPUTATION } from './GiantTreeView';
 import AdSlotSetting from './ads/AdSlotSetting';
 import { useAdSlotSetting } from './ads/useAdSlotSetting';
@@ -22,7 +22,7 @@ const CreateGiantTree = ({ currentNickname, currentUserData, onBack, onCreated }
   // 🚀 ADSMARKET: 광고 슬롯 설정
   const { adSlotFields, adSlotEnabled, adSlotType, onAdSlotChange } = useAdSlotSetting();
 
-  const reputation = getReputationLabel(currentUserData ? getReputationScore(currentUserData) : 0);
+  const reputation = getReputationLabel(currentUserData ? getReputation(currentUserData) : 0);
   const maxSpread = MAX_SPREAD_BY_REPUTATION[reputation] || 0;
 
   const handleSubmit = async () => {

@@ -1,7 +1,7 @@
 // src/components/OneCutDetailView.tsx — 한컷 상세 뷰 (마법 수정 구슬 레이아웃 기반)
 import { useState, useEffect, useRef } from 'react';
 import type { Post, UserData } from '../types';
-import { formatKoreanNumber, getReputationLabel, getReputationScore, calculateLevel } from '../utils';
+import { formatKoreanNumber, getReputationLabel, getReputation, calculateLevel } from '../utils';
 import OneCutListSidebar from './OneCutListSidebar';
 import AdSlot from './ads/AdSlot';
 import ThanksballModal from './ThanksballModal';
@@ -354,7 +354,7 @@ const OneCutDetailView = ({
                 <div className="flex flex-col">
                   <span className="font-[1000] text-[15px] text-slate-900 mb-0.5">{rootPost.author}</span>
                   <span className="text-[11px] text-slate-500 font-bold">
-                    Lv {displayLevel} · {getReputationLabel(authorData ? getReputationScore(authorData) : displayLikes)} · 깐부수 {formatKoreanNumber(realFollowers)}
+                    Lv {displayLevel} · {getReputationLabel(authorData ? getReputation(authorData) : displayLikes)} · 깐부수 {formatKoreanNumber(realFollowers)}
                   </span>
                 </div>
               </div>
@@ -486,7 +486,7 @@ const OneCutDetailView = ({
                                 <span className="text-[9px] font-bold text-slate-300">{formatTime(comment.createdAt)}</span>
                               </div>
                               <span className="text-[9px] text-slate-400 font-bold leading-tight mt-0.5">
-                                Lv {commentLevel} · {getReputationLabel(commentAuthorData ? getReputationScore(commentAuthorData) : commentLikes)} · 깐부수 {formatKoreanNumber(commentFollowers)}
+                                Lv {commentLevel} · {getReputationLabel(commentAuthorData ? getReputation(commentAuthorData) : commentLikes)} · 깐부수 {formatKoreanNumber(commentFollowers)}
                               </span>
                             </div>
                           </div>
