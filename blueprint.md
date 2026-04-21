@@ -516,3 +516,33 @@ interface Thanksball {
 - 감사 로그 연동: `ball_transactions`에 `sourceType='charge_refund'`로 함께 기록해 일일 감사(`auditBallBalance`)와 정합성 유지
 
 **참고**: 이 항목은 옵션 B(공급사 선정 후 일괄 배포)로 확정. 공급사 선정 전까지 `testChargeBall`은 그대로 유지.
+
+### 🧹 테스트 계정 orphan 데이터 일괄 삭제 스크립트 — 🟡 베타 직전
+
+**배경**: 개발 중 `@halmal.com` 테스트 계정(깐부1~10호, 불량깐부1~3호)이 생성한 글·댓글·땡스볼·깐부관계·커뮤니티 멤버십 등이 DB 전역에 누적됨. Auth/users 문서 삭제는 다른 컬렉션에 cascade되지 않으므로 orphan이 남아 베타 유저가 볼 경우 혼선 발생.
+
+**실행 시점**: **베타테스트 오픈 직전 1회** (개발 기간 중에는 반복 삭제 비용이 더 큼).
+
+**구현 요약**
+- Node.js `firebase-admin` 스크립트 (`scripts/purge-test-accounts.js`)
+- 대상 UID 수집: `users` 컬렉션에서 `email` 필드가 `@halmal.com`으로 끝나는 문서 전체 조회
+- 대상 컬렉션별 삭제 (전부 author_id/userId/hostUid/authorId 등 UID 필드 기준):
+  - `posts`, `comments`, `kanbu_rooms`, `kanbu_paid_subs`
+  - `communities`(hostUid), `community_memberships`, `community_posts`, `community_post_comments`
+  - `series`, `unlocked_episodes`, `series_subscriptions`
+  - `market_items`, `market_shops`, `market_subscriptions`, `market_purchases`
+  - `giant_trees` + 서브컬렉션 `leaves`
+  - `exile_posts`, `exile_comments`, `bail_history`, `release_history`, `sanction_log`
+  - `notifications/{uid}/items`, `sentBalls/{uid}/items` (서브컬렉션 recursive delete)
+  - `ball_transactions`(sender/receiver uid), `ball_balance_snapshots`
+  - 다른 유저의 `friendList`/`blockList` 배열에서 대상 UID 제거 (arrayRemove)
+  - 마지막으로 `users` 문서 + Firebase Auth 계정 삭제
+- Dry-run 모드(`--dry`) 지원 — 삭제 대상 카운트만 출력
+- 실행 로그를 `logs/purge-{timestamp}.json`으로 저장 (삭제 통계 + 실패 항목)
+
+**안전장치**
+- `@halmal.com` 도메인 화이트리스트 외 이메일 일절 접근 금지 (코드 상단 정규식 하드코딩)
+- 프로덕션 실행 전 스테이징에서 리허설 필수
+- 실행 전 Firestore 백업(`gcloud firestore export`) 권장
+
+**현재 상태**: 2026-04-21 로그인 이슈 해결 중 식별됨. Sprint 0 블로커 아님 → 베타 직전 Sprint에 편성 예정.
