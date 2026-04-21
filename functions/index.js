@@ -540,6 +540,10 @@ const { joinPaidKanbuRoom, checkKanbuSubscriptionExpiry } = require("./kanbuPaid
 exports.joinPaidKanbuRoom = joinPaidKanbuRoom;
 exports.checkKanbuSubscriptionExpiry = checkKanbuSubscriptionExpiry;
 
+// 🛡️ 깐부 토글 — 대칭 ±2 EXP + 서버측 쿨다운 (Anti-Abuse Commit 7-B v2)
+const { toggleKanbu } = require("./toggleKanbu");
+exports.toggleKanbu = toggleKanbu;
+
 // 🔴 라이브 세션 presence 정리 (1분 주기)
 const { cleanupLivePresence } = require("./livePresence");
 exports.cleanupLivePresence = cleanupLivePresence;

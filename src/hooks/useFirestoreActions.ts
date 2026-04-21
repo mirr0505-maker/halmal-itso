@@ -14,11 +14,9 @@ import { isEligibleForExp, anonymizeExileNickname } from '../utils';
 const RATE_LIMIT = {
   POST_COOLDOWN_MS: 60_000,
   COMMENT_COOLDOWN_MS: 15_000,
-  FRIEND_TOGGLE_COOLDOWN_MS: 5_000,
 };
 let lastPostTime = 0;
 let lastCommentTime = 0;
-let lastFriendToggleTime = 0;
 
 interface FirestoreActionDeps {
   userData: UserData | null;
@@ -217,34 +215,27 @@ export function useFirestoreActions({
     }
   };
 
-  // 깐부(팔로우) 토글
+  // 깐부(팔로우) 토글 — 🛡️ Anti-Abuse Commit 7-B v2: Cloud Function 경유
+  // Why: 대칭 ±2 EXP (맺기 +2, 해제 -2) + 서버측 5초 쿨다운으로 루프 어뷰징 차단
+  //      클라가 friendList/exp를 직접 쓰지 않아 Rules increase-only 가드와 정합
   const toggleFriend = async (author: string) => {
     if (!userData) return;
-    // 🛡️ Anti-Abuse Commit 7-B: 5초 쿨다운 (실수·연타 방지)
-    if (Date.now() - lastFriendToggleTime < RATE_LIMIT.FRIEND_TOGGLE_COOLDOWN_MS) {
-      alert('깐부 버튼은 5초에 1회만 누를 수 있습니다.');
-      return;
-    }
-    const isFriend = friends.includes(author);
-    // 🛡️ Anti-Abuse Commit 7-B: 동일 유저 재맺기 시 EXP 미지급 (루프 차단)
-    // Why: "맺기(+2)→해제(0)→재맺기(+2)" 무한 반복으로 exp 무제한 상승 가능
-    //      previousFriends는 한 번이라도 맺었던 닉네임을 영구 보존 (append-only)
-    const wasPreviousFriend = userData.previousFriends?.includes(author) ?? false;
-    const expGain = isFriend ? 0 : (wasPreviousFriend ? 0 : 2);
     try {
-      const updatePayload: Record<string, unknown> = {
-        friendList: isFriend ? arrayRemove(author) : arrayUnion(author),
-        // 🛡️ Anti-Abuse Commit 5: 해제 페널티 제거 (-15 → 0)
-        // 🛡️ Anti-Abuse Commit 7-A: 맺기 +10 → +2 완화 (ANTI_ABUSE §5.2.1)
-        // 🛡️ Anti-Abuse Commit 7-B: 재맺기는 +0 (루프 원천 차단)
-        exp: increment(expGain),
-      };
-      if (!isFriend && !wasPreviousFriend) {
-        updatePayload.previousFriends = arrayUnion(author);
+      const { getFunctions, httpsCallable } = await import('firebase/functions');
+      const functions = getFunctions(undefined, 'asia-northeast3');
+      const call = httpsCallable(functions, 'toggleKanbu');
+      await call({ targetNickname: author });
+    } catch (e: unknown) {
+      const err = e as { code?: string; message?: string };
+      if (err.code === 'functions/resource-exhausted') {
+        alert('깐부 버튼은 5초에 1회만 누를 수 있습니다.');
+      } else if (err.code === 'functions/invalid-argument') {
+        alert(err.message || '본인은 깐부 맺을 수 없습니다.');
+      } else {
+        console.error(e);
+        alert('깐부 요청 실패. 잠시 후 다시 시도하세요.');
       }
-      await updateDoc(doc(db, 'users', userData.uid), updatePayload);
-      lastFriendToggleTime = Date.now();
-    } catch (e) { console.error(e); }
+    }
   };
 
   // 유저 차단 토글
