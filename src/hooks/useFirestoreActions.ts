@@ -221,8 +221,9 @@ export function useFirestoreActions({
         friendList: isFriend ? arrayRemove(author) : arrayUnion(author),
         // 🛡️ Anti-Abuse Commit 5: 해제 페널티 제거 (-15 → 0)
         // Why: Rules §4.2.2가 exp 감소 차단 → 해제 시 permission-denied 방지
-        //      §5.2.1의 맺기 +10→+2 완화는 이번 커밋 범위 밖 (별도 커밋)
-        exp: increment(isFriend ? 0 : 10),
+        // 🛡️ Anti-Abuse Commit 7: 맺기 +10 → +2 완화 (ANTI_ABUSE §5.2.1)
+        // Why: 다계정 100개 루프 시 +1000 EXP → Lv5 도달 가능. +2로 낮춰 어뷰징 차단.
+        exp: increment(isFriend ? 0 : 2),
       });
     } catch (e) { console.error(e); }
   };
