@@ -101,16 +101,22 @@ export function useFirebaseListeners() {
               updateDoc(doc(db, 'users', user.uid), { exp: increment(5), lastLoginDate: today }).catch(() => {});
             }
           } else {
-            const initialData = {
-              nickname: user.displayName || "익명",
-              email: user.email || "", bio: "안녕하세요.",
-              level: 1, exp: 0, likes: 0, points: 0,
-              subscriberCount: 0, isPhoneVerified: false,
-              friendList: [], blockList: [], avatarUrl: user.photoURL || "",
-              createdAt: serverTimestamp()
-            };
-            setDoc(doc(db, "users", user.uid), initialData);
-            setUserData({ ...initialData, uid: user.uid } as unknown as UserData);
+            // 🚀 displayName 없으면 자동 생성 skip — 호출자 setDoc이 승자가 되도록
+            // Why: 이메일·비번 테스트 계정은 displayName이 null → "익명" 스텁 문서가 먼저 생겨
+            //      handleTestLogin의 setDoc이 Rules update 가드(nickname 변경 금지)에 막힘.
+            //      Google OAuth는 displayName 보장되므로 기존 경로 유지.
+            if (user.displayName) {
+              const initialData = {
+                nickname: user.displayName,
+                email: user.email || "", bio: "안녕하세요.",
+                level: 1, exp: 0, likes: 0, points: 0,
+                subscriberCount: 0, isPhoneVerified: false,
+                friendList: [], blockList: [], avatarUrl: user.photoURL || "",
+                createdAt: serverTimestamp()
+              };
+              setDoc(doc(db, "users", user.uid), initialData);
+              setUserData({ ...initialData, uid: user.uid } as unknown as UserData);
+            }
           }
           setIsLoading(false);
         });

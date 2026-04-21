@@ -5,7 +5,7 @@ import {
   signInWithPopup, signInWithRedirect, signOut, setPersistence,
   browserLocalPersistence, signInWithEmailAndPassword, createUserWithEmailAndPassword,
 } from 'firebase/auth';
-import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 import type { Dispatch, SetStateAction } from 'react';
 import type { UserData } from '../types';
 import type { MenuId } from '../components/Sidebar';
@@ -93,26 +93,32 @@ export function useAuthActions({ userData, setUserData, setActiveMenu }: AuthAct
     try {
       if (userData) await signOut(auth);
       await setPersistence(auth, browserLocalPersistence);
+      // 🚀 테스트 계정 초기값 (signIn·create 양쪽에서 재사용)
+      const buildInitialData = () => ({
+        nickname: testUser.nickname, email: testUser.email, bio: testUser.bio,
+        level: testUser.level || 1,
+        exp: (testUser as { exp?: number }).exp || 0,
+        likes: (testUser as { likes?: number }).likes || 0,
+        points: 0, subscriberCount: 0, isPhoneVerified: true,
+        friendList: [], blockList: [], avatarUrl: '', createdAt: serverTimestamp(),
+      });
       try {
         const cred = await signInWithEmailAndPassword(auth, testUser.email, '123456');
-        // 🚀 기존 테스트 계정 exp/likes 강제 세팅 — 레벨·평판 초기값 적용
-        const testExp = (testUser as { exp?: number }).exp || 0;
-        const testLikes = (testUser as { likes?: number }).likes || 0;
-        if (testExp > 0 || testLikes > 0) {
-          await setDoc(doc(db, 'users', cred.user.uid), { exp: testExp, likes: testLikes }, { merge: true });
+        // 🚀 signIn 성공 후 문서 존재 확인 → 없으면 최초 생성 (Commit 6 Rules create 규칙 경로)
+        // Why: Auth 계정은 있으나 Firestore 문서가 유실된 경우(Console 수동 삭제 등) 복구.
+        //      setDoc(merge) 시 update 규칙의 nickname·exp 가드에 걸리므로 반드시 create 경로로 써야 함.
+        const userRef = doc(db, 'users', cred.user.uid);
+        const snap = await getDoc(userRef);
+        if (!snap.exists()) {
+          const initialData = buildInitialData();
+          await setDoc(userRef, initialData);
+          setUserData({ ...initialData, uid: cred.user.uid } as unknown as UserData);
         }
       } catch (loginError: unknown) {
         const code = (loginError as { code: string }).code;
         if (code === 'auth/user-not-found' || code === 'auth/invalid-credential') {
           const res = await createUserWithEmailAndPassword(auth, testUser.email, '123456');
-          const initialData = {
-            nickname: testUser.nickname, email: testUser.email, bio: testUser.bio,
-            level: testUser.level || 1,
-            exp: (testUser as { exp?: number }).exp || 0,
-            likes: (testUser as { likes?: number }).likes || 0,
-            points: 0, subscriberCount: 0, isPhoneVerified: true,
-            friendList: [], blockList: [], avatarUrl: '', createdAt: serverTimestamp(),
-          };
+          const initialData = buildInitialData();
           await setDoc(doc(db, 'users', res.user.uid), initialData);
           setUserData({ ...initialData, uid: res.user.uid } as unknown as UserData);
         } else { throw loginError; }
