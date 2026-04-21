@@ -544,6 +544,11 @@ exports.checkKanbuSubscriptionExpiry = checkKanbuSubscriptionExpiry;
 const { toggleKanbu } = require("./toggleKanbu");
 exports.toggleKanbu = toggleKanbu;
 
+// 🛡️ 닉네임 변경 (평생 1회, 100볼) — ANTI_ABUSE.md §8
+const { changeNickname, seedReservedNicknames } = require("./nickname");
+exports.changeNickname = changeNickname;
+exports.seedReservedNicknames = seedReservedNicknames;
+
 // 🔴 라이브 세션 presence 정리 (1분 주기)
 const { cleanupLivePresence } = require("./livePresence");
 exports.cleanupLivePresence = cleanupLivePresence;

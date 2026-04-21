@@ -59,7 +59,9 @@ export interface UserData {
   ballSpent?: number;     // 누적 사용 볼
   ballReceived?: number;  // 누적 받은 볼
   createdAt?: FirestoreTimestamp;        // 가입일 (Firestore Timestamp)
-  nicknameChangedAt?: FirestoreTimestamp; // 닉네임 변경일 (30일 쿨다운)
+  nicknameChangedAt?: FirestoreTimestamp; // 닉네임 변경일
+  nicknameChangeCount?: number;           // 닉네임 변경 횟수 (평생 1회 게이트, ANTI_ABUSE.md §8)
+  previousNicknames?: string[];           // 이전 닉네임 이력 (공개 프로필 표시)
   // 🏚️ 놀부의 텅 빈 곳간 (유배귀양지) — Phase 1
   strikeCount?: number;              // 누적 유배 횟수 (기본 0, 영구 보존)
   sanctionStatus?: SanctionStatus;   // 유배 상태 (미설정 시 'active')

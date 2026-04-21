@@ -398,6 +398,13 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // 🔒 예약 닉네임 — 로그인 유저 read (중복 사전 체크용), 쓰기는 CF(changeNickname) 전용
+    // Why: ANTI_ABUSE.md §8 — 과거 사용자 닉네임 + 운영 예약어 영구 잠금
+    match /reserved_nicknames/{name} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+
     // 💰 땡스볼 트랜잭션 멱등키 — Cloud Function 전용 (재시도 이중 차감 차단)
     // Why: sendThanksball이 clientRequestId를 키로 중복 호출을 ball_transactions/{id} 존재 여부로 판별
     match /ball_transactions/{txId} {

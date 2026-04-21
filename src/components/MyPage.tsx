@@ -1,7 +1,7 @@
 // src/components/MyPage.tsx
 import React, { useState, useEffect } from 'react';
 import { db, auth } from '../firebase';
-import { collection, query, where, orderBy, limit, onSnapshot, doc, getDoc, updateDoc, getDocs, writeBatch, arrayUnion, arrayRemove } from 'firebase/firestore';
+import { collection, query, where, orderBy, limit, onSnapshot, doc, getDoc, updateDoc, getDocs, arrayUnion, arrayRemove } from 'firebase/firestore';
 import type { Post, Community, CommunityPost, CommunityMember, UserData, FirestoreTimestamp, Series } from '../types';
 import ActivityStats from './ActivityStats';
 import MyContentTabs from './MyContentTabs';
@@ -248,6 +248,8 @@ const MyPage = ({
   };
 
   // 🚀 프로필 저장 — auth.currentUser.uid 기준으로 Firestore 업데이트
+  // 🛡️ ANTI_ABUSE.md §8: 닉네임 변경은 CF(changeNickname) 전용 (평생 1회, 100볼)
+  //   bio/avatarUrl은 클라 직접 update 허용 (Rules allowedKeys 유지)
   const handleProfileUpdate = async () => {
     const uid = auth.currentUser?.uid;
     if (!uid) { alert('로그인 상태를 확인해주세요.'); return; }
@@ -255,53 +257,45 @@ const MyPage = ({
     const newNickname = editData.nickname.trim();
     const nicknameChanged = newNickname !== userData.nickname;
     try {
-      // 🚀 3단계: 닉네임 변경 30일 쿨다운 체크
-      // Why: 닉네임 파편화로 인한 데이터 정합성 문제와 사칭 방지를 위해 변경 빈도 제한
+      // 🔒 닉네임 변경: CF 경유 (평생 1회 · 100볼 · previousNicknames 영구 예약)
       if (nicknameChanged) {
-        const lastChangedAt = userData.nicknameChangedAt;
-        if (lastChangedAt) {
-          const lastChangedMs = lastChangedAt.seconds * 1000;
-          const daysSinceChange = (Date.now() - lastChangedMs) / (1000 * 60 * 60 * 24);
-          if (daysSinceChange < 30) {
-            const remainingDays = Math.ceil(30 - daysSinceChange);
-            alert(`닉네임은 30일에 한 번만 변경할 수 있어요.\n${remainingDays}일 후에 다시 시도해주세요.`);
-            return;
-          }
+        if ((userData.nicknameChangeCount || 0) >= 1) {
+          alert('닉네임 변경은 평생 1회만 가능합니다.');
+          return;
+        }
+        const currentBalance = userData.ballBalance || 0;
+        if (currentBalance < 100) {
+          alert(`닉네임 변경에는 100볼이 필요합니다. 현재 잔액: ${currentBalance}볼`);
+          return;
+        }
+        const confirmed = window.confirm(
+          `닉네임 변경은 평생 1회만 가능하며 100볼이 차감됩니다.\n\n` +
+          `이전 닉네임("${userData.nickname}")은 영구 예약되어 다시 사용할 수 없습니다.\n\n` +
+          `계속하시겠습니까?`
+        );
+        if (!confirmed) return;
+
+        const { getFunctions, httpsCallable } = await import('firebase/functions');
+        const functions = getFunctions(undefined, 'asia-northeast3');
+        const call = httpsCallable(functions, 'changeNickname');
+        try {
+          await call({ newNickname });
+        } catch (err: unknown) {
+          const e = err as { code?: string; message?: string };
+          const msg = e.message || '닉네임 변경 실패';
+          alert(msg);
+          return;
         }
       }
 
-      // UID 문서 + nickname_ 문서 양쪽 동기화 (users 컬렉션 이중 키 구조)
-      await updateDoc(doc(db, 'users', uid), {
-        nickname: newNickname,
-        bio: editData.bio.trim(),
-        avatarUrl: editData.avatarUrl,
-        // 닉네임 변경 시에만 타임스탬프 기록
-        ...(nicknameChanged ? { nicknameChangedAt: new Date() } : {}),
-      });
-      await updateDoc(doc(db, 'users', `nickname_${userData.nickname}`), {
-        nickname: newNickname,
-        bio: editData.bio.trim(),
-        avatarUrl: editData.avatarUrl,
-      }).catch((err) => console.warn('nickname_ 문서 업데이트 실패 (문서 미존재 가능):', err));
-
-      // 🚀 2단계: 닉네임 변경 시 community_memberships + communities 일괄 업데이트
-      // Why: nickname이 비정규화되어 있으므로 변경 즉시 모든 관련 문서에 반영해야 파편화 방지
-      if (nicknameChanged) {
-        const batch = writeBatch(db);
-
-        // 내가 가입한 장갑의 멤버십 문서
-        const membershipsSnap = await getDocs(
-          query(collection(db, 'community_memberships'), where('userId', '==', uid))
-        );
-        membershipsSnap.docs.forEach(d => batch.update(d.ref, { nickname: newNickname }));
-
-        // 내가 만든 장갑 문서 (creatorNickname 필드)
-        const communitiesSnap = await getDocs(
-          query(collection(db, 'communities'), where('creatorId', '==', uid))
-        );
-        communitiesSnap.docs.forEach(d => batch.update(d.ref, { creatorNickname: newNickname }));
-
-        await batch.commit();
+      // bio/avatarUrl만 클라 updateDoc (nickname은 CF가 처리 + cascade)
+      const bioChanged = editData.bio.trim() !== (userData.bio || '');
+      const avatarChanged = editData.avatarUrl !== (userData.avatarUrl || '');
+      if (bioChanged || avatarChanged) {
+        await updateDoc(doc(db, 'users', uid), {
+          bio: editData.bio.trim(),
+          avatarUrl: editData.avatarUrl,
+        });
       }
 
       setIsEditingProfile(false);
