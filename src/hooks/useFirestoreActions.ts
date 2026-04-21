@@ -11,9 +11,14 @@ import type { MenuId } from '../components/Sidebar';
 import { isEligibleForExp, anonymizeExileNickname } from '../utils';
 
 // 🚀 Rate Limit 쿨다운 (클라이언트 사이드)
-const RATE_LIMIT = { POST_COOLDOWN_MS: 60_000, COMMENT_COOLDOWN_MS: 15_000 };
+const RATE_LIMIT = {
+  POST_COOLDOWN_MS: 60_000,
+  COMMENT_COOLDOWN_MS: 15_000,
+  FRIEND_TOGGLE_COOLDOWN_MS: 5_000,
+};
 let lastPostTime = 0;
 let lastCommentTime = 0;
+let lastFriendToggleTime = 0;
 
 interface FirestoreActionDeps {
   userData: UserData | null;
@@ -215,16 +220,30 @@ export function useFirestoreActions({
   // 깐부(팔로우) 토글
   const toggleFriend = async (author: string) => {
     if (!userData) return;
+    // 🛡️ Anti-Abuse Commit 7-B: 5초 쿨다운 (실수·연타 방지)
+    if (Date.now() - lastFriendToggleTime < RATE_LIMIT.FRIEND_TOGGLE_COOLDOWN_MS) {
+      alert('깐부 버튼은 5초에 1회만 누를 수 있습니다.');
+      return;
+    }
     const isFriend = friends.includes(author);
+    // 🛡️ Anti-Abuse Commit 7-B: 동일 유저 재맺기 시 EXP 미지급 (루프 차단)
+    // Why: "맺기(+2)→해제(0)→재맺기(+2)" 무한 반복으로 exp 무제한 상승 가능
+    //      previousFriends는 한 번이라도 맺었던 닉네임을 영구 보존 (append-only)
+    const wasPreviousFriend = userData.previousFriends?.includes(author) ?? false;
+    const expGain = isFriend ? 0 : (wasPreviousFriend ? 0 : 2);
     try {
-      await updateDoc(doc(db, 'users', userData.uid), {
+      const updatePayload: Record<string, unknown> = {
         friendList: isFriend ? arrayRemove(author) : arrayUnion(author),
         // 🛡️ Anti-Abuse Commit 5: 해제 페널티 제거 (-15 → 0)
-        // Why: Rules §4.2.2가 exp 감소 차단 → 해제 시 permission-denied 방지
-        // 🛡️ Anti-Abuse Commit 7: 맺기 +10 → +2 완화 (ANTI_ABUSE §5.2.1)
-        // Why: 다계정 100개 루프 시 +1000 EXP → Lv5 도달 가능. +2로 낮춰 어뷰징 차단.
-        exp: increment(isFriend ? 0 : 2),
-      });
+        // 🛡️ Anti-Abuse Commit 7-A: 맺기 +10 → +2 완화 (ANTI_ABUSE §5.2.1)
+        // 🛡️ Anti-Abuse Commit 7-B: 재맺기는 +0 (루프 원천 차단)
+        exp: increment(expGain),
+      };
+      if (!isFriend && !wasPreviousFriend) {
+        updatePayload.previousFriends = arrayUnion(author);
+      }
+      await updateDoc(doc(db, 'users', userData.uid), updatePayload);
+      lastFriendToggleTime = Date.now();
     } catch (e) { console.error(e); }
   };
 

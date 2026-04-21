@@ -301,6 +301,16 @@ service cloud.firestore {
             && request.resource.data.exp >= resource.data.exp
             && request.resource.data.exp - resource.data.exp <= 100
           )
+        )
+        // 🛡️ Anti-Abuse Commit 7-B: previousFriends는 append-only
+        // Why: 재맺기 +0 판정의 신뢰성 보장 — 클라가 배열을 지워서 EXP 재수급 차단
+        && (
+          !('previousFriends' in request.resource.data.diff(resource.data).affectedKeys())
+          || (
+            request.resource.data.previousFriends is list
+            && (!('previousFriends' in resource.data)
+                || request.resource.data.previousFriends.size() >= resource.data.previousFriends.size())
+          )
         );
 
       // nickname_ 접두사 문서: 본인 닉네임 동기화용

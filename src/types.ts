@@ -51,6 +51,10 @@ export interface UserData {
   bio?: string;           // 자기소개
   avatarUrl?: string;     // 커스텀 프로필 이미지 URL
   friendList?: string[];  // 깐부 닉네임 목록
+  // 🛡️ Anti-Abuse Commit 7-B: 과거에 한 번이라도 깐부로 맺었던 닉네임 영구 기록
+  // Why: 재맺기 시 EXP 미지급 판정용 (루프 어뷰징 차단)
+  //      해제 후에도 남아있음 (one-way append, Rules append-only 가드)
+  previousFriends?: string[];
   blockList?: string[];   // 차단 유저 닉네임 목록
   subscriberCount?: number;
   isPhoneVerified?: boolean;
