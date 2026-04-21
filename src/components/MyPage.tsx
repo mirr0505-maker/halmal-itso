@@ -268,6 +268,23 @@ const MyPage = ({
           alert(`닉네임 변경에는 100볼이 필요합니다. 현재 잔액: ${currentBalance}볼`);
           return;
         }
+
+        // 🔒 사전 체크: 예약·중복 닉네임은 확인 모달 전에 즉시 거부
+        // Why: 긴 경고 모달 → CF 호출 → 거부 흐름은 UX가 헷갈림. 미리 막아 사용자 당황 방지.
+        //      race condition은 CF 트랜잭션이 최종 차단하므로 보안은 유지.
+        const [reservedSnap, dupSnap] = await Promise.all([
+          getDoc(doc(db, 'reserved_nicknames', newNickname)),
+          getDoc(doc(db, 'users', `nickname_${newNickname}`)),
+        ]);
+        if (reservedSnap.exists()) {
+          alert(`"${newNickname}"은(는) 예약된 닉네임입니다. 다른 닉네임을 선택해 주세요.`);
+          return;
+        }
+        if (dupSnap.exists()) {
+          alert(`"${newNickname}"은(는) 이미 사용 중입니다. 다른 닉네임을 선택해 주세요.`);
+          return;
+        }
+
         const confirmed = window.confirm(
           `닉네임 변경은 평생 1회만 가능하며 100볼이 차감됩니다.\n\n` +
           `이전 닉네임("${userData.nickname}")은 영구 예약되어 다시 사용할 수 없습니다.\n\n` +
