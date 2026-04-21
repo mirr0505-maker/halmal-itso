@@ -1,8 +1,60 @@
 # Sprint 3 계획서 — 어뷰징 감지 CF + 평판 캐시 파이프라인
 
-> 작성일: 2026-04-21
+> 작성일: 2026-04-21 (2026-04-22 선행 절 추가)
 > 전제: Sprint 2 완료 (LEVEL V2 옵션 B + REPUTATION V2 공식·캐시 필드·이중 링 아바타 시범 + 깐부 표기 정리 + 레벨 동기화 CF 배포 완료)
 > 목적: V2 평판 캐시 실제 채우기 + 어뷰징 자동 탐지망 구축
+
+---
+
+## ⭐ 선행 작업 — Node 22 + firebase-functions 마이그레이션
+
+**출처**: [ADMIN.md §Step 2 항목 2](./ADMIN.md#L4791) — 원래 V2 구현 전에 하기로 했으나 건너뛰었음. Sprint 3 신규 CF 4개 작성 전에 런타임부터 올려 이후 CF는 Node 22 전제로 작성.
+
+### 현재 vs 목표
+
+| 항목 | 현재 | 목표 |
+|------|------|------|
+| `functions/package.json` engines.node | `"20"` | `"22"` |
+| `firebase-functions` | `^4.9.0` | `^6.x` (최신) |
+| `firebase-admin` | `^12.1.0` | `^13.x` (최신) |
+| 로컬 Node | v24.12.0 ✓ | 호환 |
+| Firebase CLI | 15.1.0 ✓ | 호환 |
+
+### 작업 순서 (🔴 중리스크 — 46 CF 동시 런타임 전환)
+
+| # | 작업 | 리스크 |
+|---|------|------|
+| S-1 | `engines.node: "22"` + 의존성 메이저 업 (`firebase-functions ^6`, `firebase-admin ^13`) | 🟢 로컬만 |
+| S-2 | `cd functions && npm install` + breaking change 대응 | 🟡 API 변경 수동 확인 |
+| S-3 | 로컬 에뮬레이터 smoke (`toggleKanbu` · `sendThanksball` · `releaseFromExile`) | 🟡 실행 테스트 |
+| S-4 | 🔥 배포 (46 CF 동시 전환, 하나 실패 시 전체 rollback) | 🔴 |
+| S-5 | Functions Console 로그 30분 모니터 + 스모크 재실행 | 🟡 |
+
+### Breaking change 예상 지점 (firebase-functions 4 → 6)
+
+- `functions.config()` 완전 deprecated → `defineString()` / `defineSecret()` 파라미터 API (현 코드 사용 여부 확인 필요)
+- `functions.region(...)` → v2는 `{ region: ... }` 옵션 (이미 v2 onCall 사용 → 영향 적음)
+- `firebase-admin` 13: FieldValue import 경로 동일. 대부분 호환.
+
+### 롤백 플랜
+
+문제 발생 시 `engines.node: "20"` + 구 의존성 `package.json` 복구 → 재배포 (15분 내).
+
+### 일정 제안 (2026-04-22 03:00 KST 이후)
+
+| 시간대 | 작업 | 소요 |
+|--------|------|------|
+| 03:00~03:15 | Sprint 2 배포 검증 (기존 §내일 할일 Step 1) | 15분 |
+| 03:15~04:30 | **Node 22 마이그레이션 (본 절)** | ~1h 15m |
+| 04:30~05:00 | Sprint 3 선행 결정 답변 + Phase A 착수 (§8 + §2) | 30분 |
+
+**보수 옵션**: Node 22 배포 후 **24h 관찰 기간**을 두고 Sprint 3 Phase A는 그 다음 날. 하루에 런타임 전환 + 새 Rules 동시 배포는 장애 원인 구분이 어려움.
+
+### 착수 트리거
+
+- "**Node 22 올리자**" — S-1부터 순차 진행
+- "**로컬만 올리고 배포는 내일모레**" — S-4 보수 분리
+- "**Sprint 3 먼저, Node는 나중**" — 본 선행 절 보류
 
 ---
 
