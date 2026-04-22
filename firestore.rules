@@ -295,7 +295,13 @@ service cloud.firestore {
               // 🛡️ Sprint 3 Phase A — REPUTATION V2 필드 7종 차단
               // Why: F12 콘솔로 reputationCached=99999 직접 쓰기 공격 차단 (CF Admin SDK 전용)
               'reputationCached', 'reputationTierCached', 'reputationUpdatedAt',
-              'lastActiveAt', 'abuseFlags', 'grandfatheredPrestigeTier'
+              'lastActiveAt', 'abuseFlags', 'grandfatheredPrestigeTier',
+              // 🏅 Sprint 4 Phase A — CREATOR SCORE 필드 10종 차단
+              // Why: creatorScore·recent30d·likesSent·exileHistory 직접 조작으로 마패/Gate 우회 차단
+              'creatorScoreCached', 'creatorScoreTier', 'creatorScoreUpdatedAt',
+              'recent30d_posts', 'recent30d_comments', 'recent30d_likesSent',
+              'recent30dUpdatedAt', 'reportsUniqueReporters', 'reportsUpdatedAt',
+              'likesSent', 'exileHistory'
             ])
         && (
           !('exp' in request.resource.data.diff(resource.data).affectedKeys())

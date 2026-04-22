@@ -70,6 +70,52 @@ export const ABUSE_PENALTIES = {
 } as const;
 
 // ════════════════════════════════════════════════════════════
+// 🏅 CREATOR SCORE — Sprint 4 (CREATOR_SCORE.md)
+// ════════════════════════════════════════════════════════════
+// 🚀 Creator Score 공식: (reputation × activity × trust) / SCALING_DIVISOR
+// Why: 평판(신뢰도)·활동량(성실도)·트러스트(제재이력) 3축 종합 점수
+//      홈 피드 정렬·광고 경매 품질 가중치·Gate 함수(출금/라이브/잉크병)에 공통 입력
+// 참조: docs/step1-design/CREATOR_SCORE.md
+export const CREATOR_SCORE_CONFIG = {
+  SCALING_DIVISOR: 1000,       // (rep × act × trust) / 1000 → 0~5+ 범위
+  RECENT_WINDOW_DAYS: 30,      // activity 집계 창
+  MIN_TRUST: 0.3,              // trust 하한 (유배 3단계에서도 이 값 유지)
+} as const;
+
+// 🚀 활동 가중치 — CREATOR_SCORE §활동 이벤트
+// Why: recent30d = posts×3 + comments×1 + likesSent×0.5
+export const ACTIVITY_WEIGHTS = {
+  post: 3,
+  comment: 1,
+  likeSent: 0.5,
+} as const;
+
+// 🚀 Lv별 활동량 중위값 — CREATOR_SCORE §10 지수 보간 D1-β
+// Why: activity = min(1.0, recent30d / LEVEL_MEDIAN_ACTIVITY[level])
+//      Lv5 고정=30, Lv10 고정=100 (나머지는 지수 보간)
+export const LEVEL_MEDIAN_ACTIVITY: Record<number, number> = {
+  1: 5, 2: 10, 3: 15, 4: 22, 5: 30, 6: 45, 7: 60, 8: 75, 9: 87, 10: 100,
+};
+
+// 🚀 Trust 감산 상수 — CREATOR_SCORE §신뢰도 공식
+// Why: abuse + exile + report 3계층. Phase B는 abuse + exile만, Phase C에서 report 활성
+export const TRUST_CONFIG = {
+  ABUSE_PENALTIES: {
+    shortPostSpam: 0.05,
+    circularThanksball: 0.10,
+    multiAccount: 0.15,
+    massFollowUnfollow: 0.05,
+  },
+  EXILE_PENALTIES: { 1: 0.05, 2: 0.25, 3: 1.50 }, // 3차는 MIN_TRUST 바닥
+  REPEAT_MULTIPLIER: { 2: 1.5, 3: 2.0 },          // 같은 단계 재범
+  REPORT_PENALTIES: [                              // Phase C — 고유신고자 수
+    { threshold: 5, penalty: 0.05 },
+    { threshold: 10, penalty: 0.10 },
+    { threshold: 20, penalty: 0.15 },
+  ],
+} as const;
+
+// ════════════════════════════════════════════════════════════
 // 📈 LEVEL — EXP 기반 레벨 경계값
 // ════════════════════════════════════════════════════════════
 // 🚀 LEVEL_TABLE — Phase A 경계값 (LEVEL_V2.md §11.1 확정, 2026-04-21)

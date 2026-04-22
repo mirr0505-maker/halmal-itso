@@ -112,6 +112,32 @@ export interface UserData {
   abuseFlags?: AbuseFlags;                  // 어뷰징 감점 입력
   grandfatheredPrestigeTier?: 'legend' | 'awe' | 'mythic'; // Phase C 경계값 조정 시 보호
   grandfatheredAt?: FirestoreTimestamp;
+  // 🏅 Creator Score (CREATOR_SCORE.md) — CF만 쓰기, 클라이언트 read-only
+  creatorScoreCached?: number;                 // 최종 점수 (rep × act × trust / 1000)
+  creatorScoreTier?: MapaeKey;                 // 마패 티어 캐시
+  creatorScoreUpdatedAt?: FirestoreTimestamp;  // 캐시 갱신 시각
+  recent30d_posts?: number;                    // 최근 30일 글 수
+  recent30d_comments?: number;                 // 최근 30일 댓글 수
+  recent30d_likesSent?: number;                // 최근 30일 내가 누른 좋아요 수
+  recent30dUpdatedAt?: FirestoreTimestamp;     // recent30d 집계 시각
+  reportsUniqueReporters?: number;             // Phase C — 고유 신고자 수
+  reportsUpdatedAt?: FirestoreTimestamp;       // Phase C — 신고 집계 시각
+  likesSent?: number;                          // 누적 내가 누른 좋아요 수 (평생값)
+  exileHistory?: ExileRecord[];                // 유배 이력 배열 (단계별 타임스탬프)
+}
+
+// 🏅 마패 티어 — CREATOR_SCORE.md §마패 티어 경계 (동/은/금/백금/다이아)
+// Why: MAPAE_THRESHOLDS(constants.ts)와 짝. Score 범위로 티어 결정
+export type MapaeKey = 'bronze' | 'silver' | 'gold' | 'platinum' | 'diamond';
+
+// 🏚️ 유배 이력 레코드 — exileHistory 배열 원소. 재범 배수 계산용
+// Why: sanctionStatus는 현재 상태만 표현, 과거 몇 차례 어떤 단계 유배였는지 trust 공식에 필요
+export interface ExileRecord {
+  level: 1 | 2 | 3;
+  enteredAt: FirestoreTimestamp;       // 유배 시작 시각
+  releasedAt?: FirestoreTimestamp;     // 속죄금 납부 또는 만료 (사약 시 미설정)
+  reason?: string;                      // 관리자 입력 사유
+  bailPaid?: number;                    // 납부 속죄금 (볼)
 }
 
 // 🏚️ 유배 상태

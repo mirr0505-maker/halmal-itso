@@ -566,3 +566,21 @@ const { snapshotUserDaily } = require("./snapshotUserDaily");
 const { reputationCache } = require("./reputationCache");
 exports.snapshotUserDaily = snapshotUserDaily;
 exports.reputationCache = reputationCache;
+
+// 🏅 Sprint 4 Phase B — Creator Score 시스템
+// Why: 평판 × 활동 × 신뢰 3축 점수. 홈 피드 정렬 가중치·광고 경매 품질·Gate 함수 공통 입력
+//      activity_logs 자동 수집 (클라 무변경) + 일일 05:00 배치 + 이벤트 트리거
+const {
+  onPostCreatedForActivity,
+  onCommentCreatedForActivity,
+  onPostLikeChangedForActivity,
+  onCommentLikeChangedForActivity,
+} = require("./onActivityTriggers");
+const { creatorScoreCache } = require("./creatorScoreCache");
+const { onUserChangedForCreatorScore } = require("./creatorScoreEvents");
+exports.onPostCreatedForActivity = onPostCreatedForActivity;
+exports.onCommentCreatedForActivity = onCommentCreatedForActivity;
+exports.onPostLikeChangedForActivity = onPostLikeChangedForActivity;
+exports.onCommentLikeChangedForActivity = onCommentLikeChangedForActivity;
+exports.creatorScoreCache = creatorScoreCache;
+exports.onUserChangedForCreatorScore = onUserChangedForCreatorScore;
