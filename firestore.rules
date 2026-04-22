@@ -291,7 +291,11 @@ service cloud.firestore {
               'promoEnabled', 'promoExpireAt', 'promoPlan', 'promoUpdatedAt',
               'nickname', 'nicknameChangedAt', 'nicknameChangeCount',
               'previousNicknames',
-              'grandfatheredLevel', 'grandfatheredAt'
+              'grandfatheredLevel', 'grandfatheredAt',
+              // 🛡️ Sprint 3 Phase A — REPUTATION V2 필드 7종 차단
+              // Why: F12 콘솔로 reputationCached=99999 직접 쓰기 공격 차단 (CF Admin SDK 전용)
+              'reputationCached', 'reputationTierCached', 'reputationUpdatedAt',
+              'lastActiveAt', 'abuseFlags', 'grandfatheredPrestigeTier'
             ])
         && (
           !('exp' in request.resource.data.diff(resource.data).affectedKeys())
