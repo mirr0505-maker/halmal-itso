@@ -559,3 +559,10 @@ const { snapshotBallBalance } = require("./ballSnapshot");
 const { auditBallBalance } = require("./ballAudit");
 exports.snapshotBallBalance = snapshotBallBalance;
 exports.auditBallBalance = auditBallBalance;
+
+// 🏅 Sprint 3 Phase B — 유저 일일 스냅샷 + V2 평판 캐시
+// Why: 클라이언트 getReputation() O(1) 조회 + Phase C 탐지망의 diff 기준점 축적
+const { snapshotUserDaily } = require("./snapshotUserDaily");
+const { reputationCache } = require("./reputationCache");
+exports.snapshotUserDaily = snapshotUserDaily;
+exports.reputationCache = reputationCache;
