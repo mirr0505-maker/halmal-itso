@@ -42,3 +42,8 @@ scripts/seed-inkwell-episodes.mjs
 
 # Cloudflare Workers 빌드 산출물
 upload-worker/.wrangler/
+
+# 🔐 Secret Manager 주입 백업 (PHONE_HASH_SALT 등) — 절대 커밋 금지
+PHONE_HASH_SALT*.txt
+*_SECRET*.txt
+*_SALT*.txt

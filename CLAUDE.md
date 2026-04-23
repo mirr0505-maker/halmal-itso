@@ -28,6 +28,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **KANBU.md** — 🏠 깐부방 상세 설계서. 깐부맺기 홍보 + 5탭 구조 + 유료 A/B + 🔴 라이브 + 수수료·정산·세무 + 홈 피드 격리 + 호스트 공백 처리.
 - **MARKET.md** — 🏪 강변 시장 설계서. 가판대(단건 판매) + 단골장부(구독 상점) + 광고 수익 쉐어.
 - **STOREHOUSE.md** — 🏚️ 놀부의 텅 빈 곳간(유배귀양지) 설계서. 4진 아웃 + 속죄금 + 깐부 리셋 + 사약 시스템.
+- **LevelSystem.md** — 📈 레벨/EXP 구현 레퍼런스 (Sprint 2). LEVEL_TABLE·calculateExpForPost·옵션 B 동기화·Lv별 해금·수수료.
+- **Reputation.md** — 🌟 평판 V2 구현 레퍼런스 (Sprint 3). V2-R 공식·티어 8단계·시간 감쇠·어뷰징 감점·캐시 파이프라인.
+- **CreatorScore.md** — 🏅 크리에이터 점수 구현 레퍼런스 (Sprint 4). 공식·상수·파이프라인·Rules·연계 시스템.
 - **ADSMARKET.md** — ADSMARKET 광고 시스템 상세 설계서.
 - **SHAREHOLDER_TIER.md** — 🛡️ 주주방 인증 체계 설계서. 등급(새우/상어/고래/대왕고래) + 방장 인증 패널 + 배지 전파.
 - **SHAREHOLDER_BACKLOG.md** — 주주방 인증 미룬 작업 레지스트리 (Phase E~F Codef 연동, 증거 이미지 presigned URL 등).
@@ -57,16 +60,36 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Firestore 자동 생성 ID 금지 → `topic_timestamp_uid` / `comment_timestamp_uid` 형식 사용
   - **예외**: `notifications/{uid}/items`, `sentBalls/{uid}/items`, `giant_trees/{id}/leaves` — 보조 데이터는 `addDoc` 자동 ID 허용
 - 실시간 리스너: `onSnapshot` (App.tsx 또는 개별 컴포넌트에서 관리)
-- 컬렉션: `posts`, `comments`, `users`, `kanbu_rooms`, `notifications`, `sentBalls`, `communities`, `community_posts`, `community_memberships`, `community_post_comments`, `giant_trees`, `marathon_dedup`, `series`, `unlocked_episodes`, `series_subscriptions`, `platform_revenue`, `glove_bot_payments`, `glove_bot_dedup`, `dart_corp_map`, `market_items`, `market_purchases`, `market_shops`, `market_subscriptions`, `market_ad_revenues`, `bail_history`, `release_history`, `banned_phones`, `sanction_log`, `exile_posts`, `exile_comments`, `kanbu_paid_subs`, `ball_transactions`, `ball_balance_snapshots`, `audit_anomalies`
-- **Firestore Security Rules 차단 필드**: `ballBalance`, `thanksballTotal`(Phase B — CF Admin SDK 전용), `promoEnabled`, `promoExpireAt`, `promoPlan`, `promoUpdatedAt` — 클라이언트 직접 수정 불가, 반드시 Cloud Function 경유
-- **Rules read/write 전면 차단 컬렉션**: `platform_revenue`, `glove_bot_payments`(대장 본인 read만 허용), `glove_bot_dedup`, `banned_phones`, `sanction_log`(관리자만 read), `bail_history`/`release_history`(본인만 read), `ball_transactions`(땡스볼 멱등키·원장 — read/write 전면 차단), `ball_balance_snapshots`(일일 잔액 스냅샷), `audit_anomalies`(관리자만 read), `sentBalls/*`(읽기는 본인만, write false) — Admin SDK / Cloud Function 전용
+- 컬렉션: `posts`, `comments`, `users`, `kanbu_rooms`, `notifications`, `sentBalls`, `communities`, `community_posts`, `community_memberships`, `community_post_comments`, `giant_trees`, `marathon_dedup`, `series`, `unlocked_episodes`, `series_subscriptions`, `platform_revenue`, `glove_bot_payments`, `glove_bot_dedup`, `dart_corp_map`, `market_items`, `market_purchases`, `market_shops`, `market_subscriptions`, `market_ad_revenues`, `bail_history`, `release_history`, `banned_phones`, `sanction_log`, `exile_posts`, `exile_comments`, `kanbu_paid_subs`, `ball_transactions`, `ball_balance_snapshots`, `audit_anomalies`, `user_snapshots`(Sprint 3 일일 평판 스냅샷), `activity_logs`(Sprint 4 Creator Score 30일 윈도우, TTL expiresAt), `admin_actions`(🛡️ Sprint 6 관리자 행위 감사 로그, Admin SDK 전용 write)
+- **Firestore Security Rules 차단 필드**: `ballBalance`, `thanksballTotal`(Phase B — CF Admin SDK 전용), `promoEnabled`, `promoExpireAt`, `promoPlan`, `promoUpdatedAt`, `reputationCached`, `reputationTierCached`, `reputationUpdatedAt`(Sprint 3 REPUTATION V2 캐시), `creatorScoreCached`, `creatorScoreTier`, `creatorScoreUpdatedAt`, `recent30d_posts`, `recent30d_comments`, `recent30d_likesSent`, `recent30dUpdatedAt`, `reportsUniqueReporters`, `reportsUpdatedAt`, `likesSent`, `exileHistory`(Sprint 4 Creator Score 10필드), `creatorScoreOverride`(Sprint 4 Phase C — `adminAdjustCreatorScore` CF 전용) — 클라이언트 직접 수정 불가, 반드시 Cloud Function 경유
+- **Rules read/write 전면 차단 컬렉션**: `platform_revenue`, `glove_bot_payments`(대장 본인 read만 허용), `glove_bot_dedup`, `banned_phones`, `sanction_log`(관리자만 read), `bail_history`/`release_history`(본인만 read), `ball_transactions`(땡스볼 멱등키·원장 — read/write 전면 차단), `ball_balance_snapshots`(일일 잔액 스냅샷), `audit_anomalies`(관리자만 read), `sentBalls/*`(읽기는 본인만, write false), `reports`(Sprint 4 Phase C — submitReport CF 전용), `admin_actions`(🛡️ Sprint 6 — read=isAdmin, write=false, Admin SDK 전용) — Admin SDK / Cloud Function 전용
 - **🏚️ sanction 필드**: `sanctionStatus`, `strikeCount`, `requiredBail`, `sanctionExpiresAt`, `phoneVerified`, `phoneHash` — 클라이언트 직접 수정 불가, 반드시 Cloud Function(`sendToExile`/`releaseFromExile`) 경유
+- **🚪 Creator Gates (Sprint 4 Phase C Task 4, 2026-04-22)**: `kanbu_rooms` create는 Lv6+ · `creatorScoreCached >= 0.5`, `live_sessions` create는 Lv6+ · `creatorScoreCached >= 2.0` (Firestore Rules `get()` 검증). 잉크병 유료 회차는 CF `createEpisode`에서 `assertPassesGate(inkwellPaid)` (Score ≥ 1.0). 상수 소스: `src/constants.ts CREATOR_GATES` ↔ `functions/utils/gateCheck.js`. 잠정 수치 — 배포 1주 후 튜닝 예정 (`project_creator_gates_tuning.md`)
 
 ### Cloud Functions (서울 리전, `functions/` 디렉토리)
 - `index.js` — 진입점 (fetchMarathonNews + 분리 모듈 re-export)
 - `thanksball.js` — `sendThanksball`: 땡스볼 전송 (잔액 차감·수신자 누적·알림). posts.author_id 우선 조회로 수신자 UID 확보. 수신자 `ballReceived`(평판 누적) + `ballBalance`(실사용 잔액) **동시 증가** — 받은 땡스볼은 되쓰기/유배 속죄금으로 사용 가능. 🔒 단일 트랜잭션 멱등 처리: `ball_transactions/{clientRequestId}` 마커로 재시도 이중 차감 차단. `MAX_AMOUNT_PER_TX=10000` 1회 상한, 정수·자기송금 검증(트랜잭션 내부 재확인). 원장 필드: schemaVersion/balanceBefore/balanceAfter/receiverBalanceBefore/receiverBalanceAfter/platformFee/sourceType/chatRef.
 - `ballSnapshot.js` — `snapshotBallBalance`: 매일 04:00 KST 모든 유저의 ballBalance/ballReceived/ballSpent를 `ball_balance_snapshots/{yyyyMMdd}_{uid}`에 저장 (400건 배치).
 - `ballAudit.js` — `auditBallBalance`: 매일 04:30 KST 전일·금일 스냅샷 + 24h `ball_transactions` 집계로 `expected = yesterday - outflow + inflow` 교차 검증. `diff < 0`이면 `audit_anomalies/{yyyyMMdd}_{uid}`에 critical 기록.
+- `snapshotUserDaily.js` — `snapshotUserDaily`: 매일 03:30 KST 전체 유저 스냅샷 → `user_snapshots/{yyyyMMdd}_{uid}` 기록 (likes/totalShares/ballReceived/reputation 고정값 보존). Sprint 3 REPUTATION V2.
+- `reputationCache.js` — `reputationCache`: 매일 04:45 KST → users 문서에 `reputationCached/reputationTierCached/reputationUpdatedAt` 갱신 (기존값 동일 시 skip, 400건 배치). `utils/reputationV2.js` 수식 사용. Sprint 3 REPUTATION V2.
+- `activityLogger.js` — `logActivity(uid, type, refId)` 공용 헬퍼: `activity_logs/{autoId}`에 `expiresAt=+30d` 포함 기록. `isEligibleContent()` (HTML strip + 10자 이상). Sprint 4 Creator Score.
+- `onActivityTriggers.js` — 4종 Firestore 트리거: `onPostCreatedForActivity` / `onCommentCreatedForActivity` (onCreate, logActivity + users.lastActiveAt), `onPostLikeChangedForActivity` / `onCommentLikeChangedForActivity` (onUpdate, likedBy 증가분을 nickname_{X} 색인으로 UID 역조회 → logActivity + users.likesSent increment). Sprint 4 Creator Score.
+- `creatorScoreCache.js` — `creatorScoreCache`: 매일 05:00 KST (reputationCache 04:45 뒤 15분 지연) → `activity_logs` 30일 윈도우 집계 → 전체 유저 순회 → users 갱신 (5필드 + tier). 400건 배치, timeoutSeconds 540, memory 1GiB. Sprint 4 Creator Score.
+- `creatorScoreEvents.js` — `onUserChangedForCreatorScore`: users/{uid} onUpdate. `sanctionStatus/exileHistory/reputationCached/abuseFlags/creatorScoreOverride` 변경 시 즉시 재계산. 무한 루프 2중 가드 (creatorScoreFields만 변경 시 skip + 결과값 동일 시 skip). Sprint 4 Creator Score + Phase C override.
+- `adminAdjust.js` — `adminAdjustCreatorScore`(override 설정/해제: users.creatorScoreOverride { value, reason, setBy, setAt, expiresAt? }). `adminToggleAbuseFlag`(users.abuseFlags.{flag} 토글, 4종: shortPostSpam/circularThanksball/multiAccount/massFollowUnfollow). 🛡️ Sprint 6 A-1 전환 — `assertAdmin` 사용 + `logAdminAction`으로 admin_actions 기록 (audit_anomalies에서 이관).
+- `utils/adminAuth.js` — 🛡️ Sprint 6 A-1: 관리자 권한 중앙 헬퍼. `assertAdmin(auth)` → `{adminUid, adminName, viaClaims}`. Custom Claims(`request.auth.token.admin === true`) 우선, 실패 시 닉네임 화이트리스트(`흑무영`, `Admin`) fallback. `isAdminByUid(uid)`(스케줄 CF용, 닉네임만). A-3 전환 시 이 파일의 `ADMIN_NICKNAMES`만 비우면 단일 소스.
+- `adminAudit.js` — 🛡️ Sprint 6 A-1: 관리자 행위 감사 로그. `logAdminAction({action, adminUid, adminName, viaClaims, targetUid, payload, reason})` 공용 헬퍼 → `admin_actions/{yyyyMMdd}_{adminUid}_{ts}_{rand}` 기록. `rollbackAdminAction` CF(화이트리스트 4종: grant/revoke_admin_role, toggle_abuse_flag, adjust_creator_score). 롤백 자체도 admin_actions 기록(action: `rollback_admin_action`). audit_anomalies(이상 징후 전용)와 분리.
+- `adminGrant.js` — 🛡️ Sprint 6 A-1: `grantAdminRole`/`revokeAdminRole`. Custom Claims { admin: true } 부여/제거 (`setCustomUserClaims`). 사유 2자 이상 필수. 자기 자신 회수 차단(`targetUid === adminUid` HttpsError) — 락아웃 방지. 클라이언트는 부여 후 `auth.currentUser.getIdToken(true)` 필요(SystemPanel에 "내 토큰 갱신" 버튼).
+- `syncUserLevel.js` — `syncUserLevel`: 매일 06:00 KST → 전체 유저 순회 → `calculateLevel(exp)` vs `user.level` 불일치 시 보정. 400건 배치, timeoutSeconds 540. Why: 타인 EXP 지급 경로(좋아요 마일스톤)는 `exp: increment()`만 날려 level 갱신 못 함 — 옵션 B 원칙 2 교정. Phase C Gate 함수(Lv5+ 권위 읽기) 선행 blocker 해제.
+- `reportSubmit.js` — `submitReport`: 🚨 사용자 신고 제출 (onCall). `{ targetType, targetId, reason }` → `reports/{targetType}_{targetId}_{reporterUid}` 멱등 생성. 자기 신고 차단, targetType 5종 화이트리스트(post/comment/community_post/community_post_comment/episode), 사유 300자 제한. 대상 문서 조회로 `targetUid` 해석. Sprint 4 Phase C.
+- `reportAggregator.js` — `reportAggregator`: 매일 05:15 KST → `reports` 전체 순회 → targetUid별 고유 reporterUid Set 집계 → `users.{uid}.reportsUniqueReporters` + `reportsUpdatedAt` 갱신 (400건 배치). Why: 담합 신고(동일 신고자 다수)는 고유 수로 집계되지 않아 자연 방어. `creatorScoreCache`(05:00) 뒤 15분 실행 — 반영은 다음날 배치에서. Sprint 4 Phase C.
+- `utils/creatorScore.js` `calculateTrustScore` — 🚨 Phase C REPORT_PENALTIES 활성화 (2026-04-22). `reportsUniqueReporters` 기준 threshold 내림차순 (20→10→5) 중 첫 매치만 감산(0.15/0.10/0.05). 잠정 수치 — `project_report_penalties_tuning.md`. 클라 `src/constants.ts TRUST_CONFIG.REPORT_PENALTIES`와 동기화.
+- `utils/reputationV2.js` — 서버 전용 평판 V2 공식 (클라 `utils.ts getReputationScoreV2`와 수식 동기화)
+- `utils/creatorScore.js` — 서버 Creator Score 수식 포트 (`calculateCreatorScore`, `calculateActivityScore`, `calculateTrustScore`, `calculateRecent30dTotal`, `getMapaeTier`, `resolveScore`(override 우선 적용 헬퍼)). 클라이언트 `src/constants.ts` `CREATOR_SCORE_CONFIG`/`ACTIVITY_WEIGHTS`/`LEVEL_MEDIAN_ACTIVITY`/`TRUST_CONFIG`와 상수 동기화
+- `utils/levelSync.js` — 옵션 B 레벨 동기화 헬퍼 (EXP 변경 시 `level: calculateLevel(newExp)` 동시 쓰기)
+- `utils/gateCheck.js` — 🚪 Creator Gate 서버 assert (`assertPassesGate`, `CREATOR_GATES`). 4종 Gate: 출금/라이브/잉크병유료/깐부방개설. Lv × Creator Score 동시 충족. Sprint 4 Phase C Task 4. 클라이언트 `src/constants.ts` `CREATOR_GATES`와 상수 동기화. 잠정 수치 — 배포 1주 후 분포 실측 튜닝 예정 (`project_creator_gates_tuning.md`)
+- `inkwell.js createEpisode` — `willBePaid=true` 시 `assertPassesGate(authorData, 'inkwellPaid')` 최종 차단 (Lv 무관 · Score ≥ 1.0)
 - `testCharge.js` — `testChargeBall`: 테스트용 볼 충전
 - `kanbuPromo.js` — `registerKanbuPromo`: 깐부 홍보 카드 등록 (Lv2+, 기간제)
 - `kanbuPaid.js` — `joinPaidKanbuRoom`: 깐부방 유료 게시판 결제(1회/구독, 수수료 Lv별 20~30%, pendingRevenue 누적). `checkKanbuSubscriptionExpiry`: 매일 09:00 월 구독 만료 처리
@@ -78,7 +101,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `dartCorpMap.js` — `syncDartCorpMap`(월 1회)/`triggerSyncDartCorpMap`(수동): DART 종목코드→고유번호 매핑. `lookupCorpCode`: 조회
 - `adTriggers.js` — `syncAdBids`/`updateAdMetrics`: ADSMARKET 광고 트리거
 - `market.js` — `purchaseMarketItem`(가판대 구매, 레벨별 수수료 30/25/20%), `subscribeMarketShop`(단골장부 구독), `checkSubscriptionExpiry`(매일 09:00 만료 체크+알림+차감)
-- `storehouse.js` — `sendToExile`(관리자 전용, strikeCount +1 + 단계 자동 판정, 4차 자동 사약 + postId 지정 시 글 숨김), `releaseFromExile`(본인, 속죄금 차감/소각 + 깐부 리셋), `executeSayak`(직권 사약, 자산 몰수 + 모든 글 숨김 + banned_phones), `checkAutoSayak`(매일 04:00 스케줄, 90일 미납 자동 사약)
+- `storehouse.js` — `sendToExile`(관리자 전용, strikeCount +1 + 단계 자동 판정, 4차 자동 사약 + postId 지정 시 글 숨김), `releaseFromExile`(본인, 속죄금 차감/소각 + 깐부 리셋), `executeSayak`(직권 사약, 자산 몰수 + 모든 글 숨김 + banned_phones), `checkAutoSayak`(매일 04:00 스케줄, 90일 미납 자동 사약). 🛡️ Sprint 6 A-1 전환 — 관리자 CF는 `assertAdmin` + `logAdminAction`(action: `send_to_exile`/`execute_sayak`/`execute_sayak_via_exile`/`execute_sayak_auto`). 스케줄 경로는 adminUid=`"AUTO"`.
+- `nickname.js` — `changeNickname`(평생 1회·100볼·연쇄 비정규화 갱신), `seedReservedNicknames`(예약어 9종 주입, 🛡️ Sprint 6 A-1 `assertAdmin` + `logAdminAction`).
 - 배포: `firebase deploy --only functions`
 
 ### Cloudflare R2 이미지 업로드
@@ -101,11 +125,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - 목록 뷰에서 이미지는 `[&_img]:hidden` (line-clamp 적용)
 
 ### 레벨·평판 시스템
-- **레벨(EXP)** = 성실도. DB에 `exp`(누적) + `level`(동기화) 두 필드. EXP 변경 시 `level: calculateLevel(newExp)` 동시 쓰기 (옵션 B, LEVEL_V2.md §5 확정).
+- **레벨(EXP)** = 성실도. DB에 `exp`(누적) + `level`(동기화) 두 필드. EXP 변경 시 `level: calculateLevel(newExp)` 동시 쓰기 (옵션 B, [LevelSystem.md §2.2](./LevelSystem.md) 확정).
 - 프론트 표시 시에도 `calculateLevel(exp)` 헬퍼로 실시간 재계산 가능 (`utils.ts`) — DB 값과 일치 보증.
 - **평판(Reputation)** = 신뢰도 5단계. `(likes×2) + (totalShares×3) + (ballReceived×5)`. 중립(0~299)→약간 우호(300)→우호(1000)→매우 우호(2000)→확고(3000).
 - EXP 지급 조건: 본문 10자 이상 (`isEligibleForExp()`). Rate Limit: 글 60초, 댓글 15초 쿨다운.
-- 삭제 시 EXP 차감: 글 -2, 댓글 -2, 깐부 해제 -15.
+- 삭제 시 EXP 차감: 글 -2, 댓글 -2. 깐부 해제 -2 (대칭 delta, 루프 어뷰징 차단 — [functions/toggleKanbu.js:47](functions/toggleKanbu.js#L47)).
 - **공개 프로필**: 아바타 클릭 → `PublicProfile` (7영역). 사이드바 내정보 → `MyPage` (관리).
 
 ### TypeScript
@@ -171,6 +195,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | `admin/ExileManagement.tsx` | 🏚️ 관리자 유배 관리 탭. 신고 목록 + 현재 유배자 목록(단계별 배지/90일 초과 경고) + [유배 보내기] + 수동 UID 입력 + ☠️ 직권 사약. |
 | `admin/AppealReview.tsx` | ⚖️ 이의 제기 검토 탭. 대기/전체 필터 + 인용(해제 권고)/기각 + 대상자 알림 발송. |
 | `admin/PlatformRevenueDashboard.tsx` | 💵 플랫폼 수익 대시보드. 잉크병/강변시장/정보봇 + 유배 시스템(속죄금 소각 + 사약 몰수) 카드. |
+| `admin/SystemPanel.tsx` | 🔧 관리자 시스템 운영 도구 (AdAdminPage 🔧 시스템 탭). 🛡️ Sprint 6 섹션: 관리자 역할 부여/회수(grantAdminRole/revokeAdminRole, 내 토큰 갱신 버튼) + admin_actions 감사 로그 뷰어(onSnapshot limit 30, 롤백 가능 4종 action만 버튼 노출). 기존 섹션: 예약어 시드 + Creator Score 수동 조정(override set/clear) + Abuse Flag 토글(4종 −0.05~−0.15 Trust 감산). `useCallable` 공용 훅 + ResultBlock. 모든 섹션 사유 2자+ 필수. feedback_admin_cf_ui_button 원칙. |
+| `admin/AdminGuard.tsx` | 🛡️ Sprint 6 A-1: `useAdminAuth(currentUser)` 훅 + `AdminGuard` 래퍼. Custom Claims(`getIdTokenResult`) OR 닉네임(`PLATFORM_ADMIN_NICKNAMES`) 이중 체크. 닉네임 경로는 즉시 판정(loading false), Claims 경로는 비동기. A-3 전환 시 닉네임 fallback만 제거. AdAdminPage에서 사용. |
+| `MapaeBadge.tsx` | 🏅 Creator Score 마패 티어 배지(동/은/금/백금/다이아). sm/md/lg 사이즈. `creatorScoreTier` 캐시 우선, 없으면 `getMapaeTier(creatorScoreCached)` 재계산. **상세 뷰 전용** — 리스트·피드 금지 (feedback_reputation_avatar_scope 동일 규칙). 티어 미부여(null) 시 조용히 숨김. |
+| `CreatorScoreInfo.tsx` | 🏅 PublicProfile 상세 박스. 최종 Score + 마패 라벨 + 3축 브레이크다운(평판·30일 활동·신뢰) + 활동 세부(글/댓글/좋아요) + override 배지(🔧 관리자 보정 중). 캐시 없으면 "집계 전" placeholder. |
 | `Sidebar.tsx` | `isExiled` prop — 유배자는 유배지+내정보만 노출. `activeMenu` 강제 이동은 App.tsx useEffect 가드. |
 
 ---

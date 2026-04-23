@@ -84,6 +84,44 @@
 - **속죄금:** 비용 장벽. 반성 기간이 지나도 속죄금을 못 내면 풀려나지 못함. "재물을 내놓아야 풀어준다"는 의미.
 - **무기한:** 속죄금을 마련할 때까지 곳간에 머무는 상태. 90일 경과 시 자동 사약.
 
+### 1.4 🏅 Creator Score trust 감산 연계 (Sprint 4, 2026-04-22)
+
+> 구현 레퍼런스: [CreatorScore.md](./CreatorScore.md) §3.3 Trust 축
+
+유배는 단순히 시간·비용 패널티로 끝나지 않는다. **영구 기록이 Creator Score `trust` 값을 항구적으로 감산**하여 광고 수익·Gate 함수에 반영된다.
+
+#### 데이터 필드
+
+`users/{uid}` 문서에 다음 2필드가 누적된다 (둘 다 Firestore Rules 차단 — CF 전용):
+
+- **`exileHistory: ExileRecord[]`** — 유배 이력 배열. `ExileRecord = { level: 1|2|3, enteredAt, releasedAt, reason, bailPaid }` ([src/types.ts](./src/types.ts))
+- **`strikeCount: number`** — 누적 횟수 (기존 필드, 영구 보존)
+
+#### trust 감산 공식
+
+`functions/utils/creatorScore.js` `calculateTrustScore(user)`에서 아래 계산:
+
+```
+trust = max(MIN_TRUST=0.3,  1.0  -  Σ abuse감산  -  Σ exile감산 × 재범배수)
+
+EXILE_PENALTIES        = { 1: 0.05,  2: 0.25,  3: 1.50 }     # 단계별 1회 감산
+REPEAT_MULTIPLIER      = { 2회: 1.5,  3회+: 2.0 }              # 같은 단계 재범 시 배수
+```
+
+- **1차 유배 1회**: `trust -= 0.05` → trust 0.95 (거의 체감 없음)
+- **3차 유배 1회**: `trust -= 1.50` → trust `max(0.3, -0.5) = 0.3` (**하한 직행 = Creator Score 30% 미만**)
+- **2차 유배 2회**: `trust -= 0.25 × 1.5 = 0.375` → trust 0.625
+- **1차 유배 3회**: `trust -= 0.05 × 2.0 = 0.10` → trust 0.90
+
+#### 연계 효과
+
+1. **광고 수익 감산** — Creator Score `gold` 이하로 강등되면 ADSMARKET 품질 가중치 하락 (Phase C 배포 예정)
+2. **Gate 함수 차단** — `canCreateCommunity()`, `canOpenKanbuRoom()` 등 Creator Score 기반 진입 장벽 (Phase C 배포 예정)
+3. **즉시 반영** — `sendToExile`/`releaseFromExile` CF가 `exileHistory`를 업데이트하면 `onUserChangedForCreatorScore` 트리거가 `creatorScoreCached/Tier`를 **다음 05:00 배치 대기 없이 즉시 재계산** ([functions/creatorScoreEvents.js](./functions/creatorScoreEvents.js))
+4. **영구 기록** — `exileHistory`는 속죄금 완납·해금 후에도 삭제되지 않음. 한 번 3차 유배를 받으면 평생 trust 0.3 고정 (하한)
+
+> **Why:** 단순 차단이 아닌 "신뢰도 잔존 감소"로 재활 여지는 남기되, 반복 위반은 기하급수적으로 불이익 누적 → 자정 효과 극대화.
+
 ---
 
 ## 2. 워크플로우 (Workflow)

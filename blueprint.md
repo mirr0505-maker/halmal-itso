@@ -2,7 +2,7 @@
 
 이 문서는 **할말있소(HALMAL-ITSO)** 프로젝트의 설계 원칙, 현재 구현 상태, 그리고 AI 개발자의 **절대적 행동 지침**을 담은 단일 진실 소스(Single Source of Truth)입니다.
 
-> 최종 갱신: 2026-04-19 v39 (브랜드 전환 — 글러브 GeuLove · geulove.com)  |  현재 브랜치: `main`
+> 최종 갱신: 2026-04-22 v40 (Sprint 2·3·4 — Node 22 + REPUTATION V2 + Creator Score)  |  현재 브랜치: `main`
 
 ---
 
@@ -69,19 +69,38 @@
 ├── src/index.ts             # OG 태그 파싱 엔드포인트 (내부 IP 차단, CORS, 100KB 제한)
 └── wrangler.toml            # Workers 설정 (name: halmal-link-preview)
 
-/functions                   # Firebase Cloud Functions (Blaze 플랜, Node.js 20, 서울 리전)
+/functions                   # Firebase Cloud Functions (Blaze 플랜, Node.js 22, 서울 리전)
 ├── index.js                 # 진입점 — 모든 함수 re-export (fetchMarathonNews + 분리 모듈)
 ├── thanksball.js            # sendThanksball — 땡스볼 전송 (잔액 차감·수신자 누적·알림, posts.author_id 우선 조회)
+├── ballSnapshot.js          # snapshotBallBalance — 매일 04:00 KST 잔액 스냅샷 (교차검증용)
+├── ballAudit.js             # auditBallBalance — 매일 04:30 KST 전일·금일 스냅샷+원장으로 교차 검증
+├── snapshotUserDaily.js     # 🏅 Sprint 3 — 매일 03:30 KST 유저 활동 스냅샷 (user_snapshots)
+├── reputationCache.js       # 🏅 Sprint 3 — 매일 04:45 KST V2 평판 전체 재계산 (users.reputationCached)
+├── activityLogger.js        # 🏅 Sprint 4 — logActivity() 헬퍼 (activity_logs 쓰기, 30일 TTL)
+├── onActivityTriggers.js    # 🏅 Sprint 4 — posts/comments onCreate·onUpdate 4종 트리거 (activity_logs + likesSent 누적)
+├── creatorScoreCache.js     # 🏅 Sprint 4 — 매일 05:00 KST Creator Score 전체 재계산
+├── creatorScoreEvents.js    # 🏅 Sprint 4 — users onUpdate 즉시 재계산 (sanctionStatus/reputationCached 변경 시)
+├── utils/
+│   ├── reputationV2.js      # 🏅 REPUTATION V2 서버 공식 (decay + abuse penalty) — src/utils.ts 미러
+│   ├── creatorScore.js      # 🏅 Creator Score 서버 공식 ((rep × act × trust) / 1000) — src/constants.ts 미러
+│   └── levelSync.js         # 레벨 동기화 헬퍼
 ├── auction.js               # adAuction — 광고 슬롯 입찰 처리
 ├── revenue.js               # aggregateDailyRevenue — 일별 광고 수익 집계
 ├── fraud.js                 # detectFraud — 부정 클릭 감지
 ├── settlement.js            # processSettlements — 정산 처리
+├── adTriggers.js            # syncAdBids / updateAdMetrics — ADSMARKET 광고 트리거
 ├── kanbuPromo.js            # registerKanbuPromo — 깐부 홍보 카드 등록 (Lv2+, 기간제 과금) → KANBU.md
 ├── kanbuPaid.js             # joinPaidKanbuRoom + checkKanbuSubscriptionExpiry — 유료 게시판 결제·만료 → KANBU.md
 ├── livePresence.js          # cleanupLivePresence — 🔴 라이브 좀비 참가자 정리 → KANBU.md §5
 ├── testCharge.js            # testChargeBall — 테스트용 땡스볼 충전
 ├── contentLength.js         # validateContentLength — 신포도와 여우 100자 제한 검증
-└── package.json             # 의존성: firebase-admin, firebase-functions, fast-xml-parser
+├── inkwell.js               # unlockEpisode / createEpisode / onEpisodeCreate / onInkwellPostDelete → INKWELL.md
+├── gloveBot.js              # activateInfoBot / deactivateInfoBot / updateInfoBot (주식 장갑 전용 정보봇)
+├── gloveBotFetcher.js       # fetchBotNews(RSS) / fetchBotDart(공시) — 매 30분 스케줄
+├── dartCorpMap.js           # syncDartCorpMap / triggerSyncDartCorpMap / lookupCorpCode
+├── market.js                # purchaseMarketItem / subscribeMarketShop / checkSubscriptionExpiry → MARKET.md
+├── storehouse.js            # sendToExile / releaseFromExile / executeSayak / checkAutoSayak → STOREHOUSE.md
+└── package.json             # 의존성: firebase-admin 13.x, firebase-functions 6.x, fast-xml-parser (Node 22)
 
 /src
 ├── App.tsx                  # 루트 컴포넌트 (전역 상태 관리, 라우팅 레이아웃) ~711줄
@@ -214,6 +233,11 @@
 | `exile_posts` | 🏚️ 유배지 게시글 | 자동 ID |
 | `exile_comments` | 🏚️ 유배지 댓글 | 자동 ID |
 | `appeals` | ⚖️ 유배 이의 제기 (본인+관리자 read, 관리자만 update) | 자동 ID |
+| `ball_transactions` | 🔒 땡스볼 원장 (멱등키·read/write 전면 차단) | `{clientRequestId}` |
+| `ball_balance_snapshots` | 🔒 일일 잔액 스냅샷 (교차검증, Admin SDK 전용) | `{yyyyMMdd}_{uid}` |
+| `audit_anomalies` | 🔒 교차검증 이상치 로그 (관리자만 read) | `{yyyyMMdd}_{uid}` |
+| `user_snapshots` | 🏅 Sprint 3 — 일일 유저 활동 스냅샷 (90일 보관) | `{yyyyMMdd}_{uid}` |
+| `activity_logs` | 🏅 Sprint 4 — 글·댓글·좋아요 활동 로그 (TTL 30일, `expiresAt` 기준) | 자동 ID |
 
 - **commentCount 비정규화**: 댓글 작성 시 `posts/{postId}` 문서에 `increment(1)` 누적 → 홈 피드 쿼리에서 Firestore 읽기 비용 절감.
 - **per-topic 구독**: `selectedTopic` 변경 시에만 `comments` where `rootId == selectedTopic.id` 구독 (전체 구독 비용 절감).
@@ -305,6 +329,56 @@ interface Thanksball {
 
 // KanbuRoom / KanbuChat / LiveSession / LiveBoardLine 등 깐부방 타입 상세는 KANBU.md §2 참조.
 // 핵심 필드만 요약: KanbuRoom { memberIds, paidBoards, paidOnceMembers, paidMonthlyMembers, liveSessionId }
+```
+
+### 4.3 `UserData` V2 확장 필드 (Sprint 3·4)
+
+평판·Creator Score 캐시 필드는 **CF Admin SDK 전용** — Firestore Rules가 클라이언트 쓰기를 전면 차단한다.
+(F12 콘솔로 `reputationCached=99999` / `creatorScoreCached=5.0` 직접 주입 공격 차단)
+
+```typescript
+interface UserData {
+  // ... 기본 필드 생략 (level, exp, likes, ballBalance 등)
+
+  // 🏅 REPUTATION V2 — Sprint 3 Phase A (Rules 차단) + Phase B (CF 갱신)
+  reputationCached?: number;                // V2 공식 = max(0, floor(base × decay - penalty))
+  reputationTierCached?: TierKey;            // 'neutral'~'firm' + Phase C 'legend'/'awe'/'mythic'
+  reputationUpdatedAt?: FirestoreTimestamp;  // 매일 04:45 KST 배치 갱신 시각
+  lastActiveAt?: FirestoreTimestamp;         // decay 입력 (글/댓글 생성 시 트리거로 갱신)
+  abuseFlags?: AbuseFlags;                   // shortPostSpam / circularThanksball / multiAccount / massFollowUnfollow
+  grandfatheredPrestigeTier?: 'legend' | 'awe' | 'mythic';
+  grandfatheredAt?: FirestoreTimestamp;
+
+  // 🏅 CREATOR SCORE — Sprint 4 Phase A (Rules 차단) + Phase B (CF 갱신)
+  creatorScoreCached?: number;               // (reputation × activity × trust) / 1000 → 0~5+
+  creatorScoreTier?: MapaeKey;               // bronze(0.5)/silver(1.0)/gold(2.0)/platinum(3.5)/diamond(5.0)
+  creatorScoreUpdatedAt?: FirestoreTimestamp;
+  recent30d_posts?: number;                  // 최근 30일 글 수 (activity_logs 집계)
+  recent30d_comments?: number;               // 최근 30일 댓글 수
+  recent30d_likesSent?: number;              // 최근 30일 내가 누른 좋아요 수
+  recent30dUpdatedAt?: FirestoreTimestamp;
+  reportsUniqueReporters?: number;           // Phase C 활성 — 고유 신고자 수
+  reportsUpdatedAt?: FirestoreTimestamp;     // Phase C
+  likesSent?: number;                        // 누적 좋아요 발송 (평생값, 트리거 자동 증가)
+  exileHistory?: ExileRecord[];              // 유배 이력 (단계별 타임스탬프, Creator Score trust 재범 배수 입력)
+}
+
+interface ExileRecord {
+  level: 1 | 2 | 3;
+  enteredAt: FirestoreTimestamp;
+  releasedAt?: FirestoreTimestamp;
+  reason?: string;
+  bailPaid?: number;
+}
+```
+
+**공식 요약** (구현 레퍼런스: [LevelSystem.md](./LevelSystem.md) / [Reputation.md](./Reputation.md) / [CreatorScore.md](./CreatorScore.md))
+
+```
+reputation = max(0, floor((likes×2 + totalShares×3 + ballReceived×5) × decay - penalty))
+activity   = min(1.0, (posts×3 + comments×1 + likesSent×0.5) / LEVEL_MEDIAN_ACTIVITY[level])
+trust      = max(0.3, 1.0 - Σabuse감산 - Σexile단계감산×재범배수)
+creatorScore = (reputation × activity × trust) / 1000
 ```
 
 ---
@@ -419,13 +493,19 @@ interface Thanksball {
 
 ### Firebase
 - `post_timestamp_nickname` ID 규칙 준수.
-- **현재 Blaze 플랜** — Cloud Functions 사용 중 (서울 리전 `asia-northeast3`, Node.js 20).
+- **현재 Blaze 플랜** — Cloud Functions 사용 중 (서울 리전 `asia-northeast3`, **Node.js 22** — Sprint 2 마이그레이션 2026-04-21 완료).
   - `fetchMarathonNews`: 매 30분 스케줄 뉴스 봇
   - `sendThanksball`: 땡스볼 전송 (ballBalance 직접 수정 차단 → Admin SDK 트랜잭션)
+  - `snapshotBallBalance` / `auditBallBalance`: 매일 04:00 / 04:30 KST 잔액 스냅샷 + 교차검증
   - `testChargeBall`: 테스트용 볼 충전
   - `registerKanbuPromo`: 깐부 홍보 카드 등록 (promoEnabled 직접 수정 차단)
   - `adAuction` / `aggregateDailyRevenue` / `detectFraud` / `processSettlements`: ADSMARKET 광고 시스템
   - `validateContentLength`: 신포도와 여우 100자 제한
+  - 🏅 `snapshotUserDaily`: Sprint 3 — 매일 03:30 KST 유저 활동 스냅샷 (`user_snapshots/{yyyyMMdd}_{uid}`)
+  - 🏅 `reputationCache`: Sprint 3 — 매일 04:45 KST V2 평판 전체 재계산 (변화 없으면 쓰기 생략)
+  - 🏅 `onPostCreatedForActivity` / `onCommentCreatedForActivity` / `onPostLikeChangedForActivity` / `onCommentLikeChangedForActivity`: Sprint 4 — 활동 로그 자동 수집 (activity_logs + lastActiveAt + likesSent)
+  - 🏅 `creatorScoreCache`: Sprint 4 — 매일 05:00 KST Creator Score 전체 재계산 (reputationCache 04:45 종속)
+  - 🏅 `onUserChangedForCreatorScore`: Sprint 4 — sanctionStatus/reputationCached/exileHistory/abuseFlags 변경 시 즉시 재계산 (무한루프 가드 포함)
   - 🖋️ `unlockEpisode`: 잉크병 유료 회차 결제 트랜잭션 (구매자 차감 → 플랫폼 수수료 11% 차감 → 작가 순수익 지급 → `platform_revenue/inkwell` 누적 → 영수증)
   - 🖋️ `createEpisode`: 잉크병 회차 생성 트랜잭션 (서버측 episodeNumber 결정, 레이스 컨디션 차단)
   - 🖋️ `onEpisodeCreate`: 잉크병 새 회차 발행 트리거 — 구독자 `new_episode` 알림 발송 (카운터 증가는 `createEpisode`가 담당)

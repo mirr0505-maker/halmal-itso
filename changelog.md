@@ -1,5 +1,45 @@
 ## 8. 현재 구현 상태 (2026-03-24 기준, 코드 실측)
 
+### 🏅 Sprint 4 Phase A+B — Creator Score 시스템 (2026-04-22)
+> 구현 레퍼런스: [CreatorScore.md](./CreatorScore.md) | 커밋: b44b36a
+
+- [x] **Phase A — 타입·Rules 기반 작업 (무위험)**
+  - `src/constants.ts`: `CREATOR_SCORE_CONFIG`(SCALING_DIVISOR=1000, RECENT_WINDOW_DAYS=30, MIN_TRUST=0.3) + `ACTIVITY_WEIGHTS`(post=3/comment=1/likeSent=0.5) + `LEVEL_MEDIAN_ACTIVITY`(Lv1~10 5→100) + `TRUST_CONFIG`(ABUSE_PENALTIES·EXILE_PENALTIES·REPEAT_MULTIPLIER·REPORT_PENALTIES) 추가
+  - `src/types.ts`: `UserData`에 12개 필드 확장 (`creatorScoreCached/Tier/UpdatedAt`, `recent30d_posts/comments/likesSent`, `recent30dUpdatedAt`, `reportsUniqueReporters/UpdatedAt`, `likesSent`, `exileHistory[]`) + `MapaeKey` 유니언 + `ExileRecord` 인터페이스
+  - `firestore.rules`: 10개 필드 클라이언트 쓰기 차단 (users/{uid} update 블록리스트)
+- [x] **Phase B — activity_logs + 6종 Cloud Functions**
+  - `functions/activityLogger.js`: `logActivity(uid, type, refId)` 공용 헬퍼 — `activity_logs/{autoId}`에 `expiresAt=+30d` 포함 기록. `isEligibleContent()` 헬퍼(10자 이상)
+  - `functions/onActivityTriggers.js`: 4종 onCreate/onUpdate 트리거 — `onPostCreatedForActivity`(글 작성 시 logActivity+lastActiveAt), `onCommentCreatedForActivity`(댓글), `onPostLikeChangedForActivity`(likedBy 증가분 감지 → nickname_{X} 색인 조회로 UID 확인 후 logActivity + users.likesSent increment), `onCommentLikeChangedForActivity`(동일 패턴)
+  - `functions/utils/creatorScore.js`: 서버 수식 포트 — `calculateCreatorScore`, `calculateActivityScore`, `calculateTrustScore`, `calculateRecent30dTotal`, `getMapaeTier`. 클라이언트 `src/constants.ts`와 상수 동기화
+  - `functions/creatorScoreCache.js`: 매일 05:00 KST (reputationCache 04:45 뒤 15분 지연) — `activity_logs` 30일 윈도우 집계 → 전체 유저 순회 → 변화 있으면 users 갱신. 400건 배치·timeoutSeconds 540·memory 1GiB
+  - `functions/creatorScoreEvents.js`: `onUserChangedForCreatorScore` — `sanctionStatus/exileHistory/reputationCached/abuseFlags` 변경 감지 시 즉시 재계산. 무한 루프 2중 가드(creatorScoreFields만 변경 시 skip + 결과값 동일 시 skip)
+  - `functions/index.js`: 6개 export 추가
+- [x] **B-1 전략 채택** — 기존 클라이언트 코드 0줄 수정. Firestore onCreate 트리거로 `activity_logs` 서버측 자동 기록
+- [x] **Phase C 보류** — 피드 정렬 공식·광고 경매 품질 가중치·Gate 함수 4종은 1주 관찰 후 결정 (배포 당일 creatorScoreCached=0 분포 고려)
+- [x] **문서**: [project_2026-04-23_check.md](../../.claude/projects/e--halmal-itso/memory/project_2026-04-23_check.md) 체크리스트에 Sprint 4 Phase A+B 검증 섹션 5~9 추가
+
+### 🏅 Sprint 3 Phase A+B — REPUTATION V2 Rules + 일일 캐시 파이프라인 (2026-04-22)
+> 구현 레퍼런스: [Reputation.md](./Reputation.md) | 커밋: fd35203, 5e3d078
+
+- [x] **Phase A — REPUTATION V2 필드 Rules 차단**
+  - `reputationCached`, `reputationTierCached`, `reputationUpdatedAt` 3필드 클라이언트 쓰기 차단 (CF Admin SDK 전용)
+  - 기존 `reputationScore` 계산식 공식 정리: `(likes×2) + (totalShares×3) + (ballReceived×5)` — 5단계 티어(neutral/friendly/warm/trusted/beloved)
+- [x] **Phase B — 일일 스냅샷 + 평판 캐시 파이프라인**
+  - `functions/snapshotUserDaily.js`: 매일 03:30 KST 전체 유저 스냅샷 → `user_snapshots/{yyyyMMdd}_{uid}` 기록 (likes/totalShares/ballReceived/reputation 고정값 보존)
+  - `functions/reputationCache.js`: 매일 04:45 KST → users 문서에 `reputationCached/reputationTierCached/reputationUpdatedAt` 갱신. 기존값 동일 시 skip (400건 배치)
+  - `functions/utils/reputationV2.js`: 서버 전용 공식 (클라 `utils.ts getReputationScoreV2`와 수식 일치)
+- [x] **옵션 B 레벨 동기화 확정**: EXP 변경 시 `level: calculateLevel(newExp)` 동시 쓰기 — useFirestoreActions 등 전 경로 일괄 적용. 프론트 표시도 `calculateLevel(exp)` 실시간 재계산 가능 (DB 값과 일치 보증)
+- [x] **효과**: 클라이언트는 `reputationCached` 캐시값 우선 사용 → Firestore 계산 부담 0. `reputationUpdatedAt` 기준으로 UI 갱신 시점 판단.
+
+### 🔧 Sprint 2 — Node 22 마이그레이션 + LEVEL/REPUTATION V2 + 닉네임 사전체크 (2026-04-21 ~ 2026-04-22)
+> 커밋: 4c8e2c0, e53dc5f, f85c96b
+
+- [x] **Node.js 20 → 22 업그레이드** — `functions/package.json` engines.node "22"
+- [x] **firebase-functions 5.x → 6.6.0 · firebase-admin 12.x → 13.8.0** — Sprint 3/4 신규 CF가 6.x 전용 API(`onDocumentUpdated`, `onSchedule` timeZone 필드) 사용
+- [x] **cold start 관찰**: 48h 관찰 기간 설정 (Functions 평균 실행 시간 체크)
+- [x] **닉네임 변경 사전 체크** (`MyPage`): 변경 전 `nickname_{X}` 색인 문서 read로 중복·예약어 확인 → 서버 저장 실패 왕복 제거. UX 개선 + Firestore 읽기 비용 1건으로 compute 절감
+- [x] **LEVEL V2 확정** (구현 레퍼런스: [LevelSystem.md](./LevelSystem.md)): 옵션 B — DB에 `exp`(누적) + `level`(동기화) 두 필드. EXP 변경 시 `level: calculateLevel(newExp)` 동시 쓰기 (`useFirestoreActions`, `adminAdjustExp`, `kanbuPromo` 등 모든 EXP 경로 통일)
+
 ### 🎨 브랜드 전환 — 글러브 GeuLove · geulove.com (2026-04-19)
 > 설계: [BRANDING.md](./BRANDING.md)
 
