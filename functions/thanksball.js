@@ -3,8 +3,18 @@
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const { getFirestore, FieldValue, Timestamp } = require("firebase-admin/firestore");
 const { buildExpLevelUpdate } = require("./utils/levelSync");
+const { upgradeTitle } = require("./utils/titleAwarder");
 
 const db = getFirestore();
+
+// 🏷️ sponsor 칭호 누적 땡스볼 경계 (src/constants.ts TITLE_THRESHOLDS.sponsor 동기화)
+const SPONSOR_THRESHOLDS = { I: 1000, II: 10000, III: 100000 };
+function pickSponsorTier(total) {
+  if (total >= SPONSOR_THRESHOLDS.III) return "III";
+  if (total >= SPONSOR_THRESHOLDS.II) return "II";
+  if (total >= SPONSOR_THRESHOLDS.I) return "I";
+  return null;
+}
 
 // 🔒 1회 송금 상한 — 평판 펌핑/대량 이체 방지
 const MAX_AMOUNT_PER_TX = 10000;
@@ -286,6 +296,29 @@ exports.sendThanksball = onCall(
         ...(commentId ? { commentId } : {}),
         createdAt: Timestamp.now(), read: false,
       });
+    }
+
+    // 🏷️ sponsor 칭호 — 누적 보낸 땡스볼 갱신 + tier 재계산
+    // Why: ballSpent는 기존 집계이지만 '누적(환불·소각 제외)' 의미의 ballSentTotal을 별도 관리해
+    //      향후 어뷰징 패턴(대량 순환 송금 후 취소) 대응 여지를 남김. 현재는 amount만큼 단순 누적.
+    //      실패해도 송금 본 흐름에 영향 없도록 try-catch로 격리.
+    try {
+      const sponsorRef = db.collection("users").doc(senderUid);
+      const newTotal = await db.runTransaction(async (tx) => {
+        const snap = await tx.get(sponsorRef);
+        if (!snap.exists) return 0;
+        const next = (snap.data().ballSentTotal || 0) + amount;
+        tx.update(sponsorRef, { ballSentTotal: next });
+        return next;
+      });
+      const tier = pickSponsorTier(newTotal);
+      if (tier) {
+        await upgradeTitle(senderUid, "sponsor", tier, {
+          context: { ballSentTotal: newTotal },
+        });
+      }
+    } catch (err) {
+      console.error("[sendThanksball] sponsor hook 실패(무시하고 진행)", err);
     }
 
     return { success: true, amount };
