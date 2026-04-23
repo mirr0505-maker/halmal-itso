@@ -5,11 +5,11 @@
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const { onSchedule } = require("firebase-functions/v2/scheduler");
 const { getFirestore, FieldValue, Timestamp } = require("firebase-admin/firestore");
+// 🛡️ Sprint 6 A-1: 관리자 권한 헬퍼 + 감사 로그
+const { assertAdmin, isAdminByUid } = require("./utils/adminAuth");
+const { logAdminAction } = require("./adminAudit");
 
 const db = getFirestore();
-
-// 🏚️ 관리자 닉네임 화이트리스트 (클라이언트 PLATFORM_ADMIN_NICKNAMES와 동일)
-const ADMIN_NICKNAMES = ["흑무영", "Admin"];
 
 // 🏚️ 단계별 정책 — STOREHOUSE.md §1.1 기준
 // ⚠️ src/constants.ts SANCTION_POLICIES와 반드시 동기화 (CF는 Node 런타임이라 TS import 불가)
@@ -19,29 +19,17 @@ const SANCTION_POLICIES = [
   { level: 3, status: "exiled_lv3", reflectionDays: 30, bailAmount: 300 },
 ];
 
-// 관리자 검증 — users/{uid}.nickname으로 체크
-async function verifyAdmin(uid) {
-  const snap = await db.collection("users").doc(uid).get();
-  const nickname = snap.data()?.nickname;
-  return !!nickname && ADMIN_NICKNAMES.includes(nickname);
-}
-
 // ════════════════════════════════════════════════════════════
 // 🚀 sendToExile — 관리자 전용: 대상 유저를 유배
 // ════════════════════════════════════════════════════════════
 exports.sendToExile = onCall(
   { region: "asia-northeast3" },
   async (request) => {
-    if (!request.auth) throw new HttpsError("unauthenticated", "로그인이 필요합니다.");
-    const adminUid = request.auth.uid;
+    // 🛡️ Sprint 6: Claims OR 닉네임 이중 체크
+    const { adminUid, adminName, viaClaims } = await assertAdmin(request.auth);
     // 🏚️ postId: 문제 된 글 ID (선택) — 해당 글을 soft delete
     // targetCollection: 'posts' | 'community_posts' 등 (기본 'posts')
     const { targetUid, reason, postId, targetCollection } = request.data || {};
-
-    // 관리자 권한 검증
-    if (!(await verifyAdmin(adminUid))) {
-      throw new HttpsError("permission-denied", "관리자만 사용할 수 있습니다.");
-    }
 
     if (typeof targetUid !== "string" || !targetUid.trim()) {
       throw new HttpsError("invalid-argument", "targetUid가 필요합니다.");
@@ -155,6 +143,24 @@ exports.sendToExile = onCall(
       status: newStatus,
       createdAt: Timestamp.now(),
       read: false,
+    });
+
+    // 🛡️ Sprint 6: admin_actions 감사 로그
+    await logAdminAction({
+      action: sayakTriggered ? "execute_sayak_via_exile" : "send_to_exile",
+      adminUid,
+      adminName,
+      viaClaims,
+      targetUid,
+      payload: {
+        newStrikeCount,
+        newStatus,
+        sayakTriggered,
+        hiddenPostsCount,
+        postId: postId || null,
+        targetCollection: targetCollection || null,
+      },
+      reason: reason.trim(),
     });
 
     return { success: true, strikeCount: newStrikeCount, status: newStatus, sayakTriggered, hiddenPostsCount };
@@ -297,18 +303,31 @@ exports.releaseFromExile = onCall(
 exports.executeSayak = onCall(
   { region: "asia-northeast3", timeoutSeconds: 120 },
   async (request) => {
-    if (!request.auth) throw new HttpsError("unauthenticated", "로그인이 필요합니다.");
-    const adminUid = request.auth.uid;
+    // 🛡️ Sprint 6: Claims OR 닉네임 이중 체크
+    const { adminUid, adminName, viaClaims } = await assertAdmin(request.auth);
     const { targetUid, reason } = request.data || {};
 
-    if (!(await verifyAdmin(adminUid))) {
-      throw new HttpsError("permission-denied", "관리자만 사약을 내릴 수 있습니다.");
-    }
     if (typeof targetUid !== "string" || !targetUid.trim()) {
       throw new HttpsError("invalid-argument", "targetUid가 필요합니다.");
     }
 
-    await runSayakLogic(targetUid, reason || "관리자 직권 사약", adminUid);
+    const finalReason = reason || "관리자 직권 사약";
+    const result = await runSayakLogic(targetUid, finalReason, adminUid);
+
+    // 🛡️ Sprint 6: admin_actions 감사 로그
+    await logAdminAction({
+      action: "execute_sayak",
+      adminUid,
+      adminName,
+      viaClaims,
+      targetUid,
+      payload: {
+        seizedAmount: result.seizedAmount,
+        hiddenPostsCount: result.hiddenCount,
+      },
+      reason: finalReason,
+    });
+
     return { success: true };
   }
 );
@@ -354,6 +373,17 @@ async function runSayakLogic(targetUid, reason, adminUid) {
     });
   }
 
+  // 📱 Sprint 7 Step 7-C — 사약자의 referral_codes 비활성화
+  // Why: 코드 자체는 DB에 남아 타인이 redeem 시도 가능 → isDisabled로 차단
+  //      기존 confirmed 피추천자 관계는 보존(증거 보존), 깐부는 friendList arrayRemove에서 자연 정리
+  if (target.referralCode) {
+    await db.collection("referral_codes").doc(target.referralCode).update({
+      isDisabled: true,
+      disabledReason: "sayak",
+      disabledAt: now,
+    }).catch(e => console.warn(`[executeSayak] referral_codes disable skip: ${e.message}`));
+  }
+
   // 4. 모든 글 soft delete
   let hiddenCount = 0;
   for (const col of ["posts", "community_posts"]) {
@@ -394,6 +424,7 @@ async function runSayakLogic(targetUid, reason, adminUid) {
   });
 
   console.log(`[executeSayak] ${targetUid} (${target.nickname}) — 몰수 ${seizedAmount}볼, 숨김 ${hiddenCount}건`);
+  return { seizedAmount, hiddenCount };
 }
 
 // ════════════════════════════════════════════════════════════
@@ -419,7 +450,21 @@ exports.checkAutoSayak = onSchedule(
     let processed = 0;
     for (const doc of candidates.docs) {
       try {
-        await runSayakLogic(doc.id, "AUTO_SAYAK_90D_UNPAID", null);
+        const result = await runSayakLogic(doc.id, "AUTO_SAYAK_90D_UNPAID", null);
+        // 🛡️ Sprint 6: 자동 사약도 admin_actions 기록 (adminUid=null, adminName='AUTO')
+        await logAdminAction({
+          action: "execute_sayak_auto",
+          adminUid: "AUTO",
+          adminName: "AUTO (checkAutoSayak)",
+          viaClaims: false,
+          targetUid: doc.id,
+          payload: {
+            seizedAmount: result.seizedAmount,
+            hiddenPostsCount: result.hiddenCount,
+            trigger: "90d_unpaid",
+          },
+          reason: "AUTO_SAYAK_90D_UNPAID",
+        });
         processed++;
       } catch (err) {
         console.error(`[checkAutoSayak] ${doc.id} 실패:`, err);
