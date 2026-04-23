@@ -12,6 +12,7 @@ import type { Post, Series, EpisodePrivateContent, UserData } from '../types';
 import { formatCount } from '../utils/inkwell';
 import { calculateLevel, formatKoreanNumber, getReputationLabel, getReputation } from '../utils';
 import { sharePost } from '../utils/share';
+import { handleReport } from '../utils/reportHandler';
 import PaywallOverlay from './PaywallOverlay';
 import EpisodeCommentBoard from './EpisodeCommentBoard';
 import EpisodeCommentForm from './EpisodeCommentForm';
@@ -530,8 +531,8 @@ const EpisodeReader = ({ postId, currentUserUid, currentUserNickname, onBack, on
                   </button>
                 )}
                 <button
-                  disabled
-                  className="w-full text-left px-3 py-1.5 text-[11px] font-bold text-slate-400 cursor-not-allowed border-t border-slate-100"
+                  onClick={() => { setMenuOpen(false); handleReport('episode', episode.id); }}
+                  className="w-full text-left px-3 py-1.5 text-[11px] font-bold text-slate-700 hover:bg-slate-50 transition-colors border-t border-slate-100"
                 >
                   🚨 신고하기
                 </button>

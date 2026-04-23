@@ -52,6 +52,11 @@
         "region": "asia-northeast3"
       },
       {
+        "source": "/r/**",
+        "function": "ogRenderer",
+        "region": "asia-northeast3"
+      },
+      {
         "source": "**",
         "destination": "/index.html"
       }

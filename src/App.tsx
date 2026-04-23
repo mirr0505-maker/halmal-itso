@@ -11,7 +11,8 @@ const getDeepLinkParams = (() => {
     const currentParams = new URLSearchParams(window.location.search);
     const currentPath = window.location.pathname;
     // 현재 URL에 파라미터가 있으면 그대로 사용
-    if (currentParams.has('post') || currentParams.has('tree') || currentParams.has('node') || /^\/p\//.test(currentPath)) {
+    // 🎁 Sprint 7 Step 7-D: ?ref= (ogRenderer 리디렉트) / /r/{CODE} (직접 접근) 모두 인식
+    if (currentParams.has('post') || currentParams.has('tree') || currentParams.has('node') || currentParams.has('ref') || /^\/p\//.test(currentPath) || /^\/r\//.test(currentPath)) {
       cached = { params: currentParams, path: currentPath };
       return cached;
     }
@@ -31,8 +32,8 @@ const getDeepLinkParams = (() => {
 })();
 import { useState, useEffect, lazy, Suspense } from 'react';
 import { db } from './firebase';
-import { collection, onSnapshot, query, where } from 'firebase/firestore';
-import type { Post, KanbuRoom, Community } from './types';
+import { collection, onSnapshot, query, where, orderBy, limit, updateDoc, doc } from 'firebase/firestore';
+import type { Post, KanbuRoom, Community, TitleTier } from './types';
 import { EXILE_CATEGORY } from './types';
 import { useFirebaseListeners } from './hooks/useFirebaseListeners';
 import { useAuthActions } from './hooks/useAuthActions';
@@ -73,6 +74,10 @@ const InkwellHomeView = lazy(() => import('./components/InkwellHomeView'));
 const MarketHomeView = lazy(() => import('./components/MarketHomeView'));
 const ExileMainPage = lazy(() => import('./components/ExileMainPage'));
 const SayakScreen = lazy(() => import('./components/SayakScreen'));
+// 📱 Sprint 7 Step 7-B — 휴대폰 인증 게이트는 OnboardingGuard 내부에서 lazy 로드
+// 🔰 Sprint 7.5 — 온보딩 게이트 오케스트레이터 + 웰컴 화면
+const OnboardingGuard = lazy(() => import('./components/auth/OnboardingGuard'));
+const WelcomeScreen = lazy(() => import('./components/auth/WelcomeScreen'));
 const SeriesDetail = lazy(() => import('./components/SeriesDetail'));
 const EpisodeReader = lazy(() => import('./components/EpisodeReader'));
 const CreateSeries = lazy(() => import('./components/CreateSeries'));
@@ -85,6 +90,8 @@ const MyCommunityList = lazy(() => import('./components/MyCommunityList'));
 const CommunityFeed = lazy(() => import('./components/CommunityFeed'));
 const CommunityView = lazy(() => import('./components/CommunityView'));
 const CreateCommunityModal = lazy(() => import('./components/CreateCommunityModal'));
+// 🏷️ Sprint 5 Stage 5 — 칭호 획득(modal 레벨) 자동 팝업
+const TitleAchievementModal = lazy(() => import('./components/TitleAchievementModal'));
 const CREATE_MENU_COMPONENTS: Record<string, ReturnType<typeof lazy>> = {
   my_story:        lazy(() => import('./components/CreateMyStory')),
   naked_king:      lazy(() => import('./components/CreateNakedKing')),
@@ -175,6 +182,11 @@ function App() {
   // 🚀 홈에서 새 글 쓰기 2단계 UX — 1단계(카테고리 선택) 후 설정되는 메뉴 키
   const [createMenuKey, setCreateMenuKey] = useState<string | null>(null);
 
+  // 🔰 Sprint 7.5 — 로그인 버튼 클릭 시 띄우는 WelcomeScreen 토글
+  // Why: 기존엔 버튼 → 즉시 Google OAuth 팝업이었는데, 서비스 소개·약관 동의 단계를 앞에 둠.
+  //      "둘러보기" 클릭으로 닫으면 기존처럼 비로그인 탐색 가능.
+  const [isWelcomeOpen, setIsWelcomeOpen] = useState(false);
+
   const [pendingSharedPostId, setPendingSharedPostId] = useState<string | null>(() => {
     // ?post=topic_xxx (기존 방식) 또는 /p/topic_xxx (신규 방식) 모두 지원
     // 모바일 리디렉션 로그인 후 복귀 시: getDeepLinkParams()가 sessionStorage에서 원래 URL 복원
@@ -188,6 +200,23 @@ function App() {
   // 🚀 거대 나무 공유 URL 처리: ?tree=treeId&node=parentNodeId
   const [pendingTreeId] = useState<string | null>(() => getDeepLinkParams().params.get('tree'));
   const [pendingParentNodeId] = useState<string | null>(() => getDeepLinkParams().params.get('node'));
+
+  // 🎁 Sprint 7 Step 7-D — 추천코드 공유 링크 진입
+  //    경로 우선순위: sessionStorage('pendingReferralCode') > ?ref=CODE > /r/CODE
+  //    Why: ogRenderer가 <script>로 sessionStorage에 먼저 세팅 + ?ref=로 리디렉트하므로 일차적으로 sessionStorage, fallback으로 쿼리·경로.
+  //    소비 시점: 로그인 + phoneVerified 이후 MyPage 🎁 추천 탭에서 자동 입력 (ReferralSection가 읽어 제거)
+  const [pendingReferralCode] = useState<string | null>(() => {
+    try {
+      const fromStorage = sessionStorage.getItem('pendingReferralCode');
+      if (fromStorage && /^[A-Z0-9]{6,8}$/.test(fromStorage)) return fromStorage;
+    } catch { /* sessionStorage 차단 환경 무시 */ }
+    const { params, path } = getDeepLinkParams();
+    const qRef = params.get('ref');
+    if (qRef && /^[A-Z0-9]{6,8}$/i.test(qRef)) return qRef.toUpperCase();
+    const pathMatch = path.match(/^\/r\/([A-Za-z0-9]{6,8})$/);
+    if (pathMatch) return pathMatch[1].toUpperCase();
+    return null;
+  });
 
   // 🚀 광고 딥링크: ?menu=friends 등 → 해당 메뉴 자동 이동
   useEffect(() => {
@@ -231,6 +260,27 @@ function App() {
       window.history.replaceState({}, '', window.location.pathname);
     }
   }, [pendingTreeId]);
+
+  // 🎁 추천코드 공유 링크 접근: pendingReferralCode 감지 시
+  //    - sessionStorage에 보존 (로그인 왕복 생존)
+  //    - URL 쿼리/경로 정리 (뒤로가기 반복 방지)
+  //    - 로그인 + phoneVerified 상태면 MyPage 추천 탭으로 자동 이동
+  useEffect(() => {
+    if (!pendingReferralCode) return;
+    try { sessionStorage.setItem('pendingReferralCode', pendingReferralCode); } catch { /* 무시 */ }
+    if (/^\/r\//.test(window.location.pathname) || new URLSearchParams(window.location.search).has('ref')) {
+      window.history.replaceState({}, '', '/');
+    }
+    // 이미 가입·인증 완료 유저는 MyPage 추천 탭으로 자동 이동
+    if (userData && userData.phoneVerified === true) {
+      if (userData.referredByCode) {
+        // 이미 사용한 유저 — sessionStorage 정리 + 토스트 (ReferralSection도 자체 가드 있음)
+        try { sessionStorage.removeItem('pendingReferralCode'); } catch { /* 무시 */ }
+      } else {
+        setActiveMenu('mypage');
+      }
+    }
+  }, [pendingReferralCode, userData]);
 
   useEffect(() => { if (replyTarget) { setSelectedType('comment'); setNewTitle(""); } }, [replyTarget]);
   useEffect(() => { setSelectedFriend(null); setViewingAuthor(null); setPublicProfileNick(null); }, [activeMenu, activeTab]);
@@ -308,6 +358,56 @@ function App() {
     );
     return unsub;
   }, [userData?.uid]);
+
+  // 🏷️ Sprint 5 Stage 5 — 미확인 title_awarded_modal 알림 구독 (모달 레벨만)
+  //
+  // Why: "모달" 레벨 칭호(popular_writer / super_hit / influencer / dedication)는 의미가 큰 마일스톤 —
+  //      토스트로 묻히면 감흥이 없으므로, 로그인 직후 자동으로 축하 오버레이를 띄운다.
+  //      여러 개가 쌓여 있을 수 있으므로 가장 최근 1건만 재생 → 닫으면 read 처리 → 다음 건 자동 재생.
+  const [pendingTitleModal, setPendingTitleModal] = useState<{
+    id: string; titleId: string; tier?: string; action: 'awarded' | 'upgraded';
+  } | null>(null);
+  useEffect(() => {
+    if (!userData?.uid) { setPendingTitleModal(null); return; }
+    const q = query(
+      collection(db, 'notifications', userData.uid, 'items'),
+      where('type', '==', 'title_awarded_modal'),
+      orderBy('createdAt', 'desc'),
+      limit(5),
+    );
+    const unsub = onSnapshot(q, (snap) => {
+      // 가장 오래된 미읽음부터 재생 (오래된 축하부터 순차 팝업)
+      type TitleNotifDoc = { id: string; read?: boolean; isRead?: boolean; message?: string; titleId?: string; tier?: string };
+      const unread = snap.docs
+        .map((d) => ({ id: d.id, ...(d.data() as Omit<TitleNotifDoc, 'id'>) }) as TitleNotifDoc)
+        .filter((n) => !n.read && !n.isRead)
+        .reverse();
+      if (unread.length === 0) { setPendingTitleModal(null); return; }
+      const top = unread[0];
+      const message = top.message || '';
+      setPendingTitleModal({
+        id: top.id,
+        titleId: top.titleId || '',
+        tier: top.tier,
+        action: message.includes('상승') ? 'upgraded' : 'awarded',
+      });
+    }, (err) => console.error('[pendingTitleModal]', err));
+    return unsub;
+  }, [userData?.uid]);
+
+  const handleCloseTitleModal = async () => {
+    if (!userData?.uid || !pendingTitleModal) { setPendingTitleModal(null); return; }
+    try {
+      await updateDoc(
+        doc(db, 'notifications', userData.uid, 'items', pendingTitleModal.id),
+        { read: true, isRead: true },
+      );
+    } catch (err) {
+      console.error('[handleCloseTitleModal] 읽음 처리 실패', err);
+    } finally {
+      setPendingTitleModal(null);
+    }
+  };
 
   const goHome = () => {
     setActiveMenu('home'); setSelectedTopic(null); setIsCreateOpen(false); setReplyTarget(null); setEditingPost(null); setCreateMenuKey(null);
@@ -508,9 +608,10 @@ function App() {
             setInkwellMode('list');
             setInkwellTab('series');
           }}
+          initialTab={pendingReferralCode && !userData.referredByCode ? 'referral' : undefined}
         />;
       }
-      return <div className="w-full py-40 text-center"><button onClick={handleLogin} className="bg-slate-900 text-white px-8 py-3 rounded-xl font-black shadow-lg">로그인하기</button></div>;
+      return <div className="w-full py-40 text-center"><button onClick={() => setIsWelcomeOpen(true)} className="bg-slate-900 text-white px-8 py-3 rounded-xl font-black shadow-lg">로그인하기</button></div>;
     }
 
     if (activeMenu === 'friends') {
@@ -774,6 +875,7 @@ function App() {
             seriesId={selectedSeriesId}
             currentUserUid={currentUserUid}
             currentUserNickname={currentUserNickname}
+            currentUserData={userData}
             onSuccess={(newPostId) => {
               setInkwellMode('list');
               setSelectedEpisodeId(newPostId);
@@ -1008,9 +1110,24 @@ function App() {
         return (p.likes || 0) >= POST_FILTER.REGISTERED_MIN_LIKES && (!createdAt || createdAt <= newPostCutoff);
       });
     } else if (activeTab === 'best') {
-      filteredPosts = basePosts.filter(p => (p.likes || 0) >= POST_FILTER.BEST_MIN_LIKES);
+      // 🏅 인기글: 좋아요 ≥ BEST_MIN_LIKES(10) + Creator Score 가중치 정렬
+      // Why: 평판 낮은 유저의 좋아요 어뷰징 방지. Score 집계 전(null)은 1.0 fallback (신규 봉쇄 방지)
+      filteredPosts = basePosts
+        .filter(p => (p.likes || 0) >= POST_FILTER.BEST_MIN_LIKES)
+        .sort((a, b) => {
+          const aScore = (allUsers[a.author_id || '']?.creatorScoreCached ?? 1.0);
+          const bScore = (allUsers[b.author_id || '']?.creatorScoreCached ?? 1.0);
+          return ((b.likes || 0) * bScore) - ((a.likes || 0) * aScore);
+        });
     } else if (activeTab === 'rank') {
-      filteredPosts = basePosts.filter(p => (p.likes || 0) >= POST_FILTER.RANK_MIN_LIKES);
+      // 🏅 최고글: 좋아요 ≥ RANK_MIN_LIKES(30) + Creator Score 가중치 정렬
+      filteredPosts = basePosts
+        .filter(p => (p.likes || 0) >= POST_FILTER.RANK_MIN_LIKES)
+        .sort((a, b) => {
+          const aScore = (allUsers[a.author_id || '']?.creatorScoreCached ?? 1.0);
+          const bScore = (allUsers[b.author_id || '']?.creatorScoreCached ?? 1.0);
+          return ((b.likes || 0) * bScore) - ((a.likes || 0) * aScore);
+        });
     } else if (activeTab === 'friend') {
       // 깐부글: 좋아요 REGISTERED_MIN_LIKES(3개) 이상 + 팔로우 유저 (시간 제한 없음)
       filteredPosts = basePosts.filter(p =>
@@ -1172,6 +1289,12 @@ function App() {
     return <SayakScreen reason={userData.sanctionReason} onLogout={handleLogout} />;
   }
 
+  // 🔰 Sprint 7.5 — 온보딩 게이트는 JSX 하단에 오버레이로 마운트 (fixed inset-0 z-[100])
+  // Why: 게이트 통과 후 render를 앱 메인으로 빠르게 전환해야 하는데, 조기 return으로 막으면
+  //      localStorage 기반 skip 플래그가 실시간으로 감지 안 됨. 오버레이 방식은 guard 자체
+  //      재렌더만으로 게이트가 사라짐.
+  const isTestAccount = userData ? TEST_ACCOUNTS.some(a => a.email === userData.email) : false;
+
   return (
     <div className="bg-[#F8FAFC] text-slate-900 font-sans h-screen flex flex-col overflow-hidden">
       <header className="bg-white border-b border-slate-300 h-[56px] md:h-[64px] flex items-center justify-between px-4 md:px-6 shrink-0 z-50 shadow-sm">
@@ -1212,7 +1335,7 @@ function App() {
     setActiveMenu('home');
   }
   setIsCreateOpen(true);
-}} className="bg-violet-600 hover:bg-violet-700 text-white px-5 h-[40px] rounded-xl text-[13px] font-black shadow-sm">+ 새 글</button>}<NotificationBell currentUid={userData.uid} currentNickname={userData.nickname} onNavigate={(postId) => { const post = allRootPosts.find(p => p.id === postId); if (post) { setSelectedTopic(post); setActiveMenu('home'); } }} onNavigateToEpisode={(postId, seriesId) => { setActiveMenu('inkwell'); if (seriesId) setSelectedSeriesId(seriesId); setSelectedEpisodeId(postId); setInkwellMode('list'); }} /><div className="flex items-center gap-3"><div className="w-[42px] h-[42px] rounded-full border-2 border-slate-100 overflow-hidden cursor-pointer bg-slate-50" onClick={() => { setPublicProfileNick(userData.nickname); setSelectedTopic(null); setIsCreateOpen(false); }}><img src={userData.avatarUrl || `https://api.dicebear.com/7.x/adventurer/svg?seed=${userData.nickname}`} alt="avatar" /></div><button onClick={handleLogout} className="text-[11px] font-black text-slate-300 hover:text-rose-500 transition-colors uppercase tracking-widest">Logout</button></div></> : <button onClick={handleLogin} className="flex items-center gap-2 bg-white border border-slate-200 hover:border-slate-900 px-5 h-[42px] rounded-xl text-[13px] font-black transition-all shadow-sm group"><svg className="w-4 h-4 group-hover:scale-110 transition-transform" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>구글 계정으로 시작하기</button>}</div>
+}} className="bg-violet-600 hover:bg-violet-700 text-white px-5 h-[40px] rounded-xl text-[13px] font-black shadow-sm">+ 새 글</button>}<NotificationBell currentUid={userData.uid} currentNickname={userData.nickname} onNavigate={(postId) => { const post = allRootPosts.find(p => p.id === postId); if (post) { setSelectedTopic(post); setActiveMenu('home'); } }} onNavigateToEpisode={(postId, seriesId) => { setActiveMenu('inkwell'); if (seriesId) setSelectedSeriesId(seriesId); setSelectedEpisodeId(postId); setInkwellMode('list'); }} /><div className="flex items-center gap-3"><div className="w-[42px] h-[42px] rounded-full border-2 border-slate-100 overflow-hidden cursor-pointer bg-slate-50" onClick={() => { setPublicProfileNick(userData.nickname); setSelectedTopic(null); setIsCreateOpen(false); }}><img src={userData.avatarUrl || `https://api.dicebear.com/7.x/adventurer/svg?seed=${userData.nickname}`} alt="avatar" /></div><button onClick={handleLogout} className="text-[11px] font-black text-slate-300 hover:text-rose-500 transition-colors uppercase tracking-widest">Logout</button></div></> : <button onClick={() => setIsWelcomeOpen(true)} className="flex items-center gap-2 bg-white border border-slate-200 hover:border-slate-900 px-5 h-[42px] rounded-xl text-[13px] font-black transition-all shadow-sm group"><svg className="w-4 h-4 group-hover:scale-110 transition-transform" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>구글 계정으로 시작하기</button>}</div>
         {/* 🚀 모바일 우측 — 알림 + 내정보/로그인 버튼 */}
         <div className="flex md:hidden items-center gap-1.5 ml-auto shrink-0">
           {userData ? (
@@ -1234,7 +1357,7 @@ function App() {
               </button>
             </>
           ) : (
-            <button onClick={handleLogin} className="flex items-center gap-1.5 bg-violet-600 text-white px-3 h-8 rounded-xl text-[12px] font-black shadow-sm">
+            <button onClick={() => setIsWelcomeOpen(true)} className="flex items-center gap-1.5 bg-violet-600 text-white px-3 h-8 rounded-xl text-[12px] font-black shadow-sm">
               <svg className="w-3.5 h-3.5" viewBox="0 0 24 24"><path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="currentColor" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="currentColor" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="currentColor" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
               로그인
             </button>
@@ -1263,6 +1386,17 @@ function App() {
       {selectedPost && (
         <Suspense fallback={null}>
           <PostDetailModal post={selectedPost} onClose={() => setSelectedPost(null)} currentNickname={userData?.nickname} onLikeClick={handleLike} isFriend={friends.includes(selectedPost.author)} onToggleFriend={toggleFriend} allUsers={allUsers} followerCounts={followerCounts} toggleBlock={toggleBlock} isBlocked={blocks.includes(selectedPost.author)} />
+        </Suspense>
+      )}
+      {/* 🏷️ Sprint 5 Stage 5 — 칭호 획득(modal 레벨) 자동 축하 오버레이 */}
+      {pendingTitleModal && (
+        <Suspense fallback={null}>
+          <TitleAchievementModal
+            titleId={pendingTitleModal.titleId}
+            tier={pendingTitleModal.tier as TitleTier | undefined}
+            action={pendingTitleModal.action}
+            onClose={handleCloseTitleModal}
+          />
         </Suspense>
       )}
 
@@ -1355,6 +1489,26 @@ function App() {
           onOpenExternal={() => { openExternalBrowser(); closeInAppModal(); }}
           onClose={closeInAppModal}
         />
+      )}
+
+      {/* 🔰 Sprint 7.5 — 웰컴 화면 (비로그인 유저가 "로그인" 클릭 시) */}
+      {isWelcomeOpen && !userData && (
+        <Suspense fallback={null}>
+          <WelcomeScreen
+            onGoogleLogin={async () => { await handleLogin(); setIsWelcomeOpen(false); }}
+            onClose={() => setIsWelcomeOpen(false)}
+          />
+        </Suspense>
+      )}
+
+      {/* 🔰 Sprint 7.5 — 온보딩 게이트 오버레이 (로그인 유저만; 사약은 위에서 early return 처리) */}
+      {userData && (
+        <Suspense fallback={null}>
+          <OnboardingGuard userData={userData} onLogout={handleLogout} isTestAccount={isTestAccount}>
+            {/* 모든 게이트 통과 시 null 자식 → 오버레이 언마운트 */}
+            <></>
+          </OnboardingGuard>
+        </Suspense>
       )}
     </div>
   );

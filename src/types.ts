@@ -104,6 +104,14 @@ export interface UserData {
   phoneVerified?: boolean;           // 휴대폰 인증 여부
   phoneHash?: string | null;         // sha256(phoneNumber) — 블랙리스트 매칭용
   phoneVerifiedAt?: FirestoreTimestamp | null;
+  // 📱 Sprint 7 Step 7-C — 추천코드 (generate/redeem CF 전용, 클라 read-only)
+  referralCode?: string;             // 본인 코드 (발급 시 자동, 변경 불가)
+  referredByCode?: string;           // 가입 시 사용한 타인 코드 (1인 1회)
+  referredByUid?: string;            // 추천인 UID 역조회 편의
+  referralPendingCount?: number;     // 대기 중 추천 수 (7일 미경과)
+  referralConfirmedCount?: number;   // 확정 추천 수 (보상 지급됨)
+  referralMonthKey?: string;         // "2026-04" 월 Rate Limit 키
+  referralMonthlyCount?: number;     // 이번 달 redeem 횟수
   // 🏅 평판 V2 (REPUTATION_V2.md §7.1) — CF만 쓰기, 클라이언트 read-only
   reputationCached?: number;                // 최종 평판 점수 (v2-R 공식 결과)
   reputationTierCached?: TierKey;           // 캐시된 Tier
@@ -124,11 +132,93 @@ export interface UserData {
   reportsUpdatedAt?: FirestoreTimestamp;       // Phase C — 신고 집계 시각
   likesSent?: number;                          // 누적 내가 누른 좋아요 수 (평생값)
   exileHistory?: ExileRecord[];                // 유배 이력 배열 (단계별 타임스탬프)
+  creatorScoreOverride?: CreatorScoreOverride; // Phase C — adminAdjustCreatorScore로 설정한 수동 보정값
+  // 🏷️ Sprint 5 — 칭호 시스템 V1 (MAPAE_AND_TITLES_V1.md)
+  // CF titleAwarder만 titles/* 쓰기, primaryTitles만 self-write(Rules max 3개 제한)
+  titles?: UserTitle[];                 // 보유 칭호 (영구, CF만 append/upgrade)
+  primaryTitles?: string[];             // 대표 선택 칭호 id 목록 (D2-β 최대 3개)
+  validCommentCount?: number;           // 유효 댓글 누적 (D3-γ: 10자 이상 OR 고유 반응 5+)
+  ballSentTotal?: number;               // 누적 보낸 땡스볼 (sponsor I/II/III 판정)
+  consecutivePostDays?: number;         // 연속 일자 (writer_diligent I/II/III)
+  lastPostDate?: string;                // 'YYYY-MM-DD' (KST) — 연속 판정용
+  // 🆔 Sprint 7.5 — 고유번호 (가입 시 자동 발급, 영구 불변, 타인이 "나"를 참조하는 키)
+  //    8자리 영숫자 (0/O/I/1 제외). UI 표기: "글러브 #XXXXXXXX"
+  //    Rules: create 후 본인 write 차단 (CF 전용)
+  userCode?: string;
+  // 🗑️ Sprint 7.5 — 회원 탈퇴 (소프트 딜리트 30일 유예)
+  //    isDeleted=true 시 purgeDeletedAccounts가 deletedAt+30d 경과 시 Auth+문서 hard 삭제
+  //    30일 내 재로그인 시 cancelAccountDeletion으로 부활 가능
+  //    Rules: 양쪽 필드 모두 CF 전용 (requestAccountDeletion/cancelAccountDeletion/purgeDeletedAccounts)
+  isDeleted?: boolean;
+  deletedAt?: FirestoreTimestamp | null;
+  deletionReason?: string;              // 탈퇴 사유 (유저 선택/입력)
+  // 🔰 Sprint 7.5 — 최초 닉네임 설정 완료 플래그 (온보딩 진입 판단)
+  //    false/undefined: NicknameSetupScreen 노출. true: 온보딩 통과.
+  //    changeNickname CF가 최초 1회 무료로 전환 후 true 기록.
+  nicknameSet?: boolean;
+}
+
+// 🔧 Creator Score 수동 조정 override — adminAdjust.js 전용
+// Why: 탐지 CF가 놓친 케이스의 긴급 보정. creatorScoreCache·Events가 우선 적용
+//      expiresAt 경과 시 자동 제거 → 수식 값으로 fallback
+export interface CreatorScoreOverride {
+  value: number;                       // 덮어쓸 creatorScore 값 (0~10)
+  reason: string;                      // 관리자 입력 사유
+  setBy: string;                       // 관리자 닉네임
+  setAt: FirestoreTimestamp;           // 설정 시각
+  expiresAt: FirestoreTimestamp | null; // null이면 무기한
 }
 
 // 🏅 마패 티어 — CREATOR_SCORE.md §마패 티어 경계 (동/은/금/백금/다이아)
 // Why: MAPAE_THRESHOLDS(constants.ts)와 짝. Score 범위로 티어 결정
 export type MapaeKey = 'bronze' | 'silver' | 'gold' | 'platinum' | 'diamond';
+
+// ═══════════════════════════════════════════════════════
+// 🏷️ 칭호 시스템 V1 (MAPAE_AND_TITLES_V1.md §3~4) — Sprint 5
+// ═══════════════════════════════════════════════════════
+// Why: 마패(Creator Score 상태·가변)와 칭호(업적·영구)는 독립 축.
+//      titles(마스터) + users.titles(부착본) + title_achievements(감사)
+//      + title_revocations(회수 이력) + mapae_history(마패 티어 변경)
+
+export type TitleCategory = 'creator' | 'community' | 'loyalty';
+export type TitleTier = 'I' | 'II' | 'III';
+export type TitleNotificationLevel = 'toast' | 'celebration' | 'modal';
+
+// 🏷️ 회수 정책 (D5-β 매트릭스 §9) — 실제 3패턴
+//  permanent              — 4/4 유지 (pioneer_2026)
+//  revoke_on_ban          — 1·2·3차 유배까지는 keep, 사약에서만 revoke
+//                            (writer_seed / sponsor / veteran_2year)
+//  suspend_lv2_revoke_lv3 — 1차 keep, 2차 suspend(hide·표시 숨김/부활 가능),
+//                            3차·사약 영구 revoke (나머지 10종 — 가장 흔한 패턴)
+export type TitleRevocationPolicy =
+  | 'permanent'
+  | 'revoke_on_ban'
+  | 'suspend_lv2_revoke_lv3';
+
+// 🏷️ 유저 부착 칭호 — users.titles[] 원소
+export interface UserTitle {
+  id: string;                           // TITLE_CATALOG id (e.g., 'writer_diligent')
+  tier?: TitleTier;                     // 단계형 칭호만 (writer_diligent/chat_master/sponsor/dedication)
+  achievedAt: FirestoreTimestamp;
+  upgradedAt?: FirestoreTimestamp;      // 티어 상승 시점
+  suspended?: boolean;                  // lv1_suspend 정책에서 유배 중 true
+  context?: Record<string, unknown>;    // 달성 컨텍스트 (예: viral_first postId)
+}
+
+// 🏷️ 칭호 마스터 — titles/{titleId} 문서
+export interface TitleMaster {
+  id: string;
+  emoji: string;
+  label: string;                                   // 기본 라벨 (또는 I단계 라벨)
+  labelByTier?: Partial<Record<TitleTier, string>>; // 단계형 전용 (I/II/III별 라벨)
+  category: TitleCategory;
+  description: string;                             // 달성 조건 설명
+  revocationPolicy: TitleRevocationPolicy;
+  notificationLevel: TitleNotificationLevel;
+  tiered?: boolean;                                // 단계형 여부
+  createdAt?: FirestoreTimestamp;
+  updatedAt?: FirestoreTimestamp;
+}
 
 // 🏚️ 유배 이력 레코드 — exileHistory 배열 원소. 재범 배수 계산용
 // Why: sanctionStatus는 현재 상태만 표현, 과거 몇 차례 어떤 단계 유배였는지 trust 공식에 필요

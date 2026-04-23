@@ -289,6 +289,15 @@ exports.ogRenderer = onRequest(
     const DEFAULT_IMAGE = `${APP_URL}/og-image.png`;
     const SITE_NAME = "글러브 GeuLove";
 
+    // 🎁 URL 패턴: /r/{CODE} — 추천코드 공유 링크 (Sprint 7 Step 7-D)
+    //    referral_codes/{CODE} 조회 → ownerNickname 반영 OG 카드
+    //    미존재/disabled → 기본 카드로 폴백 (깨지지 않음)
+    const referralMatch = req.path.match(/^\/r\/([A-Za-z0-9]{6,8})$/);
+    if (referralMatch) {
+      await renderReferralOg({ code: referralMatch[1].toUpperCase(), res, APP_URL, DEFAULT_IMAGE, SITE_NAME });
+      return;
+    }
+
     // URL 패턴: /p/{postId}
     const pathMatch = req.path.match(/^\/p\/(.+)$/);
     if (!pathMatch) {
@@ -481,6 +490,68 @@ function escapeHtml(str) {
     .replace(/>/g, "&gt;");
 }
 
+// 🎁 Sprint 7 Step 7-D — /r/:code 추천코드 공유 링크 OG 렌더링
+// Why: SNS 봇은 JS 미실행이므로 추천인 닉네임이 카드에 노출돼야 수락률이 오름.
+//      브라우저는 <script>로 sessionStorage.pendingReferralCode 세팅 후 SPA로 리디렉트.
+async function renderReferralOg({ code, res, APP_URL, DEFAULT_IMAGE, SITE_NAME }) {
+  let ownerNickname = "";
+  let disabled = false;
+  try {
+    const snap = await db.collection("referral_codes").doc(code).get();
+    if (snap.exists) {
+      const d = snap.data();
+      ownerNickname = d.ownerNickname || "";
+      disabled = d.isDisabled === true;
+    }
+  } catch (e) {
+    console.error(`[ogRenderer/referral] read fail code=${code}: ${e.message}`);
+  }
+
+  const title = ownerNickname && !disabled
+    ? `🎁 ${ownerNickname}님이 당신을 초대했어요`
+    : `🎁 글러브 GeuLove 초대`;
+  const description = ownerNickname && !disabled
+    ? `${ownerNickname}님의 추천으로 가입하면 Welcome 보너스 +5 EXP를 받아요. 함께 맞깐부가 되고 글로 대화하는 공간, 글러브.`
+    : `글러브에서 글로 대화하고 땡스볼로 마음을 전하세요.`;
+  const canonicalUrl = `${APP_URL}/r/${code}`;
+  const image = DEFAULT_IMAGE;
+
+  const html = `<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>${escapeHtml(title)}</title>
+  <meta name="description" content="${escapeHtml(description)}" />
+  <meta property="og:type"        content="website" />
+  <meta property="og:site_name"   content="${SITE_NAME}" />
+  <meta property="og:title"       content="${escapeHtml(title)}" />
+  <meta property="og:description" content="${escapeHtml(description)}" />
+  <meta property="og:url"         content="${canonicalUrl}" />
+  <meta property="og:image"       content="${escapeHtml(image)}" />
+  <meta property="og:image:width"  content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta name="twitter:card"        content="summary_large_image" />
+  <meta name="twitter:title"       content="${escapeHtml(title)}" />
+  <meta name="twitter:description" content="${escapeHtml(description)}" />
+  <meta name="twitter:image"       content="${escapeHtml(image)}" />
+  <link rel="icon" type="image/png" href="/favicon.png" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+  <!-- 브라우저 리디렉트: SPA로 이동 + sessionStorage에 코드 보존 -->
+  <!-- Why: SNS 봇은 JS 미실행 → OG만 읽고 종료. 사람만 이 스크립트 실행됨. -->
+  <script>
+    try { sessionStorage.setItem("pendingReferralCode", ${JSON.stringify(code)}); } catch(_){}
+    window.location.replace("/?ref=" + encodeURIComponent(${JSON.stringify(code)}));
+  </script>
+</head>
+<body></body>
+</html>`;
+
+  // disabled/미존재 코드도 동일 구조로 폴백 — 사용자 UX 단절 없음
+  res.set("Cache-Control", "public, max-age=60, s-maxage=600, stale-while-revalidate=3600");
+  res.status(200).send(html);
+}
+
 // ════════════════════════════════════════════════════════════
 // 🚀 기능별 분리 모듈 re-export
 // ════════════════════════════════════════════════════════════
@@ -584,3 +655,94 @@ exports.onPostLikeChangedForActivity = onPostLikeChangedForActivity;
 exports.onCommentLikeChangedForActivity = onCommentLikeChangedForActivity;
 exports.creatorScoreCache = creatorScoreCache;
 exports.onUserChangedForCreatorScore = onUserChangedForCreatorScore;
+
+// 🔧 Sprint 4 Phase C — 관리자 수동 조정 (Creator Score override + Abuse Flag 토글)
+// Why: 탐지 CF가 놓친 케이스의 긴급 보정 + 경미한 제재 Trust 감산
+const { adminAdjustCreatorScore, adminToggleAbuseFlag } = require("./adminAdjust");
+exports.adminAdjustCreatorScore = adminAdjustCreatorScore;
+exports.adminToggleAbuseFlag = adminToggleAbuseFlag;
+
+// 📈 Sprint 4 Phase C — 일일 레벨 동기화 (옵션 B 원칙 2 교정)
+// Why: 타인 EXP 지급 경로(좋아요 마일스톤)가 exp만 increment → level 불일치를 매일 06:00 보정
+//      Gate 함수(Lv5+ 권위 읽기) 선행 blocker 해제. project_level_sync_cf_backlog.md 참조
+const { syncUserLevel } = require("./syncUserLevel");
+exports.syncUserLevel = syncUserLevel;
+
+// 🚨 Sprint 4 Phase C — 신고 시스템 활성화 (REPORT_PENALTIES)
+// Why: submitReport로 reports 원장 생성 → reportAggregator가 고유 신고자 수 집계
+//      → calculateTrustScore의 REPORT_PENALTIES 구간 감산 → 다음날 Creator Score 반영
+const { submitReport } = require("./reportSubmit");
+const { reportAggregator } = require("./reportAggregator");
+exports.submitReport = submitReport;
+exports.reportAggregator = reportAggregator;
+
+// 🛡️ Sprint 6 A-1 — 관리자 권한 체계 (Custom Claims 이중 체크)
+// Why: 닉네임 화이트리스트는 공격 표면. Firebase Auth Custom Claims로 전환.
+//      grantAdminRole: 역할 부여 / revokeAdminRole: 회수 / rollbackAdminAction: admin_actions 롤백
+const { grantAdminRole, revokeAdminRole } = require("./adminGrant");
+const { rollbackAdminAction } = require("./adminAudit");
+exports.grantAdminRole = grantAdminRole;
+exports.revokeAdminRole = revokeAdminRole;
+exports.rollbackAdminAction = rollbackAdminAction;
+
+// 🏷️ Sprint 5 — 칭호 시스템 V1 (MAPAE_AND_TITLES_V1.md)
+// Why: Stage 1 seed + Stage 2 이벤트 트리거 5종 + 일일 집계 rollup.
+//      sponsor 칭호는 thanksball.js 인라인 훅(별도 export 불필요).
+const { seedTitles } = require("./titleSeed");
+const {
+  onTitlePostCreate,
+  onTitlePostLikeChanged,
+  onTitleCommentCreate,
+  onTitleUserCreate,
+  onTitleUserUpdate,
+} = require("./titleTriggers");
+const { dailyTitleRollup } = require("./titleRollup");
+const { onSanctionChangedForTitles } = require("./titleSanctionTrigger");
+exports.seedTitles = seedTitles;
+exports.onTitlePostCreate = onTitlePostCreate;
+exports.onTitlePostLikeChanged = onTitlePostLikeChanged;
+exports.onTitleCommentCreate = onTitleCommentCreate;
+exports.onTitleUserCreate = onTitleUserCreate;
+exports.onTitleUserUpdate = onTitleUserUpdate;
+exports.dailyTitleRollup = dailyTitleRollup;
+exports.onSanctionChangedForTitles = onSanctionChangedForTitles;
+
+// 📱 Sprint 7 Step 7-A — 휴대폰 인증 서버 검증 + banned_phones 재진입 차단
+// Why: 클라가 phoneNumber를 임의 문자열로 보내면 위조 가능 → Admin SDK로 Auth record의 실제
+//      phoneNumber를 읽어 정규화·해시·banned_phones 매칭까지 서버에서 보장.
+const { verifyPhoneServer } = require("./phoneAuth");
+exports.verifyPhoneServer = verifyPhoneServer;
+
+// 📱 Sprint 7 Step 7-C/D/E — 추천코드 시스템
+//   generateReferralCode: 가입 시 자동 6자리 코드 발급
+//   redeemReferralCode: onCall — pending 등록 + 자동 맞깐부 ±2 EXP (7-E 악용 방어 시그널 수집)
+//   confirmReferralActivations: 매일 03:00 KST — 7일 활성 판정 → confirmed/expired (±10/+5 EXP)
+const { generateReferralCode, redeemReferralCode, confirmReferralActivations } = require("./referral");
+exports.generateReferralCode = generateReferralCode;
+exports.redeemReferralCode = redeemReferralCode;
+exports.confirmReferralActivations = confirmReferralActivations;
+
+// 🛡️ Sprint 7 Step 7-F — 관리자 추천 무효화 (admin_actions 5종째, rollbackAdminAction 지원)
+//   PHONE_HASH_SALT 의존 격리를 위해 별도 파일로 분리 (방법 2)
+const { revokeReferralUse } = require("./referralRevoke");
+exports.revokeReferralUse = revokeReferralUse;
+
+// 🆔 Sprint 7.5 — 고유번호 시스템 (가입 시 자동 8자리 영숫자 발급)
+// Why: referralCode(6자리, 1회성 redeem)와 분리된 영구 불변 ID.
+//      friendList/likedBy/author의 uid 참조 전환은 Sprint 8+ (project_usercode_reference_migration.md)
+const { generateUserCode } = require("./userCode");
+const { migrateUserCodes } = require("./migrateUserCodes");
+exports.generateUserCode = generateUserCode;
+exports.migrateUserCodes = migrateUserCodes;
+
+// 🗑️ Sprint 7.5 — 회원탈퇴 (B안 소프트 딜리트 30일 유예)
+// Why: GDPR 대응 + 유저 복구 창구. 30일 경과 시 purgeDeletedAccounts가 hard delete.
+//      banned_phones는 보존(재가입 차단), 작성글/댓글은 익명화(탈퇴한 유저).
+const {
+  requestAccountDeletion,
+  cancelAccountDeletion,
+  purgeDeletedAccounts,
+} = require("./accountDeletion");
+exports.requestAccountDeletion = requestAccountDeletion;
+exports.cancelAccountDeletion = cancelAccountDeletion;
+exports.purgeDeletedAccounts = purgeDeletedAccounts;

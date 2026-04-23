@@ -8,6 +8,7 @@ import type { CommunityPost, CommunityMember, UserData, FirestoreTimestamp, Shar
 import { TIER_CONFIG, tierRangeLabel } from '../types';
 import { sanitizeHtml } from '../sanitize';
 import { calculateLevel, getReputationLabel, getReputation, formatKoreanNumber, buildExpLevelUpdate, calculateExpForPost } from '../utils';
+import { handleReport } from '../utils/reportHandler';
 import VerifiedBadgeComponent from './VerifiedBadge';
 import ThanksballModal from './ThanksballModal';
 
@@ -201,8 +202,8 @@ const CommunityPostDetail = ({ post, currentUserData, allUsers = {}, followerCou
                     className="w-full text-left px-3 py-2 text-[12px] font-bold text-slate-600 hover:bg-slate-50 whitespace-nowrap">
                     👤 공개프로필 보기
                   </button>
-                  <button disabled
-                    className="w-full text-left px-3 py-2 text-[12px] font-bold text-slate-300 whitespace-nowrap cursor-not-allowed">
+                  <button onClick={() => { setPostMenuOpen(false); handleReport('community_post', livePost.id); }}
+                    className="w-full text-left px-3 py-2 text-[12px] font-bold text-slate-600 hover:bg-slate-50 whitespace-nowrap">
                     🚨 신고하기
                   </button>
                 </div>
@@ -388,8 +389,8 @@ const CommunityPostDetail = ({ post, currentUserData, allUsers = {}, followerCou
                               className="w-full text-left px-3 py-2 text-[11px] font-bold text-slate-600 hover:bg-slate-50 whitespace-nowrap">
                               👤 공개프로필 보기
                             </button>
-                            <button disabled
-                              className="w-full text-left px-3 py-2 text-[11px] font-bold text-slate-300 whitespace-nowrap cursor-not-allowed">
+                            <button onClick={() => { setCommentMenuId(null); handleReport('community_post_comment', c.id); }}
+                              className="w-full text-left px-3 py-2 text-[11px] font-bold text-slate-600 hover:bg-slate-50 whitespace-nowrap">
                               🚨 신고하기
                             </button>
                           </div>

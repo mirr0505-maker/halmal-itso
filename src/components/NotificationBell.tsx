@@ -5,7 +5,16 @@ import { collection, query, orderBy, limit, onSnapshot, updateDoc, doc, writeBat
 
 interface Notification {
   id: string;
-  type: 'thanksball' | 'community_post' | 'finger_promoted' | 'giant_tree_spread' | 'giant_tree_wilt' | 'community_join_approved' | 'community_join_rejected' | 'community_comment' | 'community_join_request' | 'new_episode' | 'episode_unlocked' | 'shareholder_verify_request' | 'shareholder_verify_submitted';
+  type:
+    | 'thanksball' | 'community_post' | 'finger_promoted'
+    | 'giant_tree_spread' | 'giant_tree_wilt'
+    | 'community_join_approved' | 'community_join_rejected'
+    | 'community_comment' | 'community_join_request'
+    | 'new_episode' | 'episode_unlocked'
+    | 'shareholder_verify_request' | 'shareholder_verify_submitted'
+    // 🏷️ Sprint 5 — 칭호 시스템 알림
+    | 'title_awarded_toast' | 'title_awarded_celebration' | 'title_awarded_modal'
+    | 'title_suspended' | 'title_revoked' | 'title_restored';
   fromNickname?: string;  // 땡스볼·커뮤니티 알림
   fromNick?: string;      // 거대나무 알림 (필드명 다름)
   amount?: number;
@@ -21,6 +30,10 @@ interface Notification {
   seriesId?: string;
   seriesTitle?: string;
   episodeNumber?: number;
+  // 🏷️ 칭호 알림 전용
+  titleId?: string;
+  tier?: string;
+  emoji?: string;
   createdAt?: { seconds: number } | number;
   read?: boolean;   // 땡스볼·커뮤니티
   isRead?: boolean; // 거대나무 (필드명 다름)
@@ -176,10 +189,20 @@ const NotificationBell = ({ currentUid, onNavigate, onNavigateToEpisode }: Props
                   n.type === 'new_episode' ? '📖' :
                   n.type === 'episode_unlocked' ? '🔓' :
                   n.type === 'shareholder_verify_request' ? '🛡️' :
-                  n.type === 'shareholder_verify_submitted' ? '📋' : '⚾';
+                  n.type === 'shareholder_verify_submitted' ? '📋' :
+                  // 🏷️ 칭호 알림 — CF가 저장한 emoji 필드 우선, 없으면 타입 기본 아이콘
+                  n.type === 'title_awarded_toast' ? (n.emoji || '🏷️') :
+                  n.type === 'title_awarded_celebration' ? (n.emoji || '🎉') :
+                  n.type === 'title_awarded_modal' ? (n.emoji || '🏆') :
+                  n.type === 'title_suspended' ? '⏸️' :
+                  n.type === 'title_revoked' ? '🗑️' :
+                  n.type === 'title_restored' ? '✅' :
+                  '⚾';
                 const body =
                   n.type === 'community_post' || n.type === 'finger_promoted' || n.type === 'community_join_approved' || n.type === 'community_join_rejected' || n.type === 'community_comment' || n.type === 'community_join_request' || n.type === 'shareholder_verify_request' || n.type === 'shareholder_verify_submitted'
                     ? (n.message || '')
+                  : n.type === 'title_awarded_toast' || n.type === 'title_awarded_celebration' || n.type === 'title_awarded_modal' || n.type === 'title_suspended' || n.type === 'title_revoked' || n.type === 'title_restored'
+                    ? (n.message || '칭호 알림')
                   : n.type === 'giant_tree_spread'
                     ? (<><span className="text-blue-600">{n.fromNick}</span>님이 내 거대나무에{' '}<span className={n.side === 'agree' ? 'text-blue-500 font-[1000]' : 'text-rose-500 font-[1000]'}>{n.side === 'agree' ? '공감' : '반대'}</span>했어요</>)
                   : n.type === 'giant_tree_wilt'

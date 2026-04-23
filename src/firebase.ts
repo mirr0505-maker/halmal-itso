@@ -31,6 +31,10 @@ export const db = getFirestore(app);
 export const storage = getStorage(app); 
 export const auth = getAuth(app); // 🚀 인증 객체 추가
 export const googleProvider = new GoogleAuthProvider(); // 🚀 구글 로그인 프로바이더 추가
+// 🔰 Sprint 7.5 — 매 로그인마다 계정 선택 화면 강제 표시
+// Why: 브라우저에 여러 구글 계정이 로그인돼 있어도 기본 계정으로 자동 로그인되어 Admin 계정 전환 불가.
+//      prompt: 'select_account'를 세팅하면 매번 선택 창이 떠 원하는 계정으로 분기 가능 (시크릿창 불필요).
+googleProvider.setCustomParameters({ prompt: 'select_account' });
 export const functions = getFunctions(app, "asia-northeast3"); // 🚀 Cloud Functions (서울 리전)
 
 export default app;

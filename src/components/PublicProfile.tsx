@@ -3,6 +3,9 @@
 import type { Post, UserData } from '../types';
 import { formatKoreanNumber, calculateLevel, getLevelProgress, getNextLevelExp, getReputation, getReputationLabel, getReputationStyle, getReputationProgress, getNextReputationThreshold } from '../utils';
 import ReputationAvatar from './ReputationAvatar';
+import CreatorScoreInfo from './CreatorScoreInfo';
+// 🏷️ Sprint 5 Stage 5 — 타인 프로필에서도 칭호 도감 열람 (isOwnProfile=false)
+import TitleCollection from './TitleCollection';
 
 interface Props {
   targetNickname: string;
@@ -177,6 +180,14 @@ const PublicProfile = ({
             <span className="text-[10px] font-bold text-slate-400">받은볼</span>
           </div>
         </div>
+      </div>
+
+      {/* 5-1. 🏅 크리에이터 점수 — 상세 뷰 전용 (feedback_reputation_avatar_scope) */}
+      <CreatorScoreInfo userData={userData} />
+
+      {/* 5-2. 🏷️ 칭호 도감 — 타인 프로필에서도 수집 현황 열람 */}
+      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 mb-3">
+        <TitleCollection titles={userData.titles} isOwnProfile={false} />
       </div>
 
       {/* 6. Best 3 — 대표 콘텐츠 */}

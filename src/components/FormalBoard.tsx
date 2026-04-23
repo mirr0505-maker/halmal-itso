@@ -4,6 +4,7 @@ import { db } from '../firebase';
 import { doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import type { Post, UserData } from '../types';
 import { calculateLevel } from '../utils';
+import { handleReport } from '../utils/reportHandler';
 
 interface Props {
   agreePosts: Post[];
@@ -125,7 +126,11 @@ const FormalBoard = ({ agreePosts, disagreePosts, onPostClick, currentUserData, 
                     <div className="absolute right-0 bottom-5 z-50 bg-white border border-slate-200 rounded-lg shadow-md py-0.5 w-28 animate-in fade-in duration-150" onMouseLeave={() => setCommentMenuId(null)}>
                       <button onClick={(e) => { e.stopPropagation(); setCommentMenuId(null); onAuthorClick?.(post.author); }}
                         className="w-full text-left px-2.5 py-0.5 text-[11px] font-bold text-slate-700 hover:bg-slate-50">공개프로필 보기</button>
-                      <button disabled className="w-full text-left px-2.5 py-0.5 text-[11px] font-bold text-slate-300 cursor-not-allowed">신고하기</button>
+                      <button onClick={(e) => {
+                          e.stopPropagation(); setCommentMenuId(null);
+                          handleReport(post.rootId ? 'comment' : 'post', post.id);
+                        }}
+                        className="w-full text-left px-2.5 py-0.5 text-[11px] font-bold text-slate-700 hover:bg-slate-50">🚨 신고하기</button>
                     </div>
                   )}
                 </div>

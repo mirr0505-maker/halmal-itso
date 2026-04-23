@@ -1,5 +1,11 @@
 // src/constants.ts — 앱 전역 설정값 (메뉴 구성, 테스트 계정, 필터 기준)
-import type { SanctionPolicy } from './types';
+import type {
+  SanctionPolicy,
+  TitleCategory,
+  TitleRevocationPolicy,
+  TitleNotificationLevel,
+  TitleTier,
+} from './types';
 
 // ════════════════════════════════════════════════════════════
 // 🚩 FEATURE FLAGS — Phase C 토글 스위치
@@ -7,7 +13,7 @@ import type { SanctionPolicy } from './types';
 // 🚀 Phase C(Prestige 평판) 자연 발동 감지 루프용 플래그
 // Why: TUNING_SCHEDULE.md §3.4 — 첫 전설(10,000 평판) 달성자 감지 시 자동 ON
 //      Phase A/B에서는 false 유지, Custom Claims/관리자 CF로 토글 예정
-// 참조: docs/GAP_ANALYSIS_STEP1.md §4.4
+// 참조: Reputation.md (Prestige 티어 legend/awe/mythic)
 export const FEATURE_FLAGS = {
   PRESTIGE_REPUTATION_ENABLED: false,
   PRESTIGE_LAUNCH_DATE: null as string | null, // ISO 8601, 예: '2026-10-01'
@@ -21,10 +27,9 @@ export const BALL_TO_KRW = 100;
 // ════════════════════════════════════════════════════════════
 // 🎖️ REPUTATION — 평판 티어 경계 + 감쇠 설정
 // ════════════════════════════════════════════════════════════
-// 🚀 평판 티어 경계 — REPUTATION_V2.md §2 (8단계)
+// 🚀 평판 티어 경계 — Reputation.md (8단계)
 // Why: 현재 utils.ts:79 `REPUTATION_THRESHOLDS`가 neutral/mild/friendly/... 4단계만 정의.
 //      Phase C Prestige(legend/awe/mythic) 확장을 미리 상수화
-// 참조: docs/GAP_ANALYSIS_STEP1.md §4.4
 export const REPUTATION_TIERS = {
   neutral: 0,
   mild: 300,
@@ -58,6 +63,129 @@ export const MAPAE_THRESHOLDS = {
 } as const;
 
 // ════════════════════════════════════════════════════════════
+// 🏷️ TITLES — 칭호 시스템 V1 (MAPAE_AND_TITLES_V1.md §4~9) — Sprint 5
+// ════════════════════════════════════════════════════════════
+// 🚀 TITLE_CATALOG — 14종 마스터 정의 (클라이언트 단일 진실 소스)
+// Why: 마스터 문서 seed(`seedTitles` CF)와 UI 라벨/이모지 표시가 동일 소스에서 파생.
+//      category=creator|community|loyalty. tiered=true면 labelByTier 참조.
+// ⚠️ functions/titleSeed.js의 TITLE_SEED와 반드시 동기화 (CF는 TS import 불가)
+// 참조 메모리: project_sprint5_titles.md (추후 작성)
+export interface TitleCatalogEntry {
+  id: string;
+  emoji: string;
+  label: string;                                // 기본 라벨 (또는 I단계 라벨)
+  labelByTier?: Partial<Record<TitleTier, string>>;
+  category: TitleCategory;
+  description: string;
+  revocationPolicy: TitleRevocationPolicy;
+  notificationLevel: TitleNotificationLevel;
+  tiered?: boolean;
+}
+
+export const TITLE_CATALOG: TitleCatalogEntry[] = [
+  // ── creator (5) ─────────────────────────────────────────
+  {
+    id: 'writer_seed', emoji: '🔰', label: '새싹 작가',
+    category: 'creator', description: '첫 유효 글 작성',
+    revocationPolicy: 'revoke_on_ban', notificationLevel: 'toast',
+  },
+  {
+    id: 'writer_diligent', emoji: '✍️', label: '근면한 작가',
+    labelByTier: { I: '근면한 작가', II: '꾸준한 작가', III: '거장 작가' },
+    category: 'creator', description: '연속 일자 유효 글 (I=30일 / II=100일 / III=365일)',
+    revocationPolicy: 'suspend_lv2_revoke_lv3', notificationLevel: 'celebration', tiered: true,
+  },
+  {
+    id: 'viral_first', emoji: '🔥', label: '첫 화제',
+    category: 'creator', description: '단일 글 고유 좋아요 30개+',
+    revocationPolicy: 'suspend_lv2_revoke_lv3', notificationLevel: 'celebration',
+  },
+  {
+    id: 'popular_writer', emoji: '⭐', label: '인기 작가',
+    category: 'creator', description: '단일 글 고유 좋아요 100개+',
+    revocationPolicy: 'suspend_lv2_revoke_lv3', notificationLevel: 'modal',
+  },
+  {
+    id: 'super_hit', emoji: '💎', label: '초대박',
+    category: 'creator', description: '단일 글 고유 좋아요 1,000개+',
+    revocationPolicy: 'suspend_lv2_revoke_lv3', notificationLevel: 'modal',
+  },
+  // ── community (5) ───────────────────────────────────────
+  {
+    id: 'social_master', emoji: '🤝', label: '사교의 달인',
+    category: 'community', description: '맞깐부 30명+',
+    revocationPolicy: 'suspend_lv2_revoke_lv3', notificationLevel: 'celebration',
+  },
+  {
+    id: 'chat_master', emoji: '💬', label: '대화의 명수',
+    labelByTier: { I: '대화의 명수', II: '대화의 달인', III: '대화의 마스터' },
+    category: 'community', description: '누적 유효 댓글 (I=1,000 / II=5,000 / III=20,000)',
+    revocationPolicy: 'suspend_lv2_revoke_lv3', notificationLevel: 'celebration', tiered: true,
+  },
+  {
+    id: 'sponsor', emoji: '🎁', label: '후원자',
+    labelByTier: { I: '후원자', II: '든든한 후원자', III: '위대한 후원자' },
+    category: 'community', description: '누적 보낸 땡스볼 (I=1,000볼 / II=10,000볼 / III=100,000볼)',
+    revocationPolicy: 'revoke_on_ban', notificationLevel: 'celebration', tiered: true,
+  },
+  {
+    id: 'kanbu_star', emoji: '🌟', label: '인기인',
+    category: 'community', description: '나를 깐부 맺은 수 100명+',
+    revocationPolicy: 'suspend_lv2_revoke_lv3', notificationLevel: 'celebration',
+  },
+  {
+    id: 'influencer', emoji: '👑', label: '영향력자',
+    category: 'community', description: '나를 깐부 맺은 수 1,000명+',
+    revocationPolicy: 'suspend_lv2_revoke_lv3', notificationLevel: 'modal',
+  },
+  // ── loyalty (4) ─────────────────────────────────────────
+  {
+    id: 'pioneer_2026', emoji: '🌱', label: '초기 개척자',
+    category: 'loyalty', description: '2026년 내 가입 (한정판)',
+    revocationPolicy: 'permanent', notificationLevel: 'toast',
+  },
+  {
+    id: 'loyal_1year', emoji: '🎖️', label: '1년 개근',
+    category: 'loyalty', description: '가입 365일 + 월 1회+ 활동',
+    revocationPolicy: 'suspend_lv2_revoke_lv3', notificationLevel: 'toast',
+  },
+  {
+    id: 'veteran_2year', emoji: '🏛️', label: '베테랑',
+    category: 'loyalty', description: '가입 2년+',
+    revocationPolicy: 'revoke_on_ban', notificationLevel: 'toast',
+  },
+  {
+    id: 'dedication', emoji: '⚡', label: '헌신',
+    labelByTier: { I: '헌신', II: '헌신 (예약)', III: '헌신 (예약)' },
+    category: 'loyalty', description: 'Lv10 도달 (Phase C Lv15/20 확장 예약)',
+    revocationPolicy: 'suspend_lv2_revoke_lv3', notificationLevel: 'modal', tiered: true,
+  },
+];
+
+// 🚀 단계형 칭호 임계값 — titleChecker.js에서 서버 동기 참조 (Sprint 5 Stage 2)
+// Why: 단일 소스 숫자. CF `titleChecker.js` TITLE_THRESHOLDS와 1:1 매칭 필수
+export const TITLE_THRESHOLDS = {
+  writer_diligent: { I: 30,   II: 100,   III: 365   },  // 연속 일수
+  chat_master:     { I: 1000, II: 5000,  III: 20000 },  // 누적 유효 댓글
+  sponsor:         { I: 1000, II: 10000, III: 100000 }, // 누적 보낸 땡스볼
+  dedication:      { I: 10,   II: 15,    III: 20    },  // 레벨 (Phase C Lv15/20 대비 예약)
+} as const;
+
+// 🚀 대표 칭호 최대 개수 (D2-β) — Rules에서도 동일 값 강제
+export const MAX_PRIMARY_TITLES = 3;
+
+// 🚀 D3-γ 유효 댓글 판정 기준
+// Why: chat_master 카운트 대상 — 10자+ 본문 OR 고유 반응 5+ 수신 (스팸 방어)
+export const VALID_COMMENT_RULES = {
+  MIN_CONTENT_LENGTH: 10,
+  MIN_UNIQUE_REACTIONS: 5,
+} as const;
+
+// 🚀 pioneer_2026 한정판 가입 기간 (2026년 내)
+// Why: CF registerUser 훅에서 createdAt 월 기준 판정
+export const PIONEER_2026_CUTOFF_ISO = '2027-01-01T00:00:00+09:00';
+
+// ════════════════════════════════════════════════════════════
 // 🛡️ ABUSE — 어뷰징 처벌 수치
 // ════════════════════════════════════════════════════════════
 // 🚀 어뷰징 유형별 평판 차감 — ANTI_ABUSE.md §5 (Phase B 이후 CF에서 활용)
@@ -70,12 +198,12 @@ export const ABUSE_PENALTIES = {
 } as const;
 
 // ════════════════════════════════════════════════════════════
-// 🏅 CREATOR SCORE — Sprint 4 (CREATOR_SCORE.md)
+// 🏅 CREATOR SCORE — Sprint 4 (CreatorScore.md)
 // ════════════════════════════════════════════════════════════
 // 🚀 Creator Score 공식: (reputation × activity × trust) / SCALING_DIVISOR
 // Why: 평판(신뢰도)·활동량(성실도)·트러스트(제재이력) 3축 종합 점수
 //      홈 피드 정렬·광고 경매 품질 가중치·Gate 함수(출금/라이브/잉크병)에 공통 입력
-// 참조: docs/step1-design/CREATOR_SCORE.md
+// 참조: CreatorScore.md
 export const CREATOR_SCORE_CONFIG = {
   SCALING_DIVISOR: 1000,       // (rep × act × trust) / 1000 → 0~5+ 범위
   RECENT_WINDOW_DAYS: 30,      // activity 집계 창
@@ -108,10 +236,68 @@ export const TRUST_CONFIG = {
   },
   EXILE_PENALTIES: { 1: 0.05, 2: 0.25, 3: 1.50 }, // 3차는 MIN_TRUST 바닥
   REPEAT_MULTIPLIER: { 2: 1.5, 3: 2.0 },          // 같은 단계 재범
-  REPORT_PENALTIES: [                              // Phase C — 고유신고자 수
-    { threshold: 5, penalty: 0.05 },
-    { threshold: 10, penalty: 0.10 },
+  // 🚨 Phase C 활성 (Sprint 4, 2026-04-22) — 고유 신고자 수 → Trust 감산
+  // Why: threshold 내림차순 순회 (서버 creatorScore.js와 동기화). 첫 매치만 적용.
+  //      담합 신고 1명은 감산 0 (고유 수로 집계). 잠정 수치 — project_report_penalties_tuning.md
+  REPORT_PENALTIES: [
     { threshold: 20, penalty: 0.15 },
+    { threshold: 10, penalty: 0.10 },
+    { threshold: 5, penalty: 0.05 },
+  ],
+} as const;
+
+// ════════════════════════════════════════════════════════════
+// 📱 REFERRAL — Sprint 7 Step 7-C (REFERRAL_V1.md)
+// ════════════════════════════════════════════════════════════
+// ⚠️ functions/referral.js 상수와 반드시 동기화 유지 (CF는 Node 런타임이라 TS import 불가)
+//    한쪽 변경 시 반드시 다른 쪽 점검 — 코드 길이/상한/보상 불일치 시 보안·UX 사고
+export const REFERRAL_CONFIG = {
+  CODE_CHARSET: 'ABCDEFGHJKMNPQRSTUVWXYZ23456789', // 32자 (0/O/I/1 제외)
+  CODE_LENGTH: 6,
+  CODE_LENGTH_FALLBACK: 8,       // 충돌 5회 재시도 후 확장
+  MIN_REFERRER_LEVEL: 2,         // 추천자 Lv2+ Gate
+  MONTHLY_CAP: 10,               // 월 10명 Rate Limit
+  TOTAL_CAP: 30,                 // 베타 — pending+confirmed 합산 상한
+  PENDING_DAYS: 7,               // 7-D confirmReferralActivations 판정 윈도우
+  MUTUAL_KANBU_EXP_DELTA: 2,     // toggleKanbu 대칭 delta (LevelSystem.md §4.2)
+  WELCOME_EXP_REFEREE: 5,        // 7-D confirm 시 피추천자 Welcome EXP
+  REWARD_EXP_REFERRER: 10,       // 7-D confirm 시 추천자 보상 EXP
+} as const;
+
+// ════════════════════════════════════════════════════════════
+// 🆔 USER CODE — Sprint 7.5 고유번호 (타인이 "나"를 참조하는 영구 불변 키)
+// ════════════════════════════════════════════════════════════
+// 🚀 8자리 영숫자 난수 (referralCode와 동일 Charset, 혼동 문자 0/O/I/1 제외)
+// UI 표기: "글러브 #XXXXXXXX" — 배그 친구코드·카카오 OIO 벤치마크
+// 발급: users onCreate 트리거 (generateUserCode) — 변경 절대 불가
+// ⚠️ functions/userCode.js 상수와 반드시 동기화 (CF는 Node 런타임이라 TS import 불가)
+export const USER_CODE_CONFIG = {
+  CHARSET: 'ABCDEFGHJKMNPQRSTUVWXYZ23456789', // 32자 (referralCode와 동일)
+  LENGTH: 8,
+  COLLISION_RETRY: 5,            // 충돌 5회 재시도 후 LENGTH+2 확장
+  LENGTH_FALLBACK: 10,
+  DISPLAY_PREFIX: '글러브 #',    // UI 표기 접두사
+} as const;
+
+// ════════════════════════════════════════════════════════════
+// 🗑️ ACCOUNT DELETION — Sprint 7.5 회원탈퇴 (소프트 딜리트 30일 유예)
+// ════════════════════════════════════════════════════════════
+// 🚀 GDPR·국내 개인정보법 30일 이내 삭제 적법. 유저 후회 복구창 확보.
+// 제약: 사약(banned) 유저 탈퇴 불가, 유배(exiled) 유저 탈퇴 가능 but banned_phones 영구 보존.
+// 작성글: hard 딜리트 시 author="탈퇴한 유저" / author_id="DELETED_{hash8}"로 익명화
+// 잔액: ballBalance는 약관상 소각 (환불 없음 명시)
+// ⚠️ functions/accountDeletion.js 상수와 반드시 동기화
+export const ACCOUNT_DELETION_CONFIG = {
+  GRACE_PERIOD_DAYS: 30,                 // 소프트 딜리트 유예 기간
+  PURGE_SCHEDULE: '15 4 * * *',          // 매일 04:15 KST (ballSnapshot 04:00 · auditBall 04:30 사이)
+  ANONYMIZED_AUTHOR: '탈퇴한 유저',
+  ANONYMIZED_AUTHOR_ID_PREFIX: 'DELETED_',
+  DELETION_REASONS: [
+    '서비스 이용이 적어서',
+    '개인정보 보호 때문에',
+    '다른 비슷한 서비스로 이동',
+    '원하는 기능이 없어서',
+    '기타',
   ],
 } as const;
 
@@ -123,6 +309,24 @@ export const TRUST_CONFIG = {
 //      Phase C에서 Lv20 확장 시 보상체계 전면 재설계 예정 (LEVEL_V2.md §11.3)
 // ⚠️ functions/revenue.js:42 LEVEL_TABLE과 반드시 동기화 유지 (CF는 Node 런타임이라 TS import 불가)
 export const LEVEL_TABLE = [0, 30, 100, 250, 500, 1000, 2000, 4000, 7000, 10000] as const;
+
+// ════════════════════════════════════════════════════════════
+// 🚪 CREATOR GATES — Sprint 4 Phase C Task 4 (CREATOR_SCORE.md §7)
+// ════════════════════════════════════════════════════════════
+// 🚀 Gate 4종 — Lv × Creator Score 동시 충족 조건
+// Why: 고가치 기능(출금/라이브/잉크병 유료화/깐부방 개설)에 품질 Gate 필요
+//      단순 Lv만으로는 평판 낮은 유저가 진입 → 품질 리스크. 평판 기반 추가 필터.
+// ⚠️ 현재 값은 **잠정 수치** — 배포 1주 후 creatorScoreCached 분포(P50/P75/P90) 실측 후 튜닝
+// ⚠️ functions/utils/gateCheck.js의 CREATOR_GATES와 반드시 동기화 (CF는 TS import 불가)
+// 참조 메모리: project_creator_gates_tuning.md
+export const CREATOR_GATES = {
+  withdraw:    { minLevel: 5, minScore: 1.0, label: '출금' },              // 출금 기능 미구현, 헬퍼만 대기
+  live:        { minLevel: 6, minScore: 2.0, label: '라이브 개설' },         // 깐부방 라이브 세션
+  inkwellPaid: { minLevel: 0, minScore: 1.0, label: '잉크병 유료 회차' },    // 레벨 무관
+  kanbuRoom:   { minLevel: 6, minScore: 0.5, label: '깐부방 개설' },         // 깐부방 신규 개설
+} as const;
+
+export type CreatorGateKey = keyof typeof CREATOR_GATES;
 
 // ════════════════════════════════════════════════════════════
 // 🤝 KANBU — 깐부방 유료 게시판 수수료율

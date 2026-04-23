@@ -3,7 +3,7 @@ import { db } from '../firebase';
 import { doc, setDoc, updateDoc, increment, getDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
 import type { Dispatch, SetStateAction } from 'react';
 import type { Community, KanbuRoom, UserData } from '../types';
-import { calculateLevel } from '../utils';
+import { calculateLevel, checkCreatorGate, getGateRequirementLabel } from '../utils';
 
 interface GloveActionDeps {
   userData: UserData | null;
@@ -29,6 +29,12 @@ export function useGloveActions({
     cardSettings?: KanbuRoom['cardSettings'];
   }) => {
     if (!userData) return;
+    // 🚪 Creator Gate — 깐부방 개설은 Lv6+ · 크리에이터 점수 0.5+ 필요 (잠정, 분포 실측 후 튜닝)
+    const gate = checkCreatorGate(userData, 'kanbuRoom');
+    if (!gate.pass) {
+      alert(`깐부방 개설은 ${getGateRequirementLabel('kanbuRoom')} 충족 시 가능합니다.`);
+      return;
+    }
     const roomId = `room_${Date.now()}_${userData.uid}`;
     const payload: Record<string, unknown> = {
       title: data.title,

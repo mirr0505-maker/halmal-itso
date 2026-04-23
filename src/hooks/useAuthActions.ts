@@ -99,7 +99,11 @@ export function useAuthActions({ userData, setUserData, setActiveMenu }: AuthAct
         level: testUser.level || 1,
         exp: (testUser as { exp?: number }).exp || 0,
         likes: (testUser as { likes?: number }).likes || 0,
-        points: 0, subscriberCount: 0, isPhoneVerified: true,
+        points: 0, subscriberCount: 0,
+        // 📱 Sprint 7 Step 7-B — 표준 필드 phoneVerified로 통일 (isPhoneVerified는 legacy, 게이트 무관).
+        //    App.tsx 게이트는 email로 bypass하므로 이 필드가 없어도 테스트 흐름은 통과.
+        phoneVerified: true,
+        isPhoneVerified: true,
         friendList: [], blockList: [], avatarUrl: '', createdAt: serverTimestamp(),
       });
       try {

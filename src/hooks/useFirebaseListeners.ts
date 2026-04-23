@@ -107,11 +107,17 @@ export function useFirebaseListeners() {
             //      handleTestLogin의 setDoc이 Rules update 가드(nickname 변경 금지)에 막힘.
             //      Google OAuth는 displayName 보장되므로 기존 경로 유지.
             if (user.displayName) {
+              // 🔰 Sprint 7.5 — 최초 문서 생성 시 온보딩 플래그 기본값 세팅
+              //   nicknameSet: false → NicknameSetupScreen 게이트 통과 필요
+              //   phoneVerified: false → PhoneVerifyScreen 게이트 통과 필요
+              //   displayName은 임시값 (changeNickname 최초 무료 호출 시 정식 닉네임으로 교체)
               const initialData = {
                 nickname: user.displayName,
                 email: user.email || "", bio: "안녕하세요.",
                 level: 1, exp: 0, likes: 0, points: 0,
                 subscriberCount: 0, isPhoneVerified: false,
+                phoneVerified: false,
+                nicknameSet: false,
                 friendList: [], blockList: [], avatarUrl: user.photoURL || "",
                 createdAt: serverTimestamp()
               };

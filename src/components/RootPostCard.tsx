@@ -11,8 +11,11 @@ import type { OgData } from './LinkPreviewCard';
 import { EXTERNAL_URLS } from '../constants';
 import { sanitizeHtml } from '../sanitize';
 import { sharePost } from '../utils/share';
+import { handleReport } from '../utils/reportHandler';
 import ThanksballModal from './ThanksballModal';
 import PandoraDetail from './PandoraDetail';
+// 🏷️ Sprint 5 Stage 5 — 작성자 카드에 대표 칭호(primaryTitles) 최대 3개 노출
+import TitleBadge from './TitleBadge';
 
 interface Props {
   post: Post;
@@ -47,6 +50,11 @@ const RootPostCard = ({
   const isMyPost = post.author === currentNickname;
   const isLikedByMe = currentNickname && post.likedBy?.includes(currentNickname);
   const authorData = (post.author_id && allUsers[post.author_id]) || allUsers[`nickname_${post.author}`];
+  // 🏷️ 대표 칭호(primaryTitles) 중 실제 보유(UserTitle) 최대 3개 — 보유 배열과 교차하여 유효한 것만
+  const authorPrimaryTitles = (authorData?.primaryTitles || [])
+    .map((id) => authorData?.titles?.find((t) => t.id === id))
+    .filter((t): t is NonNullable<typeof t> => !!t && !t.suspended)
+    .slice(0, 3);
   // 🚀 골드스타: Lv5 이상 유저가 좋아요한 수
   const goldStarCount = (post.likedBy || []).filter(nickname => {
     const ud = allUsers[`nickname_${nickname}`];
@@ -177,7 +185,8 @@ const RootPostCard = ({
                 <div className="absolute right-0 top-7 z-50 bg-white border border-slate-200 rounded-lg shadow-md py-0.5 w-28 animate-in fade-in duration-150" onMouseLeave={() => setShowPostMenu(false)}>
                   <button onClick={() => { setShowPostMenu(false); onAuthorClick?.(post.author); }}
                     className="w-full text-left px-2.5 py-0.5 text-[11px] font-bold text-slate-700 hover:bg-slate-50 transition-colors">공개프로필 보기</button>
-                  <button disabled className="w-full text-left px-2.5 py-0.5 text-[11px] font-bold text-slate-300 cursor-not-allowed">신고하기</button>
+                  <button onClick={() => { setShowPostMenu(false); handleReport('post', post.id); }}
+                    className="w-full text-left px-2.5 py-0.5 text-[11px] font-bold text-slate-700 hover:bg-slate-50 transition-colors">🚨 신고하기</button>
                 </div>
               )}
             </div>
@@ -266,8 +275,14 @@ const RootPostCard = ({
             <div className="w-12 h-12 rounded-xl bg-slate-100 overflow-hidden border border-slate-200 shrink-0">
               <img src={authorData?.avatarUrl || `https://api.dicebear.com/7.x/adventurer/svg?seed=${post.author}`} alt="avatar" className="w-full h-full object-cover" />
             </div>
-            <div className="flex flex-col">
-              <span className="font-[1000] text-[15px] text-slate-900 mb-0.5">{post.author}</span>
+            <div className="flex flex-col min-w-0">
+              <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
+                <span className="font-[1000] text-[15px] text-slate-900">{post.author}</span>
+                {/* 🏷️ 대표 칭호 최대 3개 — 보유·활성 상태 교차 확인 후 노출 */}
+                {authorPrimaryTitles.map((t) => (
+                  <TitleBadge key={t.id + (t.tier || '')} userTitle={t} size="sm" showTooltip />
+                ))}
+              </div>
               <span className="text-[11px] text-slate-500 font-bold">
                 Lv {userData.level} · {getReputationLabel(authorData ? getReputation(authorData) : userData.likes)} · 깐부수 {formatKoreanNumber(friendCount)}
               </span>

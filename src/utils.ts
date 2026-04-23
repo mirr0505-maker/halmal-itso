@@ -1,7 +1,8 @@
 // src/utils.ts
 import { increment } from 'firebase/firestore';
-import { LEVEL_TABLE, REPUTATION_TIERS, DECAY_CONFIG, ABUSE_PENALTIES, FEATURE_FLAGS } from './constants';
-import type { AbuseFlags, TierKey, UserData, FirestoreTimestamp } from './types';
+import { LEVEL_TABLE, REPUTATION_TIERS, DECAY_CONFIG, ABUSE_PENALTIES, FEATURE_FLAGS, MAPAE_THRESHOLDS, CREATOR_GATES } from './constants';
+import type { CreatorGateKey } from './constants';
+import type { AbuseFlags, MapaeKey, TierKey, UserData, FirestoreTimestamp } from './types';
 
 /**
  * 숫자를 한국식 단위(천, 만)로 변환하여 반환합니다.
@@ -300,6 +301,93 @@ export const getTierLabel = (tier: TierKey): string => {
     mythic: '신화',
   };
   return labels[tier];
+};
+
+/**
+ * 🏅 Creator Score → 마패 티어 (CREATOR_SCORE.md §마패 티어 경계)
+ * 검색어: getMapaeTier
+ * Why: creatorScoreTier 캐시가 있으면 우선, 없으면 MAPAE_THRESHOLDS로 실시간 재계산
+ *      score < bronze(0.5)이면 티어 없음(null) — 신규/저활동 유저
+ */
+export const getMapaeTier = (score: number | undefined | null): MapaeKey | null => {
+  if (score == null) return null;
+  if (score >= MAPAE_THRESHOLDS.diamond)  return 'diamond';
+  if (score >= MAPAE_THRESHOLDS.platinum) return 'platinum';
+  if (score >= MAPAE_THRESHOLDS.gold)     return 'gold';
+  if (score >= MAPAE_THRESHOLDS.silver)   return 'silver';
+  if (score >= MAPAE_THRESHOLDS.bronze)   return 'bronze';
+  return null;
+};
+
+/**
+ * 🏅 마패 티어 한글 라벨 (이모지 포함)
+ * 검색어: getMapaeLabel
+ */
+export const getMapaeLabel = (tier: MapaeKey | null): string => {
+  switch (tier) {
+    case 'diamond':  return '💠 다이아패';
+    case 'platinum': return '🏵️ 백금패';
+    case 'gold':     return '🥇 금패';
+    case 'silver':   return '🥈 은패';
+    case 'bronze':   return '🥉 동패';
+    default:         return '— 미부여';
+  }
+};
+
+/**
+ * 🏅 마패 티어 색상 (Tailwind 클래스 3종 묶음)
+ * 검색어: getMapaeColor
+ * Why: 동/은/금/백금/다이아 — slate → amber → violet 그라데이션으로 시각적 희소성 표현
+ */
+export const getMapaeColor = (tier: MapaeKey | null): { bg: string; text: string; border: string } => {
+  switch (tier) {
+    case 'diamond':  return { bg: 'bg-violet-50',  text: 'text-violet-700',  border: 'border-violet-300' };
+    case 'platinum': return { bg: 'bg-indigo-50',  text: 'text-indigo-700',  border: 'border-indigo-300' };
+    case 'gold':     return { bg: 'bg-amber-50',   text: 'text-amber-700',   border: 'border-amber-300' };
+    case 'silver':   return { bg: 'bg-slate-100',  text: 'text-slate-700',   border: 'border-slate-300' };
+    case 'bronze':   return { bg: 'bg-orange-50',  text: 'text-orange-700',  border: 'border-orange-300' };
+    default:         return { bg: 'bg-slate-50',   text: 'text-slate-400',   border: 'border-slate-200' };
+  }
+};
+
+/**
+ * 🏅 Creator Score 조회 헬퍼 — 캐시 우선, 없으면 null
+ * 검색어: getCreatorScore
+ * Why: 캐시 없는 유저(신규/집계 대기)는 UI에서 "집계 대기 중"으로 fallback — 공식 재계산은 서버 전용
+ */
+export const getCreatorScore = (userData: Pick<UserData, 'creatorScoreCached'>): number | null => {
+  return typeof userData.creatorScoreCached === 'number' ? userData.creatorScoreCached : null;
+};
+
+/**
+ * 🚪 Creator Gate 통과 여부 — Lv × Creator Score 동시 충족
+ * 검색어: checkCreatorGate
+ * Why: 출금/라이브/잉크병 유료화/깐부방 개설 등 고가치 기능에 품질 Gate 적용
+ *      UI 버튼 비활성·서버 assert 양쪽에서 동일 공식 사용
+ *      score가 아직 집계 전(null/undefined)이면 0으로 간주하여 기본 차단
+ */
+export const checkCreatorGate = (
+  userData: Pick<UserData, 'level' | 'exp' | 'creatorScoreCached'>,
+  gateKey: CreatorGateKey
+): { pass: boolean; reason?: 'level' | 'score' } => {
+  const gate = CREATOR_GATES[gateKey];
+  const level = typeof userData.level === 'number' ? userData.level : calculateLevel(userData.exp ?? 0);
+  const score = typeof userData.creatorScoreCached === 'number' ? userData.creatorScoreCached : 0;
+
+  if (level < gate.minLevel) return { pass: false, reason: 'level' };
+  if (score < gate.minScore) return { pass: false, reason: 'score' };
+  return { pass: true };
+};
+
+/**
+ * 🚪 Gate 요구 조건 라벨 — UI 툴팁/안내 문구용
+ * 검색어: getGateRequirementLabel
+ */
+export const getGateRequirementLabel = (gateKey: CreatorGateKey): string => {
+  const gate = CREATOR_GATES[gateKey];
+  const lvPart = gate.minLevel > 0 ? `Lv${gate.minLevel}+` : '레벨 무관';
+  const scorePart = `크리에이터 점수 ${gate.minScore.toFixed(1)}+`;
+  return `${lvPart} · ${scorePart}`;
 };
 
 /**

@@ -10,6 +10,13 @@ import ProfileEditForm from './ProfileEditForm';
 import ActivityMilestones from './ActivityMilestones';
 import MyPromotion from './MyPromotion';
 import RevenueDashboard from './revenue/RevenueDashboard';
+// 🏷️ Sprint 5 Stage 5 — 칭호 도감 + 대표 칭호 선택
+import TitleCollection from './TitleCollection';
+import PrimaryTitleSelector from './PrimaryTitleSelector';
+// 🎁 Sprint 7 Step 7-D — 추천코드 섹션
+import ReferralSection from './ReferralSection';
+// 🔰 Sprint 7.5 — 계정 관리 (고유번호·로그아웃·회원탈퇴)
+import AccountManagementSection from './mypage/AccountManagementSection';
 import { uploadToR2 } from '../uploadToR2';
 import { calculateLevel } from '../utils';
 
@@ -83,13 +90,15 @@ interface Props {
   onNavigateToSeries?: (seriesId: string) => void;
   // 🖋️ 잉크병 작품 카탈로그(작품 탭)로 이동 — 빈 구독 상태 안내용
   onGoToInkwellCatalog?: () => void;
+  // 🎁 Sprint 7 Step 7-D — 추천코드 공유 링크로 유입 시 자동 활성화할 초기 탭
+  initialTab?: 'referral';
 }
 
 const MyPage = ({
   userData, allUserRootPosts, allUserChildPosts, friends, friendCount, followerCount = 0, onPostClick, onEditPost, onToggleFriend, allUsers, followerCounts,
-  communities = [], joinedCommunityIds = [], onGloveClick, onLeaveGlove, onLogout, onRepost, onNavigateToSeries, onGoToInkwellCatalog
+  communities = [], joinedCommunityIds = [], onGloveClick, onLeaveGlove, onLogout, onRepost, onNavigateToSeries, onGoToInkwellCatalog, initialTab
 }: Props) => {
-  const [activeTab, setActiveTab] = useState<'posts' | 'onecuts' | 'comments' | 'friends' | 'thanksball' | 'sentball' | 'glove' | 'revenue' | 'inkwell' | 'subscribedSeries'>('posts');
+  const [activeTab, setActiveTab] = useState<'posts' | 'onecuts' | 'comments' | 'friends' | 'thanksball' | 'sentball' | 'glove' | 'revenue' | 'inkwell' | 'subscribedSeries' | 'titles' | 'referral'>(initialTab || 'posts');
   // 🖋️ 잉크병 — 본인이 작가인 작품 목록
   const [mySeries, setMySeries] = useState<Series[]>([]);
   // 🖋️ 잉크병 — 본인이 구독한 작품 목록
@@ -481,7 +490,7 @@ const MyPage = ({
               <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-blue-600 to-indigo-500" />
               
               <div className="flex items-center gap-6 mb-10 border-b border-slate-50 pb-2 overflow-x-auto no-scrollbar">
-                {(['posts', 'onecuts', 'comments', 'friends', 'thanksball', 'sentball', 'glove', 'inkwell', 'subscribedSeries', 'revenue'] as const).map(tab => (
+                {(['posts', 'onecuts', 'comments', 'friends', 'thanksball', 'sentball', 'glove', 'inkwell', 'subscribedSeries', 'titles', 'referral', 'revenue'] as const).map(tab => (
                   <button key={tab} onClick={() => setActiveTab(tab)} className={`pb-4 px-2 text-[15px] font-[1000] tracking-tight transition-all relative whitespace-nowrap ${activeTab === tab ? 'text-blue-600' : 'text-slate-300 hover:text-slate-500'}`}>
                     {tab === 'posts' && (
                       <span className="flex items-center gap-1">
@@ -551,6 +560,26 @@ const MyPage = ({
                         {subscribedSeries.length > 0 && (
                           <span className="text-[10px] font-[1000] text-purple-500 bg-purple-50 px-1.5 py-0.5 rounded-full border border-purple-100">
                             {subscribedSeries.length}
+                          </span>
+                        )}
+                      </span>
+                    )}
+                    {tab === 'titles' && (
+                      <span className="flex items-center gap-1">
+                        🏷️ 칭호
+                        {(userData?.titles?.length ?? 0) > 0 && (
+                          <span className="text-[10px] font-[1000] text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded-full border border-amber-100">
+                            {userData.titles!.length}
+                          </span>
+                        )}
+                      </span>
+                    )}
+                    {tab === 'referral' && (
+                      <span className="flex items-center gap-1">
+                        🎁 추천
+                        {(userData?.referralConfirmedCount ?? 0) > 0 && (
+                          <span className="text-[10px] font-[1000] text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded-full border border-indigo-100">
+                            {userData.referralConfirmedCount}
                           </span>
                         )}
                       </span>
@@ -841,6 +870,26 @@ const MyPage = ({
                 })()}
 
                 {/* 🚀 ADSMARKET: 수익 대시보드 탭 */}
+                {activeTab === 'titles' && (
+                  <div className="flex flex-col gap-8">
+                    {/* 대표 칭호 선택 */}
+                    <div className="rounded-2xl border border-slate-100 bg-slate-50/60 p-5">
+                      <PrimaryTitleSelector
+                        uid={userData.uid}
+                        titles={userData.titles}
+                        currentPrimary={userData.primaryTitles}
+                      />
+                    </div>
+                    {/* 14종 도감 */}
+                    <TitleCollection titles={userData.titles} isOwnProfile />
+                  </div>
+                )}
+
+                {/* 🎁 Sprint 7 Step 7-D — 추천코드 섹션 */}
+                {activeTab === 'referral' && (
+                  <ReferralSection userData={userData} />
+                )}
+
                 {activeTab === 'revenue' && (
                   <RevenueDashboard
                     pendingRevenue={(userData as unknown as { pendingRevenue?: number }).pendingRevenue || 0}
@@ -848,6 +897,12 @@ const MyPage = ({
                     totalSettled={(userData as unknown as { totalSettled?: number }).totalSettled || 0}
                     userLevel={calculateLevel(userData?.exp || 0)}
                   />
+                )}
+
+                {/* 🔰 Sprint 7.5 — 계정 관리 (고유번호·로그아웃·회원탈퇴)
+                    Why: Sidebar 로그아웃과 탈퇴 UI를 한 곳에 모아 "계정" 맥락 명확화 */}
+                {onLogout && (
+                  <AccountManagementSection userData={userData} onLogout={onLogout} />
                 )}
 
               </div>

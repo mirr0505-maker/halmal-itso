@@ -10,6 +10,7 @@ import { httpsCallable } from 'firebase/functions';
 import type { KanbuRoom, KanbuChat, Post, UserData, LiveSession } from '../types';
 import LiveBoard from './LiveBoard';
 import KanbuBoardView from './KanbuBoardView';
+import { checkCreatorGate, getGateRequirementLabel } from '../utils';
 
 interface Props {
   room: KanbuRoom;
@@ -84,6 +85,12 @@ const KanbuRoomView = ({ room, roomPosts, onBack, currentUserData, allUsers, onP
 
   // 🔴 라이브 세션 생성
   const createLiveSession = async () => {
+    // 🚪 Creator Gate — 라이브 개설은 Lv6+ · 크리에이터 점수 2.0+ 필요 (잠정, 분포 실측 후 튜닝)
+    const gate = checkCreatorGate(currentUserData, 'live');
+    if (!gate.pass) {
+      alert(`라이브 개설은 ${getGateRequirementLabel('live')} 충족 시 가능합니다.`);
+      return;
+    }
     const title = window.prompt('라이브 제목을 입력하세요:');
     if (!title?.trim()) return;
     setCreatingLive(true);

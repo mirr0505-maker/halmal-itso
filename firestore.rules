@@ -2,11 +2,14 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // 🚀 플랫폼 관리자 판별 — users/{uid}.nickname 기반 화이트리스트
-    // MVP 단계: 닉네임 직접 비교. 정식 출시 전 Custom Claims로 전환.
+    // 🚀 플랫폼 관리자 판별 — Sprint 6 A-1: Custom Claims OR 닉네임 화이트리스트 (이중 체크)
+    // 운영 절차: A-1(현재) → A-2(Claims 부여 후 검증 2~3일) → A-3(화이트리스트 제거, Claims 단일)
+    // Why: ID Token Claims는 서명된 자료라 닉네임 변경 공격 표면 제거.
+    //      A-1 단계는 락아웃 방지를 위한 이중 체크 — Claims 미부여 상태로 배포해도 안전.
     function isAdmin() {
       return request.auth != null
-        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.nickname in ['흑무영', 'Admin'];
+        && (request.auth.token.admin == true
+          || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.nickname in ['흑무영', 'Admin']);
     }
 
 
@@ -114,16 +117,24 @@ service cloud.firestore {
     }
     match /kanbu_rooms/{id} {
       allow read: if true;
-      allow write: if request.auth != null;
+      // 🚪 Creator Gate — 깐부방 신규 개설은 Lv6+ · 크리에이터 점수 0.5+ (잠정, project_creator_gates_tuning.md)
+      allow create: if request.auth != null
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('level', 0) >= 6
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('creatorScoreCached', 0) >= 0.5;
+      // update/delete: 개설자 포함 멤버 작업, 가입(memberIds arrayUnion) 등 기존 write 허용 유지
+      allow update, delete: if request.auth != null;
       match /{sub=**} { allow read: if true; allow write: if request.auth != null; }
     }
 
     // 🔴 라이브 세션 (Phase 4-A 텍스트 라이브)
     match /live_sessions/{sessionId} {
       allow read: if request.auth != null;
+      // 🚪 Creator Gate — 라이브 개설은 Lv6+ · 크리에이터 점수 2.0+ (잠정, project_creator_gates_tuning.md)
       allow create: if request.auth != null
         && request.resource.data.hostUid == request.auth.uid
-        && request.resource.data.status == 'ready';
+        && request.resource.data.status == 'ready'
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('level', 0) >= 6
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('creatorScoreCached', 0) >= 2.0;
       // 🔒 totalThanksball 제거 — sendThanksball CF(Admin SDK) 전용 (클라 잔액 차감 우회 차단)
       allow update: if request.auth != null
         && (resource.data.hostUid == request.auth.uid
@@ -301,7 +312,29 @@ service cloud.firestore {
               'creatorScoreCached', 'creatorScoreTier', 'creatorScoreUpdatedAt',
               'recent30d_posts', 'recent30d_comments', 'recent30d_likesSent',
               'recent30dUpdatedAt', 'reportsUniqueReporters', 'reportsUpdatedAt',
-              'likesSent', 'exileHistory'
+              'likesSent', 'exileHistory',
+              // 🔧 Sprint 4 Phase C — 관리자 수동 조정 override (adminAdjustCreatorScore CF 전용)
+              'creatorScoreOverride',
+              // 🏷️ Sprint 5 — 칭호 시스템 V1 (CF titleAwarder/titleChecker 전용)
+              // Why: 자기 업적 위조로 canon 칭호 획득 차단. primaryTitles만 self-write (아래 size<=3 제약).
+              'titles', 'validCommentCount', 'ballSentTotal',
+              'consecutivePostDays', 'lastPostDate',
+              // 📱 Sprint 7 Step 7-A — 휴대폰 인증 필드 (verifyPhoneServer CF 전용)
+              // Why: 클라가 phoneVerified=true 임의 세팅 → banned_phones 우회 차단
+              'phoneVerified', 'phoneHash', 'phoneVerifiedAt',
+              // 📱 Sprint 7 Step 7-C — 추천코드 필드 (generateReferralCode/redeemReferralCode CF 전용)
+              // Why: 클라가 referralCode 자가 생성 또는 referralMonthlyCount 조작으로 Rate Limit 우회 차단
+              'referralCode', 'referredByCode', 'referredByUid',
+              'referralPendingCount', 'referralConfirmedCount',
+              'referralMonthKey', 'referralMonthlyCount',
+              // 🆔 Sprint 7.5 — 고유번호 (generateUserCode CF 전용, 영구 불변)
+              // Why: 클라가 userCode 자가 생성·변경하면 "영구 참조 키" 보장 깨짐
+              'userCode',
+              // 🗑️ Sprint 7.5 — 회원탈퇴 (requestAccountDeletion/cancelAccountDeletion/purgeDeletedAccounts CF 전용)
+              // Why: 클라가 isDeleted=true 임의 세팅 → purge 스케줄로 Auth 자동 삭제되는 사고 차단
+              //      deletedAt 임의 과거 세팅 → 30일 유예 우회 차단
+              //      nicknameSet 임의 true 세팅 → 닉네임 미설정 상태 통과 차단 (changeNickname CF 전용)
+              'isDeleted', 'deletedAt', 'deletionReason', 'nicknameSet'
             ])
         && (
           !('exp' in request.resource.data.diff(resource.data).affectedKeys())
@@ -310,6 +343,14 @@ service cloud.firestore {
             && request.resource.data.exp >= 0
             && request.resource.data.exp >= resource.data.exp
             && request.resource.data.exp - resource.data.exp <= 100
+          )
+        )
+        // 🏷️ Sprint 5 D2-β: primaryTitles 최대 3개 (배열 + 크기 제약). 내용 검증은 CF·클라 모두 수행.
+        && (
+          !('primaryTitles' in request.resource.data.diff(resource.data).affectedKeys())
+          || (
+            request.resource.data.primaryTitles is list
+            && request.resource.data.primaryTitles.size() <= 3
           )
         );
 
@@ -419,6 +460,60 @@ service cloud.firestore {
     // Why: sendThanksball이 clientRequestId를 키로 중복 호출을 ball_transactions/{id} 존재 여부로 판별
     match /ball_transactions/{txId} {
       allow read: if false;
+      allow write: if false;
+    }
+
+    // 🚨 신고 원장 — Cloud Function 전용 (submitReport 호출로만 생성)
+    // Why: 클라이언트가 reports 직접 쓰기로 고유 신고자 조작해 타유저 Creator Score 파괴 방지
+    //      관리자는 Admin SDK로만 열람 (AdminPanel에서 지원 시 isAdmin() 추가 예정)
+    match /reports/{reportId} {
+      allow read: if false;
+      allow write: if false;
+    }
+
+    // 🛡️ Sprint 6 A-1: 관리자 행위 감사 로그 — admin_actions
+    // read: 관리자만 (운영 이력 열람)
+    // write: 전면 차단 (Admin SDK 전용, logAdminAction 헬퍼만 기록)
+    match /admin_actions/{actionId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
+    // ════════════════════════════════════════════════════════
+    // 🏷️ Sprint 5 — 칭호 시스템 V1 (MAPAE_AND_TITLES_V1.md §9)
+    // ════════════════════════════════════════════════════════
+    // 📖 titles/{titleId} — 마스터 정의 (14종)
+    //   read : 전체 공개 (카탈로그·UI 라벨 표시)
+    //   write: Admin SDK 전용 (seedTitles CF만)
+    match /titles/{titleId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // 🏅 title_achievements/{docId} — 획득 감사 로그
+    //   read : 본인(resource.data.uid) OR 관리자
+    //   write: Admin SDK 전용 (titleAwarder CF만)
+    match /title_achievements/{docId} {
+      allow read: if request.auth != null
+        && (resource.data.uid == request.auth.uid || isAdmin());
+      allow write: if false;
+    }
+
+    // 🏳️ title_revocations/{docId} — 회수 이력 (유배·사약 트리거)
+    //   read : 본인(resource.data.uid) OR 관리자
+    //   write: Admin SDK 전용 (titleRevocation CF만)
+    match /title_revocations/{docId} {
+      allow read: if request.auth != null
+        && (resource.data.uid == request.auth.uid || isAdmin());
+      allow write: if false;
+    }
+
+    // 🏅 mapae_history/{docId} — 마패 티어 변경 이력 (Creator Score 캐시 변경 훅)
+    //   read : 본인(resource.data.uid) OR 관리자
+    //   write: Admin SDK 전용 (creatorScoreEvents CF의 mapae 변경 감지만)
+    match /mapae_history/{docId} {
+      allow read: if request.auth != null
+        && (resource.data.uid == request.auth.uid || isAdmin());
       allow write: if false;
     }
 
@@ -601,6 +696,22 @@ service cloud.firestore {
     // 사약 블랙리스트 — 전면 차단 (Cloud Function 전용)
     match /banned_phones/{phoneHash} {
       allow read: if false;
+      allow write: if false;
+    }
+
+    // 📱 Sprint 7 Step 7-C — 추천코드 카탈로그
+    // Why: 가입 시 code lookup이 필요해 read는 로그인 유저에게 공개. write는 CF 전용.
+    match /referral_codes/{code} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+
+    // 📱 Sprint 7 Step 7-C — 추천 사용 원장 (멱등 마커)
+    // Why: 본인 관련 문서만 열람 (추천자 본인 or 피추천자 본인). write는 CF 전용.
+    match /referral_uses/{useId} {
+      allow read: if request.auth != null
+        && (resource.data.codeOwnerUid == request.auth.uid
+            || resource.data.redeemerUid == request.auth.uid);
       allow write: if false;
     }
 

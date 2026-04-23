@@ -6,18 +6,20 @@ import { doc, getDoc } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '../firebase';
 import { uploadToR2 } from '../uploadToR2';
-import type { Series } from '../types';
+import type { Series, UserData } from '../types';
 import TiptapEditor from './TiptapEditor';
+import { checkCreatorGate, getGateRequirementLabel } from '../utils';
 
 interface CreateEpisodeProps {
   seriesId: string;
   currentUserUid: string | null;
   currentUserNickname: string;
+  currentUserData?: UserData | null; // 🚪 Gate 체크용 (없으면 기본 허용, 서버가 최종 차단)
   onSuccess: (newPostId: string) => void;
   onCancel: () => void;
 }
 
-const CreateEpisode = ({ seriesId, currentUserUid, onSuccess, onCancel }: CreateEpisodeProps) => {
+const CreateEpisode = ({ seriesId, currentUserUid, currentUserData, onSuccess, onCancel }: CreateEpisodeProps) => {
   const [series, setSeries] = useState<Series | null>(null);
   const [nextEpisodeNumber, setNextEpisodeNumber] = useState<number>(1);
   const [episodeTitle, setEpisodeTitle] = useState('');
@@ -67,6 +69,13 @@ const CreateEpisode = ({ seriesId, currentUserUid, onSuccess, onCancel }: Create
     if (customPrice !== null) return customPrice;
     return series?.defaultPrice || 0;
   }, [willBePaid, customPrice, series]);
+
+  // 🚪 유료 회차 Gate — 크리에이터 점수 1.0+ 필요 (레벨 무관, 잠정 수치)
+  // Why: 평판 낮은 유저의 유료 회차 남발 방지. 서버 createEpisode CF가 최종 차단하지만 UX 친화적으로 선안내
+  const paidGate = useMemo(() => {
+    if (!currentUserData) return { pass: true };
+    return checkCreatorGate(currentUserData, 'inkwellPaid');
+  }, [currentUserData]);
 
   const handleSubmit = async () => {
     if (!currentUserUid) { setError('로그인이 필요합니다.'); return; }
@@ -190,13 +199,23 @@ const CreateEpisode = ({ seriesId, currentUserUid, onSuccess, onCancel }: Create
             <button
               type="button"
               onClick={() => setIsPaidOverride(true)}
+              disabled={!paidGate.pass}
+              title={!paidGate.pass ? `유료 공개는 ${getGateRequirementLabel('inkwellPaid')} 충족 시 가능합니다.` : undefined}
               className={`flex-1 px-3 py-1.5 rounded-full text-[11px] font-[1000] transition-colors ${
+                !paidGate.pass ? 'bg-slate-100 text-slate-300 cursor-not-allowed' :
                 willBePaid ? 'bg-blue-600 text-white shadow-sm' : 'bg-white border border-slate-300 text-slate-500 hover:bg-slate-100'
               }`}
             >
-              🔒 유료 공개
+              🔒 유료 공개 {!paidGate.pass && '🔒'}
             </button>
           </div>
+
+          {/* 🚪 Gate 차단 안내 */}
+          {!paidGate.pass && (
+            <p className="text-[10px] text-amber-700 font-bold mb-2 px-2 py-1 bg-amber-50 rounded border border-amber-200">
+              ℹ️ 유료 공개는 {getGateRequirementLabel('inkwellPaid')} 충족 시 가능합니다.
+            </p>
+          )}
 
           {/* 자동 안내 (override 안 한 상태) */}
           {series && isPaidOverride === null && (
