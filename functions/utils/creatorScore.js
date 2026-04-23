@@ -32,6 +32,14 @@ const TRUST_CONFIG = {
   },
   EXILE_PENALTIES: { 1: 0.05, 2: 0.25, 3: 1.50 },
   REPEAT_MULTIPLIER: { 2: 1.5, 3: 2.0 },
+  // 🚨 Phase C — 고유 신고자 수 → Trust 감산 (threshold 내림차순, 하나만 적용)
+  // Why: 5명/10명/20명 구간별 감산. 담합 1명은 감산 0. src/constants.ts와 동기화.
+  //      잠정 수치 — 배포 1주 후 신고 분포 실측 후 튜닝 (project_report_penalties_tuning.md)
+  REPORT_PENALTIES: [
+    { threshold: 20, penalty: 0.15 },
+    { threshold: 10, penalty: 0.10 },
+    { threshold: 5, penalty: 0.05 },
+  ],
 };
 
 const MAPAE_THRESHOLDS = {
@@ -96,7 +104,17 @@ function calculateTrustScore(userData) {
     }
   }
 
-  // Phase C — 고유신고자 감산은 TRUST_CONFIG.REPORT_PENALTIES로 별도 활성화 (본 Phase B는 skip)
+  // 🚨 Phase C — 고유 신고자 수 감산 (threshold 내림차순 순회, 첫 매치만 적용)
+  // Why: reportAggregator가 users.reportsUniqueReporters에 기록. 5/10/20명 구간별 감산
+  //      담합 신고(동일 신고자 다수)는 고유 수로 집계되지 않아 자연 방어
+  const reportCount = typeof userData.reportsUniqueReporters === "number"
+    ? userData.reportsUniqueReporters
+    : 0;
+  if (reportCount > 0) {
+    for (const { threshold, penalty } of TRUST_CONFIG.REPORT_PENALTIES) {
+      if (reportCount >= threshold) { trust -= penalty; break; }
+    }
+  }
 
   return Math.max(CREATOR_SCORE_CONFIG.MIN_TRUST, Math.min(1.0, trust));
 }
@@ -127,12 +145,53 @@ function getMapaeTier(score) {
   return null; // bronze 미만은 티어 없음
 }
 
+// ═══════════════════════════════════════════════════════
+// 4) Override 해석기 — 관리자 수동 조정값 우선 적용
+// ═══════════════════════════════════════════════════════
+// Why: adminAdjustCreatorScore로 설정한 creatorScoreOverride가 있으면
+//      수식 대신 override.value 채택. expiresAt 경과 시 자동 무효화 → 호출자가 override 제거.
+//      캐시 배치(creatorScoreCache) + 이벤트 트리거(creatorScoreEvents)가 공통 진입점.
+// 반환: { value, tier, source: 'override'|'calculated', overrideExpired }
+function resolveScore(userData, nowMs) {
+  const now = nowMs || Date.now();
+  const ov = userData.creatorScoreOverride;
+  if (ov && typeof ov.value === "number") {
+    const expMs = ov.expiresAt && typeof ov.expiresAt.toMillis === "function"
+      ? ov.expiresAt.toMillis()
+      : null;
+    if (!expMs || expMs > now) {
+      return {
+        value: ov.value,
+        tier: getMapaeTier(ov.value),
+        source: "override",
+        overrideExpired: false,
+      };
+    }
+    // override 만료 — 수식으로 fallback + 호출자에게 제거 신호
+    const calc = calculateCreatorScore(userData);
+    return {
+      value: calc,
+      tier: getMapaeTier(calc),
+      source: "calculated",
+      overrideExpired: true,
+    };
+  }
+  const calc = calculateCreatorScore(userData);
+  return {
+    value: calc,
+    tier: getMapaeTier(calc),
+    source: "calculated",
+    overrideExpired: false,
+  };
+}
+
 module.exports = {
   calculateCreatorScore,
   calculateActivityScore,
   calculateTrustScore,
   calculateRecent30dTotal,
   getMapaeTier,
+  resolveScore,
   CREATOR_SCORE_CONFIG,
   ACTIVITY_WEIGHTS,
   LEVEL_MEDIAN_ACTIVITY,

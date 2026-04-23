@@ -5,8 +5,8 @@
 // 검색어: creatorScoreCache
 
 const { onSchedule } = require("firebase-functions/v2/scheduler");
-const { getFirestore, Timestamp } = require("firebase-admin/firestore");
-const { calculateCreatorScore, getMapaeTier } = require("./utils/creatorScore");
+const { getFirestore, Timestamp, FieldValue } = require("firebase-admin/firestore");
+const { resolveScore } = require("./utils/creatorScore");
 
 const db = getFirestore();
 
@@ -43,24 +43,25 @@ exports.creatorScoreCache = onSchedule(
       const data = userDoc.data();
 
       const c = counts[userDoc.id] || { posts: 0, comments: 0, likesSent: 0 };
-      // recent30d 집계값을 유저 문서에 병합 → calculateCreatorScore 입력
+      // recent30d 집계값을 유저 문서에 병합 → resolveScore 입력
       const userWithRecent = {
         ...data,
         recent30d_posts: c.posts,
         recent30d_comments: c.comments,
         recent30d_likesSent: c.likesSent,
       };
-      const newScore = calculateCreatorScore(userWithRecent);
-      const newTier = getMapaeTier(newScore);
+      // 🔧 resolveScore: creatorScoreOverride 우선 적용. 만료 시 수식 fallback + 제거 신호
+      const { value: newScore, tier: newTier, overrideExpired } = resolveScore(userWithRecent, now.toMillis());
 
-      // 변화 없으면 쓰기 생략
+      // 변화 없으면 쓰기 생략 (단, 만료된 override 정리는 강제 쓰기 유발)
       const prevScore = data.creatorScoreCached ?? null;
       const prevTier = data.creatorScoreTier ?? null;
       const prevPosts = data.recent30d_posts ?? null;
       const prevComments = data.recent30d_comments ?? null;
       const prevLikesSent = data.recent30d_likesSent ?? null;
       if (
-        prevScore === newScore
+        !overrideExpired
+        && prevScore === newScore
         && prevTier === newTier
         && prevPosts === c.posts
         && prevComments === c.comments
@@ -70,7 +71,7 @@ exports.creatorScoreCache = onSchedule(
         continue;
       }
 
-      batch.update(userDoc.ref, {
+      const updatePayload = {
         creatorScoreCached: newScore,
         creatorScoreTier: newTier,
         creatorScoreUpdatedAt: now,
@@ -78,7 +79,10 @@ exports.creatorScoreCache = onSchedule(
         recent30d_comments: c.comments,
         recent30d_likesSent: c.likesSent,
         recent30dUpdatedAt: now,
-      });
+      };
+      // 만료된 override는 자동 제거 (수식 값으로 전환)
+      if (overrideExpired) updatePayload.creatorScoreOverride = FieldValue.delete();
+      batch.update(userDoc.ref, updatePayload);
       count++;
       updated++;
       if (count >= 400) {

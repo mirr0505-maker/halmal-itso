@@ -8,6 +8,7 @@ const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const { onDocumentCreated, onDocumentDeleted } = require("firebase-functions/v2/firestore");
 const { getFirestore, FieldValue, Timestamp } = require("firebase-admin/firestore");
 const { buildExpLevelUpdate } = require("./utils/levelSync");
+const { assertPassesGate } = require("./utils/gateCheck");
 
 const db = getFirestore();
 
@@ -400,6 +401,12 @@ exports.createEpisode = onCall(
 
       if (willBePaid && finalPrice <= 0) {
         throw new HttpsError("invalid-argument", "유료 회차의 가격은 1볼 이상이어야 합니다.");
+      }
+
+      // 🚪 Creator Gate — 유료 회차는 크리에이터 점수 품질 Gate 통과 필수
+      // Why: 평판 낮은 유저의 유료 회차 남발 방지. 프론트 버튼 차단과 이중 방어.
+      if (willBePaid) {
+        assertPassesGate(authorSnapForName.data() || {}, "inkwellPaid");
       }
 
       // 🚀 postId 생성 (클라이언트 규칙과 동일)

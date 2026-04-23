@@ -5,8 +5,8 @@
 // 검색어: creatorScoreEvents
 
 const { onDocumentUpdated } = require("firebase-functions/v2/firestore");
-const { getFirestore, Timestamp } = require("firebase-admin/firestore");
-const { calculateCreatorScore, getMapaeTier } = require("./utils/creatorScore");
+const { getFirestore, Timestamp, FieldValue } = require("firebase-admin/firestore");
+const { resolveScore } = require("./utils/creatorScore");
 
 const db = getFirestore();
 const REGION = "asia-northeast3";
@@ -37,8 +37,9 @@ exports.onUserChangedForCreatorScore = onDocumentUpdated(
     if (changedKeys.length === 0) return;
     if (changedKeys.every((k) => creatorScoreFields.includes(k))) return;
 
-    // 트리거 대상 필드: sanctionStatus, exileHistory, reputationCached, abuseFlags
-    const triggerFields = ["sanctionStatus", "exileHistory", "reputationCached", "abuseFlags"];
+    // 트리거 대상 필드: sanctionStatus, exileHistory, reputationCached, abuseFlags, creatorScoreOverride
+    // Why: 관리자가 override 설정/해제 시 즉시 캐시에 반영
+    const triggerFields = ["sanctionStatus", "exileHistory", "reputationCached", "abuseFlags", "creatorScoreOverride"];
     const shouldRecalc = triggerFields.some((f) => {
       try {
         return JSON.stringify(before[f]) !== JSON.stringify(after[f]);
@@ -48,17 +49,19 @@ exports.onUserChangedForCreatorScore = onDocumentUpdated(
     });
     if (!shouldRecalc) return;
 
-    const newScore = calculateCreatorScore(after);
-    const newTier = getMapaeTier(newScore);
+    // 🔧 resolveScore: override 있으면 그 값, 만료 시 수식 fallback
+    const { value: newScore, tier: newTier, overrideExpired } = resolveScore(after);
 
-    // 결과값이 기존 캐시와 동일하면 쓰기 생략 (무한 루프 1차 방어에 추가)
-    if (after.creatorScoreCached === newScore && after.creatorScoreTier === newTier) return;
+    // 결과값이 기존 캐시와 동일하면 쓰기 생략 (override 만료 정리는 예외)
+    if (!overrideExpired && after.creatorScoreCached === newScore && after.creatorScoreTier === newTier) return;
 
-    await db.collection("users").doc(event.params.uid).update({
+    const payload = {
       creatorScoreCached: newScore,
       creatorScoreTier: newTier,
       creatorScoreUpdatedAt: Timestamp.now(),
-    });
+    };
+    if (overrideExpired) payload.creatorScoreOverride = FieldValue.delete();
+    await db.collection("users").doc(event.params.uid).update(payload);
     console.log(`[creatorScoreEvents] ${event.params.uid}: ${after.creatorScoreCached ?? "-"} → ${newScore} (${newTier ?? "untiered"})`);
   }
 );
