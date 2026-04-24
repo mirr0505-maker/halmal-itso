@@ -238,6 +238,16 @@
 | `audit_anomalies` | 🔒 교차검증 이상치 로그 (관리자만 read) | `{yyyyMMdd}_{uid}` |
 | `user_snapshots` | 🏅 Sprint 3 — 일일 유저 활동 스냅샷 (90일 보관) | `{yyyyMMdd}_{uid}` |
 | `activity_logs` | 🏅 Sprint 4 — 글·댓글·좋아요 활동 로그 (TTL 30일, `expiresAt` 기준) | 자동 ID |
+| `reports` | 🚨 신고 원장 (read=관리자, write=false, Cloud Function 전용) → `FLAGGING.md` | `{targetType}_{targetId}_{reporterUid}` |
+| `reporter_daily_quota` | 🚨 신고자 일일 상한 10건 추적 (CF 전용) → `FLAGGING.md` | `{uid}_{YYYY-MM-DD}` |
+| `admin_actions` | 🛡️ Sprint 6 — 관리자 행위 감사 로그 (read=관리자, write=false, Admin SDK 전용) | `{yyyyMMdd}_{adminUid}_{ts}_{rand}` |
+| `kanbu_promo_history` | 📜 깐부 홍보 결제 영수증 (CF 전용, ballAudit 크로스체크 권위, 2026-04-23) | `{uid}_{timestamp}` |
+| `referral_codes` | 🎁 Sprint 7 — 추천코드 원장 (6자리 코드, CF 전용) | `{CODE}` (6자리 영숫자) |
+| `referral_uses` | 🎁 Sprint 7 — 추천코드 사용 내역 + 7일 활성 확인 | `{refereeUid}` |
+| `user_codes` | 🆔 Sprint 7.5 — 유저 고유번호 `글러브 #XXXXXXXX` (8자리, CF 전용) | `{CODE}` (8자리) |
+| `deletion_scheduled` | 🗑️ Sprint 7.5 — 회원탈퇴 30일 유예 큐 (CF 전용) | `{uid}` |
+| `titles` / `title_awards` | 🏷️ Sprint 5 — 칭호 카탈로그 + 수상 이력 (CF 전용) | 정의 키 / 자동 ID |
+| `reserved_nicknames` | 예약 닉네임 락 (변경 전 닉네임, 운영 예약) | `{nickname}` |
 
 - **commentCount 비정규화**: 댓글 작성 시 `posts/{postId}` 문서에 `increment(1)` 누적 → 홈 피드 쿼리에서 Firestore 읽기 비용 절감.
 - **per-topic 구독**: `selectedTopic` 변경 시에만 `comments` where `rootId == selectedTopic.id` 구독 (전체 구독 비용 절감).
@@ -536,6 +546,33 @@ creatorScore = (reputation × activity × trust) / 1000
 
 > 📋 상세 설계 문서는 **[GIANTTREE.md](./GIANTTREE.md)** 를 참조하세요.
 > 하이브리드 성장 시스템 v1 (2026-04-05) — 직계 전파자(Node) + 일반 참여자(Leaf) 분리, 시든 가지 알림, 성장 6단계
+
+---
+
+## 11.5 🚨 신고 시스템 (Flagging System)
+
+> 📋 상세 설계 문서는 **[FLAGGING.md](./FLAGGING.md)** 를 참조하세요.
+> 2026-04-24 Phase A+B 배포 — 9 카테고리 × 3단계 차등 threshold + 작성자 이의제기
+
+### 핵심 요약
+- **9 카테고리**: 스팸·도배 / 심한 욕설 / 생명 경시 / 인종·성 차별 / 비윤리 / 반국가 / 음란물 / 불법정보·사기·광고 / 기타(50자 입력). 객관적 위반 ↔ 주관적 편향 구분
+- **3단계 state**: `null → review → preview_warning → hidden` 승격 전용 (관리자 `restoreHiddenPost`만 복구)
+- **카테고리 차등 threshold**: 객관적(obscene/life_threat: 1~2명) ↔ 표준(5명) ↔ 편향 방어(unethical/anti_state: 10~12명). 지배적 사유(최빈 reasonKey)로 임계값 선택
+- **악용 방어**: 일일 상한 10건 / 멱등키 / 자기 신고 차단 / 카테고리 화이트리스트 / 고유 신고자만 집계(담합 1차 디스카운트)
+- **작성자 권리**: 신고 상태 진입 시 [⚡ 이의제기] 버튼 → `submitContentAppeal` CF → 관리자 우선큐 → `restoreHiddenPost`로 복구 시 `appeal_accepted` 알림
+- **관리자 UI**: AdAdminPage → 🚨 신고 관리 탭 → 상단 "⚡ 이의제기 우선큐" + targetId별 그룹화 + 4종 조치(hide/delete/warn/none) + 기각 + 복구
+- **Creator Score 연동**: 매일 05:15 `reportAggregator` → `users.reportsUniqueReporters` → 05:00 `creatorScoreCache` Trust 감산 (5/10/20 threshold · -0.05/-0.10/-0.15)
+- **알림 5종**: `report_state_change` / `report_warning` / `report_resolved` / `appeal_accepted` / `report_restored`
+
+### Firestore 컬렉션
+- `reports` — 신고 원장 (read=isAdmin, CF write 전용)
+- `reporter_daily_quota` — 일일 상한 추적 (CF 전용)
+
+### Cloud Functions (6종)
+- `submitReport` — 유저 신고 제출 + 자동 상태 승격
+- `reportAggregator` — 매일 05:15 KST 집계
+- `resolveReport` / `rejectReport` / `restoreHiddenPost` — 관리자 조치 3종
+- `submitContentAppeal` — 작성자 이의제기
 
 ---
 

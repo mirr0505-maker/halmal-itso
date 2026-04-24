@@ -1,7 +1,8 @@
 // functions/gloveBotFetcher.js — 🤖 정보봇 데이터 수집기
 // 🚀 fetchBotNews: Google News RSS → 키워드 매칭 → community_posts 자동 게시
 // 🚀 fetchBotDart: DART OpenAPI → corpCode별 공시 → community_posts 자동 게시
-// 스케줄: 각각 매 30분 실행 (enabled=true이고 만료 전인 장갑만 대상)
+// 스케줄: 각각 매 1시간 실행 (enabled=true이고 만료 전인 장갑만 대상)
+// ⚠️ 정식 서비스 시 30분으로 단축 검토 — 베타 기간 글 유입 속도 완화 목적
 // 중복 방지: glove_bot_dedup/{communityId}/items/{hash}
 const { onSchedule } = require("firebase-functions/v2/scheduler");
 const { getFirestore, Timestamp } = require("firebase-admin/firestore");
@@ -48,10 +49,10 @@ async function fetchGoogleNewsRss(keyword) {
 }
 
 // ════════════════════════════════════════════════════════════
-// 🚀 fetchBotNews — 매 30분 실행: 활성 봇 커뮤니티에 뉴스 자동 게시
+// 🚀 fetchBotNews — 매 1시간 실행: 활성 봇 커뮤니티에 뉴스 자동 게시
 // ════════════════════════════════════════════════════════════
 exports.fetchBotNews = onSchedule(
-  { schedule: "every 30 minutes", region: "asia-northeast3", timeoutSeconds: 120 },
+  { schedule: "every 1 hours", region: "asia-northeast3", timeoutSeconds: 120 },
   async () => {
     const now = Timestamp.now();
 
@@ -150,13 +151,13 @@ exports.fetchBotNews = onSchedule(
 );
 
 // ════════════════════════════════════════════════════════════
-// 🚀 fetchBotDart — 매 30분 실행: DART 공시 자동 게시
+// 🚀 fetchBotDart — 매 1시간 실행: DART 공시 자동 게시
 // ════════════════════════════════════════════════════════════
 // DART OpenAPI: https://opendart.fss.or.kr/api/list.json
 // 파라미터: crtfc_key, corp_code, bgn_de(시작일), end_de(종료일), page_count
 // 반환: { list: [{ corp_name, report_nm, rcept_no, rcept_dt, ... }] }
 exports.fetchBotDart = onSchedule(
-  { schedule: "every 30 minutes", region: "asia-northeast3", timeoutSeconds: 120 },
+  { schedule: "every 1 hours", region: "asia-northeast3", timeoutSeconds: 120 },
   async () => {
     // DART API 키 — functions/.env 파일에서 로드
     const DART_API_KEY = process.env.DART_API_KEY;

@@ -283,7 +283,7 @@ const OG_IMAGE_ALLOWED_HOSTS = (() => {
 // 🚀 ogRenderer: /p/{postId} 요청 시 글 OG 태그를 동적으로 채운 HTML 반환
 // SNS 봇(카카오·페이스북·트위터 등)이 크롤링할 때 글 제목·이미지·설명이 반영됨
 exports.ogRenderer = onRequest(
-  { region: "asia-northeast3", timeoutSeconds: 10, memory: "128MiB" },
+  { region: "asia-northeast3", timeoutSeconds: 10, memory: "256MiB" },
   async (req, res) => {
     const APP_URL = "https://geulove.com";
     const DEFAULT_IMAGE = `${APP_URL}/og-image.png`;
@@ -673,8 +673,16 @@ exports.syncUserLevel = syncUserLevel;
 //      → calculateTrustScore의 REPORT_PENALTIES 구간 감산 → 다음날 Creator Score 반영
 const { submitReport } = require("./reportSubmit");
 const { reportAggregator } = require("./reportAggregator");
+const { resolveReport, rejectReport, restoreHiddenPost } = require("./reportResolve");
+const { submitContentAppeal } = require("./reportAppeal");
 exports.submitReport = submitReport;
 exports.reportAggregator = reportAggregator;
+// 🚨 2026-04-24 Phase 3 — 관리자 신고 조치 3종
+exports.resolveReport = resolveReport;
+exports.rejectReport = rejectReport;
+exports.restoreHiddenPost = restoreHiddenPost;
+// 🚨 2026-04-24 Phase B — 작성자 이의제기
+exports.submitContentAppeal = submitContentAppeal;
 
 // 🛡️ Sprint 6 A-1 — 관리자 권한 체계 (Custom Claims 이중 체크)
 // Why: 닉네임 화이트리스트는 공격 표면. Firebase Auth Custom Claims로 전환.
@@ -732,8 +740,10 @@ exports.revokeReferralUse = revokeReferralUse;
 //      friendList/likedBy/author의 uid 참조 전환은 Sprint 8+ (project_usercode_reference_migration.md)
 const { generateUserCode } = require("./userCode");
 const { migrateUserCodes } = require("./migrateUserCodes");
+const { backfillReferralCodes } = require("./backfillReferralCodes");
 exports.generateUserCode = generateUserCode;
 exports.migrateUserCodes = migrateUserCodes;
+exports.backfillReferralCodes = backfillReferralCodes;
 
 // 🗑️ Sprint 7.5 — 회원탈퇴 (B안 소프트 딜리트 30일 유예)
 // Why: GDPR 대응 + 유저 복구 창구. 30일 경과 시 purgeDeletedAccounts가 hard delete.
@@ -746,3 +756,20 @@ const {
 exports.requestAccountDeletion = requestAccountDeletion;
 exports.cancelAccountDeletion = cancelAccountDeletion;
 exports.purgeDeletedAccounts = purgeDeletedAccounts;
+
+// 🚪 Sprint 7.5 핫픽스 — 온보딩 완결 플래그 (가입↔로그인 분기)
+// Why: 회원가입 1회 온보딩(닉네임·추천·전화) 통과 여부를 서버가 단일 플래그로 기록.
+//      로그인 시 이 플래그가 true면 온보딩 게이트 전부 skip → 레거시 유저 재입력 사고 차단.
+const { completeOnboarding } = require("./completeOnboarding");
+const { backfillOnboarding } = require("./backfillOnboarding");
+exports.completeOnboarding = completeOnboarding;
+exports.backfillOnboarding = backfillOnboarding;
+
+// 🥥 Sprint 8 — 카카오 OAuth Custom Token 브릿지
+// Why: Firebase Auth 네이티브 미지원 → 클라가 Kakao SDK access_token을 CF로 보내
+//      kakao_id 검증 후 Custom Token 발급. UID는 결정적 `kakao_{kakao_id}`.
+const { kakaoAuthCustomToken } = require("./kakaoAuth");
+exports.kakaoAuthCustomToken = kakaoAuthCustomToken;
+
+const { naverAuthCustomToken } = require("./naverAuth");
+exports.naverAuthCustomToken = naverAuthCustomToken;

@@ -47,3 +47,7 @@ upload-worker/.wrangler/
 PHONE_HASH_SALT*.txt
 *_SECRET*.txt
 *_SALT*.txt
+
+# 🧪 로컬 테스트 메모 (한글 파일명 포함) — 커밋 금지
+*회원가입 테스트*.txt
+*테스트*.txt

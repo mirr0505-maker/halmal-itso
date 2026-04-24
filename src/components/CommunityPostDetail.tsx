@@ -9,6 +9,7 @@ import { TIER_CONFIG, tierRangeLabel } from '../types';
 import { sanitizeHtml } from '../sanitize';
 import { calculateLevel, getReputationLabel, getReputation, formatKoreanNumber, buildExpLevelUpdate, calculateExpForPost } from '../utils';
 import { handleReport } from '../utils/reportHandler';
+import ReportStateBanner from './ReportStateBanner';
 import VerifiedBadgeComponent from './VerifiedBadge';
 import ThanksballModal from './ThanksballModal';
 
@@ -214,6 +215,16 @@ const CommunityPostDetail = ({ post, currentUserData, allUsers = {}, followerCou
         </div>
         {/* 본문 */}
         <div className="px-6 py-5">
+          {/* 🚨 2026-04-24 신고 상태 배너 + 작성자 이의제기 */}
+          <ReportStateBanner
+            reportState={livePost.reportState}
+            reportCount={livePost.reportCount}
+            dominantReason={livePost.dominantReason}
+            targetType="community_post"
+            targetId={livePost.id}
+            isAuthor={!!currentUserData && livePost.author_id === currentUserData.uid}
+            appealStatus={livePost.appealStatus}
+          />
           {livePost.title && <h2 className="text-[20px] font-[1000] text-slate-900 mb-3">{livePost.title}</h2>}
           <div
             className="text-[14px] font-medium text-slate-700 leading-[1.8] [&_p]:mb-3 [&_strong]:font-bold [&_em]:italic [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_img]:rounded-lg [&_img]:max-w-full [&_a]:text-blue-400 [&_a]:underline"

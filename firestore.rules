@@ -312,6 +312,8 @@ service cloud.firestore {
               'creatorScoreCached', 'creatorScoreTier', 'creatorScoreUpdatedAt',
               'recent30d_posts', 'recent30d_comments', 'recent30d_likesSent',
               'recent30dUpdatedAt', 'reportsUniqueReporters', 'reportsUpdatedAt',
+              // 🚨 2026-04-24 신고자 기각 카운트 (rejectReport CF 전용)
+              'reportsSubmittedRejected', 'reportsSubmittedRejectedUpdatedAt',
               'likesSent', 'exileHistory',
               // 🔧 Sprint 4 Phase C — 관리자 수동 조정 override (adminAdjustCreatorScore CF 전용)
               'creatorScoreOverride',
@@ -334,7 +336,10 @@ service cloud.firestore {
               // Why: 클라가 isDeleted=true 임의 세팅 → purge 스케줄로 Auth 자동 삭제되는 사고 차단
               //      deletedAt 임의 과거 세팅 → 30일 유예 우회 차단
               //      nicknameSet 임의 true 세팅 → 닉네임 미설정 상태 통과 차단 (changeNickname CF 전용)
-              'isDeleted', 'deletedAt', 'deletionReason', 'nicknameSet'
+              'isDeleted', 'deletedAt', 'deletionReason', 'nicknameSet',
+              // 🚪 Sprint 7.5 핫픽스 — 온보딩 완결 플래그 (completeOnboarding/backfillOnboarding CF 전용)
+              // Why: 클라가 onboardingCompleted=true 임의 세팅 → 추천/닉네임/전화 게이트 전부 우회 차단
+              'onboardingCompleted', 'onboardingCompletedAt'
             ])
         && (
           !('exp' in request.resource.data.diff(resource.data).affectedKeys())
@@ -465,8 +470,15 @@ service cloud.firestore {
 
     // 🚨 신고 원장 — Cloud Function 전용 (submitReport 호출로만 생성)
     // Why: 클라이언트가 reports 직접 쓰기로 고유 신고자 조작해 타유저 Creator Score 파괴 방지
-    //      관리자는 Admin SDK로만 열람 (AdminPanel에서 지원 시 isAdmin() 추가 예정)
+    //      2026-04-24: 관리자 UI에서 실시간 목록·상태 변경하려면 read 허용 필요
     match /reports/{reportId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
+    // 🚨 2026-04-24 Phase 4 — 일일 신고 횟수 상한 추적 (submitReport CF 전용)
+    // Why: 1인 1일 10건 상한으로 악성 스팸 신고 방어. 클라 read 불필요 (CF가 자체 조회)
+    match /reporter_daily_quota/{quotaId} {
       allow read: if false;
       allow write: if false;
     }
@@ -520,6 +532,13 @@ service cloud.firestore {
     // 💰 땡스볼 잔액 일일 스냅샷 — Cloud Function(snapshotBallBalance) 전용
     // Why: 장부 정합성 검증의 기준점 — 클라 접근 불허, 관리자도 Admin SDK/콘솔로만
     match /ball_balance_snapshots/{docId} {
+      allow read: if false;
+      allow write: if false;
+    }
+
+    // 📜 깐부 홍보 결제 영수증 — Cloud Function(registerKanbuPromo) 전용
+    // Why: ball_transactions 원장이 없는 홍보 결제 차감의 감사 크로스체크 권위 — 클라 read 불필요
+    match /kanbu_promo_history/{docId} {
       allow read: if false;
       allow write: if false;
     }

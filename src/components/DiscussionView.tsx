@@ -5,6 +5,7 @@ import { doc, onSnapshot } from 'firebase/firestore';
 import type { Post, UserData, KanbuRoom } from '../types';
 import { EXILE_CATEGORY } from '../types';
 import RootPostCard from './RootPostCard';
+import ReportStateBanner from './ReportStateBanner';
 import DebateBoard from './DebateBoard';
 import AdSlot from './ads/AdSlot';
 import OneCutCommentBoard from './OneCutCommentBoard'; // 🚀 황금알을 낳는 거위 작성자(좌)↔독자(우) 지그재그 보드
@@ -171,6 +172,16 @@ const DiscussionView = ({
     <div className="grid grid-cols-1 md:grid-cols-12 gap-4 w-full max-w-[1600px] mx-auto animate-in fade-in duration-700 items-start pb-20">
       {/* 좌측: 게시글 본문 + 댓글 폼 + 댓글 목록 */}
       <div className="col-span-1 md:col-span-8 flex flex-col">
+        {/* 🚨 2026-04-24 신고 상태 배너 + 작성자 이의제기 */}
+        <ReportStateBanner
+          reportState={rootPost.reportState}
+          reportCount={rootPost.reportCount}
+          dominantReason={rootPost.dominantReason}
+          targetType={rootPost.category === 'magic_inkwell' ? 'episode' : 'post'}
+          targetId={rootPost.id}
+          isAuthor={!!currentNickname && rootPost.author === currentNickname}
+          appealStatus={rootPost.appealStatus}
+        />
         {!rootPost.isOneCut && (
           <RootPostCard
             post={rootPost}

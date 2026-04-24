@@ -21,7 +21,7 @@ exports.activateInfoBot = onCall(
   async (request) => {
     if (!request.auth) throw new HttpsError("unauthenticated", "로그인이 필요합니다.");
     const uid = request.auth.uid;
-    const nickname = request.auth.token?.name || "익명";
+    // 🔧 nickname 해석은 트랜잭션 내부 userSnap 조회 후로 이동 (token.name은 OAuth 공급자만 자동 채움 — email/pw 계정은 "익명" 폴백 문제)
     const { communityId, keywords, sources, stockCode, corpCode, priceAlertThresholds } = request.data || {};
 
     // 입력 검증
@@ -61,7 +61,10 @@ exports.activateInfoBot = onCall(
       const userSnap = await tx.get(userRef);
       if (!userSnap.exists) throw new HttpsError("not-found", "사용자를 찾을 수 없습니다.");
 
-      const balance = userSnap.data().ballBalance || 0;
+      const userData = userSnap.data();
+      const balance = userData.ballBalance || 0;
+      // 🔧 thanksball 표준 패턴 — users.nickname 우선, token.name 폴백, 최종 "익명"
+      const resolvedNickname = userData.nickname || request.auth.token?.name || "익명";
       if (balance < BOT_MONTHLY_PRICE) {
         throw new HttpsError("failed-precondition", `땡스볼이 부족합니다. (필요: ${BOT_MONTHLY_PRICE}볼, 보유: ${balance}볼)`);
       }
@@ -69,6 +72,25 @@ exports.activateInfoBot = onCall(
       tx.update(userRef, {
         ballBalance: balance - BOT_MONTHLY_PRICE,
         ballSpent: FieldValue.increment(BOT_MONTHLY_PRICE),
+      });
+
+      // 2-bis. 감사 원장 — thanksball 표준 스키마 (Sprint 9 Batch 1 2026-04-24)
+      // Why: 이전엔 glove_bot_payments 영수증만 있고 ball_transactions 레코드 없어 ballAudit outflow 집계 누락 → false critical 유발
+      const txId = `infobot_activation_${communityId}_${Date.now()}`;
+      tx.set(db.collection("ball_transactions").doc(txId), {
+        schemaVersion: 1,
+        senderUid: uid,
+        senderNickname: resolvedNickname,
+        resolvedRecipientUid: null,  // 플랫폼 sink — outflow만 집계
+        amount: BOT_MONTHLY_PRICE,
+        balanceBefore: balance,
+        balanceAfter: balance - BOT_MONTHLY_PRICE,
+        receiverBalanceBefore: null,
+        receiverBalanceAfter: null,
+        platformFee: BOT_MONTHLY_PRICE,  // 전액 플랫폼 수익 (platform_revenue/glove_bot와 동일 금액)
+        sourceType: "infobot_activation",
+        details: { communityId, sources, keywords: keywords.map(k => k.trim()).filter(Boolean) },
+        createdAt: now,
       });
 
       // 3. 플랫폼 수익 100% 적립
@@ -100,7 +122,7 @@ exports.activateInfoBot = onCall(
       tx.set(db.collection("glove_bot_payments").doc(paymentId), {
         communityId,
         payerUid: uid,
-        payerNickname: nickname,
+        payerNickname: resolvedNickname,
         amount: BOT_MONTHLY_PRICE,
         activatedAt: now,
         expiresAt,

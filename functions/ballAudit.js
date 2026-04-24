@@ -52,6 +52,17 @@ exports.auditBallBalance = onSchedule(
       }
     }
 
+    // 3-bis. 외부 장부 보정 — ballBalance 차감 중 ball_transactions 원장이 없는 경로
+    // 현재 커버: kanbuPromo (홍보 결제). 나머지 7경로는 Sprint 9 볼 원장 통일에서 일괄 정리
+    const promoSnap = await db.collection("kanbu_promo_history")
+      .where("paidAt", ">=", Timestamp.fromDate(cutoffUtc)).get();
+    for (const d of promoSnap.docs) {
+      const { uid, cost } = d.data();
+      if (typeof uid === "string" && typeof cost === "number" && cost > 0) {
+        outflow.set(uid, (outflow.get(uid) || 0) + cost);
+      }
+    }
+
     // 4. 교차 검증: todayBalance == yesterdayBalance - outflow + inflow
     //    diff < 0이면 장부보다 잔액이 적음 → 누락·유출 의심
     //    diff > 0이면 장부 외 충전 경로(testChargeBall 등) — 경고만, 에러 아님

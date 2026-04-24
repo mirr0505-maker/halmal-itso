@@ -13,6 +13,7 @@ import { formatCount } from '../utils/inkwell';
 import { calculateLevel, formatKoreanNumber, getReputationLabel, getReputation } from '../utils';
 import { sharePost } from '../utils/share';
 import { handleReport } from '../utils/reportHandler';
+import ReportStateBanner from './ReportStateBanner';
 import PaywallOverlay from './PaywallOverlay';
 import EpisodeCommentBoard from './EpisodeCommentBoard';
 import EpisodeCommentForm from './EpisodeCommentForm';
@@ -493,6 +494,30 @@ const EpisodeReader = ({ postId, currentUserUid, currentUserNickname, onBack, on
               {series.title}
             </span>
           )}
+          {/* 🖋️ 2026-04-24 작가 전용 수정/삭제 텍스트 버튼 — RootPostCard 우측 액션바 패턴 통일 */}
+          {/* Why: ⋮ 안 숨김 제거, 다른 메뉴(황금알·너와 나의 이야기 등) 상세뷰와 톤 일치 */}
+          {isAuthor && (
+            <>
+              {onEditEpisode && (
+                <button
+                  onClick={onEditEpisode}
+                  disabled={deleting || republishing}
+                  className="text-[11px] font-bold text-slate-400 hover:text-blue-500 disabled:opacity-50 transition-colors"
+                  title="회차 수정"
+                >
+                  수정
+                </button>
+              )}
+              <button
+                onClick={handleDelete}
+                disabled={deleting || republishing}
+                className="text-[11px] font-bold text-slate-400 hover:text-rose-500 disabled:opacity-50 transition-colors"
+                title="회차 삭제"
+              >
+                {deleting ? '삭제중...' : '삭제'}
+              </button>
+            </>
+          )}
           {/* 🖋️ 공유 아이콘 버튼 — Web Share API + fallback 클립보드 */}
           <button
             onClick={handleShare}
@@ -520,7 +545,7 @@ const EpisodeReader = ({ postId, currentUserUid, currentUserNickname, onBack, on
               </svg>
             </button>
             {menuOpen && (
-              <div className="absolute right-0 top-8 z-40 w-36 bg-white border border-slate-200 rounded-lg shadow-lg overflow-hidden whitespace-nowrap">
+              <div className="absolute right-0 top-8 z-40 w-36 bg-white border border-slate-200 rounded-lg shadow-lg overflow-hidden whitespace-nowrap flex flex-col">
                 {/* 누구나 — 공개프로필 / 신고 */}
                 {onAuthorClick && (
                   <button
@@ -536,30 +561,14 @@ const EpisodeReader = ({ postId, currentUserUid, currentUserNickname, onBack, on
                 >
                   🚨 신고하기
                 </button>
-                {/* 작가 본인 — 수정 / 다시 공개 / 삭제 */}
-                {isAuthor && (
-                  <>
-                    <button
-                      onClick={() => { setMenuOpen(false); onEditEpisode?.(); }}
-                      className="w-full text-left px-3 py-1.5 text-[11px] font-bold text-slate-700 hover:bg-slate-50 transition-colors border-t border-slate-100"
-                    >
-                      ✏️ 회차 수정
-                    </button>
-                    {episode.isHidden && (
-                      <button
-                        onClick={() => { setMenuOpen(false); handleRepublishEpisode(); }}
-                        className="w-full text-left px-3 py-1.5 text-[11px] font-bold text-slate-700 hover:bg-slate-50 transition-colors border-t border-slate-100"
-                      >
-                        👁 다시 공개
-                      </button>
-                    )}
-                    <button
-                      onClick={() => { setMenuOpen(false); handleDelete(); }}
-                      className="w-full text-left px-3 py-1.5 text-[11px] font-bold text-rose-600 hover:bg-rose-50 transition-colors border-t border-slate-100"
-                    >
-                      🗑️ 회차 삭제
-                    </button>
-                  </>
+                {/* 🖋️ 2026-04-24 수정/삭제는 외부 상단 버튼으로 이동. 다시공개는 비공개 회차 전용이라 여기만 유지 */}
+                {isAuthor && episode.isHidden && (
+                  <button
+                    onClick={() => { setMenuOpen(false); handleRepublishEpisode(); }}
+                    className="w-full text-left px-3 py-1.5 text-[11px] font-bold text-slate-700 hover:bg-slate-50 transition-colors border-t border-slate-100"
+                  >
+                    👁 다시 공개
+                  </button>
                 )}
               </div>
             )}
@@ -582,6 +591,17 @@ const EpisodeReader = ({ postId, currentUserUid, currentUserNickname, onBack, on
           </button>
         </div>
       )}
+
+      {/* 🚨 2026-04-24 신고 상태 배너 + 작성자 이의제기 */}
+      <ReportStateBanner
+        reportState={episode.reportState}
+        reportCount={episode.reportCount}
+        dominantReason={episode.dominantReason}
+        targetType="episode"
+        targetId={episode.id}
+        isAuthor={isAuthor}
+        appealStatus={episode.appealStatus}
+      />
 
       {/* 회차 헤더 */}
       <div className="mb-5">

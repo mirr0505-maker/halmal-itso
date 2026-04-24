@@ -161,6 +161,15 @@ exports.redeemReferralCode = onCall(
     if (redeemerData.referredByCode) {
       throw new HttpsError("already-exists", "이미 추천코드를 사용했습니다 (1인 1회).");
     }
+    // 🚪 Sprint 7.5 핫픽스 — 추천코드는 회원가입 온보딩에서만 입력 가능.
+    // Why: 가입 이후 MyPage 등에서 뒤늦게 추천코드 입력하는 경로는 설계상 허용 안 함.
+    //      레거시 유저(backfill로 onboardingCompleted=true)도 동일하게 차단됨.
+    if (redeemerData.onboardingCompleted === true) {
+      throw new HttpsError(
+        "failed-precondition",
+        "추천코드는 회원가입 시에만 입력할 수 있습니다."
+      );
+    }
     const redeemerPhoneHash = redeemerData.phoneHash;
 
     // 동일 phoneHash로 이미 redeem된 use 문서 존재 여부 쿼리

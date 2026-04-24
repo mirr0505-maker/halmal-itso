@@ -115,6 +115,64 @@ const MigrateUserCodesSection = () => {
   );
 };
 
+// 🎁 Sprint 7 백필 — 기존 유저 referralCode 일괄 부여 (2026-04-24)
+// onCreate 트리거 이전 가입자(테스트 계정 전부)가 "발급 중입니다" 무한 노출되는 문제 해결.
+// 멱등: referralCode 이미 있는 유저는 skip. 중단 시 재실행 안전.
+const BackfillReferralCodesSection = () => {
+  const { busy, result, error, call } = useCallable('backfillReferralCodes');
+  return (
+    <div className="p-4 border border-slate-200 rounded-lg">
+      <h3 className="text-[13px] font-[1000] text-slate-800 mb-1">🎁 기존 유저 referralCode 일괄 부여 (backfillReferralCodes)</h3>
+      <p className="text-[11px] font-bold text-slate-500 mb-3">
+        Sprint 7 트리거 이전 가입자가 MyPage 추천 탭에서 <strong>"발급 중입니다"</strong>로 보이는 문제 해소. 전원에게 6자리 referralCode 발급 + <span className="font-mono">referral_codes/&#123;code&#125;</span> 문서 생성.
+        <br/>멱등 — 이미 referralCode 있는 유저는 skip. admin_actions 감사 로그 자동 기록.
+      </p>
+      <button onClick={() => call({})} disabled={busy}
+        className="px-3 py-1.5 rounded-md text-[12px] font-bold text-white bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50"
+      >
+        {busy ? '백필 중... (최대 9분)' : '일괄 부여 실행'}
+      </button>
+      <ResultBlock result={result} error={error} />
+    </div>
+  );
+};
+
+// 🚪 Sprint 7.5 핫픽스 — 레거시 유저 onboardingCompleted 일괄 주입
+// 가입 시점이 Sprint 7.5 배포(2026-04-23 KST) 이전인 유저만 대상. 이미 완결된 유저는 skip.
+// dryRun=true로 target 규모 먼저 측정 후, dryRun=false로 실제 반영.
+const BackfillOnboardingSection = () => {
+  const { busy, result, error, call } = useCallable('backfillOnboarding');
+  const [reason, setReason] = useState('');
+
+  return (
+    <div className="p-4 border border-slate-200 rounded-lg">
+      <h3 className="text-[13px] font-[1000] text-slate-800 mb-1">🚪 온보딩 완결 플래그 백필 (backfillOnboarding)</h3>
+      <p className="text-[11px] font-bold text-slate-500 mb-3">
+        Sprint 7.5 핫픽스 배포 직후 <strong>1회 실행</strong>. 2026-04-23 이전 가입자 전원에 <span className="font-mono">onboardingCompleted=true</span>를 일괄 주입해 재로그인 시 추천코드 게이트 재노출을 방지합니다.
+        <br/>dry-run 먼저 → target 규모 확인 후 실제 반영. phoneVerified는 손대지 않음.
+      </p>
+      <div className="space-y-2">
+        <textarea value={reason} onChange={(e) => setReason(e.target.value)} placeholder="사유 (실제 반영 시 2자 이상 필수)"
+          rows={2}
+          className="w-full px-3 py-1.5 text-[12px] border border-slate-200 rounded-md resize-none" />
+        <div className="flex gap-2 flex-wrap">
+          <button onClick={() => call({ dryRun: true })} disabled={busy}
+            className="px-3 py-1.5 rounded-md text-[12px] font-bold text-slate-700 border border-slate-300 hover:bg-slate-50 disabled:opacity-50"
+          >
+            {busy ? '실행 중...' : '🔍 dry-run (측정만)'}
+          </button>
+          <button onClick={() => call({ dryRun: false, reason: reason.trim() })} disabled={busy || reason.trim().length < 2}
+            className="px-3 py-1.5 rounded-md text-[12px] font-bold text-white bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50"
+          >
+            {busy ? '반영 중...' : '🚀 실제 반영'}
+          </button>
+        </div>
+      </div>
+      <ResultBlock result={result} error={error} />
+    </div>
+  );
+};
+
 // 🚀 섹션 2: Creator Score 수동 조정 (override 설정/해제)
 const CreatorScoreAdjustSection = () => {
   const { busy, result, error, call } = useCallable('adminAdjustCreatorScore');
@@ -473,6 +531,8 @@ const SystemPanel = () => (
     <SeedReservedSection />
     <SeedTitlesSection />
     <MigrateUserCodesSection />
+    <BackfillReferralCodesSection />
+    <BackfillOnboardingSection />
     <CreatorScoreAdjustSection />
     <AbuseFlagSection />
     <ReferralRevokeSection />

@@ -14,6 +14,11 @@
 //
 // ⚠️ 테스트 계정 bypass: App.tsx에서 phoneVerified와 동일 패턴으로 이 게이트를 우회시킴.
 //    Why: TEST_ACCOUNTS의 DB 문서는 nicknameSet 없을 가능성 → 개발자 플로우를 막으면 안 됨.
+//
+// 🚪 Sprint 7.5 핫픽스 — 로그인 vs 가입 분기 (단일 서버 플래그 기반)
+//    onboardingCompleted === true 인 유저는 3~5번 게이트 전부 skip.
+//    레거시 유저는 backfillOnboarding CF로 true 주입 → 로그인 시 어떤 게이트도 재등장 안 함.
+//    신규 가입자는 false 상태로 시작 → 전화/닉네임/추천 순회 → 마지막에 completeOnboarding CF 호출.
 
 import { lazy, Suspense, useState } from "react";
 import type { ReactNode } from "react";
@@ -64,6 +69,13 @@ export default function OnboardingGuard({ userData, onLogout, isTestAccount, chi
         <AccountRevivalModal deletedAtMillis={ms} onLogout={onLogout} />
       </Suspense>
     );
+  }
+
+  // 🚪 Sprint 7.5 핫픽스 — 온보딩 완결 유저는 아래 3~5번 게이트 전부 skip.
+  //    Why: 서버 플래그(onboardingCompleted)가 "이 유저는 회원가입 온보딩을 이미 통과"임을 보증.
+  //         레거시 유저는 backfillOnboarding CF가 일괄 true 주입. 그 뒤로는 로그인만 거쳐 바로 메인 진입.
+  if (userData.onboardingCompleted === true) {
+    return <>{children}</>;
   }
 
   // 3. 휴대폰 인증 — 테스트 계정은 bypass (App.tsx 기존 패턴과 동일)

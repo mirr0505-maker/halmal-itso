@@ -9,6 +9,7 @@ import { db } from '../firebase';
 import { doc, deleteDoc, updateDoc, increment } from 'firebase/firestore';
 import { sharePost } from '../utils/share';
 import { handleReport } from '../utils/reportHandler';
+import ReportStateBanner from './ReportStateBanner';
 
 interface Props {
   rootPost: Post;
@@ -191,6 +192,16 @@ const OneCutDetailView = ({
 
       {/* 메인 컬럼 */}
       <div className="col-span-1 md:col-span-8 flex flex-col">
+        {/* 🚨 2026-04-24 신고 상태 배너 + 작성자 이의제기 */}
+        <ReportStateBanner
+          reportState={rootPost.reportState}
+          reportCount={rootPost.reportCount}
+          dominantReason={rootPost.dominantReason}
+          targetType="post"
+          targetId={rootPost.id}
+          isAuthor={!!currentNickname && rootPost.author === currentNickname}
+          appealStatus={rootPost.appealStatus}
+        />
         <section className="rounded-none flex flex-col mb-0 bg-white">
 
           {/* 헤더: ← 헨젤의 빵부스러기 / 경과시간 / 공유 / 수정·삭제 */}

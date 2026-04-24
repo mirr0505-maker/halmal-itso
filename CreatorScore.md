@@ -152,6 +152,7 @@ REPORT_PENALTIES = [
 - `reportAggregator` CF (매일 05:15 KST) → 고유 신고자 수 집계 → `users.reportsUniqueReporters` 갱신
 - 다음날 `creatorScoreCache` (05:00) → `calculateTrustScore`에서 REPORT_PENALTIES 구간 감산 적용
 - 잠정 수치 — `project_report_penalties_tuning.md` 참조
+- **2026-04-24 FLAGGING Phase A+B 확장**: 9 카테고리 차등 threshold + 3단계 state + 작성자 이의제기. 상세 flow·상태 머신·관리자 UI는 [FLAGGING.md](./FLAGGING.md) 참조. Trust 감산 로직(5/10/20 threshold)은 본 문서 그대로 유지 — FLAGGING이 고유 신고자 집계 부분만 보강
 
 **예시**:
 - 1차 유배 1회 → `trust = 1.0 - 0.05 = 0.95`

@@ -18,6 +18,10 @@
 // 게이트 해제 조건(OnboardingGuard에서 판단):
 //   - userData.referredByCode 존재 OR
 //   - localStorage('onboardingReferralSkipped') === 'true'
+//
+// 🚪 Sprint 7.5 핫픽스 — 이 화면이 온보딩의 마지막 단계이므로 success/skip 양쪽 경로에서
+//   completeOnboarding CF를 호출해 users.onboardingCompleted=true 를 기록.
+//   이후 로그인 시 OnboardingGuard가 이 플래그만 보고 전체 게이트를 skip.
 
 import { useEffect, useState } from "react";
 import { httpsCallable } from "firebase/functions";
@@ -65,6 +69,16 @@ export default function OnboardingReferralScreen({ onDone }: Props) {
     }
   }, []);
 
+  // 🚪 온보딩 완결 플래그 기록 — 실패해도 UI는 통과 (다음 로그인 시 게이트가 재등장해도 재시도됨)
+  const markOnboardingCompleted = async () => {
+    try {
+      const complete = httpsCallable(functions, "completeOnboarding");
+      await complete({});
+    } catch (e) {
+      console.warn("[onboarding] completeOnboarding 실패 (무시하고 진입):", e);
+    }
+  };
+
   const handleRedeem = async () => {
     const normalized = code.trim().toUpperCase();
     if (!/^[A-Z0-9]{6,8}$/.test(normalized)) {
@@ -78,6 +92,8 @@ export default function OnboardingReferralScreen({ onDone }: Props) {
       const redeem = httpsCallable(functions, "redeemReferralCode");
       await redeem({ code: normalized, deviceFingerprint });
       try { sessionStorage.removeItem("pendingReferralCode"); } catch { /* 무시 */ }
+      await markOnboardingCompleted();
+      try { sessionStorage.removeItem("signup_session"); } catch { /* 무시 */ }
       onDone();
     } catch (e: unknown) {
       const err = e as { code?: string; message?: string };
@@ -86,9 +102,11 @@ export default function OnboardingReferralScreen({ onDone }: Props) {
     }
   };
 
-  const handleSkip = () => {
+  const handleSkip = async () => {
     try { localStorage.setItem("onboardingReferralSkipped", "true"); } catch { /* 무시 */ }
     try { sessionStorage.removeItem("pendingReferralCode"); } catch { /* 무시 */ }
+    await markOnboardingCompleted();
+    try { sessionStorage.removeItem("signup_session"); } catch { /* 무시 */ }
     onDone();
   };
 

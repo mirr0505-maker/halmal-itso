@@ -156,6 +156,12 @@ export interface UserData {
   //    false/undefined: NicknameSetupScreen 노출. true: 온보딩 통과.
   //    changeNickname CF가 최초 1회 무료로 전환 후 true 기록.
   nicknameSet?: boolean;
+  // 🚪 Sprint 7.5 핫픽스 — 온보딩 완결 플래그 (가입 ↔ 로그인 분기)
+  //    회원가입 최초 1회 온보딩(닉네임·추천·전화)을 모두 통과했음을 의미.
+  //    true: 이후 로그인 시 온보딩 게이트 전부 skip. false/undefined: 온보딩 노출.
+  //    completeOnboarding CF 전용 write (Rules 차단). 레거시 백필은 backfillOnboarding.
+  onboardingCompleted?: boolean;
+  onboardingCompletedAt?: FirestoreTimestamp;
 }
 
 // 🔧 Creator Score 수동 조정 override — adminAdjust.js 전용
@@ -331,6 +337,18 @@ export interface Post {
   isHiddenByExile?: boolean;  // 🏚️ 유배 처분으로 숨김 처리된 글 (피드에서 제외)
   hiddenByExileAt?: FirestoreTimestamp;
   exileLevel?: 1 | 2 | 3;  // 🏚️ 유배지 글 탭 식별 (category='유배·귀양지'와 함께)
+  // 🚨 2026-04-24 신고 시스템 (Phase 2+ / A 확장)
+  reportCount?: number;               // 고유 신고자 수 (submitReport CF가 증가)
+  isHiddenByReport?: boolean;         // reportState='hidden' 시 true (호환 유지 필드)
+  hiddenByReportAt?: FirestoreTimestamp;
+  reportState?: 'review' | 'preview_warning' | 'hidden' | null; // 3단계 + 카테고리 차등
+  reviewStartedAt?: FirestoreTimestamp;
+  previewWarningStartedAt?: FirestoreTimestamp;
+  dominantReason?: string;            // 가장 많이 신고된 reasonKey (지배적 사유)
+  // Phase B 예정: appealStatus, appealNote, appealAt (작성자 이의제기)
+  appealStatus?: 'none' | 'pending' | 'resolved';
+  appealNote?: string;
+  appealAt?: FirestoreTimestamp;
 }
 
 // ════════════════════════════════════════════════════════
@@ -699,6 +717,17 @@ export interface CommunityPost {
   isBlinded?: boolean;           // 관리자 블라인드 처리
   thanksballTotal?: number;      // 받은 땡스볼 총수
   pinnedCommentId?: string;      // 작성자가 고정한 댓글 ID
+  // 🚨 2026-04-24 신고 시스템 3단계 상태
+  reportCount?: number;
+  reportState?: 'review' | 'preview_warning' | 'hidden' | null;
+  isHiddenByReport?: boolean;
+  hiddenByReportAt?: FirestoreTimestamp;
+  reviewStartedAt?: FirestoreTimestamp;
+  previewWarningStartedAt?: FirestoreTimestamp;
+  dominantReason?: string;
+  appealStatus?: 'none' | 'pending' | 'resolved';
+  appealNote?: string;
+  appealAt?: FirestoreTimestamp;
 }
 
 // 🤖 정보봇 설정 (category='주식' 장갑 전용, 대장이 월 20볼 결제)

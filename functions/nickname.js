@@ -152,17 +152,23 @@ exports.changeNickname = onCall(
         nicknameChangedAt: Timestamp.now(),
       });
 
-      // 10. ball_transactions 기록 (감사 원장)
+      // 10. ball_transactions 기록 (감사 원장 — thanksball 표준 스키마, Sprint 9 Batch 1 정규화 2026-04-24)
+      // Why: 기존 {uid, timestamp, amount:음수} 구스키마는 ballAudit의 senderUid/createdAt 조회에 안 잡혀 outflow 집계 누락 → false critical 유발
       const txId = `nickname_change_${uid}_${Date.now()}`;
       tx.set(db.collection("ball_transactions").doc(txId), {
-        uid,
-        amount: -FEE_BALLS,
-        sourceType: "nickname_change",
+        schemaVersion: 1,
+        senderUid: uid,
+        senderNickname: oldNickname || null,
+        resolvedRecipientUid: null,  // 플랫폼 sink — ballAudit는 outflow만 집계, inflow 스킵
+        amount: FEE_BALLS,
         balanceBefore,
         balanceAfter,
-        timestamp: Timestamp.now(),
+        receiverBalanceBefore: null,
+        receiverBalanceAfter: null,
+        platformFee: 0,              // 닉네임 변경비는 수익 누적 아닌 순수 소각성 — platform_revenue는 별도 기록(L168+)
+        sourceType: "nickname_change",
         details: { oldNickname, newNickname: trimmed },
-        schemaVersion: 1,
+        createdAt: Timestamp.now(),
       });
 
       // 11. 플랫폼 수익 누적

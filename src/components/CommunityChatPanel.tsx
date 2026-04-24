@@ -489,16 +489,15 @@ const CommunityChatPanel = ({ community, currentUser, members, allUsers = {} }: 
 
   // 🚀 채팅 UI
   return (
-    <div className="flex flex-col h-[600px] bg-slate-50 rounded-xl overflow-hidden border border-slate-100 mt-4">
+    <div className="flex flex-col h-[calc(100vh-380px)] min-h-[420px] max-h-[720px] bg-white border-t border-slate-100 mt-3 overflow-hidden">
       {/* 메시지 영역 (드래그&드롭 수신) */}
       <div
         ref={messagesContainerRef}
         className={`flex-1 overflow-y-auto px-4 py-3 space-y-2.5 transition-colors ${isDragging ? 'bg-emerald-50/50' : ''}`}
         style={community.chatBgUrl ? {
-          backgroundImage: `linear-gradient(rgba(255,255,255,0.6), rgba(255,255,255,0.6)), url(${community.chatBgUrl})`,
+          backgroundImage: `linear-gradient(rgba(255,255,255,0.75), rgba(255,255,255,0.75)), url(${community.chatBgUrl})`,
           backgroundSize: 'cover',
           backgroundPosition: 'center',
-          backgroundAttachment: 'local',
         } : undefined}
         onScroll={trackScroll}
         onDragOver={handleDragOver}
@@ -589,7 +588,7 @@ const CommunityChatPanel = ({ community, currentUser, members, allUsers = {} }: 
             placeholder={replyTarget ? `${replyTarget.author}님에게 답장...` : '메시지를 입력하세요... (Enter 전송)'}
             maxLength={500}
             rows={2}
-            className="flex-1 resize-none px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-emerald-400 text-[13px] font-medium text-slate-900 placeholder:text-slate-300"
+            className="flex-1 resize-none px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-slate-400 text-[13px] font-medium text-slate-900 placeholder:text-slate-300"
             disabled={sending}
           />
           {/* 파일 첨부 버튼 (이미지+문서) */}
@@ -603,7 +602,7 @@ const CommunityChatPanel = ({ community, currentUser, members, allUsers = {} }: 
             className={`px-4 py-2 rounded-lg text-[12px] font-[1000] transition-all shrink-0 ${
               (!input.trim() && !pendingFile) || sending
                 ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
-                : 'bg-emerald-500 text-white hover:bg-emerald-600'
+                : 'bg-slate-900 text-white hover:bg-blue-600'
             }`}
           >
             {uploading ? '업로드 중' : sending ? '전송 중' : '전송'}

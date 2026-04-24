@@ -47,6 +47,17 @@ exports.registerKanbuPromo = onCall(
         promoUpdatedAt: FieldValue.serverTimestamp(),
         ballBalance: currentBalance - plan.cost,
       });
+
+      // 📜 영수증 — audit_anomalies false critical 방지 + 정산·분쟁 추적
+      // Why: ball_transactions 원장이 없는 차감 경로라 ballAudit가 유출로 오인하던 이슈 해결
+      const historyId = `${uid}_${Date.now()}`;
+      tx.set(db.collection("kanbu_promo_history").doc(historyId), {
+        uid,
+        cost: plan.cost,
+        plan: plan.label,
+        days: plan.days,
+        paidAt: Timestamp.now(),
+      });
     });
 
     return { success: true, plan: plan.label, cost: plan.cost };

@@ -31,8 +31,10 @@ const getDeepLinkParams = (() => {
   };
 })();
 import { useState, useEffect, lazy, Suspense } from 'react';
-import { db } from './firebase';
+import { db, auth, functions } from './firebase';
 import { collection, onSnapshot, query, where, orderBy, limit, updateDoc, doc } from 'firebase/firestore';
+import { signInWithCustomToken } from 'firebase/auth';
+import { httpsCallable } from 'firebase/functions';
 import type { Post, KanbuRoom, Community, TitleTier } from './types';
 import { EXILE_CATEGORY } from './types';
 import { useFirebaseListeners } from './hooks/useFirebaseListeners';
@@ -43,6 +45,8 @@ import { useFirestoreActions } from './hooks/useFirestoreActions';
 import InAppBrowserModal from './components/InAppBrowserModal';
 import AnyTalkList from './components/AnyTalkList';
 import NotificationBell from './components/NotificationBell';
+import ReportModalHost from './components/ReportModalHost';
+import { getHiddenByMe } from './utils/reportHandler';
 import Sidebar from './components/Sidebar';
 import type { MenuId } from './components/Sidebar';
 import SubNavbar from './components/SubNavbar';
@@ -228,12 +232,120 @@ function App() {
     }
   }, []);
 
+  // 🥥 Sprint 8 — 카카오 OAuth 복귀 핸들러 (Authorization Code Flow)
+  //   useAuthActions.handleKakaoLogin이 Kakao.Auth.authorize()로 kauth.kakao.com 이동 →
+  //   유저 로그인 후 이 페이지로 ?code=AUTHCODE 복귀 → 여기서 CF 호출.
+  //   sessionStorage('kakaoAuthPending')=1이 우리 앱이 트리거한 복귀임을 증명 (외부 ?code= 오염 차단).
+  useEffect(() => {
+    let pending = false;
+    try { pending = sessionStorage.getItem('kakaoAuthPending') === '1'; } catch { /* sessionStorage 차단 환경 무시 */ }
+    if (!pending) return;
+    try { sessionStorage.removeItem('kakaoAuthPending'); } catch { /* noop */ }
+
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get('code');
+    const errorParam = params.get('error');
+
+    let intent: 'login' | 'signup' | 'either' = 'either';
+    try {
+      const stored = sessionStorage.getItem('kakaoAuthIntent');
+      if (stored === 'login' || stored === 'signup') intent = stored;
+      sessionStorage.removeItem('kakaoAuthIntent');
+    } catch { /* noop */ }
+
+    // URL 정리 먼저 — CF 실패 시 새로고침 재시도 루프 차단
+    window.history.replaceState({}, '', '/');
+
+    if (errorParam || !code) return; // 유저 취소 또는 비정상 복귀
+
+    const redirectUri = `${window.location.origin}/`;
+    (async () => {
+      try {
+        const callable = httpsCallable<
+          { code: string; redirectUri: string; intent: string },
+          { customToken: string; isNewUser: boolean; uid: string }
+        >(functions, 'kakaoAuthCustomToken');
+        const { data } = await callable({ code, redirectUri, intent });
+
+        if (data.isNewUser) {
+          try { sessionStorage.setItem('signup_session', '1'); } catch { /* noop */ }
+        }
+
+        await signInWithCustomToken(auth, data.customToken);
+        // 이후 onAuthStateChanged → userData 로드 → OnboardingGuard 흐름 (Google과 동일)
+      } catch (err: unknown) {
+        const msg = (err as { message?: string })?.message || '카카오 로그인 중 오류가 발생했습니다.';
+        alert(msg);
+        console.error('[kakao callback] login failed:', err);
+      }
+    })();
+  }, []);
+
+  // 🟢 Sprint 8 — 네이버 OAuth 복귀 핸들러 (Authorization Code Flow + state)
+  //   useAuthActions.handleNaverLogin이 nid.naver.com으로 이동 →
+  //   유저 로그인 후 /?code=AUTHCODE&state=STATE 복귀 → state 일치 검증 후 CF 호출.
+  //   카카오와 달리 state 검증 추가 (CSRF 방어).
+  useEffect(() => {
+    let pending = false;
+    try { pending = sessionStorage.getItem('naverAuthPending') === '1'; } catch { /* sessionStorage 차단 환경 무시 */ }
+    if (!pending) return;
+    try { sessionStorage.removeItem('naverAuthPending'); } catch { /* noop */ }
+
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get('code');
+    const stateFromUrl = params.get('state');
+    const errorParam = params.get('error');
+
+    let intent: 'login' | 'signup' | 'either' = 'either';
+    let storedState: string | null = null;
+    try {
+      const storedIntent = sessionStorage.getItem('naverAuthIntent');
+      if (storedIntent === 'login' || storedIntent === 'signup') intent = storedIntent;
+      sessionStorage.removeItem('naverAuthIntent');
+      storedState = sessionStorage.getItem('naverAuthState');
+      sessionStorage.removeItem('naverAuthState');
+    } catch { /* noop */ }
+
+    // URL 정리 먼저 — CF 실패 시 새로고침 재시도 루프 차단
+    window.history.replaceState({}, '', '/');
+
+    if (errorParam || !code || !stateFromUrl) return; // 유저 취소 또는 비정상 복귀
+
+    // CSRF 방어: 세션에 저장된 state와 URL의 state 대조
+    if (!storedState || storedState !== stateFromUrl) {
+      console.error('[naver callback] state mismatch — CSRF suspected');
+      alert('네이버 로그인 검증에 실패했습니다. 다시 시도해 주세요.');
+      return;
+    }
+
+    (async () => {
+      try {
+        const callable = httpsCallable<
+          { code: string; state: string; intent: string },
+          { customToken: string; isNewUser: boolean; uid: string }
+        >(functions, 'naverAuthCustomToken');
+        const { data } = await callable({ code, state: stateFromUrl, intent });
+
+        if (data.isNewUser) {
+          try { sessionStorage.setItem('signup_session', '1'); } catch { /* noop */ }
+        }
+
+        await signInWithCustomToken(auth, data.customToken);
+        // 이후 onAuthStateChanged → userData 로드 → OnboardingGuard 흐름 (Google·Kakao와 동일)
+      } catch (err: unknown) {
+        const msg = (err as { message?: string })?.message || '네이버 로그인 중 오류가 발생했습니다.';
+        alert(msg);
+        console.error('[naver callback] login failed:', err);
+      }
+    })();
+  }, []);
+
   const accessibleRooms = kanbuRooms.filter(r =>
     r.creatorNickname === userData?.nickname || friends.includes(r.creatorNickname)
   );
 
   // 🚀 인증 훅 — 로그인·로그아웃·테스트 계정 핸들러
-  const { handleLogin, handleTestLogin, handleLogout, inAppModal, closeInAppModal, openExternalBrowser } = useAuthActions({ userData, setUserData, setActiveMenu });
+  const { handleLogin, handleTestLogin, handleLogout, handleKakaoLogin, handleNaverLogin, inAppModal, closeInAppModal, openExternalBrowser } = useAuthActions({ userData, setUserData, setActiveMenu });
 
   // 🚀 장갑 훅 — 커뮤니티 개설·가입·탈퇴·깐부방 생성 핸들러
   const { handleCreateRoom, handleCreateCommunity, handleJoinCommunity, handleLeaveCommunity } = useGloveActions({
@@ -1069,12 +1181,14 @@ function App() {
       return !!(status && (status.startsWith('exiled_') || status === 'banned'));
     };
     // 🏠 깐부방 게시판 글(kanbuRoomId 존재)은 홈/카테고리 피드(참새들의 방앗간 포함)에서 완전 제외 — 깐부방 내부에서만 노출
-    let basePosts = allRootPosts.filter(p => !p.isOneCut && p.category !== 'magic_inkwell' && p.category !== EXILE_CATEGORY && !p.isHiddenByExile && !isAuthorExiled(p) && !p.kanbuRoomId);
+    // 🚨 2026-04-24 내가 신고한 글은 이 기기에서 숨김 (서버 무관, localStorage) + 서버 isHiddenByReport 자동 숨김
+    const hiddenByMe = getHiddenByMe();
+    let basePosts = allRootPosts.filter(p => !p.isOneCut && p.category !== 'magic_inkwell' && p.category !== EXILE_CATEGORY && !p.isHiddenByExile && !isAuthorExiled(p) && !p.kanbuRoomId && !hiddenByMe.has(p.id) && !p.isHiddenByReport);
 
     if (activeMenu !== 'home' && MENU_MESSAGES[activeMenu]) {
       const menuInfo = MENU_MESSAGES[activeMenu];
       const categoryKey = menuInfo.title;
-      basePosts = allRootPosts.filter(p => !p.isOneCut && !p.isHiddenByExile && !isAuthorExiled(p) && !p.kanbuRoomId && ( // 카테고리 뷰: 마라톤 포함 전체에서 필터
+      basePosts = allRootPosts.filter(p => !p.isOneCut && !p.isHiddenByExile && !isAuthorExiled(p) && !p.kanbuRoomId && !hiddenByMe.has(p.id) && !p.isHiddenByReport && ( // 카테고리 뷰: 동일 필터 적용
         // 🚀 참새들의 방앗간(구 너와 나의 이야기): DB category는 "너와 나의 이야기" 유지
         activeMenu === 'my_story'
           ? (p.category === "너와 나의 이야기" || p.category === undefined)
@@ -1335,7 +1449,7 @@ function App() {
     setActiveMenu('home');
   }
   setIsCreateOpen(true);
-}} className="bg-violet-600 hover:bg-violet-700 text-white px-5 h-[40px] rounded-xl text-[13px] font-black shadow-sm">+ 새 글</button>}<NotificationBell currentUid={userData.uid} currentNickname={userData.nickname} onNavigate={(postId) => { const post = allRootPosts.find(p => p.id === postId); if (post) { setSelectedTopic(post); setActiveMenu('home'); } }} onNavigateToEpisode={(postId, seriesId) => { setActiveMenu('inkwell'); if (seriesId) setSelectedSeriesId(seriesId); setSelectedEpisodeId(postId); setInkwellMode('list'); }} /><div className="flex items-center gap-3"><div className="w-[42px] h-[42px] rounded-full border-2 border-slate-100 overflow-hidden cursor-pointer bg-slate-50" onClick={() => { setPublicProfileNick(userData.nickname); setSelectedTopic(null); setIsCreateOpen(false); }}><img src={userData.avatarUrl || `https://api.dicebear.com/7.x/adventurer/svg?seed=${userData.nickname}`} alt="avatar" /></div><button onClick={handleLogout} className="text-[11px] font-black text-slate-300 hover:text-rose-500 transition-colors uppercase tracking-widest">Logout</button></div></> : <button onClick={() => setIsWelcomeOpen(true)} className="flex items-center gap-2 bg-white border border-slate-200 hover:border-slate-900 px-5 h-[42px] rounded-xl text-[13px] font-black transition-all shadow-sm group"><svg className="w-4 h-4 group-hover:scale-110 transition-transform" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>구글 계정으로 시작하기</button>}</div>
+}} className="bg-violet-600 hover:bg-violet-700 text-white px-5 h-[40px] rounded-xl text-[13px] font-black shadow-sm">+ 새 글</button>}<NotificationBell currentUid={userData.uid} currentNickname={userData.nickname} onNavigate={(postId) => { const post = allRootPosts.find(p => p.id === postId); if (post) { setSelectedTopic(post); setActiveMenu('home'); } }} onNavigateToEpisode={(postId, seriesId) => { setActiveMenu('inkwell'); if (seriesId) setSelectedSeriesId(seriesId); setSelectedEpisodeId(postId); setInkwellMode('list'); }} /><div className="flex items-center gap-3"><div className="w-[42px] h-[42px] rounded-full border-2 border-slate-100 overflow-hidden cursor-pointer bg-slate-50" onClick={() => { setPublicProfileNick(userData.nickname); setSelectedTopic(null); setIsCreateOpen(false); }}><img src={userData.avatarUrl || `https://api.dicebear.com/7.x/adventurer/svg?seed=${userData.nickname}`} alt="avatar" /></div><button onClick={handleLogout} className="text-[11px] font-black text-slate-300 hover:text-rose-500 transition-colors uppercase tracking-widest">Logout</button></div></> : <button onClick={() => setIsWelcomeOpen(true)} className="flex items-center gap-1.5 bg-violet-600 hover:bg-violet-700 text-white px-3 h-6 rounded-lg text-[12px] font-black transition-all shadow-sm group"><svg className="w-4 h-4 group-hover:scale-110 transition-transform" viewBox="0 0 32 32"><text x="16" y="26" textAnchor="middle" fontFamily="system-ui, -apple-system, 'Segoe UI', 'Pretendard Variable', Pretendard, sans-serif" fontWeight="900" fontSize="28" fontStyle="italic" letterSpacing="-2.5" fill="#ffffff">GL</text></svg>로그인</button>}</div>
         {/* 🚀 모바일 우측 — 알림 + 내정보/로그인 버튼 */}
         <div className="flex md:hidden items-center gap-1.5 ml-auto shrink-0">
           {userData ? (
@@ -1357,8 +1471,8 @@ function App() {
               </button>
             </>
           ) : (
-            <button onClick={() => setIsWelcomeOpen(true)} className="flex items-center gap-1.5 bg-violet-600 text-white px-3 h-8 rounded-xl text-[12px] font-black shadow-sm">
-              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24"><path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="currentColor" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="currentColor" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="currentColor" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+            <button onClick={() => setIsWelcomeOpen(true)} className="flex items-center gap-1 bg-violet-600 text-white px-2 h-5 rounded-lg text-[11px] font-black shadow-sm">
+              <svg className="w-3 h-3" viewBox="0 0 32 32"><text x="16" y="26" textAnchor="middle" fontFamily="system-ui, -apple-system, 'Segoe UI', 'Pretendard Variable', Pretendard, sans-serif" fontWeight="900" fontSize="28" fontStyle="italic" letterSpacing="-2.5" fill="#ffffff">GL</text></svg>
               로그인
             </button>
           )}
@@ -1479,6 +1593,9 @@ function App() {
         </button>
       </nav>
 
+      {/* 🚨 2026-04-24 전역 신고 모달 — handleReport() 커스텀 이벤트 수신 */}
+      <ReportModalHost />
+
       {/* 🚀 인앱 브라우저 로그인 차단 모달 */}
       {inAppModal && (
         <InAppBrowserModal
@@ -1495,7 +1612,9 @@ function App() {
       {isWelcomeOpen && !userData && (
         <Suspense fallback={null}>
           <WelcomeScreen
-            onGoogleLogin={async () => { await handleLogin(); setIsWelcomeOpen(false); }}
+            onGoogleLogin={async (intent) => { await handleLogin(intent); setIsWelcomeOpen(false); }}
+            onKakaoLogin={(intent) => handleKakaoLogin(intent)}
+            onNaverLogin={(intent) => handleNaverLogin(intent)}
             onClose={() => setIsWelcomeOpen(false)}
           />
         </Suspense>

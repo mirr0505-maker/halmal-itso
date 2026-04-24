@@ -1,5 +1,113 @@
 ## 8. 현재 구현 상태 (2026-03-24 기준, 코드 실측)
 
+### 🚨 신고 시스템 Phase A + B — 3단계 threshold · 카테고리 차등 · 작성자 이의제기 (2026-04-24)
+
+- [x] **9 카테고리 개편**: spam_flooding/severe_abuse/life_threat/discrimination/unethical/anti_state/obscene/illegal_fraud_ad/other. "기타" 선택 시에만 50자 사유 입력 필수
+- [x] **3단계 threshold 매트릭스**: `CATEGORY_THRESHOLDS`에 9 카테고리 × 3 state(review/preview_warning/hidden) = 27개 임계값. 지배적 reasonKey로 threshold 선택 → 상태 승격 전용(복구는 관리자만)
+  - 즉시 대응: obscene/life_threat(1→2→2), illegal_fraud_ad(2→2→3)
+  - 표준: spam_flooding/severe_abuse/discrimination(3→5→7)
+  - 엄격: unethical/anti_state(5→8→12) — 편향 공격 방어
+- [x] **상태별 UI**: `ReportStateBanner` 컴포넌트 — review=⚠️ 배지 / preview_warning=🚫 "계속 열람" 게이트 / hidden=🙈 작성자만 보이는 복구 안내 배너. 4개 상세뷰(DiscussionView/OneCutDetailView/CommunityPostDetail/EpisodeReader)에 주입
+- [x] **작성자 알림**: 상태 전환 시(review/preview/hidden 첫 진입) `notifications` 자동 발송 (type: report_state_change)
+- [x] **이의제기 Phase B**: `submitContentAppeal` 신규 CF — 작성자 본인 확인 + 5~500자 사유 + `appealStatus='pending'` 세팅. 배너에 [⚡ 이의제기] 버튼 + 모달 통합
+- [x] **관리자 우선큐**: `ReportManagement.tsx` 상단에 "⚡ 이의제기 우선큐" 섹션 — posts + community_posts에서 `appealStatus='pending'` 실시간 구독 (limit 50 각각), 작성자 사유 + 신고 정보 함께 표시
+- [x] **복구 Flow 강화**: `restoreHiddenPost` CF가 이의제기 해결 + 작성자 알림(`appeal_accepted` 또는 `report_restored` 타입) + 상태 전체 리셋(reportState=null)
+- [x] **types.ts**: Post + CommunityPost에 `reportState`, `reviewStartedAt`, `previewWarningStartedAt`, `dominantReason`, `appealStatus`, `appealNote`, `appealAt` 7필드 추가
+- [x] **배포**: functions:submitReport/submitContentAppeal/restoreHiddenPost + hosting 2회 배포
+- [x] **문서화**: [FLAGGING.md](./FLAGGING.md) 독립 설계서 신설 (~370 라인). §1 설계 원칙 / §2 9 카테고리 × 3단계 threshold 매트릭스 / §3 State Machine / §4 사용자 flow / §5 관리자 flow / §6 이의제기 flow / §7 CF 인덱스 / §8 Firestore 스키마 / §9 Creator Score 연동 / §10 알림 타입 5종 / §11 보안·악용 방어 / §12 튜닝 이력 / §13 용어 / §14 Phase C~E 로드맵 / §15 파일 인덱스. `CLAUDE.md` 프로젝트 레퍼런스 목록에 추가. 이름은 "REPORT"가 너무 광범위해 업계 표준 "FLAGGING"(신고 행위) 채택
+
+### 🚨 신고 시스템 전면 개편 — 4단계 일괄 (2026-04-24)
+
+- [x] **Phase 1 UX 개선**: `ReportModal` 컴포넌트 신설 (사유 8종 라디오 + 상세 300자) — `window.prompt` 대체. `reportHandler.ts`는 커스텀 이벤트(`halmal:open-report-modal`) 기반 전역 모달로 재설계 → `App.tsx`에 `<ReportModalHost />` 루트 마운트. 기존 8곳 호출부 시그니처 유지. 신고자 본인 localStorage 블라인드(`hiddenByMe`) + App 피드 필터 적용 (`!hiddenByMe.has(p.id) && !p.isHiddenByReport`)
+- [x] **Phase 2 자동 임시 숨김 + 일일 상한**: `submitReport` CF 확장 — 제출 직후 `reports.where(targetId)` 집계로 고유 신고자 수 계산, 3명+ 도달 시 대상 문서 `isHiddenByReport=true` + `hiddenByReportAt` 즉시 쓰기. `reporter_daily_quota/{uid}_{date}` 컬렉션으로 1인 1일 10건 상한. `reasonKey` 화이트리스트 8종(spam/abuse/flooding/copyright/misinformation/harassment/privacy/other)
+- [x] **Phase 3 관리자 조치 CF 3종 + UI**: 신규 `resolveReport`(action: hide_content/delete_content/warn_user/none + 사유 + notifyParticipants) / `rejectReport`(기각) / `restoreHiddenPost`(오탐 복구). AdAdminPage 신규 탭 `🚨 신고 관리` → `ReportManagement.tsx` — 상태 필터(⏳ 대기/✅ 처리됨/🚫 기각), targetId별 그룹화(고유 신고자 수 강조·심각도 색상), ResolveModal(조치 4종 라디오 + 사유 + 알림 옵션), 자동 숨김된 건 복구 버튼 노출. 같은 타겟 pending 신고 일괄 resolve/reject
+- [x] **Phase 4 알림 + 기각 카운트**: `resolveReport` 성공 시 `notifyParticipants=true`이면 신고자들에게 `type: report_resolved` 알림, `action=warn_user` 시 피신고자에게 `type: report_warning` 알림. `rejectReport`는 `users.reportsSubmittedRejected` 증가로 악성 신고자 판별 지표 (관리자 수동 판단용)
+- [x] **Rules 보강**: `reports.read: isAdmin`(목록 UI 필수), `reporter_daily_quota` 전면 차단(CF 전용), users 차단 필드에 `reportsSubmittedRejected*` 추가. `isHiddenByReport`는 CF Admin SDK 전용 쓰기(작성자 본인 update 허용 리스트에 없음)
+- [x] **types.ts**: Post에 `reportCount`, `isHiddenByReport`, `hiddenByReportAt` 3필드 추가
+- [x] **문서화**: 신고 제출 flow · 자동 숨김 · 관리자 조치 · Creator Score 연동 · 알림 경로 · 제재 옵션 · 보안 요소 전 구간 정리. 어디서 신고 볼 수 있는지(AdAdminPage/Firestore/admin_actions)·제재 어떻게 하는지 전체 커버
+- [x] **배포**: functions 4종(submitReport/resolveReport/rejectReport/restoreHiddenPost) + rules + hosting 일괄
+
+### 📱 PhoneVerifyScreen provider-already-linked 재시도 내성 (2026-04-24)
+
+- [x] **증상**: 네이버 OAuth 가입 도중 온보딩 미완료 상태에서 재로그인하면 폰 인증 단계에서 `auth/provider-already-linked` 에러 → 재시도 영구 차단 (Firebase Auth 유저를 수동 삭제해야만 진행 가능했음)
+- [x] **원인**: `linkWithCredential(auth.currentUser, credential)`이 이미 phone provider 연결된 유저에겐 무조건 실패. Firestore users 문서만 삭제해도 Firebase Auth 레코드는 남아 phone 링크 유지 → 재시도 차단
+- [x] **수정**: [PhoneVerifyScreen.tsx:116](src/components/PhoneVerifyScreen.tsx#L116) — `auth.currentUser.providerData.some(p => p.providerId === "phone")`로 사전 체크 후 이미 연결됐으면 `linkWithCredential` 스킵하고 바로 `verifyPhoneServer` CF 호출. OTP 검증은 서버가 phoneNumber 필드 직접 읽어 수행하므로 link 스킵해도 무결성 유지됨
+- [x] **검증**: mirr222@naver.com 계정으로 재시도 → phone 스킵 로직 작동 → 닉네임 "판교부엉" 설정 → 온보딩 완료 진입 ✅
+- [x] **부가 효과**: 네이버 OAuth의 모든 엣지 케이스 해결 — 신규 회원가입, 완료된 계정 로그인, 미완료 계정 로그인(온보딩 이어가기), phone 중복 연결 재시도
+
+### 🔒 OAuth intent 보안 루프홀 핫픽스 — 'either' → 'login' (2026-04-24)
+
+- [x] **증상**: 유저가 "네이버로 로그인" 클릭 → 미가입 상태였던 네이버 계정이 말없이 신규 생성 + 온보딩(폰·닉네임) 플로우 진입
+- [x] **원인**: `naverAuth.js`/`kakaoAuth.js`의 `safeIntent = intent === "login" || "signup" ? intent : "either"` → client redirect 왕복 중 `sessionStorage.naverAuthIntent` 유실 시 CF에 intent='either'로 도달 → CF가 `login && !exists` 체크를 우회(both 분기 skip) → 신규 users 문서 말없이 생성
+- [x] **수정**: 기본값을 `"either"` → `"login"`으로 보수적 변경 (functions/naverAuth.js L63, functions/kakaoAuth.js L62). intent 불명이면 명시적 404 "등록된 계정이 없어요" 반환. 회원가입은 명시적 signup intent만 허용
+- [x] **관련 UI 개선**: PhoneVerifyScreen에 `auth/account-exists-with-different-credential` 전용 에러 분기 추가 — "이 번호는 이미 다른 계정(다른 SNS)에 등록되어 있습니다" 명확 안내
+- [x] **배포**: `firebase deploy --only functions:naverAuthCustomToken,functions:kakaoAuthCustomToken,hosting`
+- [x] **박제**: [feedback_oauth_intent_strict.md](memory) — 향후 Apple/기타 OAuth 추가 시 동일 패턴 유지 필수
+- [x] **후속 검토**: client 측 intent 유실 방지는 별도 이슈 — 현재는 sessionStorage 의존. redirect state 파라미터에 intent 인코딩 방식으로 강화 가능 (Sprint 8+ 이월)
+
+### 🎁 Sprint 7 백필 핫픽스 — 기존 유저 referralCode 일괄 부여 (2026-04-24)
+
+- [x] **증상**: 테스트 계정 전원이 MyPage 추천 탭에서 "추천코드 발급 중입니다. 잠시 후 새로고침 해주세요" 무한 노출. Firestore 실측 — `users.referralCode` 필드 없음
+- [x] **원인**: Sprint 7 `generateReferralCode`는 **onCreate 트리거**로만 배포 → 트리거 배포 이전 가입자(테스트 계정 전부)는 자동 발급 안 탐. `migrateUserCodes`(Sprint 7.5)는 userCode만 처리하고 referralCode 백필 CF 부재
+- [x] **신규 CF**: `functions/backfillReferralCodes.js` — generateReferralCode와 동일 로직(6자리, 충돌 5회 재시도, 8자리 폴백), 전체 유저 조회 후 referralCode 없는 유저만 필터. assertAdmin + admin_actions 로깅. 멱등 재실행 안전. BATCH_SIZE=50
+- [x] **UI**: `AdAdminPage 🔧 시스템 탭` → "🎁 기존 유저 referralCode 일괄 부여" 버튼 (feedback_admin_cf_ui_button 원칙)
+- [x] **배포·실행 결과**: 32명 scanned / 28명 target / 28명 assigned / 0 errored / 544ms. 깐부7호 `TN2E54` 발급 확인 → `https://geulove.com/r/TN2E54` 공유 링크 정상. referral_codes/{code} 문서 전 필드 정상
+- [x] **부가 관찰**: Web Share API는 모바일에서만 카톡 등 네이티브 공유 시트 제공. 데스크톱에서 카톡 바로 공유하려면 Kakao JS SDK 연동 필요 — Sprint 8 이월
+
+### 🖋️ EpisodeReader 개선 3종 (2026-04-24)
+
+- [x] **⋮ 드롭다운 렌더 버그 해결**: `<button>` 기본 `display: inline-block` + 래퍼에 flex 지시자 없음 → `whitespace-nowrap`이 4개 버튼을 한 줄 576px로 몰아넣음 + `overflow-hidden`이 첫 버튼만 남기고 3개 잘라냄. `flex flex-col` 1 클래스 추가로 해결. MutationObserver로 DOM 실측해 DOM 자체는 4개 렌더(공개프로필/신고/수정/삭제)됐으나 CSS 클리핑 확정 → 해결 후 배포
+- [x] **상단 액션바 재정리**: ⋮ 안에 숨겨있던 수정/삭제를 RootPostCard/DebateBoard 패턴에 맞춰 `[수정][삭제][공유][⋮]` 텍스트 버튼으로 외부 노출. 작가 본인만 수정·삭제 표시, 비작가는 공유·⋮만. ⋮에는 공개프로필/신고(누구나) + 다시공개(작가+비공개 회차) 유지
+- [x] **⋮ 교훈 박제**: 드롭다운/메뉴 컨테이너엔 반드시 `flex flex-col` 또는 유사 vertical layout 지시자 필수. 버튼 기본 display 신뢰하지 말 것 → [feedback_dropdown_vertical_layout.md](memory) 신설
+
+### 🟢 Sprint 8 Track — 네이버 OAuth 엔드투엔드 첫 테스트 통과 (2026-04-24)
+
+- [x] **배포 상태 실측**: `naverAuthCustomToken` CF 이미 asia-northeast3 배포 완료(메모리 256MiB) + Secret Manager `NAVER_CLIENT_ID`/`NAVER_CLIENT_SECRET` 주입 + WelcomeScreen 네이버 버튼·useAuthActions Authorization Code Flow 구현 완료 상태. 남은 건 실 가입 테스트.
+- [x] **Naver Developer Console 설정**: Callback URL `https://geulove.com/` + 테스터 계정 등록 + 제공 정보(이메일·닉네임) 동의
+- [x] **테스터 가입 검증**: `ksgn016@naver.com` (닉네임 "성경책") — `naver.com OAuth 동의` → `/?code=...&state=...` 복귀 → CF 호출 → Firebase Custom Token → 온보딩 3단계(폰 `+82 10-1111-1111`→닉네임→추천코드 건너뛰기) → 가입 완료
+- [x] **Firestore 문서 검증**: 문서 ID `naver_yJ93GX4_HHENAM2mvQeUEBGqUFLGG4CFzF2i-XjsPfs` · `provider: "naver"` · `email: "ksgn016@naver.com"` · `phoneVerified: true` + `phoneHash` · `nicknameSet: true` + `nicknameSetAt` · `userCode: "YUEA6RUZ"` · `referralCode: "AKSSK2"` · `titles: [pioneer_2026]` (Sprint 5 자동 부여) · `onboardingCompleted: true`
+- [x] **관찰**: `isPhoneVerified: false` / `phoneVerified: true` 이중 필드 공존 — 의도된 상태(useAuthActions L138 주석 "isPhoneVerified는 legacy, 게이트 무관"). userCode 참조 전환 Sprint(Sprint 8+)에서 일괄 정리 예정
+- [x] **현 단계**: Naver Developer Console 개발 단계(테스터 목록 등록된 계정만 로그인 가능). 정식 서비스 오픈 전 검수 신청 필요
+- [x] **메모리**: [project_sprint8_backlog.md](memory) 업데이트 — 카카오·네이버 ✅ · Apple(원래 계획 유지) · X/Facebook 반려
+
+### 📒 Sprint 9 Batch 1 — 볼 원장 통일 2경로 (nickname.js + gloveBot.js, 2026-04-24)
+
+- [x] **nickname.js 스키마 정규화**: 기존 `ball_transactions` 레코드가 `{uid, timestamp, amount:음수}` 구스키마라 ballAudit의 `senderUid/createdAt` 쿼리에 잡히지 않음 → thanksball 표준 스키마(`senderUid/senderNickname/resolvedRecipientUid:null/amount:양수/balanceBefore/After/receiverBalanceBefore/After:null/platformFee:0/sourceType:"nickname_change"/details/createdAt`)로 재작성. `details.{oldNickname,newNickname}` 보존
+- [x] **gloveBot.js activateInfoBot 원장 신설**: 기존엔 `glove_bot_payments` 영수증만 있고 `ball_transactions` 레코드 없어 ballAudit outflow 집계 누락. 트랜잭션 내부(차감 직후)에 표준 스키마 레코드 추가. `platformFee: 20`(전액 수익)
+- [x] **senderNickname 폴백 버그 hotfix**: `request.auth.token?.name || "익명"` 단일 소스 → OAuth 공급자(구글/카카오)만 채우는 필드라 email/pw 계정은 항상 "익명"으로 기록됨. thanksball 표준 패턴(`userData.nickname || token?.name || "익명"`)으로 전환. `glove_bot_payments.payerNickname`도 동시 수정
+- [x] **검증**: 깐부10호(email/pw 계정) 2회 활성화 테스트 — 1차 `senderNickname:"익명"` → 버그 확인 → 2차 `senderNickname:"깐부10호"` ✅. 잔액 131→111→91 정확 차감. `resolvedRecipientUid:null` platform sink 확정
+- [x] **원장 구조**: platform sink(`resolvedRecipientUid:null`)는 ballAudit L46-53에서 outflow만 집계하고 inflow 스킵 — 유출 없이 "플랫폼 소각"으로 정확히 잡힘
+- [x] **잔여 Sprint 9 경로**: `unlockEpisode`, `purchaseMarketItem`, `subscribeMarketShop`, `joinPaidKanbuRoom`, `releaseFromExile`, `executeSayak`, `kanbuPromo` 재정비(3-bis 제거) — 차기 Batch
+
+### 🚑 ogRenderer OOM 핫픽스 — 메모리 128MiB → 256MiB (2026-04-24)
+
+- [x] **증상**: 모바일에서 공유된 글카드 탭 시 "Internal Server Error" + 카카오톡에서 카드 미리보기 안 뜨고 bare URL로만 표시
+- [x] **원인**: `ogRenderer` CF 인스턴스가 기동 시점에 128MiB 한도를 131~132MiB로 초과 → Default STARTUP TCP probe 실패 → 500 반환. Firebase Admin SDK + Firestore SDK + fast-xml-parser 로드만으로 기본 heap이 임계치 근접.
+- [x] **수정**: [functions/index.js:286](functions/index.js#L286) `memory: "128MiB"` → `"256MiB"` (1줄)
+- [x] **배포**: `firebase deploy --only functions:ogRenderer` · 신규 리비전 `ogrenderer-00035-wup` · allTrafficOnLatestRevision=true
+- [x] **검증**: `curl -I /p/test` → `HTTP/1.1 200 OK` · 로그 `STARTUP TCP probe succeeded after 1 attempt` · OOM 로그 종료
+- [x] **2차 영향**: KakaoTalk 크롤러도 500 받아 unfurl 실패했던 것 — 동일 원인 · 동일 배포로 해소. 기존 공유 링크는 카톡 측 캐시 때문에 재크롤링 전까지 bare URL 유지 (새 공유부터 정상 카드)
+
+### 🛠️ 운영 개선 3종 — ballAudit false critical 해소 · 봇 스케줄 완화 · 채팅 UI 정돈 (2026-04-23)
+> 설계: [project_info_bot_schedule.md](memory) · [GLOVE.md](./GLOVE.md) §10 변경 이력
+
+- [x] **ballAudit false critical 해소** (배포 완료)
+  - 원인: `kanbuPromo` 홍보 결제가 `ballBalance` 차감만 하고 `ball_transactions` 원장을 쓰지 않아 `auditBallBalance`가 `diff < 0` critical로 오판 (2026-04-23 오전 1건 발생 — 깐부7호 1주일 플랜 6볼)
+  - 근본 수정(A-1): `functions/kanbuPromo.js` — 차감 트랜잭션 내부에 `kanbu_promo_history/{uid}_{ts}` 영수증 동시 기록 (`uid/cost/plan/days/paidAt`)
+  - 크로스체크(B): `functions/ballAudit.js` — 3-bis 단계에서 `kanbu_promo_history`를 24h 조회해 `outflow` 집계에 합산
+  - Rules: `firestore.rules` — `kanbu_promo_history` 블록 read/write false (Admin SDK 전용)
+  - 스모크: 깐부2호 1일 플랜 1볼 결제 → 영수증 `cost=1, plan="1일"` 생성 확인
+  - 잔여 7경로(잉크병/마켓/유배 등)는 Sprint 9 볼 원장 통일에서 일괄 정리
+- [x] **정보봇 스케줄 베타 완화** (배포 완료)
+  - `functions/gloveBotFetcher.js` — `fetchBotNews` / `fetchBotDart` 스케줄 `every 30 minutes` → `every 1 hours` 일괄 변경
+  - Why: 삼성전자주주방 소곤소곤에 봇 글이 30분마다 대량 유입되어 실유저 글이 묻힘 — 베타 유저 수 적을 때만 완화
+  - 정식 서비스 시 복원 계획: [memory/project_info_bot_schedule.md](memory) 참조
+- [x] **채팅 UI 정돈** (로컬 검증 완료, 미배포)
+  - `src/components/CommunityChatPanel.tsx` 4줄 수정 — 상세는 [GLOVE.md](./GLOVE.md) §10 2026-04-23 엔트리 참조
+  - 핵심: ① 고정 `h-[600px]` → 뷰포트 동적 높이로 이중 스크롤 해소 ② 외곽 rounded 박스 제거로 일반 메뉴와 톤 통일 ③ emerald → slate ④ `backgroundAttachment: 'local'` 제거로 `chatBgUrl` 배경 이미지 세로 늘어남 해소
+  - Why: 유저 피드백 "스크롤 2개 어지러움 · 채팅창 다 안 보임 · 배경 이미지 찌그러짐 (BTS 그룹샷 유스케이스 상정)"
+- [x] **Sprint 10 주가 변동 봇 Phase 1 스코프 확정** — 네이버 금융 임시 소스 + 장중 10분/장후 16:00 하이브리드 스케줄 + 임계값 돌파만 푸시. Sprint 7+7.5 배포 후 착수. 상세 [memory/project_sprint10_price_bot.md](memory)
+
 ### 🏅 Sprint 4 Phase A+B — Creator Score 시스템 (2026-04-22)
 > 구현 레퍼런스: [CreatorScore.md](./CreatorScore.md) | 커밋: b44b36a
 

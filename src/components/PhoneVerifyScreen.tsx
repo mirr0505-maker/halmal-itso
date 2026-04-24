@@ -113,9 +113,17 @@ export default function PhoneVerifyScreen({ onLogout }: Props) {
     setStage("verifying");
     setLoading(true);
     try {
-      // 🔒 linkWithCredential — 현재 Google Auth record에 phoneNumber 연결
+      // 🔒 linkWithCredential — 현재 Auth record에 phoneNumber 연결
+      // 🔧 2026-04-24 이미 phone provider 연결된 경우(재시도·유령 링크) link 스킵 → verifyPhoneServer로 바로
+      // Why: linkWithCredential은 동일 provider 중복 연결 시 'provider-already-linked' 에러 던짐.
+      //      유저가 이전에 link 성공했으나 onboarding 미완료로 중단한 경우 재시도 불가해짐 → UX 차단 유발
       const credential = PhoneAuthProvider.credential(verificationIdRef.current, otp);
-      await linkWithCredential(auth.currentUser, credential);
+      const alreadyHasPhone = auth.currentUser.providerData.some((p) => p.providerId === "phone");
+      if (!alreadyHasPhone) {
+        await linkWithCredential(auth.currentUser, credential);
+      } else {
+        console.log("[PhoneVerify] phone provider already linked — skipping linkWithCredential");
+      }
 
       // 🔒 서버 검증 — Admin SDK로 Auth record의 phoneNumber를 직접 읽어 위조 차단
       const verifyPhone = httpsCallable(functions, "verifyPhoneServer");
@@ -133,6 +141,9 @@ export default function PhoneVerifyScreen({ onLogout }: Props) {
         setError("이 번호는 이미 다른 계정에 연결되어 있습니다.");
       } else if (code === "auth/credential-already-in-use") {
         setError("이 번호는 다른 Firebase 계정에 이미 연결되어 있습니다.");
+      } else if (code === "auth/account-exists-with-different-credential") {
+        // 🔒 2026-04-24 — 같은 전화번호가 다른 SNS(구글/카카오/네이버) 계정에 연결된 상태
+        setError("이 번호는 이미 다른 계정(다른 SNS 로그인)에 등록되어 있습니다. 기존 계정으로 로그인해 주세요.");
       } else {
         setError("인증 실패: " + ((e as Error)?.message || "원인 불명"));
       }

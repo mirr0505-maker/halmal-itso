@@ -49,6 +49,10 @@ function mapRedeemError(code: string | undefined, message: string): string {
 export default function ReferralSection({ userData }: Props) {
   const myCode = userData.referralCode || '';
   const alreadyRedeemed = !!userData.referredByCode;
+  // 🚪 Sprint 7.5 핫픽스 — 추천코드는 "회원가입 시에만" 입력 가능.
+  // Why: 온보딩 완결(onboardingCompleted=true) 유저가 MyPage에서 뒤늦게 입력해도 서버가 거절하므로,
+  //      UI도 입력창 대신 안내 메시지로 전환. redeem 경로가 남아있지 않다는 명확한 시그널.
+  const onboardingLocked = userData.onboardingCompleted === true && !alreadyRedeemed;
   const shareUrl = useMemo(
     () => (myCode ? `https://geulove.com/r/${myCode}` : ''),
     [myCode]
@@ -246,6 +250,15 @@ export default function ReferralSection({ userData }: Props) {
           </p>
           <p className="text-[11px] text-slate-400 mt-2 leading-relaxed">
             코드는 1인 1회만 사용할 수 있습니다. 7일 내 활성 기준(글 1개 또는 댓글 3개)을 달성하면 Welcome +5 EXP가 자동 지급됩니다.
+          </p>
+        </div>
+      ) : onboardingLocked ? (
+        <div className="rounded-2xl border border-amber-100 bg-amber-50 p-6">
+          <h3 className="text-[15px] font-[1000] text-amber-900 tracking-tight mb-2">🎟️ 추천코드는 가입 시에만 입력 가능합니다</h3>
+          <p className="text-[12px] text-amber-700 leading-relaxed">
+            회원가입 온보딩의 마지막 단계에서 1회만 입력할 수 있어요.
+            <br />
+            가입 완료 후에는 다시 입력할 수 없지만, <b>내 코드를 친구에게 공유</b>하면 맞깐부 + EXP 보너스를 계속 받을 수 있습니다.
           </p>
         </div>
       ) : (
