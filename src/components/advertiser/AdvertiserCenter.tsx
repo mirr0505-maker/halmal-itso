@@ -2,7 +2,7 @@
 // 🚀 대시보드 · 내 광고 · 충전 · 설정 4탭
 import { useState, useEffect } from 'react';
 import { db, auth } from '../../firebase';
-import { doc, onSnapshot, collection, query, where, orderBy } from 'firebase/firestore';
+import { doc, onSnapshot, collection, query, where, orderBy, updateDoc, serverTimestamp } from 'firebase/firestore';
 import type { AdvertiserAccount, Ad } from '../../types';
 import { formatKoreanNumber } from '../../utils';
 import AdCampaignList from './AdCampaignList';
@@ -175,6 +175,17 @@ const AdvertiserCenter = ({ onBack }: Props) => {
         ads={ads}
         onCreateNew={() => { setEditingAd(null); setShowCreateForm(true); }}
         onEdit={(ad) => { setEditingAd(ad); setShowCreateForm(true); }}
+        onToggleStatus={async (ad, newStatus) => {
+          const action = newStatus === 'paused' ? '일시정지' : '재개';
+          if (!window.confirm(`이 광고를 ${action}하시겠습니까?`)) return;
+          try {
+            await updateDoc(doc(db, 'ads', ad.id), { status: newStatus, updatedAt: serverTimestamp() });
+            alert(`✅ ${action} 처리 완료`);
+          } catch (err) {
+            console.error('[toggleAdStatus]', err);
+            alert(`${action} 실패: ` + ((err as Error).message || '알 수 없는 오류'));
+          }
+        }}
       />}
 
       {/* 충전/결제 — 모든 비용 ⚾ 볼 단위 (2026-04-25 정책) */}

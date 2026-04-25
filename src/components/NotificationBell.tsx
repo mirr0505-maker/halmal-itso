@@ -18,7 +18,9 @@ interface Notification {
     // 🚨 2026-04-25 신고 시스템 — 작성자 / 신고자 / 이의제기 / 복구
     | 'report_state_change' | 'report_warning' | 'report_action_taken'
     | 'report_resolved' | 'report_rejected'
-    | 'appeal_accepted' | 'appeal_rejected' | 'report_restored';
+    | 'appeal_accepted' | 'appeal_rejected' | 'report_restored'
+    // 📢 2026-04-25 광고 시스템 — 광고주 알림
+    | 'ad_approved' | 'ad_rejected' | 'ad_expired' | 'ad_expiring';
   fromNickname?: string;  // 땡스볼·커뮤니티 알림
   fromNick?: string;      // 거대나무 알림 (필드명 다름)
   amount?: number;
@@ -220,14 +222,21 @@ const NotificationBell = ({ currentUid, onNavigate, onNavigateToEpisode }: Props
                   n.type === 'appeal_accepted' ? '⚡' :
                   n.type === 'appeal_rejected' ? '⛔' :
                   n.type === 'report_restored' ? '✅' :
+                  // 📢 광고 시스템 알림
+                  n.type === 'ad_approved' ? '✅' :
+                  n.type === 'ad_rejected' ? '❌' :
+                  n.type === 'ad_expired' ? '⌛' :
+                  n.type === 'ad_expiring' ? '⏳' :
                   '⚾';
                 // 🚨 신고 알림은 서버가 body 필드로 멀티라인 메시지 저장 — whitespace-pre-line 유지
                 const isReportNotif = n.type === 'report_state_change' || n.type === 'report_warning'
                   || n.type === 'report_action_taken' || n.type === 'report_resolved'
                   || n.type === 'report_rejected' || n.type === 'appeal_accepted'
                   || n.type === 'appeal_rejected' || n.type === 'report_restored';
+                const isAdNotif = n.type === 'ad_approved' || n.type === 'ad_rejected'
+                  || n.type === 'ad_expired' || n.type === 'ad_expiring';
                 const body =
-                  isReportNotif
+                  (isReportNotif || isAdNotif)
                     ? (<span className="whitespace-pre-line text-slate-800">{n.body || '(내용 없음)'}</span>)
                   : n.type === 'community_post' || n.type === 'finger_promoted' || n.type === 'community_join_approved' || n.type === 'community_join_rejected' || n.type === 'community_comment' || n.type === 'community_join_request' || n.type === 'shareholder_verify_request' || n.type === 'shareholder_verify_submitted'
                     ? (n.message || '')

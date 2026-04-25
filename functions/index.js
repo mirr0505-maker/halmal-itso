@@ -558,6 +558,7 @@ async function renderReferralOg({ code, res, APP_URL, DEFAULT_IMAGE, SITE_NAME }
 const { registerKanbuPromo } = require("./kanbuPromo");
 const { adAuction } = require("./auction");
 const { aggregateDailyRevenue } = require("./revenue");
+const { expireOldAds } = require("./expireOldAds");
 const { detectFraud } = require("./fraud");
 const { processSettlements } = require("./settlement");
 const { recalcContentTextLength } = require("./contentLength");
@@ -574,6 +575,7 @@ const { sendToExile, releaseFromExile, executeSayak, checkAutoSayak } = require(
 exports.registerKanbuPromo = registerKanbuPromo;
 exports.adAuction = adAuction;
 exports.aggregateDailyRevenue = aggregateDailyRevenue;
+exports.expireOldAds = expireOldAds;
 exports.detectFraud = detectFraud;
 exports.processSettlements = processSettlements;
 exports.syncAdBids = syncAdBids;

@@ -1,7 +1,7 @@
 // src/components/admin/AdReviewQueue.tsx — 광고 검수 대기열 (관리자 전용)
 import { useState, useEffect } from 'react';
 import { db } from '../../firebase';
-import { collection, doc, query, where, orderBy, onSnapshot, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, doc, query, where, orderBy, onSnapshot, updateDoc, serverTimestamp, addDoc, Timestamp } from 'firebase/firestore';
 import type { Ad } from '../../types';
 import { formatKoreanNumber } from '../../utils';
 
@@ -20,29 +20,43 @@ const AdReviewQueue = () => {
 
   // 🔒 try/catch + 성공 후 UI 반영 — 권한 거부/네트워크 오류 시 사용자에게 즉시 통지
   //    AS-IS: 낙관적 UI 먼저 → DB 실패해도 사용자 깜깜이 (2026-04-25 깐부5호 인덱스 사고에서 발견)
-  const handleApprove = async (adId: string) => {
+  const notifyAdvertiser = async (ad: Ad, type: 'ad_approved' | 'ad_rejected', extra: { reason?: string } = {}) => {
+    if (!ad.advertiserId) return;
+    const body = type === 'ad_approved'
+      ? `✅ 광고가 승인되어 노출이 시작됐어요!\n📌 광고: 「${ad.headline}」\n광고주 센터 → 내 광고 탭에서 성과를 확인하세요.`
+      : `❌ 광고가 거절됐어요\n📌 광고: 「${ad.headline}」\n사유: ${extra.reason || '(미입력)'}\n수정 후 재검수 요청 가능합니다.`;
+    await addDoc(collection(db, 'notifications', ad.advertiserId, 'items'), {
+      type, fromNickname: '운영진',
+      adId: ad.id, headline: ad.headline,
+      body, read: false, createdAt: Timestamp.now(),
+    });
+  };
+
+  const handleApprove = async (ad: Ad) => {
     if (!window.confirm('이 광고를 승인하시겠습니까?')) return;
     try {
-      await updateDoc(doc(db, 'ads', adId), { status: 'active', updatedAt: serverTimestamp() });
-      setAds(prev => prev.filter(a => a.id !== adId));
-      alert('✅ 광고 승인 완료 — 광고주 화면에 활성 상태로 즉시 반영됩니다.');
+      await updateDoc(doc(db, 'ads', ad.id), { status: 'active', updatedAt: serverTimestamp() });
+      await notifyAdvertiser(ad, 'ad_approved');
+      setAds(prev => prev.filter(a => a.id !== ad.id));
+      alert('✅ 광고 승인 + 광고주 알림 발송 완료');
     } catch (err) {
       console.error('[approveAd]', err);
       alert('❌ 승인 실패: ' + ((err as Error).message || '알 수 없는 오류'));
     }
   };
 
-  const handleReject = async (adId: string) => {
+  const handleReject = async (ad: Ad) => {
     const reason = prompt('거절 사유를 입력해주세요:');
     if (!reason?.trim()) return;
     try {
-      await updateDoc(doc(db, 'ads', adId), {
+      await updateDoc(doc(db, 'ads', ad.id), {
         status: 'rejected',
         rejectionReason: reason.trim(),
         updatedAt: serverTimestamp(),
       });
-      setAds(prev => prev.filter(a => a.id !== adId));
-      alert('✅ 거절 처리 완료 — 광고주에게 거절 사유와 함께 표시됩니다.');
+      await notifyAdvertiser(ad, 'ad_rejected', { reason: reason.trim() });
+      setAds(prev => prev.filter(a => a.id !== ad.id));
+      alert('✅ 거절 처리 + 광고주 알림 발송 완료');
     } catch (err) {
       console.error('[rejectAd]', err);
       alert('❌ 거절 실패: ' + ((err as Error).message || '알 수 없는 오류'));
@@ -91,9 +105,9 @@ const AdReviewQueue = () => {
             <p>💼 총예산: ⚾ {formatKoreanNumber(ad.totalBudget || 0)}</p>
           </div>
           <div className="flex gap-2 justify-end">
-            <button onClick={() => handleReject(ad.id)}
+            <button onClick={() => handleReject(ad)}
               className="px-4 py-2 rounded-lg text-[12px] font-[1000] text-rose-600 bg-rose-50 hover:bg-rose-100 border border-rose-200">❌ 거절</button>
-            <button onClick={() => handleApprove(ad.id)}
+            <button onClick={() => handleApprove(ad)}
               className="px-4 py-2 rounded-lg text-[12px] font-[1000] text-white bg-emerald-600 hover:bg-emerald-700">✅ 승인</button>
           </div>
         </div>

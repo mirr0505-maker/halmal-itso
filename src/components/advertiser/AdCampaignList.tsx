@@ -6,6 +6,7 @@ interface Props {
   ads: Ad[];
   onCreateNew: () => void;
   onEdit: (ad: Ad) => void;  // 🚀 2026-04-25: 광고 수정 진입
+  onToggleStatus: (ad: Ad, newStatus: 'active' | 'paused') => void;  // 🚀 2026-04-25: 일시정지/재개
 }
 
 const STATUS_LABEL: Record<string, { label: string; cls: string }> = {
@@ -18,7 +19,7 @@ const STATUS_LABEL: Record<string, { label: string; cls: string }> = {
   exhausted: { label: '예산소진', cls: 'text-rose-500 bg-rose-50 border-rose-200' },
 };
 
-const AdCampaignList = ({ ads, onCreateNew, onEdit }: Props) => {
+const AdCampaignList = ({ ads, onCreateNew, onEdit, onToggleStatus }: Props) => {
   if (ads.length === 0) return (
     <div className="py-16 text-center">
       <p className="text-slate-300 font-[1000] text-[16px] mb-2">등록된 광고가 없습니다</p>
@@ -49,8 +50,20 @@ const AdCampaignList = ({ ads, onCreateNew, onEdit }: Props) => {
               <span>소진 ⚾ {formatKoreanNumber(ad.totalSpent)}</span>
               <span className="ml-auto">{ad.bidType.toUpperCase()} ⚾ {formatKoreanNumber(ad.bidAmount)}</span>
             </div>
-            {/* 🚀 2026-04-25: 본인 광고 수정 진입 */}
-            <div className="mt-2 flex justify-end">
+            {/* 🚀 2026-04-25: 광고주 액션 — 수정 + 일시정지/재개 */}
+            <div className="mt-2 flex justify-end gap-1.5">
+              {ad.status === 'active' && (
+                <button onClick={() => onToggleStatus(ad, 'paused')}
+                  className="text-[10px] font-[1000] text-amber-600 bg-amber-50 hover:bg-amber-100 px-2.5 py-1 rounded-md border border-amber-100">
+                  ⏸ 일시정지
+                </button>
+              )}
+              {ad.status === 'paused' && (
+                <button onClick={() => onToggleStatus(ad, 'active')}
+                  className="text-[10px] font-[1000] text-emerald-600 bg-emerald-50 hover:bg-emerald-100 px-2.5 py-1 rounded-md border border-emerald-100">
+                  ▶ 재개
+                </button>
+              )}
               <button onClick={() => onEdit(ad)}
                 className="text-[10px] font-[1000] text-violet-600 bg-violet-50 hover:bg-violet-100 px-2.5 py-1 rounded-md border border-violet-100">
                 ✏️ 수정

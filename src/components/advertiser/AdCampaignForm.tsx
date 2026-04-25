@@ -2,7 +2,7 @@
 // 🚀 Phase α-2 G (2026-04-25): 슬롯 위치별 + PC/모바일 미리보기 섹션 추가
 import { useState } from 'react';
 import { db } from '../../firebase';
-import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, setDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
 import { uploadToR2 } from '../../uploadToR2';
 import { AD_CATEGORIES, AD_MENU_CATEGORIES } from '../../constants';
 import AdBanner from '../ads/AdBanner';
@@ -137,8 +137,11 @@ const AdCampaignForm = ({ advertiserId, advertiserName, editingAd, onBack }: Pro
         });
         alert(newStatus === 'pending_review' ? '✅ 수정 완료 — 재검수 대기 상태로 전환됐어요' : '✅ 임시저장 완료');
       } else {
-        // 신규 등록
+        // 신규 등록 — endDate default 30일 후 (만료 자동 처리에 사용)
+        //   기존 코드는 startDate=endDate라 모든 광고가 즉시 만료된 셈 (버그). 명시 30일.
         const adId = `ad_${Date.now()}_${advertiserId}`;
+        const now = Date.now();
+        const thirtyDaysLater = new Date(now + 30 * 86400 * 1000);
         await setDoc(doc(db, 'ads', adId), {
           ...form,
           targetCreatorId: form.targetCreatorId || null,
@@ -152,7 +155,7 @@ const AdCampaignForm = ({ advertiserId, advertiserName, editingAd, onBack }: Pro
           totalSpent: 0,
           ctr: 0,
           startDate: serverTimestamp(),
-          endDate: serverTimestamp(),
+          endDate: Timestamp.fromDate(thirtyDaysLater),
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
         });
