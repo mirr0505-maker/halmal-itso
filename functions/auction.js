@@ -31,7 +31,9 @@ exports.adAuction = onRequest(
         .map(d => ({ id: d.id, ...d.data() }))
         .filter(ad => {
           if (!ad.targetSlots?.includes(slotPosition)) return false;
-          if (ad.targetCategories?.length > 0 && !ad.targetCategories.includes(postCategory)) return false;
+          // 📍 글 메뉴 카테고리 매칭 (2026-04-25 ~) — targetMenuCategories와 글 카테고리(postCategory) 비교
+          //   기존 targetCategories는 업종 통계용으로 분리, 매칭에는 미사용
+          if (ad.targetMenuCategories?.length > 0 && !ad.targetMenuCategories.includes(postCategory)) return false;
           // 🚀 지역 매칭 (Phase 5 Step 1)
           if (ad.targetRegions?.length > 0 && viewerRegion && !ad.targetRegions.includes(viewerRegion)) return false;
           // 🏪 크리에이터 지면 타겟팅 — 특정 크리에이터 지면에만 노출

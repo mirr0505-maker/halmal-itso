@@ -35,8 +35,8 @@ exports.syncAdBids = onDocumentUpdated(
 
     // 경매 관련 필드만 변경 감지
     const relevantFields = [
-      "bidAmount", "bidType", "targetCategories", "targetRegions",
-      "targetSlots", "status", "dailyBudget", "totalBudget",
+      "bidAmount", "bidType", "targetCategories", "targetMenuCategories",
+      "targetRegions", "targetSlots", "status", "dailyBudget", "totalBudget",
       "totalImpressions", "totalClicks", "totalSpent",
     ];
     const hasRelevantChange = relevantFields.some(
@@ -72,7 +72,8 @@ exports.syncAdBids = onDocumentUpdated(
       advertiserId: after.advertiserId,
       bidType: after.bidType,
       bidAmount: after.bidAmount,
-      targetCategories: after.targetCategories || [],
+      targetCategories: after.targetCategories || [],          // 📂 업종 (통계용)
+      targetMenuCategories: after.targetMenuCategories || [],   // 📍 노출 메뉴 (매칭 핵심)
       targetRegions: after.targetRegions || [],
       targetSlots: after.targetSlots || [],
       dailyBudgetRemaining,

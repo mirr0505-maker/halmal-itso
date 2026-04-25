@@ -76,7 +76,7 @@ const CreatePostBox = ({ userData, editingPost, activeMenu, menuMessages, onSubm
   };
 
   return (
-    <div className="w-full max-w-[860px] mx-auto py-8 animate-in fade-in duration-200">
+    <div className="w-full max-w-[1024px] mx-auto py-8 animate-in fade-in duration-200">
       <div
         className="bg-white border border-slate-200 rounded-xl overflow-hidden flex flex-col shadow-sm"
         style={{ maxHeight: 'calc(100vh - 80px)' }}

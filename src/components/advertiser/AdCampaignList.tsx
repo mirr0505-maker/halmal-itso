@@ -5,6 +5,7 @@ import { formatKoreanNumber } from '../../utils';
 interface Props {
   ads: Ad[];
   onCreateNew: () => void;
+  onEdit: (ad: Ad) => void;  // 🚀 2026-04-25: 광고 수정 진입
 }
 
 const STATUS_LABEL: Record<string, { label: string; cls: string }> = {
@@ -17,7 +18,7 @@ const STATUS_LABEL: Record<string, { label: string; cls: string }> = {
   exhausted: { label: '예산소진', cls: 'text-rose-500 bg-rose-50 border-rose-200' },
 };
 
-const AdCampaignList = ({ ads, onCreateNew }: Props) => {
+const AdCampaignList = ({ ads, onCreateNew, onEdit }: Props) => {
   if (ads.length === 0) return (
     <div className="py-16 text-center">
       <p className="text-slate-300 font-[1000] text-[16px] mb-2">등록된 광고가 없습니다</p>
@@ -41,12 +42,19 @@ const AdCampaignList = ({ ads, onCreateNew }: Props) => {
               </div>
               <span className={`text-[9px] font-black px-2 py-0.5 rounded-md border shrink-0 ml-2 ${st.cls}`}>{st.label}</span>
             </div>
-            <div className="flex items-center gap-4 text-[10px] font-bold text-slate-400">
+            <div className="flex items-center gap-4 text-[10px] font-bold text-slate-400 flex-wrap">
               <span>노출 {formatKoreanNumber(ad.totalImpressions)}</span>
               <span>클릭 {formatKoreanNumber(ad.totalClicks)}</span>
               <span>CTR {(ad.ctr * 100).toFixed(2)}%</span>
-              <span>소진 ₩{formatKoreanNumber(ad.totalSpent)}</span>
-              <span className="ml-auto">{ad.bidType.toUpperCase()} ₩{formatKoreanNumber(ad.bidAmount)}</span>
+              <span>소진 ⚾ {formatKoreanNumber(ad.totalSpent)}</span>
+              <span className="ml-auto">{ad.bidType.toUpperCase()} ⚾ {formatKoreanNumber(ad.bidAmount)}</span>
+            </div>
+            {/* 🚀 2026-04-25: 본인 광고 수정 진입 */}
+            <div className="mt-2 flex justify-end">
+              <button onClick={() => onEdit(ad)}
+                className="text-[10px] font-[1000] text-violet-600 bg-violet-50 hover:bg-violet-100 px-2.5 py-1 rounded-md border border-violet-100">
+                ✏️ 수정
+              </button>
             </div>
           </div>
         );

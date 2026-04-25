@@ -1,4 +1,7 @@
 // functions/revenue.js — 일일 광고 수익 집계
+// 🚀 2026-04-25 단위 통일: 광고비/정산 모두 ⚾ 볼 단위
+//   - bidAmount/dailyBudget/totalBudget · gross · creatorShare 모두 정수 볼
+//   - 작성자 환원: pendingRevenue 누적(통계용) + ballBalance/ballReceived 즉시 increment (즉시 사용 가능)
 const { onSchedule } = require("firebase-functions/v2/scheduler");
 const { getFirestore, FieldValue, Timestamp } = require("firebase-admin/firestore");
 
@@ -68,11 +71,17 @@ exports.aggregateDailyRevenue = onSchedule(
       });
 
       if (creatorShare > 0) {
-        await db.collection("users").doc(authorId).update({ pendingRevenue: FieldValue.increment(creatorShare) });
+        // 🚀 2026-04-25: pendingRevenue(통계 누적) + 작성자 ballBalance/ballReceived 즉시 환원
+        //   광고비/정산 모두 ⚾ 볼 단위. 작성자는 즉시 받은 볼 사용 가능 (땡스볼처럼)
+        await db.collection("users").doc(authorId).update({
+          pendingRevenue: FieldValue.increment(creatorShare),
+          ballBalance: FieldValue.increment(creatorShare),
+          ballReceived: FieldValue.increment(creatorShare),
+        });
       }
       totalRevenue += Math.floor(gross);
     }
 
-    console.log(`[수익집계] ${dateStr} 완료 — 작성자 ${Object.keys(authorMap).length}명, 총 수익 ₩${totalRevenue}`);
+    console.log(`[수익집계] ${dateStr} 완료 — 작성자 ${Object.keys(authorMap).length}명, 총 수익 ⚾ ${totalRevenue}볼`);
   }
 );

@@ -17,6 +17,10 @@ const AdvertiserCenter = ({ onBack }: Props) => {
   const [account, setAccount] = useState<AdvertiserAccount | null>(null);
   const [ads, setAds] = useState<Ad[]>([]);
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [editingAd, setEditingAd] = useState<Ad | null>(null);  // 🚀 2026-04-25: 수정 모드
+  // 🚀 임시 땡스볼 충전 — 정식 PG 도입 전까지 운영 (testChargeBall CF 호출)
+  const [ballBalance, setBallBalance] = useState(0);
+  const [charging, setCharging] = useState(false);
 
   const uid = auth.currentUser?.uid;
 
@@ -39,12 +43,42 @@ const AdvertiserCenter = ({ onBack }: Props) => {
     return () => unsub();
   }, [uid]);
 
+  // 🚀 본인 ballBalance 실시간 구독 (광고주 충전/결제 탭에서 잔액 표시)
+  useEffect(() => {
+    if (!uid) return;
+    const unsub = onSnapshot(doc(db, 'users', uid), snap => {
+      if (snap.exists()) setBallBalance((snap.data().ballBalance as number) || 0);
+    });
+    return () => unsub();
+  }, [uid]);
+
+  const handleCharge = async (amount: number) => {
+    if (!uid || charging) return;
+    setCharging(true);
+    try {
+      const { httpsCallable } = await import('firebase/functions');
+      const { functions } = await import('../../firebase');
+      const chargeFn = httpsCallable(functions, 'testChargeBall');
+      await chargeFn({ amount });
+      alert(`✅ +${amount}볼 충전 완료`);
+    } catch (err) {
+      alert('충전 실패: ' + ((err as Error).message || '알 수 없는 오류'));
+    } finally {
+      setCharging(false);
+    }
+  };
+
   if (!account) return (
     <div className="py-20 text-center text-slate-300 font-bold">광고주 계정을 불러오는 중...</div>
   );
 
   if (showCreateForm) {
-    return <AdCampaignForm advertiserId={uid!} advertiserName={account.businessName} onBack={() => setShowCreateForm(false)} />;
+    return <AdCampaignForm
+      advertiserId={uid!}
+      advertiserName={account.businessName}
+      editingAd={editingAd || undefined}
+      onBack={() => { setShowCreateForm(false); setEditingAd(null); }}
+    />;
   }
 
   const totalImpressions = ads.reduce((s, a) => s + a.totalImpressions, 0);
@@ -80,19 +114,19 @@ const AdvertiserCenter = ({ onBack }: Props) => {
       {/* 대시보드 */}
       {tab === 'dashboard' && (
         <div className="flex flex-col gap-4">
-          {/* 요약 카드 */}
+          {/* 요약 카드 — 단위 ₩ → ⚾ 통일 (2026-04-25) */}
           <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
-            <div className="bg-violet-50 rounded-2xl p-4 border border-violet-100 text-center">
-              <p className="text-[9px] font-black text-violet-400 uppercase">잔액</p>
-              <p className="text-[16px] font-[1000] text-violet-700">₩{formatKoreanNumber(account.balance)}</p>
+            <div className="bg-amber-50 rounded-2xl p-4 border border-amber-100 text-center">
+              <p className="text-[9px] font-black text-amber-400 uppercase">내 땡스볼</p>
+              <p className="text-[16px] font-[1000] text-amber-600">⚾ {formatKoreanNumber(ballBalance)}</p>
             </div>
             <div className="bg-blue-50 rounded-2xl p-4 border border-blue-100 text-center">
               <p className="text-[9px] font-black text-blue-400 uppercase">오늘 소진</p>
-              <p className="text-[16px] font-[1000] text-blue-600">₩0</p>
+              <p className="text-[16px] font-[1000] text-blue-600">⚾ 0</p>
             </div>
             <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100 text-center">
               <p className="text-[9px] font-black text-slate-400 uppercase">총 소진</p>
-              <p className="text-[16px] font-[1000] text-slate-700">₩{formatKoreanNumber(account.totalSpent)}</p>
+              <p className="text-[16px] font-[1000] text-slate-700">⚾ {formatKoreanNumber(account.totalSpent)}</p>
             </div>
             <div className="bg-emerald-50 rounded-2xl p-4 border border-emerald-100 text-center">
               <p className="text-[9px] font-black text-emerald-400 uppercase">총 노출</p>
@@ -137,16 +171,55 @@ const AdvertiserCenter = ({ onBack }: Props) => {
       )}
 
       {/* 내 광고 */}
-      {tab === 'campaigns' && <AdCampaignList ads={ads} onCreateNew={() => setShowCreateForm(true)} />}
+      {tab === 'campaigns' && <AdCampaignList
+        ads={ads}
+        onCreateNew={() => { setEditingAd(null); setShowCreateForm(true); }}
+        onEdit={(ad) => { setEditingAd(ad); setShowCreateForm(true); }}
+      />}
 
-      {/* 충전/결제 */}
+      {/* 충전/결제 — 모든 비용 ⚾ 볼 단위 (2026-04-25 정책) */}
       {tab === 'billing' && (
-        <div className="bg-white rounded-2xl border border-slate-100 p-6 text-center">
-          <p className="text-[14px] font-[1000] text-slate-800 mb-2">현재 잔액: ₩{formatKoreanNumber(account.balance)}</p>
-          <p className="text-[12px] font-bold text-slate-400 mb-4">PG사 연동 후 충전 기능이 활성화됩니다.</p>
-          <button disabled className="px-6 py-2.5 bg-slate-100 text-slate-300 rounded-xl text-[12px] font-[1000] cursor-not-allowed">
-            잔액 충전 (준비 중)
-          </button>
+        <div className="flex flex-col gap-4">
+          {/* 잔액 카드 — ⚾ 단일 (광고비 결제·정산 모두 볼) */}
+          <div className="grid grid-cols-1 gap-3">
+            <div className="bg-amber-50 rounded-2xl p-5 border border-amber-100">
+              <p className="text-[10px] font-black text-amber-400 uppercase">내 땡스볼 (광고비 잔액)</p>
+              <p className="text-[24px] font-[1000] text-amber-600 mt-1">⚾ {formatKoreanNumber(ballBalance)} 볼</p>
+              <p className="text-[10px] font-bold text-slate-400 mt-1">광고비 결제와 작성자 정산 모두 ⚾ 볼 단위로 운영</p>
+            </div>
+          </div>
+
+          {/* 임시 땡스볼 충전 UI */}
+          <div className="bg-white rounded-2xl border border-slate-100 p-5">
+            <div className="flex items-start justify-between mb-3">
+              <div>
+                <h3 className="text-[13px] font-[1000] text-slate-800">⚾ 임시 땡스볼 충전</h3>
+                <p className="text-[10px] font-bold text-amber-600 mt-0.5">
+                  ⚠️ 베타 단계 무료 충전 — 정식 PG 도입 후 광고비 결제와 연동 예정
+                </p>
+              </div>
+            </div>
+            <div className="grid grid-cols-4 gap-2 mb-2">
+              {[100, 200, 500, 1000].map(n => (
+                <button
+                  key={n}
+                  onClick={() => handleCharge(n)}
+                  disabled={charging}
+                  className="py-2.5 rounded-xl text-[12px] font-[1000] bg-amber-50 text-amber-600 border border-amber-100 hover:bg-amber-100 transition-all disabled:opacity-50"
+                >
+                  +{n}볼
+                </button>
+              ))}
+            </div>
+            <p className="text-[9px] font-bold text-slate-300 text-center">
+              {charging ? '충전 처리 중...' : '※ CF testChargeBall 호출 (1~1000 범위 정수)'}
+            </p>
+          </div>
+
+          {/* 베타 안내 */}
+          <div className="bg-slate-50 rounded-2xl border border-slate-100 p-4 text-center">
+            <p className="text-[11px] font-bold text-slate-400">베타 단계 — 광고비 결제·작성자 정산 모두 ⚾ 볼 단위. 정식 서비스 시 환전 정책 추가 예정.</p>
+          </div>
         </div>
       )}
 

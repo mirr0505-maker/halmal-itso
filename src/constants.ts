@@ -512,10 +512,27 @@ export const PLATFORM_AD_MIN_LEVEL = 2;
 export const AD_REVENUE_SHARE = CREATOR_AD_SLOTS;
 export const getAdRevenueShare = getCreatorAdSlots;
 
-// 광고 카테고리 (광고주 타겟팅용)
+// 광고 카테고리 — 📂 업종 분류 (광고주 통계·관리 태그용, 2026-04-25 매칭에서 분리)
+//   매칭은 AD_MENU_CATEGORIES만 사용. 이 리스트는 통계 분류 라벨일 뿐.
 export const AD_CATEGORIES = [
   '음식점', 'IT/테크', '교육', '패션', '뷰티', '금융', '부동산', '여행', '건강', '기타'
 ] as const;
+
+// 📍 광고 노출 위치 글 메뉴 카테고리 — 글 카테고리(post.category DB 저장값)와 직접 매칭
+//   라벨(label)과 저장값(value)이 다른 메뉴 있음 — 참새/한컷:
+//     - 참새들의 방앗간 → DB category="너와 나의 이야기" (구 이름 유지)
+//     - 헨젤의 빵부스러기 → DB category="한컷" + isOneCut:true
+//   광고 등록 시 label 표시, value 저장. 매칭은 value↔post.category로 정확히 비교.
+export const AD_MENU_CATEGORIES: { label: string; value: string }[] = [
+  { label: '참새들의 방앗간', value: '너와 나의 이야기' },
+  { label: '판도라의 상자', value: '판도라의 상자' },
+  { label: '솔로몬의 재판', value: '솔로몬의 재판' },
+  { label: '황금알을 낳는 거위', value: '황금알을 낳는 거위' },
+  { label: '신포도와 여우', value: '신포도와 여우' },
+  { label: '마법 수정 구슬', value: '마법 수정 구슬' },
+  { label: '마라톤의 전령', value: '마라톤의 전령' },
+  { label: '헨젤의 빵부스러기', value: '한컷' },
+];
 
 // 정산 최소 출금액 (원)
 export const SETTLEMENT_MIN_AMOUNT = 30_000;

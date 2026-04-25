@@ -882,10 +882,15 @@ export interface Ad {
   headline: string;                  // 배너 헤드라인 (최대 30자)
   description: string;               // 설명 문구 (최대 60자)
   imageUrl: string;                  // 배너 이미지 URL
+  imageStyle?: 'horizontal' | 'vertical';   // 🚀 2026-04-25: 가로 플래카드형 vs 세로형 (없으면 horizontal default)
+  imagePosition?: 'left' | 'right';         // vertical 전용 — 이미지가 카드 좌측/우측 중 어디
   landingUrl: string;                // 클릭 시 이동 URL
   ctaText: string;                   // CTA 버튼 텍스트
-  targetCategories: string[];        // 노출 대상 카테고리 (빈 배열 = 전체)
+  targetCategories: string[];        // 📂 업종 분류 (음식점/IT/등) — 통계·관리용. 매칭에 미사용 (2026-04-25 ~)
+  targetMenuCategories?: string[];   // 📍 노출 위치 글 메뉴 (참새들의 방앗간/판도라의 상자 등) — 빈 배열 = 전체. 매칭 핵심
   targetRegions: string[];           // 노출 대상 지역 (빈 배열 = 전국)
+  targetCreatorId?: string | null;       // 🏪 크리에이터 지면 타겟팅 (특정 크리에이터 글에만 노출, null=전체)
+  targetCreatorNickname?: string;        // UI 표시용
   targetSlots: ('top' | 'middle' | 'bottom')[];
   bidType: 'cpm' | 'cpc';
   bidAmount: number;                 // 입찰가 (원)
