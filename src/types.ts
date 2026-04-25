@@ -952,20 +952,29 @@ export interface DailyAdRevenue {
 }
 
 // 광고주 계정
+// 🚀 2026-04-25: 광고주 타입 3종 (개인/개인사업자/법인) — 1uid:1type 제약
+//   회원가입 시 또는 광고주 등록 시 결정. 변경은 별도 신청·심사 (TODO Sprint 8)
+export type AdvertiserType = 'personal' | 'individual_business' | 'corporate';
+
 export interface AdvertiserAccount {
   id: string;
   uid: string;
-  businessName: string;
-  businessNumber: string;
-  representativeName: string;
-  businessAddress: string;
+  type: AdvertiserType;       // 🚀 신규 (2026-04-25) — 등록 시 분기
+  // 공통
+  contactName: string;        // 개인 본명 또는 사업자 담당자명
   email: string;
   phone: string;
-  balance: number;
+  // 사업자/법인 전용 (personal 시 빈 문자열)
+  businessName: string;       // 상호명 (사업자) 또는 법인명
+  businessNumber: string;     // 사업자등록번호 또는 법인등록번호
+  representativeName: string; // 대표자명 (법인 필수)
+  businessAddress: string;
+  // 잔액·통계
+  balance: number;            // (deprecated) 원 단위 — 미사용. ⚾ ballBalance 통일
   totalCharged: number;
   totalSpent: number;
   status: 'active' | 'suspended' | 'dormant';
-  isVerified: boolean;
+  isVerified: boolean;        // 사업자번호 자동 검증 (Sprint 8 Phase β에서 도입)
   createdAt: FirestoreTimestamp;
 }
 

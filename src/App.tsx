@@ -73,6 +73,7 @@ const AdvertiserCenter = lazy(() => import('./components/advertiser/AdvertiserCe
 const AdAdminPage = lazy(() => import('./components/admin/AdAdminPage'));
 const FriendsView = lazy(() => import('./components/FriendsView'));
 const AdvertiserRegister = lazy(() => import('./components/advertiser/AdvertiserRegister'));
+const AdvertiserWelcome = lazy(() => import('./components/advertiser/AdvertiserWelcome'));
 // 🖋️ 마르지 않는 잉크병 — 사이드 메뉴 진입 화면 (회차/작품 2탭) + 상세/본문/생성 폼
 const InkwellHomeView = lazy(() => import('./components/InkwellHomeView'));
 const MarketHomeView = lazy(() => import('./components/MarketHomeView'));
@@ -190,6 +191,7 @@ function App() {
   // Why: 기존엔 버튼 → 즉시 Google OAuth 팝업이었는데, 서비스 소개·약관 동의 단계를 앞에 둠.
   //      "둘러보기" 클릭으로 닫으면 기존처럼 비로그인 탐색 가능.
   const [isWelcomeOpen, setIsWelcomeOpen] = useState(false);
+  const [selectedAdvertiserType, setSelectedAdvertiserType] = useState<import('./types').AdvertiserType | null>(null);
 
   const [pendingSharedPostId, setPendingSharedPostId] = useState<string | null>(() => {
     // ?post=topic_xxx (기존 방식) 또는 /p/topic_xxx (신규 방식) 모두 지원
@@ -661,7 +663,18 @@ function App() {
       );
       const isAdvertiser = !!(userData as unknown as { isAdvertiser?: boolean }).isAdvertiser;
       if (!isAdvertiser) {
-        return <AdvertiserRegister onComplete={() => setActiveMenu('adsmarket')} onCancel={() => setActiveMenu('home')} />;
+        // 🚀 2026-04-25: type 선택 게이트 → 등록 폼 2단계
+        if (!selectedAdvertiserType) {
+          return <AdvertiserWelcome
+            onSelect={(t) => setSelectedAdvertiserType(t)}
+            onCancel={() => setActiveMenu('home')}
+          />;
+        }
+        return <AdvertiserRegister
+          type={selectedAdvertiserType}
+          onComplete={() => { setSelectedAdvertiserType(null); setActiveMenu('adsmarket'); }}
+          onCancel={() => setSelectedAdvertiserType(null)}
+        />;
       }
       return <AdvertiserCenter onBack={() => setActiveMenu('home')} />;
     }

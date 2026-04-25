@@ -23,7 +23,12 @@
 
 ### Sprint 8 — 인증·결제·관리자 보강
 - **Apple OAuth** (Developer Services ID + 서명키) — 해외 진출 + iOS 30%+. X·FB는 검토 반려.
+- **개인사업자 / 법인 로그인** — 사업자등록번호 인증으로 광고주 가입·로그인. 홈택스 진위확인 API 또는 Codef 연동. 자동 승인 흐름(현재는 수동만). 광고비 부가세 처리 위해 사업자 정보 정확도 필수. **카드 PG 도입과 묶음**.
 - **카드 PG 결제** (토스/아임포트/KG이니시스) — 정기결제 토큰 PCI-DSS 준수. **사용자 결정으로 가장 마지막에 진행**.
+- **광고주 카드 결제 옵션** — 개인/사업자/법인 모두 카드 결제 가능 (현재 ⚾ 볼만). 카드 PG 도입 시 함께 작업.
+- **광고주 사업자번호 자동 검증** — 홈택스 진위확인 또는 Codef API. 카드 PG 도입 시 함께 작업.
+- **광고비 세금계산서 자동 발행** — 사업자/법인 광고비 결제 시. 카드 PG 도입 시 함께 작업.
+- **광고주 type 변경 신청·심사** — personal → individual_business 또는 corporate 승급. 별도 신청 폼 + 관리자 심사 후 type 변경. 1uid:1type 제약 유지.
 - **Admin Phase C CF 3종**: `adminAdjustReputation` / `detectCircularThanksball` / `auditReputationAnomalies`
 - **Google ↔ Kakao 계정 병합** — `linkWithCredential` 또는 데이터 마이그레이션. 정책 결정 필요(볼/EXP/평판/깐부 어느 쪽 기준)
 - ✅ 카카오 OAuth 완료 (2026-04-23) / ✅ 네이버 OAuth 완료 (2026-04-24~25)
