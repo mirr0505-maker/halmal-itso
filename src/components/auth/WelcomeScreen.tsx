@@ -215,9 +215,9 @@ export default function WelcomeScreen({ onGoogleLogin, onKakaoLogin, onNaverLogi
               <BrandHeader tagline="다시 만나서 반가워요" />
 
               <div className="bg-white rounded-2xl border border-slate-200 p-5 mb-5">
-                <p className="text-[12px] font-[1000] text-slate-800 mb-1">👋 가입하신 Google 계정으로 로그인</p>
+                <p className="text-[12px] font-[1000] text-slate-800 mb-1">👋 가입하신 SNS 계정으로 로그인</p>
                 <p className="text-[11px] text-slate-500 font-bold leading-relaxed">
-                  처음 가입한 계정과 동일한 Google 계정을 선택해 주세요.
+                  처음 가입할 때 사용한 SNS(Google · 카카오 · 네이버) 계정을 선택해 주세요. 다른 SNS로 로그인하면 별개 계정으로 인식돼요.
                 </p>
               </div>
 
