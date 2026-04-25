@@ -391,9 +391,10 @@ export const OG_IMAGE_ALLOWED_HOSTS = [
 // TODO: 실 서비스 전환 시 이 배열 제거 후 전체 유저 표시로 변경
 export const FRIENDS_MENU_ALLOWED_NICKNAMES = ["깐부1호", "깐부2호", "깐부3호", "깐부4호", "깐부5호", "깐부6호", "깐부7호", "깐부8호", "깐부9호", "깐부10호", "불량깐부1호", "불량깐부2호", "불량깐부3호", "흑무영"];
 
-// 🚀 플랫폼 관리자 닉네임 화이트리스트 (광고 검수·정산 승인·부정행위 모니터링)
-// Why: 별도 isAdmin 필드/커스텀 클레임 없이 닉네임으로 단순 판별 (MVP 단계)
-// TODO: 정식 출시 전 users.isAdmin 필드 또는 Firebase Auth Custom Claims로 전환
+// 🛡️ Sprint 6 A-3 (2026-04-25 완료): 실제 admin 권한은 Custom Claims 단일 체크.
+//   이 배열은 "관리자 메뉴 후보 닉네임" — Sidebar의 메뉴 노출 결정에만 사용.
+//   실제 admin 작업 시도는 AdminGuard + assertAdmin이 Claims로 차단.
+//   닉네임 표시용이라 메뉴를 잘못 노출해도 보안 영향 없음 (실권한은 Claims 보호).
 export const PLATFORM_ADMIN_NICKNAMES = ["흑무영", "Admin"];
 
 // 🚀 테스트 계정 — exp/likes로 레벨·평판 초기값 설정

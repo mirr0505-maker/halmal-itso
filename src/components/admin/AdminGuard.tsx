@@ -1,41 +1,34 @@
-// src/components/admin/AdminGuard.tsx — 🛡️ Sprint 6 A-1: 관리자 권한 가드
+// src/components/admin/AdminGuard.tsx — 🛡️ Sprint 6 A-3 (2026-04-25 완료): Custom Claims 단일 체크
 //
-// useAdminAuth() — Custom Claims OR 닉네임 이중 체크 훅
-//   Phase A-1: Claims true || 닉네임 화이트리스트 → isAdmin: true
-//   Phase A-3: 화이트리스트 제거, Claims 단일 체크로 전환 예정
+// useAdminAuth() — Custom Claims 단일 체크 훅
+//   닉네임 fallback 제거. Claims 비동기 조회 → loading 초기값 true.
 //
 // AdminGuard — 훅을 래핑한 JSX. isAdmin false면 권한 없음 화면 표시.
 //
-// Why: 기존 `PLATFORM_ADMIN_NICKNAMES.includes(currentUser.nickname)` 방식은
-//      닉네임 변경 공격 표면을 가짐 + 화이트리스트 하드코딩이 여러 곳.
-//      훅으로 중앙화하여 향후 A-3 전환 시 이 파일만 수정.
+// Why: 닉네임 도용/변경 공격 표면 완전 차단. 권한은 Firebase Auth ID Token에 박힘.
+//      복구 경로: Firebase Console → Auth → 해당 uid → 맞춤 클레임 `{"admin":true}` 수동 주입.
 
 import { useEffect, useState } from 'react';
 import { getAuth } from 'firebase/auth';
 import type { UserData } from '../../types';
-import { PLATFORM_ADMIN_NICKNAMES } from '../../constants';
 
 interface AdminAuthState {
   loading: boolean;
   isAdmin: boolean;
-  viaClaims: boolean;  // true = Custom Claims 경로 / false = 닉네임 fallback
+  viaClaims: boolean;  // 항상 true (다른 경로 없음)
 }
 
 /**
- * 관리자 권한 확인 훅 (Claims + 닉네임 이중 체크)
+ * 관리자 권한 확인 훅 (Custom Claims 단일 체크)
  *
  * Claims 확인은 `auth.currentUser.getIdTokenResult()` 비동기 호출이라
- * loading 상태를 먼저 노출. 닉네임 경로는 currentUser prop에서 즉시 판정.
+ * loading 상태를 먼저 노출. 토큰 갱신은 호출자가 별도로 처리 (예: SystemPanel "내 토큰 갱신" 버튼).
  */
 export function useAdminAuth(currentUser: UserData | null): AdminAuthState {
-  const [state, setState] = useState<AdminAuthState>(() => {
-    // 닉네임 경로는 즉시 확정 가능 — loading false로 시작
-    const byNickname = !!currentUser && PLATFORM_ADMIN_NICKNAMES.includes(currentUser.nickname);
-    return {
-      loading: !byNickname, // 닉네임 통과하면 loading 불필요
-      isAdmin: byNickname,
-      viaClaims: false,
-    };
+  const [state, setState] = useState<AdminAuthState>({
+    loading: true,
+    isAdmin: false,
+    viaClaims: false,
   });
 
   useEffect(() => {
@@ -50,19 +43,16 @@ export function useAdminAuth(currentUser: UserData | null): AdminAuthState {
       try {
         const tokenResult = await user.getIdTokenResult();
         const adminClaim = tokenResult.claims.admin === true;
-        const byNickname = !!currentUser && PLATFORM_ADMIN_NICKNAMES.includes(currentUser.nickname);
         if (!cancelled) {
           setState({
             loading: false,
-            isAdmin: adminClaim || byNickname,
+            isAdmin: adminClaim,
             viaClaims: adminClaim,
           });
         }
       } catch {
-        // Claims 조회 실패해도 닉네임 fallback 유지
-        const byNickname = !!currentUser && PLATFORM_ADMIN_NICKNAMES.includes(currentUser.nickname);
         if (!cancelled) {
-          setState({ loading: false, isAdmin: byNickname, viaClaims: false });
+          setState({ loading: false, isAdmin: false, viaClaims: false });
         }
       }
     }

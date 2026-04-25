@@ -2,14 +2,12 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // 🚀 플랫폼 관리자 판별 — Sprint 6 A-1: Custom Claims OR 닉네임 화이트리스트 (이중 체크)
-    // 운영 절차: A-1(현재) → A-2(Claims 부여 후 검증 2~3일) → A-3(화이트리스트 제거, Claims 단일)
-    // Why: ID Token Claims는 서명된 자료라 닉네임 변경 공격 표면 제거.
-    //      A-1 단계는 락아웃 방지를 위한 이중 체크 — Claims 미부여 상태로 배포해도 안전.
+    // 🛡️ 플랫폼 관리자 판별 — Sprint 6 A-3 (2026-04-25 완료): Custom Claims 단일 체크
+    //   닉네임 fallback 제거. 닉네임 도용/변경 공격 표면 완전 차단.
+    //   복구 경로: Firebase Console → Auth → 해당 uid → 맞춤 클레임 `{"admin":true}` 수동 주입,
+    //             또는 살아있는 다른 admin 계정이 SystemPanel grantAdminRole 호출.
     function isAdmin() {
-      return request.auth != null
-        && (request.auth.token.admin == true
-          || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.nickname in ['흑무영', 'Admin']);
+      return request.auth != null && request.auth.token.admin == true;
     }
 
 
