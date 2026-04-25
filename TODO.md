@@ -1,0 +1,93 @@
+# 📋 TODO — 할말있소 백로그·튜닝·정리 단일 소스
+
+> **목적**: 메모리 폴더에 분산된 18개 백로그/튜닝 메모리를 단일 파일로 통합. 새 백로그가 생기면 이 파일에만 추가.
+> **범위**: 완료 아카이브·운영 가이드(feedback)·배포 이력은 메모리 폴더에 별도 유지. 본 파일은 "앞으로 할 일"만.
+> 최종 갱신: 2026-04-25
+
+---
+
+## 📅 시간 박힘 (D+N 측정·검증)
+
+| 날짜 | 작업 | 무엇을 |
+|------|------|--------|
+| **2026-04-29** | Phase C 분포 첫 실측 (D+7) | `users.creatorScoreCached` P50/P75/P90 + `creatorScoreTier` 분포 + `reportsUniqueReporters` + Gate 4종 통과율 + `adEvents.winnerScoreWeight` 히스토그램 |
+| **2026-05-06** | Phase C 일괄 튜닝 (D+14) | Gate / consumer / REPORT_PENALTIES 3건 동일 사이클 재조정 (개별 조정 금지) |
+| **2026-05-07** | 추천코드 임계 재조정 (배포 2주 후) | 활성 기준 "글 1+ OR 댓글 3+" / 악용 방어 device_fp · /24 3+ same_ip · 1h 5+ rapid_redeem |
+| **2026-05-08** | FLAGGING 7항목 직접 쿼리 (D+13) | reportsUniqueReporters · reportState · creatorScoreCached · Gate 통과율 · audit_anomalies · 이의제기 처리율. Firebase Console 직접 |
+
+**조기 튜닝 트리거** (위 일정 무시): 피드 역전 민원 월 3건+ / Gate 통과율 0% or 100% / REPORT_PENALTIES 5명 도달 zero / `audit_anomalies` critical 1건+
+
+---
+
+## 🚀 Sprint 백로그
+
+### Sprint 8 — 인증·결제·관리자 보강
+- **Apple OAuth** (Developer Services ID + 서명키) — 해외 진출 + iOS 30%+. X·FB는 검토 반려.
+- **카드 PG 결제** (토스/아임포트/KG이니시스) — 정기결제 토큰 PCI-DSS 준수. **사용자 결정으로 가장 마지막에 진행**.
+- **Admin Phase C CF 3종**: `adminAdjustReputation` / `detectCircularThanksball` / `auditReputationAnomalies`
+- **Google ↔ Kakao 계정 병합** — `linkWithCredential` 또는 데이터 마이그레이션. 정책 결정 필요(볼/EXP/평판/깐부 어느 쪽 기준)
+- ✅ 카카오 OAuth 완료 (2026-04-23) / ✅ 네이버 OAuth 완료 (2026-04-24~25)
+
+### Sprint 9 — 볼 원장 통일 (Batch 진행)
+- ✅ Batch 1 완료 (2026-04-24): `nickname_change` / `infobot_activation`
+- ✅ Batch 2 첫 타자 완료 (2026-04-25): `unlockEpisode` (수수료 11%)
+- ⏳ Batch 2 잔여: `purchaseMarketItem` (Lv별 30/25/20%) / `subscribeMarketShop`
+- ⏳ Batch 3: `joinPaidKanbuRoom` (Lv별 20~30%) / `releaseFromExile` (소각/이전)
+- ⏳ Batch 4: `executeSayak` (자산 몰수, 복잡) / `kanbuPromo` 재정비 + `ballAudit` 3-bis 특례 제거 (마지막)
+- 표준 스키마: `senderUid/senderNickname/resolvedRecipientUid/amount/balanceBefore-After/platformFee/sourceType/details`. 트랜잭션 내부 기록 필수.
+
+### Sprint 10 — 주가 변동 봇 Phase 1
+- 네이버 금융(임시) + 안C(API 라이선스) 하이브리드. KIS 교체는 정식 서비스 시.
+- 독립 트랙 — 다른 Sprint와 분리.
+
+### Sprint 3 Phase C 보류 — 어뷰징 탐지 CF 2종
+- `detectCircularThanksball` (A→B→A 주고받기 탐지)
+- `auditReputationAnomalies` (급증 패턴 → audit_anomalies 기록)
+- Sprint 8 Admin Phase C와 묶어 진행 권장
+
+---
+
+## 🔧 기능 보완
+
+| 항목 | 핵심 |
+|------|------|
+| **REPUTATION Prestige 3단계** | legend / awe / mythic 토글 조건·경계값·grandfathered 로직. 현재 미활성. Creator Score와 독립 트랙. |
+| **광고주 노출당 차감 흐름** | 옵션 A(등록 시 totalBudget 예치) / B(노출 시 ballBalance 차감 + 트랜잭션). 베타 보류. 권장 A → B. |
+| **userCode 참조 전환** | `friendList`/`likedBy`/`author`의 uid → userCode 무중단 4단계. Sprint 8+ 이월. |
+| **추천코드 + Lv20 로드맵** | LEVEL_TABLE은 현재 코드(10000) 확정. Sprint 1 이후 별도 설계. |
+| **syncUserLevel CF 후속** | 옵션 B 부분 커버리지. Phase C Gate blocker 해제 완료 — 추가 보강 필요 시 검토. |
+
+---
+
+## 🧹 정리·청소
+
+| 작업 | 상태 |
+|------|------|
+| **docs/step1-design 잔여 4개 처리** | MAPAE_AND_TITLES_V1(블로커 해제 ✓ 슬림 승격 권장) / ADMIN(Sprint 8 블로커) / ANTI_ABUSE(Sprint 3 Phase C 블로커) / TUNING_SCHEDULE(Prestige 착수 시 또는 폐기) |
+| **레거시 메뉴명 일괄 정리** | DB `post.category="너와 나의 이야기"` (구) ↔ 표시명 "참새들의 방앗간" (신) 등 미스매치. 광고/필터 매칭 사고 위험. 추정 6~7시간 일괄. 정식 서비스 전 |
+| **정보봇 스케줄 30분 복원** | 현재 베타 1시간(비용 절감). 정식 서비스 오픈 시 `fetchBotNews`/`fetchBotDart` 30분 복원 |
+| **refactor_plan.md 등 오래된 메모리** | 2026-04-05 작성. 현재 무관. 삭제 |
+
+---
+
+## 🎯 잠정 수치 튜닝 (실측 후)
+
+각 항목 원본 정의는 코드 (`src/constants.ts`, `functions/utils/*`). 본 표는 튜닝 결정 시 점검 체크리스트.
+
+| 영역 | 잠정 수치 | 동기화 위치 |
+|------|----------|------------|
+| Creator Gates 4종 | 출금/라이브/잉크병/깐부방 Lv·Score 경계 | `src/constants.ts CREATOR_GATES` ↔ `functions/utils/gateCheck.js` |
+| Creator Score 소비측 | 피드 best/rank 가중치 + 광고 effectiveBid clamp 0.3~3.0 + fallback 1.0 | App.tsx 피드 정렬 + auction.js |
+| REPORT_PENALTIES | 고유 신고자 5/10/20 → Trust 감산 0.05/0.10/0.15 | `TRUST_CONFIG.REPORT_PENALTIES` ↔ `functions/utils/creatorScore.js` |
+| 추천코드 활성 기준 | 7일 "글 1+ OR 댓글 3+" | `functions/confirmReferralActivations` |
+| 추천코드 악용 방어 | device_fp 즉시차단 / /24 3+ same_ip / 1h 5+ rapid_redeem | `functions/redeemReferralCode` |
+
+**튜닝 원칙**: Phase C 4건은 서로 영향. 같은 사이클에 일괄 재조정. 변경 후 +7일 재관찰.
+
+---
+
+## 📝 신규 백로그 추가 규칙
+
+- 본 파일에만 추가. 메모리 폴더에 별도 `*_backlog.md` / `*_tuning.md` 생성 금지.
+- 카테고리 5개(시간/Sprint/기능/정리/튜닝) 중 적합한 곳에.
+- 완료 시 → 본 파일에서 제거 + `changelog.md`에 한 줄 추가 + 필요 시 `memory/project_2026-XX-XX_*_deploy.md` 신설(이력 보존).

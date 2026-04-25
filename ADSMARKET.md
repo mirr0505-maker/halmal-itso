@@ -3,7 +3,9 @@
 > **문서 목적**: VS Code에서 AI(Claude) 또는 휴먼 개발자가 코딩 작업을 수행할 때 **단일 진실 소스(Single Source of Truth)**로 사용하는 기획서.
 > 모든 컬렉션 · 인터페이스 · 비즈니스 로직 · UI 컴포넌트를 이 문서 하나로 확정한다.
 >
-> 최종 갱신: 2026-04-10 v1.1 | 기술 스택: React 19 + TS + Vite · Tailwind 4 · Firebase (Firestore + Auth + Cloud Functions) · Cloudflare R2/Workers
+> 최종 갱신: 2026-04-25 v1.2 | 기술 스택: React 19 + TS + Vite · Tailwind 4 · Firebase (Firestore + Auth + Cloud Functions) · Cloudflare R2/Workers
+>
+> **v1.2 (2026-04-25) 변경 요약** — 광고 스타일 2종(`imageStyle: 'horizontal' | 'vertical'`, `imagePosition`), 카테고리 매칭 재설계(`targetCategories` 업종 통계용 분리 + `targetMenuCategories` 매칭 핵심), 단위 ⚾ 통일(원→볼), 광고 수정 기능, 임시 충전(testChargeBall), AdReviewQueue try/catch, 인덱스 보강. 광고주 노출당 차감은 베타 보류(`memory/project_ad_billing_advertiser_charge.md`).
 
 ---
 

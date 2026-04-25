@@ -1,5 +1,32 @@
 ## 8. 현재 구현 상태 (2026-03-24 기준, 코드 실측)
 
+### 📢 ADSMARKET 전면 개편 — UI·단위·매칭·결제·수정 (2026-04-25)
+
+- [x] **광고 스타일 2종**: `imageStyle: 'horizontal' | 'vertical'`. 가로 플래카드형(3:1 + 하단 텍스트) / 세로형(9:16 + 좌·우 위치 선택 + 반대편 텍스트). 폼·미리보기·실제 노출 모두 분기.
+- [x] **카테고리 매칭 재설계**: `targetCategories` 업종 통계용으로 분리, 신규 `targetMenuCategories`만 매칭에 사용. AD_MENU_CATEGORIES label/value 분리 (참새들의 방앗간 ↔ DB "너와 나의 이야기" 등).
+- [x] **단위 통일 ₩ → ⚾**: AdCampaignForm 입찰가/일예산/총예산 라벨, AdCampaignList/AdReviewQueue 표시, AdvertiserCenter 광고비 잔액 카드(원) 제거 → 내 땡스볼 단일. revenue.js 작성자 환원도 ballBalance/ballReceived increment (즉시 사용 가능).
+- [x] **광고 수정 기능**: `editingAd` prop으로 폼 수정 모드, 누적 통계·createdAt·adId 보존, 저장 시 status pending_review 자동 전환(재검수).
+- [x] **이미지 업로드 드롭존**: 16:9/9:16 큰 점선 박스 + 미리보기 + ✕ 삭제 / 📷 교체.
+- [x] **AdSlotSetting 가시성 강화**: 한 줄 헤더 + ▼ 자세히 토글, Lv 1~4도 호기심 유발 토글, OFF→[광고 ON] CTA. 11개 작성 폼 max-w 860 → 1024.
+- [x] **광고주 임시 충전**: 충전/결제 탭에 testChargeBall 호출 (+100/+200/+500/+1000볼). 정식 PG 도입 전 베타용.
+- [x] **AdReviewQueue try/catch**: 승인/거절 실패 시 즉시 alert (낙관적 UI 깜깜이 사고 방지).
+- [x] **인덱스**: ads `advertiserId + createdAt`, reports `status + createdAt` / `targetId + status` 추가.
+- 보류: 광고주 노출당 ballBalance 차감(`project_ad_billing_advertiser_charge.md`), 레거시 메뉴명 일괄 정리.
+
+### 📒 Sprint 9 Batch 2 — unlockEpisode ball_transactions 표준 원장 (2026-04-25)
+
+- [x] **잉크병 유료 회차 결제(`unlockEpisode`)** 트랜잭션 내부에 `ball_transactions/{unlock_postId_buyerUid}` 표준 스키마 set. resolvedRecipientUid=author, receiverBalanceBefore/After=null(작가 ballBalance 변화 없음 — ballReceived만 누적), platformFee=11%, sourceType="unlock_episode".
+- [x] ballAudit이 outflow 집계 시 unlockEpisode 차감을 자동으로 잡을 수 있게 됨. 다음 Batch 2 후보: purchaseMarketItem / subscribeMarketShop.
+
+### 🛡️ Sprint 6 A-3 — 닉네임 fallback 제거 · Custom Claims 단일 체크 (2026-04-25)
+
+- [x] **functions/utils/adminAuth.js**: `ADMIN_NICKNAMES = []`, `assertAdmin`은 `auth.token.admin === true`만 통과, `isAdminByUid` 항상 false.
+- [x] **firestore.rules `isAdmin()`**: 닉네임 화이트리스트 조건 제거. Claims 단일.
+- [x] **AdminGuard.tsx**: `useAdminAuth` nickname fallback 3곳 제거, loading 초기값 true.
+- [x] **사전 절차**: 흑무영 + Admin 백업 계정에 grantAdminRole로 Custom Claims 부여 → "내 토큰 갱신" → admin_actions에 viaClaims=true 첫 통과 확인 후 코드 변경.
+- [x] **락아웃 복구 경로**: Firebase Console → Auth → uid → 맞춤 클레임 `{"admin":true}` 수동 주입.
+- 닉네임 도용/변경 공격 표면 완전 차단. 권한이 ID Token 서명에 박힘.
+
 ### 🚨 신고 시스템 Phase A + B — 3단계 threshold · 카테고리 차등 · 작성자 이의제기 (2026-04-24)
 
 - [x] **9 카테고리 개편**: spam_flooding/severe_abuse/life_threat/discrimination/unethical/anti_state/obscene/illegal_fraud_ad/other. "기타" 선택 시에만 50자 사유 입력 필수
