@@ -9,6 +9,7 @@
 
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const { getFirestore, FieldValue, Timestamp } = require("firebase-admin/firestore");
+const { getReasonLabel, getTargetTitle } = require("./utils/reportLabels");
 
 const db = getFirestore();
 
@@ -19,24 +20,25 @@ const ALLOWED_REASON_KEYS = new Set([
   "unethical", "anti_state", "obscene", "illegal_fraud_ad", "other",
 ]);
 // 🚨 2026-04-24 카테고리별 3단계 threshold — 편향 담합 공격 방어 + 객관적 위반은 빠른 대응
+//    2026-04-25 사용자 운영 판단으로 전체 10배 강화 — 기존 수치는 너무 루즈 (소수 담합으로 글 침묵 우려)
 // state 단계: null → review (검토 배지만) → preview_warning (경고 + 계속 열람) → hidden (완전 숨김)
 // 숫자는 "고유 신고자 수" — 한번 올라가면 내려오지 않음 (관리자 restore만 가능)
 const CATEGORY_THRESHOLDS = {
   // 🔴 즉시 대응 — 노출 자체가 해악, 편향 악용 가능성 낮음
-  obscene:          { review: 1, preview: 2, hidden: 2 },
-  life_threat:      { review: 1, preview: 2, hidden: 2 },
-  illegal_fraud_ad: { review: 2, preview: 2, hidden: 3 },
+  obscene:          { review: 10, preview: 20, hidden: 20 },
+  life_threat:      { review: 10, preview: 20, hidden: 20 },
+  illegal_fraud_ad: { review: 20, preview: 20, hidden: 30 },
   // 🟡 표준 — 일반적인 가이드라인 위반
-  spam_flooding:    { review: 3, preview: 5, hidden: 7 },
-  severe_abuse:     { review: 3, preview: 5, hidden: 7 },
-  discrimination:   { review: 3, preview: 5, hidden: 7 },
+  spam_flooding:    { review: 30, preview: 50, hidden: 70 },
+  severe_abuse:     { review: 30, preview: 50, hidden: 70 },
+  discrimination:   { review: 30, preview: 50, hidden: 70 },
   // 🟢 엄격 — 편향 공격 자주 발생, 높은 합의 필요
-  unethical:   { review: 5, preview: 8, hidden: 12 },
-  anti_state:  { review: 5, preview: 8, hidden: 12 },
-  other:       { review: 3, preview: 5, hidden: 7 }, // 기타는 표준과 동일
+  unethical:   { review: 50, preview: 80, hidden: 120 },
+  anti_state:  { review: 50, preview: 80, hidden: 120 },
+  other:       { review: 30, preview: 50, hidden: 70 }, // 기타는 표준과 동일
 };
 // 기본값 (알 수 없는 reasonKey 들어올 경우)
-const DEFAULT_THRESHOLD = { review: 3, preview: 5, hidden: 7 };
+const DEFAULT_THRESHOLD = { review: 30, preview: 50, hidden: 70 };
 
 // 🔒 일일 신고 횟수 상한 — 악성 스팸 신고 방어 (1인 1일 10건)
 const DAILY_REPORT_LIMIT = 10;
@@ -183,15 +185,31 @@ exports.submitReport = onCall(
     await targetRef.update(targetUpdate);
 
     // 🔔 작성자 상태 전환 알림 (escalated 일 때만, 첫 진입)
-    //    Phase B에서 이의제기 연동 예정
+    //    글 식별(postTitle/postId) + 사유 카테고리 한글화 + 이의제기 안내까지 포함
     if (escalated && newState) {
-      const stateLabel = newState === "hidden" ? "🙈 글이 숨김 처리됨"
-        : newState === "preview_warning" ? "⚠️ 글이 경고 대상으로 검토 중 (여러 신고 접수)"
-        : "⚠️ 글에 신고가 접수되어 검토 중";
+      const stateLabel = newState === "hidden"
+        ? "🙈 글이 자동 숨김 처리됐어요"
+        : newState === "preview_warning"
+          ? "⚠️ 글이 경고 대상으로 검토 중이에요 (여러 신고 접수)"
+          : "⚠️ 글에 신고가 접수되어 검토 중이에요";
+      const nextStep = newState === "hidden"
+        ? "내용을 다시 살펴봐 주시고, 부당하다고 판단되시면 글 상단의 [⚡ 이의제기] 버튼으로 복구를 요청할 수 있어요."
+        : "지금은 다른 사용자에게 정상 노출되지만, 신고 누적 시 자동 숨김될 수 있어요. 본문을 점검해 주세요.";
+      const targetTitle = getTargetTitle(targetData);
+      const reasonLabel = getReasonLabel(dominantReason);
       await db.collection("notifications").doc(targetUid).collection("items").add({
         type: "report_state_change",
         fromNickname: "운영진",
-        body: `${stateLabel}\n신고자 수: ${reportCount}명 · 주 카테고리: ${dominantReason}\n부당하다고 생각되면 이의제기를 신청할 수 있습니다.`,
+        // 🚨 NotificationBell이 onNavigate(postId)로 deep link 라우팅하기 위해 필요
+        postId: targetId,
+        postTitle: targetTitle,
+        targetType,
+        targetId,
+        reportState: newState,
+        reportCount,
+        reasonKey: dominantReason,
+        reasonLabel,
+        body: `${stateLabel}\n📌 글: 「${targetTitle}」\n신고자 ${reportCount}명 · 주 사유: ${reasonLabel}\n${nextStep}`,
         read: false,
         createdAt: Timestamp.now(),
       });

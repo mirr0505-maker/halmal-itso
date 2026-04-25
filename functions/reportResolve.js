@@ -14,6 +14,7 @@ const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const { getFirestore, FieldValue, Timestamp } = require("firebase-admin/firestore");
 const { assertAdmin } = require("./utils/adminAuth");
 const { logAdminAction } = require("./adminAudit");
+const { getReasonLabel, getActionLabel, getTargetTitle } = require("./utils/reportLabels");
 
 const db = getFirestore();
 
@@ -52,15 +53,23 @@ exports.resolveReport = onCall(
     const reportData = reportSnap.data();
     const { targetType, targetId, targetUid } = reportData;
 
-    // 1) 조치 실행
+    // 1) 조치 실행 — 글 데이터 사전 조회 (제목 추출 + 사유 카테고리 알림 메타용)
     const collName = COLLECTION_BY_TYPE[targetType];
     if (!collName) throw new HttpsError("failed-precondition", "지원하지 않는 targetType");
     const targetRef = db.collection(collName).doc(targetId);
+    const targetSnap = await targetRef.get();
+    const targetData = targetSnap.exists ? targetSnap.data() : {};
+    const targetTitle = getTargetTitle(targetData);
+    const reasonKey = reportData.reasonKey || "other";
+    const reasonLabel = getReasonLabel(reasonKey);
+    const actionLabelKo = getActionLabel(action);
 
     if (action === "hide_content") {
       await targetRef.update({
         isHiddenByReport: true,
         hiddenByReportAt: Timestamp.now(),
+        // 🔧 reportState='hidden'도 함께 — ReportStateBanner는 reportState 기준 분기 (이게 빠지면 작성자에게 Banner+이의제기 진입점 안 보임)
+        reportState: "hidden",
       });
     } else if (action === "delete_content") {
       // soft delete (isDeleted 표식 — 영구 삭제 원하면 별도 관리자 수동)
@@ -68,18 +77,39 @@ exports.resolveReport = onCall(
         isHiddenByReport: true,
         isDeleted: true,
         hiddenByReportAt: Timestamp.now(),
+        // 🔧 작성자 이의제기 가능하도록 reportState='hidden' 동시 set
+        reportState: "hidden",
       });
-    } else if (action === "warn_user") {
-      // 피신고자에게 경고 알림
+    }
+    // action === "warn_user" / "none" → 컨텐츠 변경 없음 (알림만 발송 — 아래 분기에서 통합)
+
+    // 🔔 작성자에게 조치 결과 알림 (action별 메시지) — 4종 케이스 모두 발송
+    //    Why: 기존엔 warn_user만 알림 → hide/delete 시 작성자 깜깜이로 깨진 UX. 모든 조치 통보.
+    {
+      const actionBody = action === "hide_content"
+        ? `🙈 관리자 검토 결과 글이 숨김 처리됐어요.\n복구가 필요하다면 글 상단 [⚡ 이의제기]로 요청할 수 있어요.`
+        : action === "delete_content"
+          ? `🗑️ 관리자 검토 결과 글이 삭제 처리됐어요 (영구 표식).\n부당하다고 판단되시면 운영진에 문의해 주세요.`
+          : action === "warn_user"
+            ? `⚠️ 컨텐츠가 커뮤니티 가이드라인 위반으로 판단되어 경고가 발송됐어요.\n동일 사유 반복 시 추가 조치가 있을 수 있어요.`
+            : `ℹ️ 신고가 검토되었으나 별도 조치 없이 종료됐어요. 컨텐츠는 그대로 유지됩니다.`;
       await db.collection("notifications").doc(targetUid).collection("items").add({
-        type: "report_warning",
+        type: action === "warn_user" ? "report_warning" : "report_action_taken",
         fromNickname: "운영진",
-        body: `귀하의 컨텐츠가 커뮤니티 가이드라인 위반으로 판단되어 경고가 발송되었습니다.\n사유: ${note.trim().slice(0, 200)}`,
+        // NotificationBell deep link
+        postId: targetId,
+        postTitle: targetTitle,
+        targetType,
+        targetId,
+        action,
+        actionLabel: actionLabelKo,
+        reasonKey,
+        reasonLabel,
+        body: `${actionBody}\n📌 글: 「${targetTitle}」\n사유 카테고리: ${reasonLabel}\n관리자 메모: ${note.trim().slice(0, 200)}`,
         read: false,
         createdAt: Timestamp.now(),
       });
     }
-    // action === "none" → 조치 없음, 상태만 resolved
 
     // 2) reports 문서 업데이트
     await reportRef.update({
@@ -114,7 +144,8 @@ exports.resolveReport = onCall(
     });
     if (count > 0) await batch.commit();
 
-    // 4) 신고자들에게 처리 결과 알림 (Phase 4 요구사항 — notifyParticipants true일 때만)
+    // 4) 신고자들에게 처리 결과 알림 (notifyParticipants=true일 때만)
+    //    글 식별 정보 + 사유 카테고리 + 조치 결과를 명확히 전달
     if (notifyParticipants) {
       const reporterSet = new Set(affectedReporters);
       reporterSet.add(reportData.reporterUid);
@@ -122,7 +153,16 @@ exports.resolveReport = onCall(
         await db.collection("notifications").doc(reporterUid).collection("items").add({
           type: "report_resolved",
           fromNickname: "운영진",
-          body: `신고하신 내용이 검토되어 처리되었습니다.\n조치: ${actionLabel(action)}`,
+          // 신고자에겐 deep link 굳이 노출 안 함 (다시 글로 갈 필요 없음). post는 일반 라우팅 가능하게 postId만.
+          postId: targetId,
+          postTitle: targetTitle,
+          targetType,
+          targetId,
+          action,
+          actionLabel: actionLabelKo,
+          reasonKey,
+          reasonLabel,
+          body: `✅ 신고하신 글이 검토 완료됐어요.\n📌 글: 「${targetTitle}」\n사유 카테고리: ${reasonLabel}\n관리자 조치: ${actionLabelKo}\n신고해주신 덕분에 더 안전한 커뮤니티가 됩니다.`,
           read: false,
           createdAt: Timestamp.now(),
         });
@@ -182,6 +222,35 @@ exports.rejectReport = onCall(
       await db.collection("users").doc(reportData.reporterUid).update({
         reportsSubmittedRejected: FieldValue.increment(1),
         reportsSubmittedRejectedUpdatedAt: Timestamp.now(),
+      });
+    }
+
+    // 🔔 신고자에게 기각 알림 — 자기 신고가 어떻게 됐는지 깜깜이 막음
+    //    Why: 깜깜이면 같은 글을 반복 신고하거나 "운영진이 안 본다"고 오해함. 사유 알리는 게 정석.
+    if (reportData.reporterUid) {
+      const collName = COLLECTION_BY_TYPE[reportData.targetType];
+      let targetTitle = "(글 없음)";
+      if (collName) {
+        try {
+          const tSnap = await db.collection(collName).doc(reportData.targetId).get();
+          if (tSnap.exists) targetTitle = getTargetTitle(tSnap.data());
+        } catch (err) {
+          console.warn("[rejectReport] targetTitle fetch failed", err);
+        }
+      }
+      const reasonLabel = getReasonLabel(reportData.reasonKey || "other");
+      await db.collection("notifications").doc(reportData.reporterUid).collection("items").add({
+        type: "report_rejected",
+        fromNickname: "운영진",
+        postId: reportData.targetId,
+        postTitle: targetTitle,
+        targetType: reportData.targetType,
+        targetId: reportData.targetId,
+        reasonKey: reportData.reasonKey || "other",
+        reasonLabel,
+        body: `🚫 신고하신 내용이 검토 결과 정책 위반으로 판단되지 않아 기각됐어요.\n📌 글: 「${targetTitle}」\n사유 카테고리: ${reasonLabel}\n관리자 메모: ${note.trim().slice(0, 200)}\n반복적인 허위/악성 신고는 신고 권한 제한으로 이어질 수 있어요.`,
+        read: false,
+        createdAt: Timestamp.now(),
       });
     }
 
@@ -253,12 +322,17 @@ exports.restoreHiddenPost = onCall(
 
     // 🔔 작성자 복구 알림 (특히 이의제기했던 경우 피드백 필수)
     if (targetAuthorUid) {
+      const targetTitle = getTargetTitle(targetData);
       await db.collection("notifications").doc(targetAuthorUid).collection("items").add({
         type: hadAppeal ? "appeal_accepted" : "report_restored",
         fromNickname: "운영진",
+        postId: targetId,
+        postTitle: targetTitle,
+        targetType,
+        targetId,
         body: hadAppeal
-          ? `⚡ 이의제기가 수용되어 글이 복구되었습니다.\n사유: ${note.trim().slice(0, 200)}`
-          : `귀하의 글이 복구되었습니다 (신고 판정 오류).\n사유: ${note.trim().slice(0, 200)}`,
+          ? `⚡ 이의제기가 수용되어 글이 복구됐어요.\n📌 글: 「${targetTitle}」\n관리자 메모: ${note.trim().slice(0, 200)}`
+          : `✅ 자동 숨김됐던 글이 복구됐어요 (신고 판정 오탐).\n📌 글: 「${targetTitle}」\n관리자 메모: ${note.trim().slice(0, 200)}`,
         read: false,
         createdAt: Timestamp.now(),
       });

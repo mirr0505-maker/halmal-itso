@@ -9,7 +9,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { db, functions } from '../../firebase';
-import { collection, onSnapshot, query, where, orderBy, limit as qLimit } from 'firebase/firestore';
+import { collection, onSnapshot, query, where, orderBy, limit as qLimit, getDocs, documentId } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 
 type ReportStatus = 'pending' | 'resolved' | 'rejected';
@@ -39,12 +39,40 @@ interface TargetGroup {
   firstCreatedAt: Date | null;
   latestCreatedAt: Date | null;
   sampleReasons: string[];
+  dominantReasonKey?: string;  // 🚨 그룹 내 최빈 reasonKey — 자동 숨김 임계 계산용
 }
 
 const STATUS_LABELS: Record<ReportStatus, string> = {
   pending: '⏳ 대기',
   resolved: '✅ 처리됨',
   rejected: '🚫 기각',
+};
+
+// 🚨 카테고리별 hidden threshold (functions/reportSubmit.js CATEGORY_THRESHOLDS와 동기화 필수)
+//    threshold 도달 시 isHiddenByReport=true 자동 적용
+//    2026-04-25 — 전체 10배 강화 (기존 수치 루즈, 소수 담합 침묵 우려)
+const HIDDEN_THRESHOLDS: Record<string, number> = {
+  obscene: 20,
+  life_threat: 20,
+  illegal_fraud_ad: 30,
+  spam_flooding: 70,
+  severe_abuse: 70,
+  discrimination: 70,
+  other: 70,
+  unethical: 120,
+  anti_state: 120,
+};
+
+const REASON_LABELS_KO: Record<string, string> = {
+  obscene: '음란물',
+  life_threat: '생명위협',
+  illegal_fraud_ad: '불법사기광고',
+  spam_flooding: '스팸',
+  severe_abuse: '심한욕설',
+  discrimination: '차별',
+  unethical: '비윤리',
+  anti_state: '반국가',
+  other: '기타',
 };
 
 // Appeal queue 항목 — posts + community_posts에서 appealStatus=pending 수집
@@ -68,6 +96,9 @@ const ReportManagement = () => {
   const [loading, setLoading] = useState(true);
   const [busyReportId, setBusyReportId] = useState<string | null>(null);
   const [resolveTarget, setResolveTarget] = useState<TargetGroup | null>(null);
+  const [nicknameMap, setNicknameMap] = useState<Record<string, { nickname: string; level?: number }>>({});
+  const [reasonFilter, setReasonFilter] = useState<string>('all');  // 🚨 reasonKey 필터 ('all' or 9 카테고리)
+  const [showFlow, setShowFlow] = useState(false);  // 📌 플로우 박스 접고/펼치기
 
   // 실시간 구독
   useEffect(() => {
@@ -124,6 +155,7 @@ const ReportManagement = () => {
   // targetId별 그룹핑
   const groups = useMemo<TargetGroup[]>(() => {
     const map = new Map<string, TargetGroup>();
+    const reasonCountMap = new Map<string, Record<string, number>>();
     for (const r of reports) {
       const key = `${r.targetType}_${r.targetId}`;
       if (!map.has(key)) {
@@ -137,6 +169,7 @@ const ReportManagement = () => {
           latestCreatedAt: null,
           sampleReasons: [],
         });
+        reasonCountMap.set(key, {});
       }
       const g = map.get(key)!;
       g.reports.push(r);
@@ -147,9 +180,61 @@ const ReportManagement = () => {
         if (!g.latestCreatedAt || created > g.latestCreatedAt) g.latestCreatedAt = created;
       }
       if (r.reason && g.sampleReasons.length < 3) g.sampleReasons.push(r.reason);
+      // 🚨 reasonKey 최빈치 누적 — 자동 숨김 임계 표시용
+      const rcm = reasonCountMap.get(key)!;
+      const rk = r.reasonKey || 'other';
+      rcm[rk] = (rcm[rk] || 0) + 1;
+    }
+    // 그룹별 dominantReasonKey 채우기 (최빈 reasonKey 1개 선정)
+    for (const [key, g] of map.entries()) {
+      const rcm = reasonCountMap.get(key) || {};
+      let dominant = 'other';
+      let maxCnt = 0;
+      for (const [rk, cnt] of Object.entries(rcm)) {
+        if (cnt > maxCnt) { dominant = rk; maxCnt = cnt; }
+      }
+      g.dominantReasonKey = dominant;
     }
     return [...map.values()].sort((a, b) => b.uniqueReporters.size - a.uniqueReporters.size);
   }, [reports]);
+
+  // 🚨 reasonKey 필터 적용 (클라 측 필터 — 인덱스 추가 불필요)
+  const filteredGroups = useMemo<TargetGroup[]>(() => {
+    if (reasonFilter === 'all') return groups;
+    return groups.filter(g => g.dominantReasonKey === reasonFilter);
+  }, [groups, reasonFilter]);
+
+  // 🚨 작성자 + 신고자 닉네임 일괄 조회 (휴먼 가독성) — 새 uid만 fetch (10개씩 in 쿼리 분할)
+  //    Why: 작성자(targetUid)뿐 아니라 누가 신고했는지(reporterUid)도 카드에 표시 → 패턴 식별 용이
+  useEffect(() => {
+    const targetUids = groups.map(g => g.targetUid).filter(Boolean);
+    const reporterUids = groups.flatMap(g => g.reports.map(r => r.reporterUid).filter(Boolean));
+    const uids = Array.from(new Set([...targetUids, ...reporterUids]));
+    const missing = uids.filter(u => !nicknameMap[u]);
+    if (missing.length === 0) return;
+    let cancelled = false;
+    (async () => {
+      const result: Record<string, { nickname: string; level?: number }> = {};
+      for (let i = 0; i < missing.length; i += 10) {
+        const slice = missing.slice(i, i + 10);
+        try {
+          const snap = await getDocs(query(collection(db, 'users'), where(documentId(), 'in', slice)));
+          snap.docs.forEach(d => {
+            const data = d.data() as { nickname?: string; level?: number };
+            result[d.id] = { nickname: data.nickname || '(이름 없음)', level: data.level };
+          });
+        } catch (err) {
+          console.error('[ReportManagement] nickname fetch failed', err);
+        }
+      }
+      if (!cancelled && Object.keys(result).length > 0) {
+        setNicknameMap(prev => ({ ...prev, ...result }));
+      }
+    })();
+    return () => { cancelled = true; };
+    // nicknameMap은 의존성 제외 — 캐시 재사용 + 무한 루프 방지
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [groups]);
 
   const handleReject = async (reportIds: string[]) => {
     const note = window.prompt('기각 사유를 입력해주세요 (2자 이상, 악성·허위 신고 등)', '');
@@ -186,13 +271,78 @@ const ReportManagement = () => {
     }
   };
 
+  // 🚀 우선큐 전용: 이의제기 인용 (= 글 복구)
+  //    appeals.collection('posts'|'community_posts') → restoreHiddenPost CF에 보낼 targetType 변환
+  const handleAppealAccept = async (a: AppealItem) => {
+    const note = window.prompt('이의제기 인용 사유 (= 복구 사유, 2자+) — 작성자에게 알림 발송', '');
+    if (!note || note.trim().length < 2) return;
+    const targetType = a.collection === 'community_posts' ? 'community_post' : 'post';
+    setBusyReportId(a.id);
+    try {
+      const fn = httpsCallable(functions, 'restoreHiddenPost');
+      const res = await fn({ targetType, targetId: a.id, note: note.trim() });
+      const data = res.data as { success: boolean; bulkRejectedCount: number };
+      alert(`이의제기 인용 완료 — 글 복구 + ${data.bulkRejectedCount}건 pending 신고 기각`);
+    } catch (err) {
+      console.error('[restoreHiddenPost via appeal]', err);
+      alert('인용 실패: ' + (err instanceof Error ? err.message : String(err)));
+    } finally {
+      setBusyReportId(null);
+    }
+  };
+
+  // 🚀 우선큐 전용: 이의제기 기각 (글 hidden 유지, appealStatus만 resolved)
+  const handleAppealReject = async (a: AppealItem) => {
+    const note = window.prompt('이의제기 기각 사유 (2자+) — 작성자에게 알림 발송, 글은 숨김 유지', '');
+    if (!note || note.trim().length < 2) return;
+    const targetType = a.collection === 'community_posts' ? 'community_post' : 'post';
+    setBusyReportId(a.id);
+    try {
+      const fn = httpsCallable(functions, 'rejectAppeal');
+      await fn({ targetType, targetId: a.id, note: note.trim() });
+      alert('이의제기 기각 완료 — 작성자에게 알림 발송됨');
+    } catch (err) {
+      console.error('[rejectAppeal]', err);
+      alert('기각 실패: ' + (err instanceof Error ? err.message : String(err)));
+    } finally {
+      setBusyReportId(null);
+    }
+  };
+
   return (
     <div>
-      <div className="mb-4">
+      <div className="mb-3">
         <h2 className="text-[16px] font-[1000] text-slate-800">🚨 신고 관리</h2>
         <p className="text-[11px] font-bold text-slate-500 mt-0.5">
           카테고리별 차등 threshold. 한번 올라간 상태는 관리자 복구만 가능. 작성자 이의제기는 우선큐에 표시.
         </p>
+      </div>
+
+      {/* 📌 신고 처리 플로우 — 헤더 직후 토글 (스크롤 없이 접근, 평소엔 접힘) */}
+      <div className="mb-3">
+        <button onClick={() => setShowFlow(v => !v)}
+          className="text-[11px] font-[1000] text-slate-500 hover:text-slate-700 flex items-center gap-1.5 px-2 py-1 rounded hover:bg-slate-100 transition-colors">
+          <span>📌 신고 처리 플로우</span>
+          <span className="text-slate-400 text-[9px]">{showFlow ? '▲ 닫기' : '▼ 보기'}</span>
+        </button>
+        {showFlow && (
+          <div className="mt-2 p-3 border border-slate-200 bg-slate-50 rounded-lg">
+            <div className="flex items-center justify-between gap-1 text-[10px] font-bold text-slate-600 mb-2 flex-wrap">
+              <span className="flex-1 min-w-[80px] text-center bg-white px-2 py-1 rounded">① 신고 접수<br/><span className="text-slate-400 font-normal">9 카테고리</span></span>
+              <span className="text-slate-300">→</span>
+              <span className="flex-1 min-w-[80px] text-center bg-white px-2 py-1 rounded">② 자동 검토<br/><span className="text-slate-400 font-normal">고유 신고자 수</span></span>
+              <span className="text-slate-300">→</span>
+              <span className="flex-1 min-w-[80px] text-center bg-white px-2 py-1 rounded">③ 관리자 조치<br/><span className="text-slate-400 font-normal">숨김/삭제/경고/기각</span></span>
+              <span className="text-slate-300">→</span>
+              <span className="flex-1 min-w-[80px] text-center bg-white px-2 py-1 rounded">④ 작성자 이의제기<br/><span className="text-slate-400 font-normal">선택 사항</span></span>
+              <span className="text-slate-300">→</span>
+              <span className="flex-1 min-w-[80px] text-center bg-white px-2 py-1 rounded">⑤ 복구 / 유지<br/><span className="text-slate-400 font-normal">관리자 최종</span></span>
+            </div>
+            <p className="text-[10px] font-bold text-slate-500 leading-relaxed">
+              💡 <span className="text-slate-700">자동 숨김 임계</span>는 카테고리별 차등 — 음란물·생명위협 <strong>20명</strong> / 불법사기광고 <strong>30명</strong> / 스팸·심한욕설·차별·기타 <strong>70명</strong> / 비윤리·반국가 <strong>120명</strong>. threshold 도달 시 isHiddenByReport=true 자동 적용 → 작성자가 이의제기로 복구 요청 가능.
+            </p>
+          </div>
+        )}
       </div>
 
       {/* ⚡ 이의제기 우선큐 — 작성자가 제기한 복구 요청 */}
@@ -222,9 +372,21 @@ const ReportManagement = () => {
                   <p className="text-[10px] font-bold text-indigo-600 mb-0.5">이의제기 사유:</p>
                   <p className="text-[11px] text-slate-700 whitespace-pre-wrap">{a.appealNote}</p>
                 </div>
-                <div className="mt-1.5 text-[10px] font-bold text-slate-500">
-                  💡 조치: 해당 글의 신고 항목을 "🚨 대기" 탭에서 찾아 "복구" 또는 "기각" 처리 ·
-                  복구 시 작성자에게 복구 알림 자동 발송
+                {/* 🚀 우선큐 직접 처리 — [✅ 인용] / [🚫 기각] */}
+                <div className="mt-2 flex items-center gap-1.5 flex-wrap">
+                  <button onClick={() => handleAppealAccept(a)}
+                    disabled={busyReportId === a.id}
+                    className="px-2.5 py-1 rounded text-[11px] font-[1000] bg-emerald-500 text-white hover:bg-emerald-600 disabled:opacity-50">
+                    ✅ 인용 (글 복구)
+                  </button>
+                  <button onClick={() => handleAppealReject(a)}
+                    disabled={busyReportId === a.id}
+                    className="px-2.5 py-1 rounded text-[11px] font-[1000] bg-slate-600 text-white hover:bg-slate-700 disabled:opacity-50">
+                    🚫 기각 (숨김 유지)
+                  </button>
+                  <span className="text-[10px] font-bold text-slate-400">
+                    인용 시 글 자동 복구 + 작성자 알림 · 기각 시 글 숨김 유지 + 작성자 알림
+                  </span>
                 </div>
               </div>
             ))}
@@ -237,30 +399,48 @@ const ReportManagement = () => {
         </div>
       )}
 
-      {/* 상태 필터 탭 */}
-      <div className="flex gap-1 mb-4 border-b border-slate-200">
-        {(Object.keys(STATUS_LABELS) as ReportStatus[]).map(s => (
-          <button key={s} onClick={() => setStatusFilter(s)}
-            className={`px-3 py-2 text-[12px] font-black transition-colors border-b-2 -mb-px ${
-              statusFilter === s ? 'border-rose-500 text-rose-600' : 'border-transparent text-slate-400 hover:text-slate-600'
-            }`}>
-            {STATUS_LABELS[s]}
-          </button>
-        ))}
+      {/* 상태 필터 탭 + 사유 카테고리 필터 (한 줄, 우측 정렬) */}
+      <div className="flex gap-2 mb-4 border-b border-slate-200 items-end justify-between flex-wrap">
+        <div className="flex gap-1">
+          {(Object.keys(STATUS_LABELS) as ReportStatus[]).map(s => (
+            <button key={s} onClick={() => setStatusFilter(s)}
+              className={`px-3 py-2 text-[12px] font-black transition-colors border-b-2 -mb-px ${
+                statusFilter === s ? 'border-rose-500 text-rose-600' : 'border-transparent text-slate-400 hover:text-slate-600'
+              }`}>
+              {STATUS_LABELS[s]}
+            </button>
+          ))}
+        </div>
+        <div className="flex items-center gap-1.5 pb-1.5">
+          <span className="text-[10px] font-[1000] text-slate-500">사유</span>
+          <select value={reasonFilter} onChange={(e) => setReasonFilter(e.target.value)}
+            className="text-[11px] font-bold text-slate-700 border border-slate-200 rounded px-2 py-1 bg-white focus:outline-none focus:border-rose-300 cursor-pointer">
+            <option value="all">전체</option>
+            {Object.entries(REASON_LABELS_KO).map(([k, v]) => (
+              <option key={k} value={k}>{v}</option>
+            ))}
+          </select>
+        </div>
       </div>
 
       {loading ? (
         <p className="py-10 text-center text-slate-400 font-bold text-[12px]">불러오는 중...</p>
-      ) : groups.length === 0 ? (
+      ) : filteredGroups.length === 0 ? (
         <p className="py-10 text-center text-slate-400 font-bold text-[12px]">
-          {statusFilter === 'pending' ? '대기 중인 신고가 없습니다' : '해당 상태 신고 없음'}
+          {reasonFilter !== 'all'
+            ? `해당 사유 카테고리(${REASON_LABELS_KO[reasonFilter] || reasonFilter}) 신고 없음`
+            : statusFilter === 'pending' ? '대기 중인 신고가 없습니다' : '해당 상태 신고 없음'}
         </p>
       ) : (
-        <div className="space-y-2">
-          <p className="text-[11px] font-[1000] text-slate-500">
-            타겟 {groups.length}건 (총 {reports.length}개 신고)
+        <>
+          <p className="text-[11px] font-[1000] text-slate-500 mb-2">
+            타겟 {filteredGroups.length}건
+            {reasonFilter !== 'all' && <span className="text-slate-400 font-bold"> · 전체 {groups.length}건 중</span>}
+            <span className="text-slate-400 font-bold"> (총 {reports.length}개 신고)</span>
           </p>
-          {groups.map(g => {
+          {/* 🚀 grid 2열 (큰 화면) — 카드 한 줄에 가로 너무 길게 펴지는 문제 해소 */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
+          {filteredGroups.map(g => {
             const reportIds = g.reports.map(r => r.id);
             const severity = g.uniqueReporters.size >= 3 ? 'rose' : g.uniqueReporters.size >= 2 ? 'amber' : 'slate';
             const busyThis = busyReportId?.startsWith(g.targetId) || reportIds.some(id => busyReportId?.includes(id));
@@ -284,44 +464,82 @@ const ReportManagement = () => {
                       <span className="text-[10px] font-bold text-slate-400">
                         총 {g.reports.length}건 / {g.targetType}
                       </span>
-                      {g.uniqueReporters.size >= 3 && statusFilter === 'pending' && (
-                        <span className="text-[10px] font-[1000] bg-rose-600 text-white px-1.5 py-0.5 rounded">
-                          자동 숨김됨
-                        </span>
-                      )}
+                      {/* 🚨 자동 숨김 임계 진행률 (dominantReasonKey 기준) */}
+                      {(() => {
+                        const rk = g.dominantReasonKey || 'other';
+                        const thr = HIDDEN_THRESHOLDS[rk] ?? 7;
+                        const remaining = Math.max(0, thr - g.uniqueReporters.size);
+                        const reasonLabel = REASON_LABELS_KO[rk] || '기타';
+                        if (remaining === 0) {
+                          return (
+                            <span className="text-[10px] font-[1000] bg-rose-600 text-white px-1.5 py-0.5 rounded">
+                              🙈 자동 숨김 임계 도달 ({reasonLabel})
+                            </span>
+                          );
+                        }
+                        return (
+                          <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
+                            자동 숨김까지 {remaining}명 ({reasonLabel} · hidden={thr})
+                          </span>
+                        );
+                      })()}
                     </div>
-                    <p className="text-[11px] font-mono text-slate-500 truncate mt-1">
-                      targetId: {g.targetId}
+                    <p className="text-[11px] font-mono text-slate-500 truncate mt-1 flex items-center gap-2">
+                      <span className="truncate">targetId: {g.targetId}</span>
+                      {g.targetType === 'post' ? (
+                        <button onClick={() => window.open(`${window.location.origin}/?post=${encodeURIComponent(g.targetId)}`, '_blank', 'noopener,noreferrer')}
+                          className="shrink-0 text-[10px] font-[1000] bg-indigo-100 text-indigo-700 hover:bg-indigo-200 px-1.5 py-0.5 rounded">
+                          🔗 글 보기
+                        </button>
+                      ) : (
+                        <button onClick={() => { navigator.clipboard?.writeText(g.targetId); alert('targetId 복사됨 — 해당 페이지에서 직접 검색하세요'); }}
+                          className="shrink-0 text-[10px] font-[1000] bg-slate-100 text-slate-600 hover:bg-slate-200 px-1.5 py-0.5 rounded">
+                          📋 ID 복사
+                        </button>
+                      )}
                     </p>
                     <p className="text-[11px] font-mono text-slate-500 truncate">
                       targetUid: {g.targetUid}
+                      {nicknameMap[g.targetUid] && (
+                        <span className="ml-1 not-italic font-bold text-slate-700">
+                          ({nicknameMap[g.targetUid].nickname}{nicknameMap[g.targetUid].level ? ` · Lv${nicknameMap[g.targetUid].level}` : ''})
+                        </span>
+                      )}
                     </p>
                     <p className="text-[11px] font-bold text-slate-600 mt-1.5">
                       최근 신고: {g.latestCreatedAt?.toLocaleString('ko-KR') || '-'}
                     </p>
-                    {g.sampleReasons.length > 0 && (
-                      <div className="mt-1.5 space-y-0.5">
-                        {g.sampleReasons.map((r, i) => (
-                          <p key={i} className="text-[11px] text-slate-500 bg-slate-50 px-2 py-1 rounded">
-                            • {r || '(사유 없음)'}
+                    {/* 🚨 신고자별 한 줄 — 닉네임 + uid 일부 + 사유 (패턴 식별용) */}
+                    <div className="mt-1.5 space-y-0.5">
+                      {g.reports.slice(0, 3).map((r) => {
+                        const reporterInfo = nicknameMap[r.reporterUid];
+                        return (
+                          <p key={r.id} className="text-[11px] text-slate-500 bg-slate-50 px-2 py-1 rounded">
+                            <span className="font-[1000] text-slate-700">
+                              {reporterInfo?.nickname || '(조회 중)'}
+                            </span>
+                            <span className="text-slate-400 font-mono text-[10px]"> · {r.reporterUid.slice(0, 8)}…</span>
+                            <span className="text-slate-400 mx-1">·</span>
+                            <span>{r.reason || '(사유 없음)'}</span>
                           </p>
-                        ))}
-                        {g.reports.length > g.sampleReasons.length && (
-                          <p className="text-[10px] font-bold text-slate-400">
-                            ...외 {g.reports.length - g.sampleReasons.length}건
-                          </p>
-                        )}
-                      </div>
-                    )}
+                        );
+                      })}
+                      {g.reports.length > 3 && (
+                        <p className="text-[10px] font-bold text-slate-400">
+                          ...외 {g.reports.length - 3}건
+                        </p>
+                      )}
+                    </div>
                   </div>
                 </div>
 
                 {statusFilter === 'pending' && (
-                  <div className="mt-2.5 flex gap-1.5 flex-wrap">
+                  <div className="mt-2.5 flex gap-1.5 flex-wrap items-center">
                     <button onClick={() => setResolveTarget(g)} disabled={busyThis}
                       className="px-2.5 py-1 rounded text-[11px] font-bold bg-rose-500 text-white hover:bg-rose-600 disabled:opacity-50">
                       조치 실행
                     </button>
+                    <span className="text-[10px] font-bold text-slate-400">▶ 숨김 / 삭제 / 경고 / 없음 중 선택</span>
                     <button onClick={() => handleReject(reportIds)} disabled={busyThis}
                       className="px-2.5 py-1 rounded text-[11px] font-bold bg-slate-200 text-slate-700 hover:bg-slate-300 disabled:opacity-50">
                       기각 ({reportIds.length}건)
@@ -337,7 +555,8 @@ const ReportManagement = () => {
               </div>
             );
           })}
-        </div>
+          </div>
+        </>
       )}
 
       {/* 조치 실행 모달 */}
@@ -401,6 +620,9 @@ const ResolveModal = ({ group, onClose, onDone }: ResolveModalProps) => {
             <h2 className="text-[14px] font-[1000] text-slate-900">🚨 신고 조치</h2>
             <p className="text-[11px] text-slate-500 font-bold mt-0.5">
               타겟: {group.targetType}/{group.targetId.slice(0, 20)}... (고유 신고자 {group.uniqueReporters.size}명)
+            </p>
+            <p className="text-[10px] text-slate-400 font-bold mt-1 leading-relaxed">
+              💡 <span className="text-slate-600">숨김</span>(isHiddenByReport=true · 복구 가능) / <span className="text-slate-600">삭제</span>(isDeleted · 영구) / <span className="text-slate-600">경고</span>(컨텐츠 유지+알림) / <span className="text-slate-600">없음</span>(상태만 변경)
             </p>
           </div>
           <button onClick={onClose} disabled={busy} className="text-slate-400 hover:text-slate-600 text-[14px] font-bold disabled:opacity-50">✕</button>

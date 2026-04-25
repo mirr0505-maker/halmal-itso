@@ -14,11 +14,16 @@ interface Notification {
     | 'shareholder_verify_request' | 'shareholder_verify_submitted'
     // 🏷️ Sprint 5 — 칭호 시스템 알림
     | 'title_awarded_toast' | 'title_awarded_celebration' | 'title_awarded_modal'
-    | 'title_suspended' | 'title_revoked' | 'title_restored';
+    | 'title_suspended' | 'title_revoked' | 'title_restored'
+    // 🚨 2026-04-25 신고 시스템 — 작성자 / 신고자 / 이의제기 / 복구
+    | 'report_state_change' | 'report_warning' | 'report_action_taken'
+    | 'report_resolved' | 'report_rejected'
+    | 'appeal_accepted' | 'appeal_rejected' | 'report_restored';
   fromNickname?: string;  // 땡스볼·커뮤니티 알림
   fromNick?: string;      // 거대나무 알림 (필드명 다름)
   amount?: number;
   message?: string;
+  body?: string;          // 🚨 신고 알림 — 멀티라인 본문 (서버가 body 필드로 저장)
   postId?: string;
   postTitle?: string;
   communityId?: string;
@@ -34,6 +39,15 @@ interface Notification {
   titleId?: string;
   tier?: string;
   emoji?: string;
+  // 🚨 신고 알림 메타 — icon/body 분기 + 향후 분석용
+  targetType?: 'post' | 'comment' | 'community_post' | 'community_post_comment' | 'episode';
+  targetId?: string;
+  reasonKey?: string;
+  reasonLabel?: string;
+  action?: 'hide_content' | 'delete_content' | 'warn_user' | 'none';
+  actionLabel?: string;
+  reportState?: 'review' | 'preview_warning' | 'hidden' | null;
+  reportCount?: number;
   createdAt?: { seconds: number } | number;
   read?: boolean;   // 땡스볼·커뮤니티
   isRead?: boolean; // 거대나무 (필드명 다름)
@@ -197,9 +211,25 @@ const NotificationBell = ({ currentUid, onNavigate, onNavigateToEpisode }: Props
                   n.type === 'title_suspended' ? '⏸️' :
                   n.type === 'title_revoked' ? '🗑️' :
                   n.type === 'title_restored' ? '✅' :
+                  // 🚨 신고 시스템 알림 (작성자 + 신고자 + 이의제기 + 복구)
+                  n.type === 'report_state_change' ? (n.reportState === 'hidden' ? '🙈' : '⚠️') :
+                  n.type === 'report_warning' ? '⚠️' :
+                  n.type === 'report_action_taken' ? (n.action === 'delete_content' ? '🗑️' : n.action === 'hide_content' ? '🙈' : '⚖️') :
+                  n.type === 'report_resolved' ? '✅' :
+                  n.type === 'report_rejected' ? '🚫' :
+                  n.type === 'appeal_accepted' ? '⚡' :
+                  n.type === 'appeal_rejected' ? '⛔' :
+                  n.type === 'report_restored' ? '✅' :
                   '⚾';
+                // 🚨 신고 알림은 서버가 body 필드로 멀티라인 메시지 저장 — whitespace-pre-line 유지
+                const isReportNotif = n.type === 'report_state_change' || n.type === 'report_warning'
+                  || n.type === 'report_action_taken' || n.type === 'report_resolved'
+                  || n.type === 'report_rejected' || n.type === 'appeal_accepted'
+                  || n.type === 'appeal_rejected' || n.type === 'report_restored';
                 const body =
-                  n.type === 'community_post' || n.type === 'finger_promoted' || n.type === 'community_join_approved' || n.type === 'community_join_rejected' || n.type === 'community_comment' || n.type === 'community_join_request' || n.type === 'shareholder_verify_request' || n.type === 'shareholder_verify_submitted'
+                  isReportNotif
+                    ? (<span className="whitespace-pre-line text-slate-800">{n.body || '(내용 없음)'}</span>)
+                  : n.type === 'community_post' || n.type === 'finger_promoted' || n.type === 'community_join_approved' || n.type === 'community_join_rejected' || n.type === 'community_comment' || n.type === 'community_join_request' || n.type === 'shareholder_verify_request' || n.type === 'shareholder_verify_submitted'
                     ? (n.message || '')
                   : n.type === 'title_awarded_toast' || n.type === 'title_awarded_celebration' || n.type === 'title_awarded_modal' || n.type === 'title_suspended' || n.type === 'title_revoked' || n.type === 'title_restored'
                     ? (n.message || '칭호 알림')

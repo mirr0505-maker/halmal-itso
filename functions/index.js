@@ -674,7 +674,7 @@ exports.syncUserLevel = syncUserLevel;
 const { submitReport } = require("./reportSubmit");
 const { reportAggregator } = require("./reportAggregator");
 const { resolveReport, rejectReport, restoreHiddenPost } = require("./reportResolve");
-const { submitContentAppeal } = require("./reportAppeal");
+const { submitContentAppeal, rejectAppeal } = require("./reportAppeal");
 exports.submitReport = submitReport;
 exports.reportAggregator = reportAggregator;
 // 🚨 2026-04-24 Phase 3 — 관리자 신고 조치 3종
@@ -683,6 +683,8 @@ exports.rejectReport = rejectReport;
 exports.restoreHiddenPost = restoreHiddenPost;
 // 🚨 2026-04-24 Phase B — 작성자 이의제기
 exports.submitContentAppeal = submitContentAppeal;
+// 🚨 2026-04-25 — 관리자 이의제기 기각
+exports.rejectAppeal = rejectAppeal;
 
 // 🛡️ Sprint 6 A-1 — 관리자 권한 체계 (Custom Claims 이중 체크)
 // Why: 닉네임 화이트리스트는 공격 표면. Firebase Auth Custom Claims로 전환.

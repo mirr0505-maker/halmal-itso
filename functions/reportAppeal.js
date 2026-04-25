@@ -1,14 +1,20 @@
-// functions/reportAppeal.js — 🚨 작성자 이의제기 CF (2026-04-24 Phase B)
+// functions/reportAppeal.js — 🚨 작성자 이의제기 CF (2026-04-24 Phase B + 2026-04-25 reject 추가)
 //
 // 🚀 submitContentAppeal — 신고 상태 대상글의 작성자가 이의제기 등록
 //    대상 문서에 appealStatus='pending' + appealNote + appealAt 기록
 //    → 관리자 UI ReportManagement에서 "⚡ 이의제기 대기" 우선큐 섹션으로 노출
+//
+// 🚀 rejectAppeal (2026-04-25) — 관리자가 이의제기 기각 (글 hidden 상태 유지)
+//    appealStatus='resolved' + 작성자에게 appeal_rejected 알림 + admin_actions 로깅
 //
 // 🔒 작성자 본인만 호출 가능. 한 번 제기하면 appealStatus='resolved' 되기 전까지 재제기 불가
 // 검색어: reportAppeal
 
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const { getFirestore, Timestamp } = require("firebase-admin/firestore");
+const { assertAdmin } = require("./utils/adminAuth");
+const { logAdminAction } = require("./adminAudit");
+const { getTargetTitle } = require("./utils/reportLabels");
 
 const db = getFirestore();
 
@@ -71,6 +77,75 @@ exports.submitContentAppeal = onCall(
     });
 
     console.log(`[submitContentAppeal] ${targetType}/${targetId} by ${authorUid} — note=${note.trim().slice(0, 50)}`);
+
+    return { success: true };
+  }
+);
+
+// ═══════════════════════════════════════════════════════════════
+// 🚀 rejectAppeal — 관리자가 작성자 이의제기를 기각 (2026-04-25)
+//    글의 hidden 상태는 유지, appealStatus만 'resolved'로 마감.
+//    작성자에게 appeal_rejected 알림 발송 (사유 포함).
+// ═══════════════════════════════════════════════════════════════
+exports.rejectAppeal = onCall(
+  { region: "asia-northeast3" },
+  async (request) => {
+    const { adminUid, adminName, viaClaims } = await assertAdmin(request.auth);
+    const { targetType, targetId, note } = request.data || {};
+
+    if (!COLLECTION_BY_TYPE[targetType]) {
+      throw new HttpsError("invalid-argument", "지원하지 않는 targetType");
+    }
+    if (!targetId || typeof targetId !== "string") {
+      throw new HttpsError("invalid-argument", "targetId 필수");
+    }
+    if (!note || typeof note !== "string" || note.trim().length < 2) {
+      throw new HttpsError("invalid-argument", "기각 사유 2자 이상 필수");
+    }
+
+    const collName = COLLECTION_BY_TYPE[targetType];
+    const targetRef = db.collection(collName).doc(targetId);
+    const targetSnap = await targetRef.get();
+    if (!targetSnap.exists) throw new HttpsError("not-found", "대상 글을 찾을 수 없습니다.");
+    const targetData = targetSnap.data() || {};
+
+    if (targetData.appealStatus !== "pending") {
+      throw new HttpsError("failed-precondition", "현재 검토 대기 중인 이의제기가 아닙니다.");
+    }
+
+    const targetAuthorUid = targetData.author_id || targetData.authorId;
+    const targetTitle = getTargetTitle(targetData);
+
+    // 1) 이의제기 마감 (appealStatus만 resolved로 — 글 hidden 상태는 유지)
+    await targetRef.update({
+      appealStatus: "resolved",
+    });
+
+    // 2) 작성자 알림
+    if (targetAuthorUid) {
+      await db.collection("notifications").doc(targetAuthorUid).collection("items").add({
+        type: "appeal_rejected",
+        fromNickname: "운영진",
+        postId: targetId,
+        postTitle: targetTitle,
+        targetType,
+        targetId,
+        body: `⛔ 이의제기가 검토 결과 받아들여지지 않았어요.\n📌 글: 「${targetTitle}」\n글은 계속 숨김 상태로 유지됩니다.\n관리자 메모: ${note.trim().slice(0, 200)}`,
+        read: false,
+        createdAt: Timestamp.now(),
+      });
+    }
+
+    // 3) admin_actions 감사 로그
+    await logAdminAction({
+      action: "reject_appeal",
+      adminUid,
+      adminName,
+      viaClaims,
+      targetUid: targetAuthorUid || null,
+      payload: { targetType, targetId },
+      reason: note.trim(),
+    });
 
     return { success: true };
   }
