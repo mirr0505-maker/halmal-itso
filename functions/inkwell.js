@@ -122,6 +122,35 @@ exports.unlockEpisode = onCall(
         feeRate: PLATFORM_FEE_RATE,
         unlockedAt: Timestamp.now(),
       });
+
+      // 🚀 Sprint 9 Batch 2 — ball_transactions 표준 원장 기록
+      //   buyer ballBalance outflow를 ballAudit이 집계 가능하도록 추가
+      //   작가는 ballReceived만 누적 (ballBalance 안 변함) → receiverBalance null로 명시
+      //   멱등키: 문서 ID = `unlock_${postId}_${buyerUid}` (unlocked_episodes와 1:1 대응)
+      const ballTxRef = db.collection("ball_transactions").doc(`unlock_${postId}_${buyerUid}`);
+      tx.set(ballTxRef, {
+        schemaVersion: 1,
+        senderUid: buyerUid,
+        senderNickname: buyerNickname,
+        resolvedRecipientUid: post.author_id,
+        resolvedRecipientNickname: post.author || null,
+        amount: price,
+        balanceBefore: currentBalance,
+        balanceAfter: currentBalance - price,
+        receiverBalanceBefore: null,
+        receiverBalanceAfter: null,
+        platformFee,
+        sourceType: "unlock_episode",
+        details: {
+          postId,
+          seriesId: post.seriesId,
+          authorId: post.author_id,
+          authorRevenue,
+          feeRate: PLATFORM_FEE_RATE,
+          episodeTitle: post.episodeTitle || null,
+        },
+        createdAt: Timestamp.now(),
+      });
     });
 
     // 8. 트랜잭션 외 처리
