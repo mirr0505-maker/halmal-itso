@@ -1,22 +1,28 @@
 // src/utils/getViewerRegion.ts — IP 기반 열람자 지역 추정 (광고 타겟팅용)
 // 🚀 ipapi.co 무료 API + sessionStorage 30분 캐시 + 한글 시/도 매핑
 // 실패 시 빈 문자열 (서버에서 전국 매칭으로 폴백)
+// 🔧 2026-04-26: in-flight singleton + negative cache.
+//   기존 — 한 페이지 다중 AdSlot이 동시 호출 → 429 + CORS 차단 + 실패도 캐시 안 돼서 매 호출마다 재시도.
+//   수정 — 동시 호출 1번으로 합치고, 실패 결과도 30분 캐시(빈 문자열).
 
 const IP_REGION_CACHE_KEY = 'viewerRegion';
-const CACHE_DURATION_MS = 30 * 60 * 1000; // 30분
+const CACHE_DURATION_MS = 30 * 60 * 1000; // 30분 (성공·실패 공통)
 
 interface CachedRegion {
   region: string;
   timestamp: number;
 }
 
+// 동시 호출 차단 — 첫 호출의 Promise를 모든 caller가 공유
+let inflight: Promise<string> | null = null;
+
 /**
  * 열람자의 시/도 추정 (IP 기반)
- * - 캐시 30분, 실패 시 빈 문자열
- * - 빈 문자열은 서버에서 "지역 무관"으로 처리
+ * - 캐시 30분 (성공·실패 공통)
+ * - 실패 시 빈 문자열 → 서버에서 "지역 무관"으로 처리
  */
 export async function getViewerRegion(): Promise<string> {
-  // 1) 메모리 캐시 확인
+  // 1) sessionStorage 캐시 확인 (성공·실패 모두 hit으로 간주)
   try {
     const cached = sessionStorage.getItem(IP_REGION_CACHE_KEY);
     if (cached) {
@@ -25,28 +31,33 @@ export async function getViewerRegion(): Promise<string> {
         return parsed.region;
       }
     }
-  } catch { /* sessionStorage 접근 실패 시 무시 */ }
+  } catch { /* 무시 */ }
 
-  // 2) ipapi.co 호출 (3초 타임아웃)
-  try {
-    const response = await fetch('https://ipapi.co/json/', {
-      signal: AbortSignal.timeout(3000),
-    });
-    if (!response.ok) return '';
+  // 2) in-flight Promise가 있으면 공유 (동시 다중 호출 차단)
+  if (inflight) return inflight;
 
-    const data = await response.json();
-    // ipapi.co region 필드: 영문 시/도명 (예: "Seoul", "Gyeonggi-do")
-    const region = mapRegionToKorean(data.region || '');
-
-    // 캐시 저장
+  inflight = (async () => {
     try {
-      sessionStorage.setItem(IP_REGION_CACHE_KEY, JSON.stringify({ region, timestamp: Date.now() }));
-    } catch { /* 무시 */ }
+      const response = await fetch('https://ipapi.co/json/', {
+        signal: AbortSignal.timeout(3000),
+      });
+      const region = response.ok ? mapRegionToKorean((await response.json())?.region || '') : '';
+      try {
+        sessionStorage.setItem(IP_REGION_CACHE_KEY, JSON.stringify({ region, timestamp: Date.now() }));
+      } catch { /* 무시 */ }
+      return region;
+    } catch {
+      // 실패 결과도 30분 캐시 — 재시도로 인한 429·CORS 폭주 차단
+      try {
+        sessionStorage.setItem(IP_REGION_CACHE_KEY, JSON.stringify({ region: '', timestamp: Date.now() }));
+      } catch { /* 무시 */ }
+      return '';
+    } finally {
+      inflight = null;
+    }
+  })();
 
-    return region;
-  } catch {
-    return ''; // 실패 시 빈 문자열
-  }
+  return inflight;
 }
 
 /**
