@@ -12,8 +12,10 @@ const PROMO_BANNERS = [
   { headline: '우리들의 장갑에서 소곤소곤', description: '관심사가 같은 사람들과 커뮤니티를 만들어요', cta: '장갑 보기', emoji: '🧤', path: '/?menu=glove' },
 ];
 
-const AdFallback = ({ position }: Props) => {
-  const idx = position === 'top' ? 0 : position === 'middle' ? 1 : 2;
+const AdFallback = ({ position: _position }: Props) => {
+  // 🚀 2026-04-26: 매 렌더마다 4개 프로모션 중 랜덤 1개 노출 (이전: position 고정 매핑)
+  //   세션마다 다른 광고를 보여 노출 다양화. position prop은 향후 위치별 다른 풀이 필요할 때 활용.
+  const idx = Math.floor(Math.random() * PROMO_BANNERS.length);
   const promo = PROMO_BANNERS[idx] || PROMO_BANNERS[0];
 
   const handleClick = () => {

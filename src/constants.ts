@@ -491,11 +491,13 @@ export const MENU_MESSAGES: Record<string, { title: string, description: string,
 // ════════════════════════════════════════════════════════════
 
 // 🚀 작성자 광고 슬롯 — 레벨별 수익 배분율 (Revenue Share)
+//   2026-04-26 위치 재정의: top=본문 시작 직전 / middle=본문 끝·댓글 위 / bottom=댓글 끝·관련글 위
+//   Lv별 매핑: Lv5~6 가장 효과적인 middle 1개 / Lv7~8 top+middle / Lv9~10 모두
 export const CREATOR_AD_SLOTS: Record<number, { slots: number; positions: ('top' | 'middle' | 'bottom')[]; creatorRate: number }> = {
   1: { slots: 0, positions: [], creatorRate: 0 },         // Lv1~4: 작성자 광고 없음
-  5: { slots: 1, positions: ['bottom'], creatorRate: 0.3 }, // Lv5~6: 1슬롯, 30%
-  7: { slots: 2, positions: ['top', 'bottom'], creatorRate: 0.5 }, // Lv7~8: 2슬롯, 50%
-  9: { slots: 3, positions: ['top', 'middle', 'bottom'], creatorRate: 0.7 }, // Lv9~10: 3슬롯, 70%
+  5: { slots: 1, positions: ['middle'], creatorRate: 0.3 }, // Lv5~6: middle (본문 끝 + 댓글 위 — 가장 효과적)
+  7: { slots: 2, positions: ['top', 'middle'], creatorRate: 0.5 }, // Lv7~8: top + middle
+  9: { slots: 3, positions: ['top', 'middle', 'bottom'], creatorRate: 0.7 }, // Lv9~10: 전체
 };
 
 export const getCreatorAdSlots = (level: number) => {

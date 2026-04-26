@@ -40,10 +40,13 @@ interface Props {
   allUsers?: Record<string, UserData>;
   onNavigateToPost?: (postId: string) => void; // 연계글에서 원본글로 이동
   onAuthorClick?: (nickname: string) => void; // 🚀 공개프로필 이동
+  // 🚀 2026-04-26: 본문 안 광고 슬롯 — DiscussionView 등에서 외부 마운트 대신 props로 주입
+  topSlot?: React.ReactNode;     // 본문 시작 직전 (제목 다음, 본문 위)
+  middleSlot?: React.ReactNode;  // 본문 끝 (본문 다음, 통계바 위)
 }
 
 const RootPostCard = ({
-  post, totalComment, totalFormal, uniqueAgreeCount, uniqueDisagreeCount, isFriend, onToggleFriend, userData, friendCount, onDeleteSuccess, onLikeClick, currentNickname, onEdit, onBack, thanksballTotal, allUsers = {}, onNavigateToPost, onAuthorClick
+  post, totalComment, totalFormal, uniqueAgreeCount, uniqueDisagreeCount, isFriend, onToggleFriend, userData, friendCount, onDeleteSuccess, onLikeClick, currentNickname, onEdit, onBack, thanksballTotal, allUsers = {}, onNavigateToPost, onAuthorClick, topSlot, middleSlot
 }: Props) => {
 
   const [showPostMenu, setShowPostMenu] = useState(false);
@@ -236,7 +239,13 @@ const RootPostCard = ({
           </div>
         )}
 
+        {/* 🚀 광고 top — 본문 시작 직전 */}
+        {topSlot && <div className="mb-4">{topSlot}</div>}
+
         <div className={`text-[15px] mb-6 leading-[1.8] font-medium max-w-none flex-1 [&_p]:mb-4 [&_p:last-child]:mb-0 [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:mb-4 [&_ol]:list-decimal [&_ol]:pl-5 [&_ol]:mb-4 [&_li]:mb-1 [&_strong]:font-bold [&_em]:italic [&_a]:text-blue-400 [&_a]:underline [&_blockquote]:border-l-4 [&_blockquote]:border-slate-200 [&_blockquote]:pl-4 [&_blockquote]:text-slate-500 [&_h1]:text-2xl [&_h1]:font-black [&_h2]:text-xl [&_h2]:font-black [&_h3]:text-lg [&_h3]:font-black ${isDark ? 'text-slate-200' : 'text-slate-700'}`} dangerouslySetInnerHTML={{ __html: sanitizeHtml(post.content) }} />
+
+        {/* 🚀 광고 middle — 본문 끝, 통계바 위 */}
+        {middleSlot && <div className="mb-4">{middleSlot}</div>}
 
         {post.imageUrl && !hasImageInContent && (
           <div className="w-full md:w-2/3 mb-6 rounded-2xl overflow-hidden border border-slate-100 bg-slate-50">

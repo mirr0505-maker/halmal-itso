@@ -27,7 +27,7 @@ const CreatePostBox = ({ userData, editingPost, activeMenu, menuMessages, onSubm
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   // 🚀 ADSMARKET: 광고 슬롯 설정
-  const { adSlotFields, adSlotEnabled, adSlotType, onAdSlotChange } = useAdSlotSetting();
+  const { adSlotFields, adSlotEnabled, adSlotType, selectedAds, onAdSlotChange, onSelectAd } = useAdSlotSetting();
 
   const menuOptions = Object.keys(menuMessages)
     .filter(key => !['onecut', 'market', 'exile_place'].includes(key))
@@ -184,7 +184,9 @@ const CreatePostBox = ({ userData, editingPost, activeMenu, menuMessages, onSubm
 
         {/* 🚀 ADSMARKET: 광고 슬롯 설정 (Lv5+) */}
         <AdSlotSetting userLevel={calculateLevel(userData?.exp || 0)} adSlotEnabled={adSlotEnabled} adSlotType={adSlotType}
-          onChange={onAdSlotChange} />
+          onChange={onAdSlotChange}
+          selectedAds={selectedAds} onSelectAd={onSelectAd}
+          postCategory={postData.category} />
       </div>
     </div>
   );

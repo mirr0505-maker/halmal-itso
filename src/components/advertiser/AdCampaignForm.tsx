@@ -111,6 +111,8 @@ const AdCampaignForm = ({ advertiserId, advertiserName, editingAd, onBack }: Pro
       alert('제목, 헤드라인, 랜딩 URL은 필수입니다.');
       return;
     }
+    // 🔧 2026-04-26: ctaText 빈 입력 방지 — 빈 칩 노출 차단. 비어있으면 default 주입
+    const safeCtaText = form.ctaText.trim() || '자세히 보기';
     setIsSubmitting(true);
     try {
       if (isEditMode && editingAd) {
@@ -119,6 +121,7 @@ const AdCampaignForm = ({ advertiserId, advertiserName, editingAd, onBack }: Pro
         const newStatus = status === 'draft' ? 'draft' : 'pending_review';
         await setDoc(doc(db, 'ads', editingAd.id), {
           ...form,
+          ctaText: safeCtaText,
           targetCreatorId: form.targetCreatorId || null,
           id: editingAd.id,
           advertiserId,
@@ -144,6 +147,7 @@ const AdCampaignForm = ({ advertiserId, advertiserName, editingAd, onBack }: Pro
         const thirtyDaysLater = new Date(now + 30 * 86400 * 1000);
         await setDoc(doc(db, 'ads', adId), {
           ...form,
+          ctaText: safeCtaText,
           targetCreatorId: form.targetCreatorId || null,
           id: adId,
           advertiserId,
@@ -188,8 +192,13 @@ const AdCampaignForm = ({ advertiserId, advertiserName, editingAd, onBack }: Pro
             className="border border-slate-200 rounded-xl px-3 py-2.5 text-[13px] font-bold outline-none focus:border-violet-400" />
           <input value={form.description} onChange={e => update('description', e.target.value)} placeholder="설명 (최대 60자)" maxLength={60}
             className="border border-slate-200 rounded-xl px-3 py-2.5 text-[13px] font-bold outline-none focus:border-violet-400" />
-          <input value={form.ctaText} onChange={e => update('ctaText', e.target.value)} placeholder="CTA 버튼 텍스트" maxLength={10}
-            className="border border-slate-200 rounded-xl px-3 py-2.5 text-[13px] font-bold outline-none focus:border-violet-400" />
+          <div>
+            <input value={form.ctaText} onChange={e => update('ctaText', e.target.value)} placeholder="CTA 버튼 텍스트 (예: 자세히 보기)" maxLength={10}
+              className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-[13px] font-bold outline-none focus:border-violet-400" />
+            <p className="text-[9px] font-bold text-slate-400 mt-1">
+              💡 <strong>CTA</strong> = Call To Action — 광고 클릭을 유도하는 버튼 문구. 「자세히 보기 / 지금 구매 / 방문하기 / 무료 체험」 등 행동을 명령형으로. 최대 10자.
+            </p>
+          </div>
           <input value={form.landingUrl} onChange={e => update('landingUrl', e.target.value)} placeholder="랜딩 URL (https://...)"
             className="border border-slate-200 rounded-xl px-3 py-2.5 text-[13px] font-bold outline-none focus:border-violet-400" />
 
@@ -235,9 +244,11 @@ const AdCampaignForm = ({ advertiserId, advertiserName, editingAd, onBack }: Pro
             </p>
             {(() => {
               const aspectClass = form.imageStyle === 'horizontal' ? 'aspect-[3/1]' : 'aspect-[9/16] max-w-[240px] mx-auto';
+              // 🔧 2026-04-26: 이미지 잘림 방지 — object-contain (실제 노출과 동일)
+              const objectFit = form.imageStyle === 'vertical' ? 'object-contain' : 'object-cover';
               return form.imageUrl ? (
                 <div className={`relative ${aspectClass} rounded-xl overflow-hidden border-2 border-violet-200 bg-slate-50`}>
-                  <img src={form.imageUrl} alt="" className="w-full h-full object-cover" />
+                  <img src={form.imageUrl} alt="" className={`w-full h-full ${objectFit}`} />
                   <button type="button" onClick={() => update('imageUrl', '')}
                     className="absolute top-2 right-2 bg-rose-500 text-white text-[10px] font-[1000] px-2.5 py-1 rounded shadow-sm hover:bg-rose-600">
                     ✕ 삭제

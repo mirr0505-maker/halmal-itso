@@ -17,6 +17,8 @@ const AdBanner = ({ ad, position: _position, onClick }: Props) => {
     window.open(ad.landingUrl, '_blank', 'noopener,noreferrer');
   };
 
+  // 🔧 2026-04-25 정정: 광고주가 등록한 imageStyle 그대로 존중 (bottom 슬롯에서도 세로형 OK)
+  //   사용자 의도 — 슬롯 위치 무관 광고주 선택 우선. 본문 끝에 세로 광고도 자연스러움.
   const style = ad.imageStyle || 'horizontal';
   const verticalImageOnRight = ad.imagePosition === 'right';
 
@@ -42,7 +44,7 @@ const AdBanner = ({ ad, position: _position, onClick }: Props) => {
             <p className="text-[10px] font-bold text-slate-400 line-clamp-1 mt-0.5">{ad.description}</p>
           </div>
           <span className="text-[10px] font-black text-violet-600 bg-violet-50 px-2 py-0.5 rounded-lg border border-violet-100 shrink-0">
-            {ad.ctaText}
+            {ad.ctaText || '자세히 보기'}
           </span>
         </div>
         <div className="px-3 pb-1.5">
@@ -53,13 +55,15 @@ const AdBanner = ({ ad, position: _position, onClick }: Props) => {
   }
 
   // 세로형 — 9:16 이미지 + 반대편 텍스트
+  //   2026-04-26: 카드 폭은 가로형과 동일 max-w-md, 높이 약 100px(이전 150의 2/3).
+  //   이미지 박스는 카드 height 기준 9:16 비율로 폭 자동 계산 (h=100px → w=56px).
   const imageBlock = ad.imageUrl ? (
-    <div className="w-[35%] aspect-[9/16] bg-slate-50 shrink-0 overflow-hidden">
-      <img src={ad.imageUrl} alt="" className="w-full h-full object-cover" />
+    <div className="aspect-[9/16] bg-slate-50 shrink-0 overflow-hidden">
+      <img src={ad.imageUrl} alt="" className="w-full h-full object-contain" />
     </div>
   ) : (
-    <div className="w-[35%] aspect-[9/16] bg-slate-100 shrink-0 flex items-center justify-center">
-      <span className="text-[10px] font-bold text-slate-300">이미지 없음</span>
+    <div className="aspect-[9/16] bg-slate-100 shrink-0 flex items-center justify-center">
+      <span className="text-[10px] font-bold text-slate-300">없음</span>
     </div>
   );
 
@@ -72,7 +76,7 @@ const AdBanner = ({ ad, position: _position, onClick }: Props) => {
       <div className="flex items-center justify-between mt-1.5">
         <span className="text-[8px] font-bold text-slate-300">광고</span>
         <span className="text-[10px] font-black text-violet-600 bg-violet-50 px-2 py-0.5 rounded-lg border border-violet-100 shrink-0">
-          {ad.ctaText}
+          {ad.ctaText || '자세히 보기'}
         </span>
       </div>
     </div>
@@ -81,9 +85,10 @@ const AdBanner = ({ ad, position: _position, onClick }: Props) => {
   return (
     <div
       onClick={handleClick}
-      className="cursor-pointer rounded-xl overflow-hidden border border-slate-100 bg-white hover:shadow-md transition-all mx-auto max-w-md"
+      className="cursor-pointer rounded-xl overflow-hidden border border-slate-100 bg-white hover:shadow-md transition-all mx-auto max-w-[320px] md:max-w-md"
     >
-      <div className="flex items-stretch">
+      {/* 반응형 — 모바일 80px / 데스크톱 140px. 이미지는 height 기준 9:16 폭 자동 */}
+      <div className="flex items-stretch h-[80px] md:h-[140px]">
         {verticalImageOnRight ? (
           <>
             {textBlock}

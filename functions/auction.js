@@ -89,6 +89,9 @@ exports.adAuction = onRequest(
         ad: {
           adId: winner.id, headline: winner.headline, description: winner.description,
           imageUrl: winner.imageUrl, landingUrl: winner.landingUrl, ctaText: winner.ctaText,
+          // 🔧 2026-04-26: imageStyle/imagePosition 응답 누락 버그 — 클라 AdBanner가 default 'horizontal'로 fallback해 가로로만 노출되던 문제 해소
+          imageStyle: winner.imageStyle || 'horizontal',
+          imagePosition: winner.imagePosition || 'left',
           bidType: winner.bidType, chargeAmount: secondPrice,
         },
         fallback: null,

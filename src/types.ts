@@ -336,6 +336,10 @@ export interface Post {
   isHidden?: boolean;  // 비공개 전환된 회차 (구매자 있을 때 삭제 대신 사용)
   isHiddenByExile?: boolean;  // 🏚️ 유배 처분으로 숨김 처리된 글 (피드에서 제외)
   hiddenByExileAt?: FirestoreTimestamp;
+  // 📢 2026-04-26: 작성자가 광고 경매시장에서 슬롯별 직접 선택한 광고 ID
+  //   selectedAds[slot] 있으면 AdSlot이 그 광고 직접 노출 (CF 경매 우회)
+  //   없으면 자동 경매 매칭 (현재 흐름 그대로)
+  selectedAds?: { top?: string; middle?: string; bottom?: string };
   exileLevel?: 1 | 2 | 3;  // 🏚️ 유배지 글 탭 식별 (category='유배·귀양지'와 함께)
   // 🚨 2026-04-24 신고 시스템 (Phase 2+ / A 확장)
   reportCount?: number;               // 고유 신고자 수 (submitReport CF가 증가)

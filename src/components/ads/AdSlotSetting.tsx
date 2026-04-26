@@ -3,14 +3,21 @@
 //   - 펼침 영역: Lv 카드 + 슬롯 위치 미리보기 + 광고 종류 선택
 //   - 토글 버튼 텍스트는 "다음 행동" 표시 (OFF 상태에서 [광고 ON] = 누르면 켜짐)
 // 🚀 12개 Create*.tsx에서 props 그대로 사용 (변경 불필요)
-import { useState } from 'react';
+import { useState, lazy, Suspense } from 'react';
 import { getCreatorAdSlots } from '../../constants';
+import type { SelectedAds, SlotPos } from './useAdSlotSetting';
+
+const AdMarketplaceModal = lazy(() => import('./AdMarketplaceModal'));
 
 interface Props {
   userLevel: number;
   adSlotEnabled: boolean;
   adSlotType: 'auction' | 'adsense';
   onChange: (enabled: boolean, type: 'auction' | 'adsense') => void;
+  // 🚀 2026-04-26: 슬롯별 직접 광고 선택 (광고 경매시장 모달 통합)
+  selectedAds?: SelectedAds;
+  onSelectAd?: (slot: SlotPos, adId: string | null) => void;
+  postCategory?: string;  // 매칭 우선 정렬용 (선택)
 }
 
 const SLOT_UNLOCK_LEVEL: Record<'top' | 'middle' | 'bottom', number> = {
@@ -25,9 +32,10 @@ const POSITION_LABEL_KO: Record<'top' | 'middle' | 'bottom', string> = {
   bottom: '하단',
 };
 
-const AdSlotSetting = ({ userLevel, adSlotEnabled, adSlotType, onChange }: Props) => {
+const AdSlotSetting = ({ userLevel, adSlotEnabled, adSlotType, onChange, selectedAds, onSelectAd, postCategory }: Props) => {
   const rs = getCreatorAdSlots(userLevel);
   const [expanded, setExpanded] = useState(false);
+  const [pickerSlot, setPickerSlot] = useState<SlotPos | null>(null);
 
   // Lv 5 미만 — 평소 1줄 헤더만 (호기심 유발) + ▼ 클릭 시 메시지 펼침
   // 추후 문구 자유 수정 가능 — 사용자 합의된 잠정 카피
@@ -147,7 +155,63 @@ const AdSlotSetting = ({ userLevel, adSlotEnabled, adSlotType, onChange }: Props
               </button>
             </div>
           )}
+
+          {/* 🚀 2026-04-26: 슬롯별 광고 직접 선택 — ON + auction일 때만 */}
+          {adSlotEnabled && adSlotType === 'auction' && onSelectAd && (
+            <div className="bg-white rounded-lg p-2.5 border border-slate-200 space-y-1.5">
+              <p className="text-[10px] font-[1000] text-slate-600">📢 광고 직접 선택 (선택 안 하면 자동 매칭)</p>
+              {rs.positions.map(pos => {
+                const selectedId = selectedAds?.[pos];
+                const isAuto = selectedId === 'auto';
+                const isAdSelected = !!selectedId && !isAuto;
+                const label = isAdSelected
+                  ? '✅ 광고 선택됨 — 변경하기'
+                  : isAuto
+                    ? '✅ 자동 매칭 결정됨 — 변경하기'
+                    : '🎲 자동 매칭 — 직접 선택하기';
+                const colorClass = isAdSelected
+                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
+                  : isAuto
+                    ? 'bg-violet-50 text-violet-700 border-violet-200 hover:bg-violet-100'
+                    : 'bg-slate-50 text-slate-500 border-dashed border-slate-300 hover:bg-violet-50 hover:text-violet-600 hover:border-violet-300';
+                return (
+                  <div key={pos} className="flex items-center gap-2">
+                    <span className="text-[10px] font-[1000] text-violet-700 w-10 shrink-0">{POSITION_LABEL_KO[pos]}</span>
+                    <button
+                      type="button"
+                      onClick={() => setPickerSlot(pos)}
+                      className={`flex-1 px-2.5 py-1 rounded-md text-[10px] font-[1000] transition-all border ${colorClass}`}
+                    >
+                      {label}
+                    </button>
+                    {selectedId && (
+                      <button
+                        type="button"
+                        onClick={() => onSelectAd(pos, null)}
+                        className="text-[10px] font-bold text-rose-500 hover:text-rose-700 px-1.5 shrink-0"
+                      >
+                        해제
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
+      )}
+
+      {/* 광고 경매시장 모달 */}
+      {pickerSlot && onSelectAd && (
+        <Suspense fallback={null}>
+          <AdMarketplaceModal
+            slot={pickerSlot}
+            currentSelectedAdId={selectedAds?.[pickerSlot]}
+            postCategory={postCategory}
+            onSelect={(adId) => onSelectAd(pickerSlot, adId)}
+            onClose={() => setPickerSlot(null)}
+          />
+        </Suspense>
       )}
     </div>
   );

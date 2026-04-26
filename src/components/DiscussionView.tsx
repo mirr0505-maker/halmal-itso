@@ -143,7 +143,10 @@ const DiscussionView = ({
 
   const authorData = (rootPost.author_id && allUsers[rootPost.author_id]) || allUsers[`nickname_${rootPost.author}`];
   const realFollowers = followerCounts[rootPost.author] || 0;
-  const displayLevel = calculateLevel(authorData?.exp || 0);
+  // 🚀 2026-04-25: 비로그인 fallback — users read=auth 차단 시 post.authorInfo.level 박제값으로 광고 노출 보장
+  const displayLevel = authorData
+    ? calculateLevel(authorData.exp || 0)
+    : (rootPost.authorInfo?.level || 1);
   const displayLikes = authorData ? authorData.likes : (rootPost.authorInfo?.totalLikes || 0);
 
   // 🔒 유료 게시판 접근 차단 — 페이월 화면
@@ -201,14 +204,18 @@ const DiscussionView = ({
             allUsers={allUsers}
             onNavigateToPost={onNavigateToPost}
             onAuthorClick={onAuthorClick}
+            // 🚀 2026-04-26: 본문 안 광고 슬롯 — RootPostCard 안에 직접 박힘
+            topSlot={
+              <AdSlot position="top" postCategory={rootPost.category} postId={rootPost.id} postAuthorId={rootPost.author_id} postAuthorLevel={displayLevel} type="creator" adSlotEnabled={!!(rootPost as unknown as { adSlotEnabled?: boolean }).adSlotEnabled} selectedAdId={rootPost.selectedAds?.top} />
+            }
+            middleSlot={
+              <AdSlot position="middle" postCategory={rootPost.category} postId={rootPost.id} postAuthorId={rootPost.author_id} postAuthorLevel={displayLevel} type="creator" adSlotEnabled={!!(rootPost as unknown as { adSlotEnabled?: boolean }).adSlotEnabled} selectedAdId={rootPost.selectedAds?.middle} />
+            }
           />
         )}
 
-        {/* 🚀 ADSMARKET: 본문과 댓글 사이 광고 슬롯 */}
-        {/* 🚀 플랫폼 광고 (Lv2+, 자체 프로모션) */}
+        {/* 🚀 글러브팀 자체 프로모션 (Lv2+) — 댓글 위 (원래 자리). position="bottom" → 깐부맺기 광고 */}
         <AdSlot position="bottom" postCategory={rootPost.category} postAuthorLevel={displayLevel} type="platform" />
-        {/* 🚀 작성자 광고 (Lv5+, 경매/애드센스) */}
-        <AdSlot position="bottom" postCategory={rootPost.category} postId={rootPost.id} postAuthorId={rootPost.author_id} postAuthorLevel={displayLevel} type="creator" adSlotEnabled={!!(rootPost as unknown as { adSlotEnabled?: boolean }).adSlotEnabled} />
 
         {rootPost.category && !['너와 나의 이야기', '신포도와 여우', '황금알을 낳는 거위'].includes(rootPost.category) && rule.boardType !== 'pandora' && (
           !currentNickname ? (
@@ -270,6 +277,9 @@ const DiscussionView = ({
             />
           </div>
         )}
+
+        {/* 🚀 광고 bottom — 댓글 끝, 관련글 사이드바 위 (Lv9+ 슬롯) */}
+        <AdSlot position="bottom" postCategory={rootPost.category} postId={rootPost.id} postAuthorId={rootPost.author_id} postAuthorLevel={displayLevel} type="creator" adSlotEnabled={!!(rootPost as unknown as { adSlotEnabled?: boolean }).adSlotEnabled} selectedAdId={rootPost.selectedAds?.bottom} />
       </div>
 
       {/* 우측: 같은 카테고리 관련 글 목록 */}

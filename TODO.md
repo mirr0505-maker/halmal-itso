@@ -57,6 +57,7 @@
 | 항목 | 핵심 |
 |------|------|
 | **REPUTATION Prestige 3단계** | legend / awe / mythic 토글 조건·경계값·grandfathered 로직. 현재 미활성. Creator Score와 독립 트랙. |
+| **광고주 광고 후보 직접 선택 (옵션 D 활성화)** | 작성자가 새 글 광고 ON 시 활성 광고 목록 → 슬롯별 후보 선택 → 후보군 내 경매. CreatePostBox/Edit에 신규 섹션 + posts.selectedAds 필드 + auction.js 매칭 우선순위. 분량 2~3일. |
 | **광고주 노출당 차감 흐름** | 옵션 A(등록 시 totalBudget 예치) / B(노출 시 ballBalance 차감 + 트랜잭션). 베타 보류. 권장 A → B. |
 | **userCode 참조 전환** | `friendList`/`likedBy`/`author`의 uid → userCode 무중단 4단계. Sprint 8+ 이월. |
 | **추천코드 + Lv20 로드맵** | LEVEL_TABLE은 현재 코드(10000) 확정. Sprint 1 이후 별도 설계. |

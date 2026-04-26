@@ -60,7 +60,10 @@ const OneCutDetailView = ({
 
   const authorData = (rootPost.author_id && allUsers[rootPost.author_id]) || allUsers[`nickname_${rootPost.author}`];
   const realFollowers = followerCounts[rootPost.author] || 0;
-  const displayLevel = calculateLevel(authorData?.exp || 0);
+  // 🚀 2026-04-25: 비로그인 fallback — post.authorInfo.level 박제값으로 광고 노출 보장
+  const displayLevel = authorData
+    ? calculateLevel(authorData.exp || 0)
+    : (rootPost.authorInfo?.level || 1);
   const displayLikes = authorData ? authorData.likes : (rootPost.authorInfo?.totalLikes || 0);
   // 🚀 골드스타: Lv5 이상 유저가 좋아요한 수
   const goldStarCount = (rootPost.likedBy || []).filter(nickname => {
@@ -347,12 +350,10 @@ const OneCutDetailView = ({
             )}
           </div>
 
-          {/* 🚀 ADSMARKET: 이미지 아래 광고 슬롯 */}
+          {/* 🚀 ADSMARKET: middle 광고 — 이미지/본문 끝, 댓글 위 (Lv5+ 모든 작성자) */}
           <div className="px-4 md:px-8">
-            {/* 🚀 플랫폼 광고 (Lv2+) */}
-            <AdSlot position="bottom" postCategory="한컷" postAuthorLevel={displayLevel} type="platform" />
-            {/* 🚀 작성자 광고 (Lv5+) */}
-            <AdSlot position="bottom" postCategory="한컷" postId={rootPost.id} postAuthorId={rootPost.author_id} postAuthorLevel={displayLevel} type="creator" adSlotEnabled={!!(rootPost as unknown as { adSlotEnabled?: boolean }).adSlotEnabled} />
+            <AdSlot position="middle" postCategory="한컷" postAuthorLevel={displayLevel} type="platform" />
+            <AdSlot position="middle" postCategory="한컷" postId={rootPost.id} postAuthorId={rootPost.author_id} postAuthorLevel={displayLevel} type="creator" adSlotEnabled={!!(rootPost as unknown as { adSlotEnabled?: boolean }).adSlotEnabled} />
           </div>
 
           {/* 🚀 작성자 정보 + 액션 버튼 — RootPostCard 박스 스타일 (골드스타는 좋아요 옆, 공유 제거, flex-wrap 모바일 대응) */}
