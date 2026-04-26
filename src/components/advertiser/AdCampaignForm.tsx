@@ -5,8 +5,19 @@ import { db } from '../../firebase';
 import { doc, setDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
 import { uploadToR2 } from '../../uploadToR2';
 import { AD_CATEGORIES, AD_MENU_CATEGORIES } from '../../constants';
+import { REGIONS } from '../../data/regions';
 import AdBanner from '../ads/AdBanner';
 import type { Ad } from '../../types';
+
+// 🌏 지역 빠른 선택 묶음 — shortName 기준
+const REGION_PRESETS: { label: string; regions: string[] }[] = [
+  { label: '수도권', regions: ['서울', '경기', '인천'] },
+  { label: '영남', regions: ['부산', '대구', '울산', '경남', '경북'] },
+  { label: '호남', regions: ['광주', '전남', '전북'] },
+  { label: '충청', regions: ['대전', '세종', '충남', '충북'] },
+  { label: '강원', regions: ['강원'] },
+  { label: '제주', regions: ['제주'] },
+];
 
 interface Props {
   advertiserId: string;
@@ -36,6 +47,7 @@ const AdCampaignForm = ({ advertiserId, advertiserName, editingAd, onBack }: Pro
     targetCategories: editingAd.targetCategories || [],
     targetMenuCategories: editingAd.targetMenuCategories || [],
     targetSlots: (editingAd.targetSlots || ['bottom']) as ('top' | 'middle' | 'bottom')[],
+    targetRegions: editingAd.targetRegions || [],
     targetCreatorId: editingAd.targetCreatorId || '',
     targetCreatorNickname: editingAd.targetCreatorNickname || '',
     bidType: editingAd.bidType || 'cpm' as 'cpm' | 'cpc',
@@ -50,6 +62,7 @@ const AdCampaignForm = ({ advertiserId, advertiserName, editingAd, onBack }: Pro
     targetCategories: [] as string[],
     targetMenuCategories: [] as string[],
     targetSlots: ['bottom'] as ('top' | 'middle' | 'bottom')[],
+    targetRegions: [] as string[],
     targetCreatorId: '',
     targetCreatorNickname: '',
     bidType: 'cpm' as 'cpm' | 'cpc',
@@ -90,6 +103,30 @@ const AdCampaignForm = ({ advertiserId, advertiserName, editingAd, onBack }: Pro
     }));
   };
 
+  // 🌏 지역 선택 토글 — shortName 기준 ("서울", "경기" 등)
+  const toggleRegion = (region: string) => {
+    setForm(prev => ({
+      ...prev,
+      targetRegions: prev.targetRegions.includes(region)
+        ? prev.targetRegions.filter(r => r !== region)
+        : [...prev.targetRegions, region],
+    }));
+  };
+
+  // 🌏 빠른 선택 묶음 — 묶음 전체 토글 (모두 선택돼있으면 모두 해제, 아니면 모두 추가)
+  const applyRegionPreset = (preset: string[]) => {
+    setForm(prev => {
+      const allSelected = preset.every(r => prev.targetRegions.includes(r));
+      const next = allSelected
+        ? prev.targetRegions.filter(r => !preset.includes(r))
+        : Array.from(new Set([...prev.targetRegions, ...preset]));
+      return { ...prev, targetRegions: next };
+    });
+  };
+
+  // 🌏 라디오 — 전국(빈 배열) ↔ 특정 지역만(선택 모드)
+  const isRegionAll = form.targetRegions.length === 0;
+
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -126,7 +163,6 @@ const AdCampaignForm = ({ advertiserId, advertiserName, editingAd, onBack }: Pro
           id: editingAd.id,
           advertiserId,
           advertiserName,
-          targetRegions: editingAd.targetRegions || [],
           status: newStatus,
           // 누적 통계 보존
           totalImpressions: editingAd.totalImpressions || 0,
@@ -152,7 +188,6 @@ const AdCampaignForm = ({ advertiserId, advertiserName, editingAd, onBack }: Pro
           id: adId,
           advertiserId,
           advertiserName,
-          targetRegions: [],
           status,
           totalImpressions: 0,
           totalClicks: 0,
@@ -314,6 +349,54 @@ const AdCampaignForm = ({ advertiserId, advertiserName, editingAd, onBack }: Pro
             </div>
           </div>
 
+          {/* 🌏 노출 지역 — 전국 default / 특정 시·도 선택 */}
+          <div>
+            <p className="text-[10px] font-bold text-slate-500 mb-1">🌏 노출 지역</p>
+            <p className="text-[9px] font-bold text-slate-400 mb-2">열람자의 IP 지역에 따라 매칭. 추가 요금 없음 — 좁히면 매칭 경쟁 ↓.</p>
+            <div className="flex gap-2 mb-2">
+              <button type="button" onClick={() => setForm(prev => ({ ...prev, targetRegions: [] }))}
+                className={`px-3 py-1.5 rounded-lg text-[11px] font-[1000] transition-all ${isRegionAll ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}>
+                🇰🇷 전국
+              </button>
+              <button type="button" onClick={() => { if (isRegionAll) setForm(prev => ({ ...prev, targetRegions: ['서울'] })); }}
+                className={`px-3 py-1.5 rounded-lg text-[11px] font-[1000] transition-all ${!isRegionAll ? 'bg-violet-600 text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}>
+                🎯 특정 지역만
+              </button>
+            </div>
+            {!isRegionAll && (
+              <div className="bg-slate-50 rounded-lg p-2.5 space-y-2">
+                {/* 빠른 선택 묶음 */}
+                <div className="flex flex-wrap gap-1">
+                  <span className="text-[9px] font-bold text-slate-400 self-center mr-1">빠른 선택:</span>
+                  {REGION_PRESETS.map(p => {
+                    const allOn = p.regions.every(r => form.targetRegions.includes(r));
+                    return (
+                      <button key={p.label} type="button" onClick={() => applyRegionPreset(p.regions)}
+                        className={`px-2 py-0.5 rounded text-[10px] font-[1000] transition-all ${allOn ? 'bg-violet-100 text-violet-700 border border-violet-300' : 'bg-white text-slate-500 border border-slate-200 hover:border-violet-300'}`}>
+                        {p.label}
+                      </button>
+                    );
+                  })}
+                </div>
+                {/* 17개 시·도 체크박스 그리드 */}
+                <div className="grid grid-cols-4 sm:grid-cols-6 gap-1">
+                  {REGIONS.map(r => {
+                    const on = form.targetRegions.includes(r.shortName);
+                    return (
+                      <button key={r.shortName} type="button" onClick={() => toggleRegion(r.shortName)}
+                        className={`px-2 py-1 rounded text-[10px] font-[1000] transition-all ${on ? 'bg-violet-600 text-white' : 'bg-white text-slate-500 border border-slate-200 hover:border-violet-300'}`}>
+                        {r.shortName}
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className="text-[9px] font-bold text-violet-600">
+                  선택됨: {form.targetRegions.length}개 — {form.targetRegions.join(' · ')}
+                </p>
+              </div>
+            )}
+          </div>
+
           {/* 🏪 크리에이터 지면 타겟팅 */}
           <div>
             <p className="text-[10px] font-bold text-slate-500 mb-2">크리에이터 타겟팅 (선택)</p>
@@ -370,6 +453,9 @@ const AdCampaignForm = ({ advertiserId, advertiserName, editingAd, onBack }: Pro
           ) : (
             <div className={`mx-auto bg-slate-50 rounded-xl p-3 space-y-3 transition-all ${previewMode === 'mobile' ? 'max-w-[360px]' : 'max-w-[600px]'}`}>
               <p className="text-[9px] font-bold text-slate-400 text-center">실제 글 상세 페이지에 노출되는 모습 ({previewMode === 'mobile' ? '모바일' : 'PC'} 폭)</p>
+              <p className="text-[9px] font-[1000] text-emerald-600 text-center">
+                🌏 노출 대상: {form.targetRegions.length === 0 ? '전국' : form.targetRegions.join(' · ')}
+              </p>
               {(['top', 'middle', 'bottom'] as const)
                 .filter(p => form.targetSlots.includes(p))
                 .map(pos => {

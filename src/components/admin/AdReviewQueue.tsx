@@ -98,7 +98,7 @@ const AdReviewQueue = () => {
           <div className="grid grid-cols-2 gap-2 text-[11px] font-bold text-slate-500 mb-3">
             <p>📂 업종: {ad.targetCategories?.length ? ad.targetCategories.join(', ') : '전체'}</p>
             <p>📍 노출 메뉴: {ad.targetMenuCategories?.length ? ad.targetMenuCategories.join(', ') : '전체'}</p>
-            <p>🌍 지역: {ad.targetRegions?.length ? ad.targetRegions.join(', ') : '전국'}</p>
+            <p>🌏 노출 지역: {ad.targetRegions?.length ? ad.targetRegions.join(', ') : '전국'}</p>
             <p>📌 슬롯: {ad.targetSlots?.join(', ') || '-'}</p>
             <p>💰 입찰: {ad.bidType?.toUpperCase()} ⚾ {formatKoreanNumber(ad.bidAmount || 0)}</p>
             <p>📅 일예산: ⚾ {formatKoreanNumber(ad.dailyBudget || 0)}</p>

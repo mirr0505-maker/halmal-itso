@@ -222,6 +222,9 @@ const AdMarketplaceModal = ({ slot, currentSelectedAdId, postCategory, onSelect,
                               <span className="text-[10px] font-[1000] text-amber-600">⚾ {ad.bidAmount}볼</span>
                               <span className="text-[8px] font-bold text-slate-400">{(ad.bidType || '').toUpperCase()}</span>
                               {menuMatch && <span className="text-[8px] font-[1000] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded">📍 일치</span>}
+                              <span className="text-[8px] font-[1000] bg-sky-100 text-sky-700 px-1.5 py-0.5 rounded truncate max-w-[120px]" title={ad.targetRegions?.length ? ad.targetRegions.join(', ') : '전국'}>
+                                🌏 {ad.targetRegions?.length ? (ad.targetRegions.length <= 2 ? ad.targetRegions.join('·') : `${ad.targetRegions[0]} 외 ${ad.targetRegions.length - 1}`) : '전국'}
+                              </span>
                               {isApplied && <span className="text-[8px] font-[1000] bg-violet-600 text-white px-1.5 py-0.5 rounded">현재 적용</span>}
                             </div>
                           </div>
@@ -299,6 +302,9 @@ const AdMarketplaceModal = ({ slot, currentSelectedAdId, postCategory, onSelect,
                   ) : (
                     <p className="text-[9px] font-bold text-slate-400">타겟 메뉴: 전체</p>
                   )}
+                  <p className="text-[9px] font-[1000] text-sky-700">
+                    🌏 노출 지역: {previewAd.targetRegions?.length ? previewAd.targetRegions.join(' · ') : '전국'}
+                  </p>
                 </div>
                 <button
                   onClick={handleConfirm}
