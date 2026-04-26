@@ -84,11 +84,14 @@
 │   ├── reputationV2.js      # 🏅 REPUTATION V2 서버 공식 (decay + abuse penalty) — src/utils.ts 미러
 │   ├── creatorScore.js      # 🏅 Creator Score 서버 공식 ((rep × act × trust) / 1000) — src/constants.ts 미러
 │   └── levelSync.js         # 레벨 동기화 헬퍼
-├── auction.js               # adAuction — 광고 슬롯 입찰 처리
+├── auction.js               # adAuction v2 — 광고 슬롯 경매 + viewable/click 분기 + 빈도 캡·예산 가드·Brand Safety
 ├── revenue.js               # aggregateDailyRevenue — 일별 광고 수익 집계
 ├── fraud.js                 # detectFraud — 부정 클릭 감지
 ├── settlement.js            # processSettlements — 정산 처리
 ├── adTriggers.js            # syncAdBids / updateAdMetrics — ADSMARKET 광고 트리거
+├── budgetEnforcer.js        # 📊 v2 P0-1 — enforceBudgetLimits(매시간) + releaseDailyBudgetPause(04:00 KST)
+├── aggregateAdStats.js      # 📊 v2 P0-3 — 매일 04:30 KST 전일 adEvents 광고별 집계 → ad_stats_daily
+├── estimateAdReach.js       # 📊 v2 P1-7 — estimateAdReach callable (예상 일 노출 추정)
 ├── kanbuPromo.js            # registerKanbuPromo — 깐부 홍보 카드 등록 (Lv2+, 기간제 과금) → KANBU.md
 ├── kanbuPaid.js             # joinPaidKanbuRoom + checkKanbuSubscriptionExpiry — 유료 게시판 결제·만료 → KANBU.md
 ├── livePresence.js          # cleanupLivePresence — 🔴 라이브 좀비 참가자 정리 → KANBU.md §5
@@ -226,6 +229,10 @@
 | `market_shops` | 🏪 단골장부 상점 (전체 read, 본인만 write) | `creator_{uid}` |
 | `market_subscriptions` | 🏪 단골장부 구독 (Cloud Function만 write) | `{creatorId}_{subscriberId}` |
 | `market_ad_revenues` | 🏪 광고 수익 일별 기록 (Cloud Function만 write) | `{itemId}_{YYYYMMDD}` |
+| `ads` | 📢 ADSMARKET 광고 소재 (광고주 본인 + 관리자 검수) | `ad_{timestamp}_{advertiserId}` |
+| `adEvents` | 📢 ADSMARKET 노출/가시/클릭 이벤트 (CF 전용 write) | autoId |
+| `ad_stats_daily` | 📊 ADSMARKET v2 광고주 통계 일별 집계 (CF 전용, 2026-04-26) | `{adId}_{YYYYMMDD}` |
+| `advertiserAccounts` | 📢 ADSMARKET 광고주 계정 (개인/사업자/법인) | `{uid}` |
 | `bail_history` | 🏚️ 속죄금 결제 이력 (본인만 read) | `bail_{timestamp}_{uid}` |
 | `release_history` | 🏚️ 해금 이력 (본인만 read) | `release_{timestamp}_{uid}` |
 | `banned_phones` | 🏚️ 사약 블랙리스트 (Cloud Function 전용) | `{phoneHash}` |
@@ -510,6 +517,9 @@ creatorScore = (reputation × activity × trust) / 1000
   - `testChargeBall`: 테스트용 볼 충전
   - `registerKanbuPromo`: 깐부 홍보 카드 등록 (promoEnabled 직접 수정 차단)
   - `adAuction` / `aggregateDailyRevenue` / `detectFraud` / `processSettlements`: ADSMARKET 광고 시스템
+  - 📊 `enforceBudgetLimits` (매시간) / `releaseDailyBudgetPause` (매일 04:00 KST): ADSMARKET v2 예산 자동 정지·재개
+  - 📊 `aggregateAdStats` (매일 04:30 KST): ADSMARKET v2 일별 통계 집계
+  - 📊 `estimateAdReach` (callable): ADSMARKET v2 등록 시 예상 노출 추정
   - `validateContentLength`: 신포도와 여우 100자 제한
   - 🏅 `snapshotUserDaily`: Sprint 3 — 매일 03:30 KST 유저 활동 스냅샷 (`user_snapshots/{yyyyMMdd}_{uid}`)
   - 🏅 `reputationCache`: Sprint 3 — 매일 04:45 KST V2 평판 전체 재계산 (변화 없으면 쓰기 생략)

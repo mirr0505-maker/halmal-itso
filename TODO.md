@@ -2,7 +2,7 @@
 
 > **목적**: 메모리 폴더에 분산된 18개 백로그/튜닝 메모리를 단일 파일로 통합. 새 백로그가 생기면 이 파일에만 추가.
 > **범위**: 완료 아카이브·운영 가이드(feedback)·배포 이력은 메모리 폴더에 별도 유지. 본 파일은 "앞으로 할 일"만.
-> 최종 갱신: 2026-04-25
+> 최종 갱신: 2026-04-26
 
 ---
 
@@ -10,10 +10,13 @@
 
 | 날짜 | 작업 | 무엇을 |
 |------|------|--------|
+| **2026-04-27** | ADSMARKET v2 첫 데이터 (D+1) | 04:30 KST `aggregateAdStats` 스케줄 실행 → `ad_stats_daily` 첫 일치 데이터 생성 확인 + AdStatsModal 데이터 노출 |
 | **2026-04-29** | Phase C 분포 첫 실측 (D+7) | `users.creatorScoreCached` P50/P75/P90 + `creatorScoreTier` 분포 + `reportsUniqueReporters` + Gate 4종 통과율 + `adEvents.winnerScoreWeight` 히스토그램 |
+| **2026-05-03** | ADSMARKET v2 안정성 검증 (D+7) | viewableRate 분포 + 빈도 캡 도달률 + 일예산 자동 정지 빈도 + Brand Safety 차단 비율. **이후 P1-6 A/B 다중 소재 착수 가능**. |
 | **2026-05-06** | Phase C 일괄 튜닝 (D+14) | Gate / consumer / REPORT_PENALTIES 3건 동일 사이클 재조정 (개별 조정 금지) |
 | **2026-05-07** | 추천코드 임계 재조정 (배포 2주 후) | 활성 기준 "글 1+ OR 댓글 3+" / 악용 방어 device_fp · /24 3+ same_ip · 1h 5+ rapid_redeem |
 | **2026-05-08** | FLAGGING 7항목 직접 쿼리 (D+13) | reportsUniqueReporters · reportState · creatorScoreCached · Gate 통과율 · audit_anomalies · 이의제기 처리율. Firebase Console 직접 |
+| **2026-05-10** | ADSMARKET v2 재구매 가설 검증 (D+14) | 광고주 카드 통계 사용 비율 + AdStatsModal 도달률 + 재등록률(P0-3 효과 측정) |
 
 **조기 튜닝 트리거** (위 일정 무시): 피드 역전 민원 월 3건+ / Gate 통과율 0% or 100% / REPORT_PENALTIES 5명 도달 zero / `audit_anomalies` critical 1건+
 
@@ -57,8 +60,7 @@
 | 항목 | 핵심 |
 |------|------|
 | **REPUTATION Prestige 3단계** | legend / awe / mythic 토글 조건·경계값·grandfathered 로직. 현재 미활성. Creator Score와 독립 트랙. |
-| **광고주 광고 후보 직접 선택 (옵션 D 활성화)** | 작성자가 새 글 광고 ON 시 활성 광고 목록 → 슬롯별 후보 선택 → 후보군 내 경매. CreatePostBox/Edit에 신규 섹션 + posts.selectedAds 필드 + auction.js 매칭 우선순위. 분량 2~3일. |
-| **광고주 노출당 차감 흐름** | 옵션 A(등록 시 totalBudget 예치) / B(노출 시 ballBalance 차감 + 트랜잭션). 베타 보류. 권장 A → B. |
+| **ADSMARKET v2 잔여 항목** | P1-6 A/B 다중 소재(다음 우선) + P2-9~13(Smart Bidding/리타게팅/후불 정산/작성자 floor/부정 클릭 ML). 진행 트래커 [AdsRoadmap.md](./AdsRoadmap.md) — 13항목 중 7건 완료(2026-04-26). |
 | **userCode 참조 전환** | `friendList`/`likedBy`/`author`의 uid → userCode 무중단 4단계. Sprint 8+ 이월. |
 | **추천코드 + Lv20 로드맵** | LEVEL_TABLE은 현재 코드(10000) 확정. Sprint 1 이후 별도 설계. |
 | **syncUserLevel CF 후속** | 옵션 B 부분 커버리지. Phase C Gate blocker 해제 완료 — 추가 보강 필요 시 검토. |

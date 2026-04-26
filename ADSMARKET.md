@@ -3,9 +3,14 @@
 > **문서 목적**: VS Code에서 AI(Claude) 또는 휴먼 개발자가 코딩 작업을 수행할 때 **단일 진실 소스(Single Source of Truth)**로 사용하는 기획서.
 > 모든 컬렉션 · 인터페이스 · 비즈니스 로직 · UI 컴포넌트를 이 문서 하나로 확정한다.
 >
-> 최종 갱신: 2026-04-25 v1.2 | 기술 스택: React 19 + TS + Vite · Tailwind 4 · Firebase (Firestore + Auth + Cloud Functions) · Cloudflare R2/Workers
+> 최종 갱신: 2026-04-26 v2.0 | 기술 스택: React 19 + TS + Vite · Tailwind 4 · Firebase (Firestore + Auth + Cloud Functions) · Cloudflare R2/Workers
 >
-> **v1.2 (2026-04-25) 변경 요약** — 광고 스타일 2종(`imageStyle: 'horizontal' | 'vertical'`, `imagePosition`), 카테고리 매칭 재설계(`targetCategories` 업종 통계용 분리 + `targetMenuCategories` 매칭 핵심), 단위 ⚾ 통일(원→볼), 광고 수정 기능, 임시 충전(testChargeBall), AdReviewQueue try/catch, 인덱스 보강. 광고주 노출당 차감은 베타 보류(`memory/project_ad_billing_advertiser_charge.md`).
+> **v2.0 (2026-04-26) 변경 요약** — AdsRoadmap.md P0~P1 7항목 일괄 도입.
+>   ① P0-1 일/총 예산 자동 차감·정지 (`budgetEnforcer.js` 매시간 + 04:00 KST 재개) ②  P0-2 빈도 캡 (`ads.frequencyCap` default 24h 3회) ③ P0-3 광고주 통계 대시보드 (`ad_stats_daily` + `aggregateAdStats` 04:30 KST + AdStatsModal SVG 시각화) ④ P0-4 Viewable Impressions IAB 표준 (50%·1초+, 차감은 viewable 기준) ⑤ P1-5 UTM 자동 부착 ⑥ P1-7 예상 일 노출 추정 (`estimateAdReach` callable + 슬라이더) ⑦ P1-8 Brand Safety (`blockedCategories` default '유배·귀양지'). 자세한 진행 상황은 [AdsRoadmap.md](./AdsRoadmap.md).
+>
+> **v1.3 (2026-04-26) 변경 요약** — 광고 경매시장 모달(AdMarketplaceModal 좌 그리드 + 우 미리보기 sticky 패널) + 작성자 슬롯별 직접 광고 선택 + 본문 내 광고 슬롯(top/middle inside RootPostCard, bottom outside) + 노출 지역 타겟팅 UI(17 시·도 + 6 묶음 빠른 선택) + Cloudflare Worker `/region` endpoint(ipapi.co CORS 우회).
+>
+> **v1.2 (2026-04-25) 변경 요약** — 광고 스타일 2종(`imageStyle: 'horizontal' | 'vertical'`, `imagePosition`), 카테고리 매칭 재설계(`targetCategories` 업종 통계용 분리 + `targetMenuCategories` 매칭 핵심), 단위 ⚾ 통일(원→볼), 광고 수정 기능, 임시 충전(testChargeBall), AdReviewQueue try/catch, 인덱스 보강.
 
 ---
 

@@ -1,5 +1,38 @@
 ## 8. 현재 구현 상태 (2026-03-24 기준, 코드 실측)
 
+### 📊 ADSMARKET v2 — P0~P1 7항목 일괄 도입 (2026-04-26, 커밋 2f47252)
+
+> AdsRoadmap.md 7건 일괄 — 광고주 신뢰·사용자 보호·UX 고도화 패키지.
+
+- [x] **P0-1 일/총 예산 자동 차감·정지**: `ads.{pausedReason, todaySpent, lastSpentResetAt}` 신설 + `functions/budgetEnforcer.js` (enforceBudgetLimits 매시간 + releaseDailyBudgetPause 매일 04:00 KST). AdCampaignList 예산 게이지(일/총, 80%↑ amber, 95%↑ rose) + 📊 예산소진 배지. ad_budget_paused 알림.
+- [x] **P0-2 빈도 캡 (Frequency Cap)**: `ads.frequencyCap` (default 24h 3회). auction.js 매칭 직전 viewerUid+adId N시간 viewable count 검증. AdCampaignForm 빈도 제한 섹션 (기간 + 회수). adEvents (viewerUid, adId, eventType, createdAt) 색인.
+- [x] **P0-4 Viewable Impressions (IAB 표준)**: `adEvents.eventType` 'viewable' 신설 + `ads.viewableImpressions`. AdSlot IntersectionObserver 50%·1초+ 충족 시 viewable 발사 (광고당 1회 ref). 차감은 viewable 기준 — impression은 카운트만 (광고주 보호).
+- [x] **P0-3 광고주 통계 대시보드**: `ad_stats_daily/{adId}_{yyyymmdd}` 신설 + `functions/aggregateAdStats.js` (매일 04:30 KST). AdStatsModal — KPI 4종 + 일별 SVG 라인(노출 violet · 클릭 amber) + 분해 3종(슬롯/메뉴/지역) + 24h 시간대 히트맵. 라이브러리 없이 SVG 직접. AdCampaignList [📊 통계] 진입.
+- [x] **P1-5 UTM 자동 부착**: AdBanner 클릭 시 `?utm_source=geulove&utm_medium={slot}&utm_campaign={adId}` 자동 추가. 외부 GA·Naver Analytics 연동 가능.
+- [x] **P1-7 예상 일 노출 추정**: `functions/estimateAdReach.js` (callable) — 7일 ad_stats_daily 평균 + 단가 가중. AdCampaignForm 입찰 섹션에 실시간 추정 카드(debounce 500ms · 24px 큰 숫자).
+- [x] **P1-8 Brand Safety**: `ads.blockedCategories` (default ['유배·귀양지']). auction.js 차단 카테고리 매칭 시 후보 제외. AdCampaignForm Brand Safety 섹션.
+- [x] **firestore.rules**: 7개 신규 필드(pausedReason/todaySpent/lastSpentResetAt/viewableImpressions/totalSpent/totalImpressions/totalClicks) 클라 직접 쓰기 차단. ad_stats_daily read=auth, write=false.
+- [x] **firestore.indexes**: adEvents (viewerUid+adId+eventType+createdAt), ads (status+pausedReason), ad_stats_daily (adId+date) 색인 추가.
+- [x] **AdsRoadmap.md** 신설 — 13항목 종합 계획서 + 진행 트래커.
+- 다음(P1-6 A/B 다중 소재): D+7 안정성 검증 후 착수 권장.
+
+### 🌏 ADSMARKET — 광고 노출 지역 타겟팅 UI + Cloudflare Worker /region (2026-04-26)
+
+- [x] **AdCampaignForm 노출 지역 섹션**: 전국(default) / 특정 지역만 라디오 + 6개 빠른 선택 묶음(수도권·영남·호남·충청·강원·제주) + 17개 시·도 체크박스 그리드 + 선택 카운트. setDoc 하드코드 `[]` 제거 → form.targetRegions 저장.
+- [x] **AdMarketplaceModal**: 카드 배지 `🌏 전국`/`🌏 서울·경기` + 미리보기 패널에 `🌏 노출 지역` 행.
+- [x] **AdReviewQueue**: 라벨 통일 (`🌍 → 🌏 노출 지역`).
+- [x] **halmal-link-preview Worker `/region` endpoint**: `request.cf.{region, country, city}` 직접 반환. CORS·rate limit 0, 무료 무제한.
+- [x] **getViewerRegion**: ipapi.co → Worker endpoint 교체. ipapi.co CORS 차단·429 폭주 이슈 해소. in-flight singleton + 30분 negative cache.
+
+### 📢 ADSMARKET — 광고 경매시장 모달 + 작성자 직접 선택 + 본문 내 슬롯 (2026-04-26)
+
+- [x] **AdMarketplaceModal 신설**: 좌(그리드 2열 컴팩트 카드) + 우(미리보기 sticky 패널). 검색·메뉴 일치 필터·정렬·무한 스크롤(20개/페이지). 카드 hover 갱신 제거(떨림 차단). 카드 클릭 = preview 갱신, 우측 [✓ 선택] = 최종 적용. 자동 매칭도 동일 패턴.
+- [x] **자동 매칭 명시 결정 vs default 미선택 구분**: `selectedAds[pos] = 'auto'`(명시) / undefined(default) / 광고ID(직접). picker 라벨 3분기.
+- [x] **AdSlot React Hooks 규칙 위반 수정**: 두 번째 useEffect를 early return 앞으로 이동. ErrorBoundary 무한 재마운트(페이지 새로고침 반복) 해결.
+- [x] **본문 내 광고 슬롯**: top/middle inside RootPostCard (topSlot/middleSlot props), bottom outside. 작성자가 글마다 슬롯별 광고 선택 또는 자동 매칭.
+- [x] **ctaText 빈 입력 가드**: AdBanner fallback `'자세히 보기'` + AdCampaignForm safeCtaText.
+- [x] **firestore.indexes.json**: notifications/items 컬렉션 (type, createdAt) 인덱스 추가 — pendingTitleModal 쿼리 인덱스 누락 해소.
+
 ### 📢 ADSMARKET 전면 개편 — UI·단위·매칭·결제·수정 (2026-04-25)
 
 - [x] **광고 스타일 2종**: `imageStyle: 'horizontal' | 'vertical'`. 가로 플래카드형(3:1 + 하단 텍스트) / 세로형(9:16 + 좌·우 위치 선택 + 반대편 텍스트). 폼·미리보기·실제 노출 모두 분기.
