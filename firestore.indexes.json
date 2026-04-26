@@ -19,13 +19,6 @@
       ]
     },
     {
-      "collectionGroup": "adEvents",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "createdAt", "order": "ASCENDING" }
-      ]
-    },
-    {
       "collectionGroup": "ads",
       "queryScope": "COLLECTION",
       "fields": [
@@ -39,13 +32,6 @@
       "fields": [
         { "fieldPath": "adId", "order": "ASCENDING" },
         { "fieldPath": "date", "order": "DESCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "ad_stats_daily",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "date", "order": "ASCENDING" }
       ]
     },
     {
