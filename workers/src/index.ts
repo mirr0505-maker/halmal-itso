@@ -78,7 +78,28 @@ export default {
       return new Response('Method Not Allowed', { status: 405, headers: corsHeaders });
     }
 
-    const { searchParams } = new URL(request.url);
+    const reqUrl = new URL(request.url);
+    const { pathname, searchParams } = reqUrl;
+
+    // 🌏 /region — Cloudflare cf.* 기반 IP 지역 추정 (광고 viewerRegion 타겟팅용)
+    //   cf.region: 영문 시/도명 (예: "Seoul", "Gyeonggi-do") — ipapi.co와 동일 형식
+    //   cf.country: ISO 3166-1 alpha-2 (예: "KR")
+    //   기존 ipapi.co 우회 — CORS·rate limit 0, Cloudflare Workers 무료 무제한
+    if (pathname === '/region') {
+      const cf = (request as unknown as { cf?: Record<string, unknown> }).cf || {};
+      return new Response(JSON.stringify({
+        region: (cf.region as string) || '',
+        country: (cf.country as string) || '',
+        city: (cf.city as string) || '',
+      }), {
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/json',
+          'Cache-Control': 'public, max-age=1800', // 30분 — 클라이언트와 동일 캐시
+        },
+      });
+    }
+
     const targetUrl = searchParams.get('url');
 
     if (!targetUrl) {

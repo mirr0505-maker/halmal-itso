@@ -1,9 +1,12 @@
 // src/utils/getViewerRegion.ts — IP 기반 열람자 지역 추정 (광고 타겟팅용)
-// 🚀 ipapi.co 무료 API + sessionStorage 30분 캐시 + 한글 시/도 매핑
+// 🚀 sessionStorage 30분 캐시 + 한글 시/도 매핑
 // 실패 시 빈 문자열 (서버에서 전국 매칭으로 폴백)
 // 🔧 2026-04-26: in-flight singleton + negative cache.
 //   기존 — 한 페이지 다중 AdSlot이 동시 호출 → 429 + CORS 차단 + 실패도 캐시 안 돼서 매 호출마다 재시도.
 //   수정 — 동시 호출 1번으로 합치고, 실패 결과도 30분 캐시(빈 문자열).
+// 🚀 2026-04-26 v2: ipapi.co → halmal-link-preview Worker /region endpoint.
+//   Cloudflare Workers `request.cf.region` 사용 — CORS·rate limit 0, 무료 무제한.
+//   응답: { region: "Seoul"|..., country: "KR"|..., city: "..." } (ipapi.co와 동일 영문 schema)
 
 const IP_REGION_CACHE_KEY = 'viewerRegion';
 const CACHE_DURATION_MS = 30 * 60 * 1000; // 30분 (성공·실패 공통)
@@ -38,7 +41,7 @@ export async function getViewerRegion(): Promise<string> {
 
   inflight = (async () => {
     try {
-      const response = await fetch('https://ipapi.co/json/', {
+      const response = await fetch('https://halmal-link-preview.mirr0505.workers.dev/region', {
         signal: AbortSignal.timeout(3000),
       });
       const region = response.ok ? mapRegionToKorean((await response.json())?.region || '') : '';
