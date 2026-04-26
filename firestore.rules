@@ -655,18 +655,30 @@ service cloud.firestore {
     // ════════════════════════════════════════════════════════
 
     // 광고 소재: 누구나 읽기 (노출용), 광고주 본인 + 관리자(검수)
+    // 🔒 v2 P0-1: pausedReason/todaySpent/lastSpentResetAt/viewableImpressions/totalSpent/totalImpressions/totalClicks
+    //            클라이언트 직접 수정 차단 — Cloud Function(adAuction/budgetEnforcer) 전용
     match /ads/{adId} {
       allow read: if true;
       allow create: if request.auth != null;
-      // 본인 또는 관리자(승인/거절) update 허용
       allow update: if request.auth != null
-        && (resource.data.advertiserId == request.auth.uid || isAdmin());
+        && (
+          (resource.data.advertiserId == request.auth.uid
+            && !request.resource.data.diff(resource.data).affectedKeys()
+                .hasAny(['pausedReason', 'todaySpent', 'lastSpentResetAt', 'viewableImpressions', 'totalSpent', 'totalImpressions', 'totalClicks']))
+          || isAdmin()
+        );
       allow delete: if request.auth != null
         && resource.data.advertiserId == request.auth.uid;
     }
 
     // 광고 이벤트: Cloud Function Admin SDK만 쓰기 (클라이언트 직접 쓰기 금지)
     match /adEvents/{eventId} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+
+    // 🚀 v2 P0-3: 일별 광고 통계 집계 — 누구나 read(본인 광고만 의미 있음), CF 전용 write
+    match /ad_stats_daily/{statsId} {
       allow read: if request.auth != null;
       allow write: if false;
     }

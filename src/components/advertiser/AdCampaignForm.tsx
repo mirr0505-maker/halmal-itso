@@ -1,7 +1,8 @@
 // src/components/advertiser/AdCampaignForm.tsx — 광고 등록/수정 폼
 // 🚀 Phase α-2 G (2026-04-25): 슬롯 위치별 + PC/모바일 미리보기 섹션 추가
-import { useState } from 'react';
-import { db } from '../../firebase';
+import { useState, useEffect } from 'react';
+import { db, functions } from '../../firebase';
+import { httpsCallable } from 'firebase/functions';
 import { doc, setDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
 import { uploadToR2 } from '../../uploadToR2';
 import { AD_CATEGORIES, AD_MENU_CATEGORIES } from '../../constants';
@@ -54,6 +55,9 @@ const AdCampaignForm = ({ advertiserId, advertiserName, editingAd, onBack }: Pro
     bidAmount: editingAd.bidAmount || 1000,
     dailyBudget: editingAd.dailyBudget || 10000,
     totalBudget: editingAd.totalBudget || 100000,
+    // 🚀 v2 신규 필드
+    frequencyCap: editingAd.frequencyCap || { limit: 3, periodHours: 24 },
+    blockedCategories: editingAd.blockedCategories || ['유배·귀양지'],
   } : {
     title: '', headline: '', description: '', ctaText: '자세히 보기',
     landingUrl: '', imageUrl: '',
@@ -68,7 +72,34 @@ const AdCampaignForm = ({ advertiserId, advertiserName, editingAd, onBack }: Pro
     bidType: 'cpm' as 'cpm' | 'cpc',
     // 🚀 2026-04-25 단위 통일: 원(₩) → 볼(⚾). 베타 default값 (CPM 1000노출당 10볼)
     bidAmount: 10, dailyBudget: 1000, totalBudget: 10000,
+    // 🚀 v2 신규 필드 default
+    frequencyCap: { limit: 3, periodHours: 24 } as { limit: number; periodHours: number },
+    blockedCategories: ['유배·귀양지'] as string[],
   });
+  // 🚀 v2 P1-7: 노출 추정값 캐시 (단가·타겟팅 조건 변경 시 갱신)
+  const [reachEstimate, setReachEstimate] = useState<{ daily: number; loading: boolean }>({ daily: 0, loading: false });
+
+  // 🚀 v2 P1-7: 단가·타겟팅 조건 변경 시 예상 노출 재계산 (debounce 500ms)
+  useEffect(() => {
+    if (form.bidAmount <= 0) return;
+    setReachEstimate(prev => ({ ...prev, loading: true }));
+    const handle = setTimeout(async () => {
+      try {
+        const fn = httpsCallable<{ bidType: string; bidAmount: number; targetSlots: string[]; targetMenuCategories: string[]; targetRegions: string[] }, { estimatedDailyImpressions: number; dataAvailable: boolean }>(functions, 'estimateAdReach');
+        const result = await fn({
+          bidType: form.bidType, bidAmount: form.bidAmount,
+          targetSlots: form.targetSlots,
+          targetMenuCategories: form.targetMenuCategories,
+          targetRegions: form.targetRegions,
+        });
+        setReachEstimate({ daily: result.data.estimatedDailyImpressions || 0, loading: false });
+      } catch (err) {
+        console.warn('[estimateAdReach]', err);
+        setReachEstimate({ daily: 0, loading: false });
+      }
+    }, 500);
+    return () => clearTimeout(handle);
+  }, [form.bidType, form.bidAmount, form.targetSlots, form.targetMenuCategories, form.targetRegions]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   // 🚀 미리보기 폭 모드 (PC vs 모바일)
@@ -525,6 +556,66 @@ const AdCampaignForm = ({ advertiserId, advertiserName, editingAd, onBack }: Pro
                 className="w-full border border-slate-200 rounded-xl px-3 py-2 text-[13px] font-bold outline-none focus:border-violet-400" />
             </div>
           </div>
+
+          {/* 🚀 v2 P1-7: 예상 노출 추정 — 단가·타겟팅 조건 변경 시 실시간 갱신 */}
+          <div className="bg-gradient-to-br from-sky-50 to-violet-50 rounded-xl p-3 border border-sky-100">
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-[10px] font-[1000] text-slate-600">📊 예상 일 노출</span>
+              {reachEstimate.loading && <span className="text-[9px] font-bold text-slate-400">계산 중...</span>}
+            </div>
+            <p className="text-[24px] font-[1000] text-violet-700">
+              {reachEstimate.daily > 0 ? reachEstimate.daily.toLocaleString() : '—'}
+              <span className="text-[11px] font-bold text-slate-500 ml-1.5">회 / 일</span>
+            </p>
+            <p className="text-[9px] font-bold text-slate-400 mt-0.5">
+              💡 지난 7일 데이터 기반 추정. 실제 노출은 매칭 광고 수에 따라 변동.
+            </p>
+          </div>
+        </div>
+
+        {/* 🚀 v2 P0-2: 빈도 캡 — 사용자별 N시간 N회 노출 상한 */}
+        <div className="flex flex-col gap-3">
+          <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-widest">👁 빈도 제한 (사용자별 노출 상한)</h3>
+          <p className="text-[10px] font-bold text-slate-500">같은 사용자에게 단시간에 같은 광고를 자주 노출하면 거부감이 ↑.<br />3~5회가 광고 인지·전환의 황금 구간 (default 24시간 3회).</p>
+          <div className="bg-slate-50 rounded-xl p-3 flex items-center gap-3 flex-wrap">
+            <label className="text-[10px] font-[1000] text-slate-600">기간</label>
+            <select value={form.frequencyCap.periodHours}
+              onChange={e => update('frequencyCap', { ...form.frequencyCap, periodHours: Number(e.target.value) })}
+              className="px-2 py-1.5 rounded-md border border-slate-200 text-[11px] font-bold outline-none focus:border-violet-400">
+              <option value={1}>1시간</option>
+              <option value={6}>6시간</option>
+              <option value={12}>12시간</option>
+              <option value={24}>24시간 (권장)</option>
+              <option value={48}>48시간</option>
+              <option value={168}>7일</option>
+            </select>
+            <span className="text-[10px] font-bold text-slate-400">내</span>
+            <input type="number" min={1} max={50} value={form.frequencyCap.limit}
+              onChange={e => update('frequencyCap', { ...form.frequencyCap, limit: Math.max(1, Number(e.target.value)) })}
+              className="w-16 px-2 py-1.5 rounded-md border border-slate-200 text-[11px] font-bold text-center outline-none focus:border-violet-400" />
+            <span className="text-[10px] font-[1000] text-violet-700">회까지 노출</span>
+          </div>
+        </div>
+
+        {/* 🚀 v2 P1-8: Brand Safety — 노출 차단 카테고리 */}
+        <div className="flex flex-col gap-3">
+          <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-widest">🛡 브랜드 안전 (노출 차단)</h3>
+          <p className="text-[10px] font-bold text-slate-500">선택한 카테고리의 글에는 광고가 노출되지 않습니다.</p>
+          <div className="flex flex-wrap gap-1.5">
+            {['유배·귀양지', '신포도와 여우'].map(cat => {
+              const blocked = form.blockedCategories.includes(cat);
+              return (
+                <button key={cat} type="button"
+                  onClick={() => update('blockedCategories', blocked ? form.blockedCategories.filter(c => c !== cat) : [...form.blockedCategories, cat])}
+                  className={`px-2.5 py-1 rounded-lg text-[10px] font-[1000] transition-all ${blocked ? 'bg-rose-100 text-rose-700 border border-rose-200' : 'bg-slate-100 text-slate-500 hover:bg-slate-200 border border-transparent'}`}>
+                  {blocked ? '🚫' : '✓'} {cat}
+                </button>
+              );
+            })}
+          </div>
+          <p className="text-[9px] font-bold text-slate-400">
+            💡 default '유배·귀양지' 차단 — 격리 콘텐츠에 일반 상업 광고 노출 방지.
+          </p>
         </div>
 
         {/* 액션 */}

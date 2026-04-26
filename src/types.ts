@@ -910,9 +910,20 @@ export interface Ad {
   ctr: number;
   createdAt: FirestoreTimestamp;
   updatedAt: FirestoreTimestamp;
+  // 🚀 v2 P0-1: 예산 자동 차감·정지
+  pausedReason?: 'manual' | 'budget_daily' | 'budget_total' | 'rejected';
+  todaySpent?: number;                     // KST 자정 리셋
+  lastSpentResetAt?: FirestoreTimestamp;
+  // 🚀 v2 P0-2: 빈도 캡 (사용자별 24h N회 노출 상한)
+  frequencyCap?: { limit: number; periodHours: number };  // default { limit: 3, periodHours: 24 }
+  // 🚀 v2 P0-4: 가시 노출 (IAB 표준 — 화면 50%·1초+)
+  viewableImpressions?: number;
+  // 🚀 v2 P1-8: Brand Safety — 노출 차단 카테고리
+  blockedCategories?: string[];            // default ['유배·귀양지']
 }
 
-// 광고 이벤트 로그 (노출/클릭)
+// 광고 이벤트 로그 (노출/가시/클릭)
+// 🚀 v2 P0-4: eventType 확장 — 'impression'(렌더) / 'viewable'(IAB 50%·1초+) / 'click'
 export interface AdEvent {
   id: string;
   adId: string;
@@ -921,12 +932,29 @@ export interface AdEvent {
   postAuthorId: string;
   postCategory: string;
   slotPosition: 'top' | 'middle' | 'bottom';
-  eventType: 'impression' | 'click';
+  eventType: 'impression' | 'viewable' | 'click';
   bidType: 'cpm' | 'cpc';
   bidAmount: number;
   viewerUid: string;
   sessionId: string;
   isSuspicious: boolean;
+  createdAt: FirestoreTimestamp;
+}
+
+// 🚀 v2 P0-3: 일별 광고 통계 집계 (대시보드용)
+export interface AdStatsDaily {
+  id: string;                              // {adId}_{yyyymmdd}
+  adId: string;
+  date: string;                            // 'YYYY-MM-DD'
+  impressions: number;
+  viewableImpressions: number;
+  clicks: number;
+  spent: number;
+  uniqueViewers: number;
+  bySlot: { top: number; middle: number; bottom: number };
+  byMenu: Record<string, number>;
+  byRegion: Record<string, number>;
+  byHour: number[];                        // length 24
   createdAt: FirestoreTimestamp;
 }
 

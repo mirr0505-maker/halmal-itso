@@ -2,6 +2,8 @@
 // 🚀 2026-04-25: imageStyle 2종 지원
 //   - horizontal: 가로 플래카드형 (3:1 이미지 + 하단 텍스트)
 //   - vertical: 세로형 (9:16 이미지 + 좌/우 위치 + 반대편 텍스트)
+// 🚀 v2 P1-5 (2026-04-26): UTM 자동 부착 — 광고주 외부 측정(GA 등) 연동
+//   ?utm_source=geulove&utm_medium={slot}&utm_campaign={adId}
 import type { Ad } from '../../types';
 
 interface Props {
@@ -11,10 +13,25 @@ interface Props {
   onClick?: (adId: string) => void;
 }
 
-const AdBanner = ({ ad, position: _position, onClick }: Props) => {
+// 🚀 v2 P1-5: UTM 자동 부착 헬퍼
+function appendUTM(landingUrl: string, adId: string, slot: string): string {
+  if (!landingUrl) return '#';
+  try {
+    const u = new URL(landingUrl);
+    if (!u.searchParams.has('utm_source')) u.searchParams.set('utm_source', 'geulove');
+    if (!u.searchParams.has('utm_medium')) u.searchParams.set('utm_medium', slot);
+    if (!u.searchParams.has('utm_campaign')) u.searchParams.set('utm_campaign', adId);
+    return u.toString();
+  } catch {
+    return landingUrl;
+  }
+}
+
+const AdBanner = ({ ad, position, onClick }: Props) => {
   const handleClick = () => {
     onClick?.(ad.id);
-    window.open(ad.landingUrl, '_blank', 'noopener,noreferrer');
+    const finalUrl = appendUTM(ad.landingUrl, ad.id, position);
+    window.open(finalUrl, '_blank', 'noopener,noreferrer');
   };
 
   // 🔧 2026-04-25 정정: 광고주가 등록한 imageStyle 그대로 존중 (bottom 슬롯에서도 세로형 OK)

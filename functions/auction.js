@@ -1,51 +1,149 @@
 // functions/auction.js — 광고 경매 엔진
+// 🚀 v2 (2026-04-26): 빈도 캡 / 예산 가드 / Brand Safety / Viewable 분리 차감
+//   eventType 분기:
+//     - 미지정·'impression': 경매 매칭 → adEvents(impression) 기록 (차감 X — viewable에서)
+//     - 'viewable': viewableImpressions++ + CPM 차감 (IAB 표준)
+//     - 'click': totalClicks++ + CPC 차감
+//   차감 로직 viewable 기준 — 광고주 신뢰 (실제 본 사람만 카운트)
 const { onRequest } = require("firebase-functions/v2/https");
 const { getFirestore, FieldValue, Timestamp } = require("firebase-admin/firestore");
 
 const db = getFirestore();
 
-// 🏅 Creator Score 가중치 경계 — effectiveBid = bidAmount × clamp(score, MIN, MAX)
-// Why: 하한 0.3 = MIN_TRUST 철학(유배 3차도 이 바닥), 상한 3.0 = 다이아 과보정 방지
-//      집계 전(null)은 1.0 fallback → 신규 광고주 봉쇄 방지. 배포 1주 분포 실측 후 튜닝 예정.
 const SCORE_CLAMP_MIN = 0.3;
 const SCORE_CLAMP_MAX = 3.0;
 const SCORE_FALLBACK = 1.0;
+const DEFAULT_FREQUENCY_CAP = { limit: 3, periodHours: 24 };
+const DEFAULT_BLOCKED_CATEGORIES = ['유배·귀양지'];
 
 function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
+
+// 🔍 빈도 캡 체크 — viewerUid + adId의 최근 N시간 viewable count
+async function checkFrequencyCap(viewerUid, adId, periodHours, limit) {
+  if (!viewerUid || viewerUid === 'anonymous') return true; // 비로그인은 캡 미적용 (광고주 우호적)
+  const since = Timestamp.fromMillis(Date.now() - periodHours * 3600 * 1000);
+  const snap = await db.collection('adEvents')
+    .where('viewerUid', '==', viewerUid)
+    .where('adId', '==', adId)
+    .where('eventType', '==', 'viewable')
+    .where('createdAt', '>=', since)
+    .limit(limit)
+    .get();
+  return snap.size < limit;
+}
+
+// 💰 예산 가드 — 일/총 예산 도달 시 매칭에서 제외
+function isWithinBudget(ad, expectedCharge) {
+  const todaySpent = ad.todaySpent || 0;
+  const totalSpent = ad.totalSpent || 0;
+  if (ad.dailyBudget && todaySpent + expectedCharge > ad.dailyBudget) return false;
+  if (ad.totalBudget && totalSpent + expectedCharge >= ad.totalBudget) return false;
+  return true;
+}
 
 exports.adAuction = onRequest(
   { region: "asia-northeast3", cors: true },
   async (req, res) => {
     if (req.method !== "POST") return res.status(405).json({ error: "Method Not Allowed" });
 
-    const { slotPosition, postCategory, postId, postAuthorId, postAuthorLevel, viewerRegion } = req.body;
-    if (!slotPosition || !postId) return res.status(400).json({ error: "slotPosition, postId 필수" });
+    const body = req.body || {};
+    const eventType = body.eventType || 'impression';
 
+    // ────────────────────────────────────────────────
+    // 🔄 viewable / click — 별도 처리 (경매 X, 차감만)
+    // ────────────────────────────────────────────────
+    if (eventType === 'viewable' || eventType === 'click') {
+      const { adId, postId, postAuthorId, viewerUid, postCategory, slotPosition, bidAmount, bidType } = body;
+      if (!adId || !postId) return res.status(400).json({ error: 'adId, postId 필수' });
+      try {
+        // 광고 데이터 조회 (차감액 산정)
+        const adSnap = await db.collection('ads').doc(adId).get();
+        if (!adSnap.exists) return res.json({ success: false });
+        const ad = adSnap.data();
+
+        // 차감액: viewable=CPM*1/1000 / click=CPC 1회. bidAmount 미전달 시 ad doc 기준
+        const charge = eventType === 'viewable'
+          ? (ad.bidType === 'cpm' ? (bidAmount || ad.bidAmount) / 1000 : 0)
+          : (ad.bidType === 'cpc' ? (bidAmount || ad.bidAmount) : 0);
+
+        await db.collection('adEvents').add({
+          adId, advertiserId: ad.advertiserId, postId,
+          postAuthorId: postAuthorId || '',
+          postCategory: postCategory || '',
+          slotPosition: slotPosition || 'bottom',
+          eventType,
+          bidType: bidType || ad.bidType,
+          bidAmount: charge,
+          viewerUid: viewerUid || 'anonymous',
+          sessionId: `session_${Date.now()}`,
+          isSuspicious: false,
+          createdAt: Timestamp.now(),
+        });
+
+        // 누적 카운터 + 차감
+        const updates = {};
+        if (eventType === 'viewable') {
+          updates.viewableImpressions = FieldValue.increment(1);
+          if (charge > 0) {
+            updates.totalSpent = FieldValue.increment(charge);
+            updates.todaySpent = FieldValue.increment(charge);
+          }
+        } else {
+          updates.totalClicks = FieldValue.increment(1);
+          if (charge > 0) {
+            updates.totalSpent = FieldValue.increment(charge);
+            updates.todaySpent = FieldValue.increment(charge);
+          }
+        }
+        await db.collection('ads').doc(adId).update(updates);
+        return res.json({ success: true });
+      } catch (err) {
+        console.error('[adAuction event]', eventType, err);
+        return res.status(500).json({ error: '이벤트 기록 실패' });
+      }
+    }
+
+    // ────────────────────────────────────────────────
+    // 🎯 impression 경매 매칭
+    // ────────────────────────────────────────────────
+    const { slotPosition, postCategory, postId, postAuthorId, postAuthorLevel, viewerRegion, viewerUid } = body;
+    if (!slotPosition || !postId) return res.status(400).json({ error: "slotPosition, postId 필수" });
     if ((postAuthorLevel || 0) < 5) return res.json({ success: true, ad: null, fallback: "promo" });
 
     try {
       const snap = await db.collection("ads").where("status", "==", "active").get();
       if (snap.empty) return res.json({ success: true, ad: null, fallback: "adsense" });
 
-      const filtered = snap.docs
+      // 1차 동기 필터
+      const baseFiltered = snap.docs
         .map(d => ({ id: d.id, ...d.data() }))
         .filter(ad => {
           if (!ad.targetSlots?.includes(slotPosition)) return false;
-          // 📍 글 메뉴 카테고리 매칭 (2026-04-25 ~) — targetMenuCategories와 글 카테고리(postCategory) 비교
-          //   기존 targetCategories는 업종 통계용으로 분리, 매칭에는 미사용
           if (ad.targetMenuCategories?.length > 0 && !ad.targetMenuCategories.includes(postCategory)) return false;
-          // 🚀 지역 매칭 (Phase 5 Step 1)
           if (ad.targetRegions?.length > 0 && viewerRegion && !ad.targetRegions.includes(viewerRegion)) return false;
-          // 🏪 크리에이터 지면 타겟팅 — 특정 크리에이터 지면에만 노출
           if (ad.targetCreatorId && ad.targetCreatorId !== postAuthorId) return false;
           if (ad.totalSpent >= ad.totalBudget) return false;
+          // 🛡 P1-8 Brand Safety — 차단 카테고리 매칭 시 제외 (default '유배·귀양지')
+          const blocked = ad.blockedCategories?.length ? ad.blockedCategories : DEFAULT_BLOCKED_CATEGORIES;
+          if (postCategory && blocked.includes(postCategory)) return false;
+          // 💰 P0-1 예산 — 일/총 예산 도달 후보 제외 (예상 차감액 = bidAmount/1000 for CPM, bidAmount for CPC)
+          const expectedCharge = ad.bidType === 'cpm' ? (ad.bidAmount || 0) / 1000 : (ad.bidAmount || 0);
+          if (!isWithinBudget(ad, expectedCharge)) return false;
           return true;
         });
 
+      if (baseFiltered.length === 0) return res.json({ success: true, ad: null, fallback: "adsense" });
+
+      // 2차 비동기 필터 — 빈도 캡 (P0-2)
+      const freqResults = await Promise.all(baseFiltered.map(async ad => {
+        const cap = ad.frequencyCap || DEFAULT_FREQUENCY_CAP;
+        const ok = await checkFrequencyCap(viewerUid, ad.id, cap.periodHours, cap.limit);
+        return ok ? ad : null;
+      }));
+      const filtered = freqResults.filter(Boolean);
       if (filtered.length === 0) return res.json({ success: true, ad: null, fallback: "adsense" });
 
-      // 🏅 광고주 Creator Score 일괄 조회 → effectiveBid 계산
-      // Why: bidAmount 단순 비교 대신 creatorScoreCached 가중. 평판 낮은 광고주 억제 + 품질 광고 우대
+      // 광고주 Creator Score 일괄 조회 → effectiveBid 계산
       const advertiserIds = [...new Set(filtered.map(ad => ad.advertiserId).filter(Boolean))];
       const advertiserScores = {};
       if (advertiserIds.length > 0) {
@@ -66,22 +164,23 @@ exports.adAuction = onRequest(
         .sort((a, b) => b._effectiveBid - a._effectiveBid);
 
       const winner = candidates[0];
-      // 💰 차순가 결제는 **원본 bidAmount** 기준 — Creator Score는 ranking에만 사용 (대장 과금 공정성)
       const secondPrice = candidates.length > 1 ? candidates[1].bidAmount + 1 : winner.bidAmount;
 
+      // ⚾ impression 기록 — 차감은 viewable 이벤트에서 (광고주 보호)
       await db.collection("adEvents").add({
         adId: winner.id, advertiserId: winner.advertiserId, postId, postAuthorId,
         postCategory: postCategory || "", slotPosition, eventType: "impression",
         bidType: winner.bidType, bidAmount: secondPrice,
-        winnerScoreWeight: winner._scoreWeight,      // 🏅 튜닝 관찰용 — 낙찰자 Creator Score 가중
-        winnerEffectiveBid: winner._effectiveBid,   // 🏅 튜닝 관찰용 — 실제 랭킹에 쓴 effectiveBid
-        viewerUid: "anonymous", sessionId: `session_${Date.now()}`,
+        winnerScoreWeight: winner._scoreWeight,
+        winnerEffectiveBid: winner._effectiveBid,
+        viewerUid: viewerUid || "anonymous",
+        sessionId: `session_${Date.now()}`,
         isSuspicious: false, createdAt: Timestamp.now(),
       });
 
+      // totalImpressions만 증가 — 차감은 viewable에서
       await db.collection("ads").doc(winner.id).update({
         totalImpressions: FieldValue.increment(1),
-        totalSpent: FieldValue.increment(winner.bidType === "cpm" ? secondPrice / 1000 : 0),
       });
 
       return res.json({
@@ -89,10 +188,10 @@ exports.adAuction = onRequest(
         ad: {
           adId: winner.id, headline: winner.headline, description: winner.description,
           imageUrl: winner.imageUrl, landingUrl: winner.landingUrl, ctaText: winner.ctaText,
-          // 🔧 2026-04-26: imageStyle/imagePosition 응답 누락 버그 — 클라 AdBanner가 default 'horizontal'로 fallback해 가로로만 노출되던 문제 해소
           imageStyle: winner.imageStyle || 'horizontal',
           imagePosition: winner.imagePosition || 'left',
           bidType: winner.bidType, chargeAmount: secondPrice,
+          advertiserId: winner.advertiserId, advertiserName: winner.advertiserName || '',
         },
         fallback: null,
       });
