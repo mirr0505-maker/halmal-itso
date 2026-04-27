@@ -150,12 +150,13 @@ const CreateLocalNews = ({ userData, editingPost, onSubmit, onClose }: Props) =>
           ))}
         </div>
 
-        {/* 🚀 ADSMARKET: 광고 슬롯 설정 (Lv5+) */}
-        <AdSlotSetting userLevel={calculateLevel(userData?.exp || 0)} adSlotEnabled={adSlotEnabled} adSlotType={adSlotType}
-          onChange={onAdSlotChange}
-          selectedAds={selectedAds} onSelectAd={onSelectAd}
-          postCategory={postData.category} />
       </div>
+
+      {/* 🚀 ADSMARKET: 광고 슬롯 설정 (Lv5+) — 폼 카드 외부 분리 (v2.1) */}
+      <AdSlotSetting userLevel={calculateLevel(userData?.exp || 0)} adSlotEnabled={adSlotEnabled} adSlotType={adSlotType}
+        onChange={onAdSlotChange}
+        selectedAds={selectedAds} onSelectAd={onSelectAd}
+        postCategory={postData.category} />
     </div>
   );
 };
