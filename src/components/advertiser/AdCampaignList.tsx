@@ -53,7 +53,11 @@ const AdCampaignList = ({ ads, onCreateNew, onEdit, onToggleStatus }: Props) => 
           const dailyPct = ad.dailyBudget ? Math.min(100, (todaySpent / ad.dailyBudget) * 100) : 0;
           const totalPct = ad.totalBudget ? Math.min(100, (totalSpent / ad.totalBudget) * 100) : 0;
           const viewableImps = ad.viewableImpressions || 0;
-          const viewableRate = ad.totalImpressions > 0 ? ((viewableImps / ad.totalImpressions) * 100).toFixed(1) : '0.0';
+          // 🔧 v2.1: 비율 100% clamp — 데이터 비정상(viewable > impressions) 방어
+          const viewableRate = ad.totalImpressions > 0
+            ? Math.min(100, (viewableImps / ad.totalImpressions) * 100).toFixed(1)
+            : '0.0';
+          const ctrPct = Math.min(100, (ad.ctr || 0) * 100).toFixed(2);
           const isPausedByBudget = ad.status === 'paused' && ad.pausedReason === 'budget_daily';
           return (
             <div key={ad.id} className="bg-white rounded-2xl border border-slate-100 p-4 hover:shadow-sm transition-all">
@@ -100,7 +104,7 @@ const AdCampaignList = ({ ads, onCreateNew, onEdit, onToggleStatus }: Props) => 
                 <span>노출 {formatKoreanNumber(ad.totalImpressions)}</span>
                 <span className="text-sky-600 font-[1000]">가시 {formatKoreanNumber(viewableImps)} ({viewableRate}%)</span>
                 <span>클릭 {formatKoreanNumber(ad.totalClicks)}</span>
-                <span>CTR {(ad.ctr * 100).toFixed(2)}%</span>
+                <span>CTR {ctrPct}%</span>
                 <span className="ml-auto">{ad.bidType.toUpperCase()} ⚾ {formatKoreanNumber(ad.bidAmount)}</span>
               </div>
 

@@ -124,9 +124,11 @@ exports.updateAdMetrics = onDocumentCreated(
     const adData = adSnap.data();
     if (!adData) return null;
 
-    const newCtr = (adData.totalImpressions || 0) > 0
+    // 🔧 v2.1: ctr clamp 0~1 — totalClicks > totalImpressions(비정상 데이터) 방어
+    const rawCtr = (adData.totalImpressions || 0) > 0
       ? (adData.totalClicks || 0) / adData.totalImpressions
       : 0;
+    const newCtr = Math.min(1, Math.max(0, rawCtr));
     await adRef.update({ ctr: Math.round(newCtr * 10000) / 10000 });
 
     // 3. adBids 품질 점수 재계산 + 예산 잔액 갱신
