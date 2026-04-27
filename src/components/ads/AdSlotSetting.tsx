@@ -95,9 +95,10 @@ const AdSlotSetting = ({ userLevel, adSlotEnabled, adSlotType, onChange, selecte
         </button>
       </div>
 
-      {/* 펼침 영역 — Lv 카드 + 미리보기 + 광고 종류 */}
+      {/* 펼침 영역 — Lv 카드 + 미리보기 + 광고 종류 + 슬롯 picker */}
+      {/* 🔧 v2.1 (2026-04-26): max-h-[40vh] + overflow-y-auto — 폼 컨테이너 maxHeight 안에서도 픽커 전체 도달 */}
       {expanded && (
-        <div className="px-3 pb-3 border-t border-violet-100 pt-3 space-y-2.5">
+        <div className="px-3 pb-3 border-t border-violet-100 pt-3 space-y-2.5 max-h-[40vh] overflow-y-auto">
           {/* Lv 카드 2단 — 수익률 % 가림 (운영 정책 2026-04-25) */}
           <div className="grid grid-cols-2 gap-1.5">
             <div className="bg-white rounded-lg p-1.5 border border-violet-100 text-center">
