@@ -43,6 +43,8 @@ const AdSlot = ({ position, postCategory, postId, postAuthorId, postAuthorLevel,
   const [directAd, setDirectAd] = useState<Ad | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const viewableFiredRef = useRef<Set<string>>(new Set());
+  // 🔧 v2.1: directAd impression 이벤트 — 광고당 1회 발사 (스크롤 재마운트 중복 차단)
+  const impressionFiredRef = useRef<Set<string>>(new Set());
 
   // selectedAdId 직접 fetch
   useEffect(() => {
@@ -94,6 +96,25 @@ const AdSlot = ({ position, postCategory, postId, postAuthorId, postAuthorLevel,
     })();
     return () => { cancelled = true; };
   }, [postId, position, type, adSlotEnabled, selectedAdId, directAd, postCategory, postAuthorId, postAuthorLevel]);
+
+  // 🔧 v2.1: directAd impression 이벤트 — selectedAdId 직접 매칭은 auction.js 매칭 분기를 안 거치므로
+  //   여기서 명시적으로 impression 발사. 광고당 1회.
+  useEffect(() => {
+    if (!directAd?.id || !postId) return;
+    if (impressionFiredRef.current.has(directAd.id)) return;
+    impressionFiredRef.current.add(directAd.id);
+    const viewerUid = auth.currentUser?.uid || 'anonymous';
+    fetch(AD_AUCTION_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        eventType: 'impression', adId: directAd.id, postId, postAuthorId,
+        postCategory, slotPosition: position,
+        bidAmount: directAd.bidAmount, bidType: directAd.bidType, viewerUid,
+        directMatch: true,
+      }),
+    }).catch(() => {});
+  }, [directAd, postId, postAuthorId, postCategory, position]);
 
   // 🚀 P0-4: IntersectionObserver — 50% 가시성 1초+ 충족 시 viewable 이벤트
   //   viewableFiredRef로 광고당 1회만 발사 (스크롤 반복 차단)

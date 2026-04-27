@@ -50,6 +50,37 @@ exports.adAuction = onRequest(
     const eventType = body.eventType || 'impression';
 
     // ────────────────────────────────────────────────
+    // 🔧 v2.1: selectedAdId 직접 매칭 impression — 경매 X, 카운터만
+    //   AdSlot directAd 분기에서 광고당 1회 호출 (impressionFiredRef로 중복 차단)
+    // ────────────────────────────────────────────────
+    if (eventType === 'impression' && body.directMatch) {
+      const { adId, postId, postAuthorId, viewerUid, postCategory, slotPosition, bidAmount, bidType } = body;
+      if (!adId || !postId) return res.status(400).json({ error: 'adId, postId 필수' });
+      try {
+        await db.collection('adEvents').add({
+          adId, advertiserId: '', postId,
+          postAuthorId: postAuthorId || '',
+          postCategory: postCategory || '',
+          slotPosition: slotPosition || 'bottom',
+          eventType: 'impression',
+          bidType: bidType || 'cpm',
+          bidAmount: bidAmount || 0,
+          viewerUid: viewerUid || 'anonymous',
+          sessionId: `session_${Date.now()}`,
+          isSuspicious: false,
+          createdAt: Timestamp.now(),
+        });
+        await db.collection('ads').doc(adId).update({
+          totalImpressions: FieldValue.increment(1),
+        });
+        return res.json({ success: true });
+      } catch (err) {
+        console.error('[adAuction directMatch impression]', err);
+        return res.status(500).json({ error: 'directMatch 기록 실패' });
+      }
+    }
+
+    // ────────────────────────────────────────────────
     // 🔄 viewable / click — 별도 처리 (경매 X, 차감만)
     // ────────────────────────────────────────────────
     if (eventType === 'viewable' || eventType === 'click') {

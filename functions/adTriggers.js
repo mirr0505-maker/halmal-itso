@@ -114,25 +114,12 @@ exports.updateAdMetrics = onDocumentCreated(
     if (!adId) return null;
     const adRef = db.collection("ads").doc(adId);
 
-    // 1. ads 누적 지표 update (increment 원자적)
-    const adUpdate = { updatedAt: FieldValue.serverTimestamp() };
-    if (eventType === "impression") {
-      adUpdate.totalImpressions = FieldValue.increment(1);
-      // CPM 과금 (1000 노출당 bidAmount원)
-      if (bidType === "cpm") {
-        adUpdate.totalSpent = FieldValue.increment(bidAmount / 1000);
-      }
-    } else if (eventType === "click") {
-      adUpdate.totalClicks = FieldValue.increment(1);
-      // CPC 과금
-      if (bidType === "cpc") {
-        adUpdate.totalSpent = FieldValue.increment(bidAmount);
-      }
-    }
+    // 🔧 v2.1 (2026-04-26): 카운터 증가는 auction.js가 단일 처리 (이중 합산 방지)
+    //   기존 — 여기서 totalImpressions/totalClicks/totalSpent를 또 증가시켜 +2씩 누적되는 버그
+    //   수정 — 트리거는 ctr 재계산 + adBids 동기화 + 예산 소진 처리만 담당
+    await adRef.update({ updatedAt: FieldValue.serverTimestamp() });
 
-    await adRef.update(adUpdate);
-
-    // 2. CTR 재계산 (increment 반영된 최신 값 read)
+    // 2. CTR 재계산 (auction.js 갱신 후 최신 값 read)
     const adSnap = await adRef.get();
     const adData = adSnap.data();
     if (!adData) return null;
