@@ -1,9 +1,11 @@
 // src/components/advertiser/AdvertiserRegister.tsx — 광고주 등록 폼
 // 🚀 2026-04-25 개편: type별 분기 (personal / individual_business / corporate)
 //   1uid:1type 제약. type 변경은 별도 신청·심사 (TODO Sprint 8).
-import { useState } from 'react';
+// 🚀 v2.1 (2026-04-26): 모든 광고주 등록은 status='pending_review' (검수 의무)
+//   + user 정보 자동 인입 (nickname → contactName, email, phone)
+import { useState, useEffect } from 'react';
 import { db, auth } from '../../firebase';
-import { doc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import type { AdvertiserType } from '../../types';
 
 interface Props {
@@ -24,12 +26,33 @@ const AdvertiserRegister = ({ type, onComplete, onCancel }: Props) => {
     contactName: '',
     email: '',
     phone: '',
-    businessName: '',          // 사업자/법인 전용
+    businessName: '',
     businessNumber: '',
     representativeName: '',
     businessAddress: '',
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isPrefilled, setIsPrefilled] = useState(false);
+
+  // 🚀 v2.1: 글러브 user 정보 자동 인입 — nickname/email/phone
+  useEffect(() => {
+    const uid = auth.currentUser?.uid;
+    const authEmail = auth.currentUser?.email || '';
+    if (!uid) return;
+    (async () => {
+      try {
+        const snap = await getDoc(doc(db, 'users', uid));
+        const u = snap.exists() ? (snap.data() as { nickname?: string; phoneNumber?: string; phone?: string }) : {};
+        setForm(prev => ({
+          ...prev,
+          contactName: prev.contactName || u.nickname || '',
+          email: prev.email || authEmail || '',
+          phone: prev.phone || u.phoneNumber || u.phone || '',
+        }));
+        setIsPrefilled(true);
+      } catch { /* ignore */ }
+    })();
+  }, []);
 
   const update = (key: string, value: string) => setForm(prev => ({ ...prev, [key]: value }));
 
@@ -54,6 +77,8 @@ const AdvertiserRegister = ({ type, onComplete, onCancel }: Props) => {
     setIsSubmitting(true);
     try {
       // advertiserAccounts 문서 생성 — 1uid:1type
+      // 🚀 v2.1 (2026-04-26): status='pending_review' — 모든 광고주 검수 의무
+      //   관리자가 AdvertiserReviewQueue에서 승인/거절 후 status 변경
       await setDoc(doc(db, 'advertiserAccounts', uid), {
         uid,
         type,
@@ -67,8 +92,8 @@ const AdvertiserRegister = ({ type, onComplete, onCancel }: Props) => {
         balance: 0,
         totalCharged: 0,
         totalSpent: 0,
-        status: 'active',
-        isVerified: false,           // 자동 검증은 Sprint 8 Phase β
+        status: 'pending_review',
+        isVerified: false,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       });
@@ -93,9 +118,14 @@ const AdvertiserRegister = ({ type, onComplete, onCancel }: Props) => {
         <h2 className="text-[20px] font-[1000] text-slate-900">{meta.title} 등록</h2>
       </div>
       <p className="text-[12px] font-bold text-slate-400 mb-2">{meta.sub}</p>
-      <p className="text-[10px] font-bold text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-6">
-        ⚠️ 베타 단계 — 모든 등록은 1차 검수 후 활성화. 광고비 결제는 ⚾ 볼 단위. 정식 서비스 시 카드 PG·세금계산서 자동 발행 도입 예정.
+      <p className="text-[10px] font-bold text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-2">
+        ⚠️ 모든 광고주 등록은 <strong>관리자 1차 검수</strong> 후 활성화됩니다. 검수 결과는 알림으로 안내드려요. 광고비 결제는 ⚾ 볼 단위. 정식 서비스 시 카드 PG·세금계산서 자동 발행 도입 예정.
       </p>
+      {isPrefilled && (
+        <p className="text-[10px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2 mb-6">
+          ✅ 글러브 가입 정보(닉네임·이메일·연락처)를 자동으로 가져왔어요. 필요 시 수정 가능합니다.
+        </p>
+      )}
 
       <div className="flex flex-col gap-4">
         {/* 공통 필드 */}
@@ -159,7 +189,7 @@ const AdvertiserRegister = ({ type, onComplete, onCancel }: Props) => {
         <button onClick={onCancel} className="flex-1 py-2.5 rounded-xl text-[13px] font-[1000] text-slate-400 bg-slate-50 hover:bg-slate-100 transition-colors">취소</button>
         <button onClick={handleSubmit} disabled={isSubmitting}
           className="flex-1 py-2.5 rounded-xl text-[13px] font-[1000] text-white bg-violet-600 hover:bg-violet-700 disabled:opacity-50 transition-colors">
-          {isSubmitting ? '등록 중...' : '광고주 등록 (1차 검수 요청)'}
+          {isSubmitting ? '등록 중...' : '광고주 등록 — 검수 요청'}
         </button>
       </div>
     </div>

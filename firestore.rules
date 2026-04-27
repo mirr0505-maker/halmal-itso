@@ -690,9 +690,21 @@ service cloud.firestore {
     }
 
     // 광고주 계정: 본인만 읽기/쓰기
+    // 🔒 v2.1 (2026-04-26): 검수 필드(status, rejectionReason, reviewedAt, reviewedBy) 본인 직접 수정 차단
+    //   본인은 contactName/email/phone/businessName 등 등록 정보만 수정 가능.
+    //   검수 액션은 관리자만 — admin이거나 모든 필드 변경 가능.
     match /advertiserAccounts/{advId} {
-      allow read, write: if request.auth != null
-        && request.auth.uid == advId;
+      allow read: if request.auth != null && request.auth.uid == advId;
+      allow create: if request.auth != null && request.auth.uid == advId
+        && request.resource.data.status == 'pending_review';
+      allow update: if request.auth != null
+        && (
+          (request.auth.uid == advId
+            && !request.resource.data.diff(resource.data).affectedKeys()
+                .hasAny(['status', 'rejectionReason', 'reviewedAt', 'reviewedBy', 'isVerified']))
+          || isAdmin()
+        );
+      allow delete: if false;
     }
 
     // 충전 내역: 본인만 읽기

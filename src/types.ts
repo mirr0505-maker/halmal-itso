@@ -1005,9 +1005,13 @@ export interface AdvertiserAccount {
   balance: number;            // (deprecated) 원 단위 — 미사용. ⚾ ballBalance 통일
   totalCharged: number;
   totalSpent: number;
-  status: 'active' | 'suspended' | 'dormant';
+  status: 'pending_review' | 'active' | 'rejected' | 'suspended' | 'dormant';
   isVerified: boolean;        // 사업자번호 자동 검증 (Sprint 8 Phase β에서 도입)
+  rejectionReason?: string;   // 🚀 v2.1 (2026-04-26): 검수 거절 사유
+  reviewedAt?: FirestoreTimestamp;
+  reviewedBy?: string;
   createdAt: FirestoreTimestamp;
+  updatedAt?: FirestoreTimestamp;
 }
 
 // 글 작성자 정산 내역

@@ -72,7 +72,15 @@ const AdvertiserCenter = ({ onBack }: Props) => {
     <div className="py-20 text-center text-slate-300 font-bold">광고주 계정을 불러오는 중...</div>
   );
 
+  // 🚀 v2.1 (2026-04-26): 검수 의무 — pending_review / rejected 상태는 광고 등록 잠금
+  const isReviewBlocked = account.status === 'pending_review' || account.status === 'rejected';
+
   if (showCreateForm) {
+    if (isReviewBlocked) {
+      // 검수 미통과 상태에서 직접 URL이나 버튼 우회로 폼 진입한 경우 차단
+      setShowCreateForm(false);
+      return null;
+    }
     return <AdCampaignForm
       advertiserId={uid!}
       advertiserName={account.businessName}
@@ -95,11 +103,44 @@ const AdvertiserCenter = ({ onBack }: Props) => {
           <span className="text-[10px] font-bold text-slate-500">광고 경매 시장</span>
           <span className="text-[10px] font-bold text-slate-400">{account.businessName}</span>
         </div>
-        <button onClick={() => setShowCreateForm(true)}
-          className="px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white text-[12px] font-[1000] rounded-xl transition-colors">
+        <button
+          onClick={() => { if (!isReviewBlocked) setShowCreateForm(true); }}
+          disabled={isReviewBlocked}
+          className={`px-4 py-2 text-[12px] font-[1000] rounded-xl transition-colors ${
+            isReviewBlocked
+              ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
+              : 'bg-violet-600 hover:bg-violet-700 text-white'
+          }`}
+          title={isReviewBlocked ? '광고주 검수 통과 후 광고 등록 가능' : ''}
+        >
           + 새 광고
         </button>
       </div>
+
+      {/* 🚀 v2.1 (2026-04-26): 광고주 검수 상태 안내 배너 */}
+      {account.status === 'pending_review' && (
+        <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3.5 flex items-start gap-3">
+          <span className="text-[24px]">🕒</span>
+          <div className="flex-1 min-w-0">
+            <p className="text-[13px] font-[1000] text-amber-800">광고주 검수 대기 중</p>
+            <p className="text-[11px] font-bold text-amber-700 mt-0.5 leading-relaxed">
+              관리자가 등록 정보를 확인하고 있어요. 통상 영업일 1~2일 소요. 검수 완료 알림이 도착하면 광고 등록·운영을 시작할 수 있습니다.
+            </p>
+          </div>
+        </div>
+      )}
+      {account.status === 'rejected' && (
+        <div className="mb-6 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3.5 flex items-start gap-3">
+          <span className="text-[24px]">❌</span>
+          <div className="flex-1 min-w-0">
+            <p className="text-[13px] font-[1000] text-rose-800">검수 거절됨</p>
+            <p className="text-[11px] font-bold text-rose-700 mt-0.5 leading-relaxed">
+              사유: {account.rejectionReason || '관리자가 사유를 기재하지 않았습니다.'}
+            </p>
+            <p className="text-[10px] font-bold text-rose-600 mt-1">필요한 정보를 보완 후 고객센터에 문의해주세요.</p>
+          </div>
+        </div>
+      )}
 
       {/* 탭 */}
       <div className="flex gap-1 mb-6 border-b border-slate-100 pb-0">

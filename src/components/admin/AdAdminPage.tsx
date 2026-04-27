@@ -5,6 +5,7 @@ import { useState } from 'react';
 import type { UserData } from '../../types';
 import PlatformRevenueDashboard from './PlatformRevenueDashboard';
 import AdReviewQueue from './AdReviewQueue';
+import AdvertiserReviewQueue from './AdvertiserReviewQueue';
 import SettlementQueue from './SettlementQueue';
 import FraudAlerts from './FraudAlerts';
 import TaxReportExport from './TaxReportExport';
@@ -20,11 +21,12 @@ interface Props {
   onBack?: () => void;
 }
 
-type AdminTab = 'revenue' | 'review' | 'settlement' | 'fraud' | 'tax' | 'report' | 'exile' | 'appeal' | 'system';
+type AdminTab = 'revenue' | 'advertiser_review' | 'review' | 'settlement' | 'fraud' | 'tax' | 'report' | 'exile' | 'appeal' | 'system';
 
 const TABS: { id: AdminTab; label: string }[] = [
-  { id: 'revenue',    label: '💵 플랫폼 수익' },
-  { id: 'review',     label: '📋 광고 검수' },
+  { id: 'revenue',           label: '💵 플랫폼 수익' },
+  { id: 'advertiser_review', label: '🏢 광고주 검수' },
+  { id: 'review',            label: '📋 광고 검수' },
   { id: 'settlement', label: '💰 정산' },
   { id: 'fraud',      label: '🚨 부정행위' },
   { id: 'tax',        label: '📊 세무' },
@@ -102,6 +104,7 @@ const AdAdminPage = ({ currentUser, onBack }: Props) => {
       {/* 탭 콘텐츠 */}
       <div className="mt-2">
         {tab === 'revenue' && <PlatformRevenueDashboard />}
+        {tab === 'advertiser_review' && <AdvertiserReviewQueue />}
         {tab === 'review' && <AdReviewQueue />}
         {tab === 'settlement' && <SettlementQueue />}
         {tab === 'fraud' && <FraudAlerts />}

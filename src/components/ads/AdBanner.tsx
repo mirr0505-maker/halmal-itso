@@ -48,7 +48,8 @@ const AdBanner = ({ ad, position, onClick }: Props) => {
       >
         {ad.imageUrl ? (
           <div className="aspect-[3/1] bg-slate-50 overflow-hidden">
-            <img src={ad.imageUrl} alt="" className="w-full h-full object-cover" />
+            {/* 🚀 v2.1: object-contain — 이미지 비율 유지(좌우 잘림 방지). 권장 3:1 외 비율도 안전 */}
+            <img src={ad.imageUrl} alt="" className="w-full h-full object-contain" />
           </div>
         ) : (
           <div className="aspect-[3/1] bg-slate-100 flex items-center justify-center">

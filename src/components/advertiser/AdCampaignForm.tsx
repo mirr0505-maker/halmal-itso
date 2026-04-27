@@ -310,8 +310,8 @@ const AdCampaignForm = ({ advertiserId, advertiserName, editingAd, onBack }: Pro
             </p>
             {(() => {
               const aspectClass = form.imageStyle === 'horizontal' ? 'aspect-[3/1]' : 'aspect-[9/16] max-w-[240px] mx-auto';
-              // 🔧 2026-04-26: 이미지 잘림 방지 — object-contain (실제 노출과 동일)
-              const objectFit = form.imageStyle === 'vertical' ? 'object-contain' : 'object-cover';
+              // 🔧 v2.1 (2026-04-26): 이미지 잘림 방지 — 가로/세로 모두 object-contain (실제 AdBanner 노출과 동일)
+              const objectFit = 'object-contain';
               return form.imageUrl ? (
                 <div className={`relative ${aspectClass} rounded-xl overflow-hidden border-2 border-violet-200 bg-slate-50`}>
                   <img src={form.imageUrl} alt="" className={`w-full h-full ${objectFit}`} />
