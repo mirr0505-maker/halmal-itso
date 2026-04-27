@@ -181,6 +181,12 @@ const AdCampaignForm = ({ advertiserId, advertiserName, editingAd, onBack }: Pro
     }
     // 🔧 2026-04-26: ctaText 빈 입력 방지 — 빈 칩 노출 차단. 비어있으면 default 주입
     const safeCtaText = form.ctaText.trim() || '자세히 보기';
+    // 🔧 v2.1 (2026-04-26): landingUrl protocol 자동 부착 — 'example.com' 같은 입력에 https:// 추가
+    const rawUrl = form.landingUrl.trim();
+    const safeLandingUrl = !rawUrl ? ''
+      : /^https?:\/\//i.test(rawUrl) ? rawUrl
+      : rawUrl.startsWith('//') ? 'https:' + rawUrl
+      : 'https://' + rawUrl;
     setIsSubmitting(true);
     try {
       if (isEditMode && editingAd) {
@@ -190,6 +196,7 @@ const AdCampaignForm = ({ advertiserId, advertiserName, editingAd, onBack }: Pro
         await setDoc(doc(db, 'ads', editingAd.id), {
           ...form,
           ctaText: safeCtaText,
+          landingUrl: safeLandingUrl,
           targetCreatorId: form.targetCreatorId || null,
           id: editingAd.id,
           advertiserId,
@@ -215,6 +222,7 @@ const AdCampaignForm = ({ advertiserId, advertiserName, editingAd, onBack }: Pro
         await setDoc(doc(db, 'ads', adId), {
           ...form,
           ctaText: safeCtaText,
+          landingUrl: safeLandingUrl,
           targetCreatorId: form.targetCreatorId || null,
           id: adId,
           advertiserId,

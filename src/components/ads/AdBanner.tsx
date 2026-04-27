@@ -13,17 +13,27 @@ interface Props {
   onClick?: (adId: string) => void;
 }
 
+// 🔧 v2.1 (2026-04-26): protocol 자동 부착 — 광고주가 'example.com'만 입력 시
+//   new URL() 실패 → window.open이 상대 경로로 해석 → 같은 도메인 이동 버그 해소
+function ensureProtocol(url: string): string {
+  if (!url) return '';
+  if (/^https?:\/\//i.test(url)) return url;
+  if (url.startsWith('//')) return 'https:' + url;
+  return 'https://' + url;
+}
+
 // 🚀 v2 P1-5: UTM 자동 부착 헬퍼
 function appendUTM(landingUrl: string, adId: string, slot: string): string {
-  if (!landingUrl) return '#';
+  const safeUrl = ensureProtocol(landingUrl);
+  if (!safeUrl) return '#';
   try {
-    const u = new URL(landingUrl);
+    const u = new URL(safeUrl);
     if (!u.searchParams.has('utm_source')) u.searchParams.set('utm_source', 'geulove');
     if (!u.searchParams.has('utm_medium')) u.searchParams.set('utm_medium', slot);
     if (!u.searchParams.has('utm_campaign')) u.searchParams.set('utm_campaign', adId);
     return u.toString();
   } catch {
-    return landingUrl;
+    return safeUrl;
   }
 }
 
@@ -31,6 +41,10 @@ const AdBanner = ({ ad, position, onClick }: Props) => {
   const handleClick = () => {
     onClick?.(ad.id);
     const finalUrl = appendUTM(ad.landingUrl, ad.id, position);
+    if (finalUrl === '#' || !finalUrl) {
+      console.warn('[AdBanner] landingUrl 누락 — 클릭 무시');
+      return;
+    }
     window.open(finalUrl, '_blank', 'noopener,noreferrer');
   };
 
