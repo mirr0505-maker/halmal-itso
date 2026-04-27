@@ -12,10 +12,10 @@
       "collectionGroup": "adEvents",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "viewerUid", "order": "ASCENDING" },
         { "fieldPath": "adId", "order": "ASCENDING" },
         { "fieldPath": "eventType", "order": "ASCENDING" },
-        { "fieldPath": "createdAt", "order": "DESCENDING" }
+        { "fieldPath": "viewerUid", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "ASCENDING" }
       ]
     },
     {

@@ -155,16 +155,8 @@ const AdSlot = ({ position, postCategory, postId, postAuthorId, postAuthorLevel,
   if (!rs.positions.includes(position)) return null;
   if (!adSlotEnabled) return null;
 
-  if (directAd) {
-    return (
-      <div ref={containerRef} className="my-4">
-        <AdBanner ad={directAd} position={position} onClick={() => handleAdClick(directAd.id, directAd.bidAmount, directAd.bidType)} />
-      </div>
-    );
-  }
-
-  if (!loaded) return null;
-
+  // 🔧 v2.1 (2026-04-26): handleAdClick을 directAd 분기보다 앞으로 이동 — TDZ(Temporal Dead Zone) 회피
+  //   기존: const 선언이 directAd 분기 뒤에 있어 minified 빌드에서 'Cannot access _ before initialization' 에러
   const handleAdClick = (adId: string, bidAmount?: number, bidType?: 'cpm' | 'cpc') => {
     if (!postId) return;
     const viewerUid = auth.currentUser?.uid || 'anonymous';
@@ -178,6 +170,16 @@ const AdSlot = ({ position, postCategory, postId, postAuthorId, postAuthorLevel,
       }),
     }).catch(() => {});
   };
+
+  if (directAd) {
+    return (
+      <div ref={containerRef} className="my-4">
+        <AdBanner ad={directAd} position={position} onClick={() => handleAdClick(directAd.id, directAd.bidAmount, directAd.bidType)} />
+      </div>
+    );
+  }
+
+  if (!loaded) return null;
 
   return (
     <div ref={containerRef} className="my-4">
