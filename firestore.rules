@@ -693,8 +693,9 @@ service cloud.firestore {
     // 🔒 v2.1 (2026-04-26): 검수 필드(status, rejectionReason, reviewedAt, reviewedBy) 본인 직접 수정 차단
     //   본인은 contactName/email/phone/businessName 등 등록 정보만 수정 가능.
     //   검수 액션은 관리자만 — admin이거나 모든 필드 변경 가능.
+    //   read: 본인 또는 admin (admin은 광고주 검수 큐에서 list 필요)
     match /advertiserAccounts/{advId} {
-      allow read: if request.auth != null && request.auth.uid == advId;
+      allow read: if request.auth != null && (request.auth.uid == advId || isAdmin());
       allow create: if request.auth != null && request.auth.uid == advId
         && request.resource.data.status == 'pending_review';
       allow update: if request.auth != null

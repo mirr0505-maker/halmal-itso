@@ -20,7 +20,11 @@ interface Notification {
     | 'report_resolved' | 'report_rejected'
     | 'appeal_accepted' | 'appeal_rejected' | 'report_restored'
     // 📢 2026-04-25 광고 시스템 — 광고주 알림
-    | 'ad_approved' | 'ad_rejected' | 'ad_expired' | 'ad_expiring';
+    | 'ad_approved' | 'ad_rejected' | 'ad_expired' | 'ad_expiring'
+    // 📢 2026-04-26 v2.1 광고 시스템 — 검수 요청·결과 + 예산 정지
+    | 'ad_pending_review' | 'advertiser_pending_review'
+    | 'advertiser_approved' | 'advertiser_rejected'
+    | 'ad_budget_paused';
   fromNickname?: string;  // 땡스볼·커뮤니티 알림
   fromNick?: string;      // 거대나무 알림 (필드명 다름)
   amount?: number;
@@ -227,6 +231,12 @@ const NotificationBell = ({ currentUid, onNavigate, onNavigateToEpisode }: Props
                   n.type === 'ad_rejected' ? '❌' :
                   n.type === 'ad_expired' ? '⌛' :
                   n.type === 'ad_expiring' ? '⏳' :
+                  // 📢 v2.1 검수 요청·결과·예산 정지
+                  n.type === 'ad_pending_review' ? '📋' :
+                  n.type === 'advertiser_pending_review' ? '🏢' :
+                  n.type === 'advertiser_approved' ? '✅' :
+                  n.type === 'advertiser_rejected' ? '❌' :
+                  n.type === 'ad_budget_paused' ? '📊' :
                   '⚾';
                 // 🚨 신고 알림은 서버가 body 필드로 멀티라인 메시지 저장 — whitespace-pre-line 유지
                 const isReportNotif = n.type === 'report_state_change' || n.type === 'report_warning'
@@ -235,6 +245,10 @@ const NotificationBell = ({ currentUid, onNavigate, onNavigateToEpisode }: Props
                   || n.type === 'appeal_rejected' || n.type === 'report_restored';
                 const isAdNotif = n.type === 'ad_approved' || n.type === 'ad_rejected'
                   || n.type === 'ad_expired' || n.type === 'ad_expiring';
+                // 📢 v2.1 광고 검수·예산 알림 — message 필드 그대로 표시
+                const isAdReviewNotif = n.type === 'ad_pending_review' || n.type === 'advertiser_pending_review'
+                  || n.type === 'advertiser_approved' || n.type === 'advertiser_rejected'
+                  || n.type === 'ad_budget_paused';
                 const body =
                   (isReportNotif || isAdNotif)
                     ? (<span className="whitespace-pre-line text-slate-800">{n.body || '(내용 없음)'}</span>)
@@ -250,6 +264,8 @@ const NotificationBell = ({ currentUid, onNavigate, onNavigateToEpisode }: Props
                     ? (<>📖 <span className="text-blue-600">「{n.seriesTitle}」</span> {n.episodeNumber}화가 연재되었어요</>)
                   : n.type === 'episode_unlocked'
                     ? (<><span className="text-blue-600">{n.fromNickname}</span>님이{' '}<span className="text-amber-500 font-[1000]">{n.amount}볼</span>로 회차를 잠금 해제했어요</>)
+                  : isAdReviewNotif
+                    ? (<span className="text-slate-800 whitespace-pre-line">{n.message || '광고 알림'}</span>)
                   : (<><span className="text-blue-600">{n.fromNickname}</span>님이{' '}<span className="text-amber-500 font-[1000]">{n.amount}볼</span> 땡스볼을 보냈어요</>);
                 return (
                   <div

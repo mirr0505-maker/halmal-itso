@@ -34,7 +34,8 @@ const AdvertiserRegister = ({ type, onComplete, onCancel }: Props) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isPrefilled, setIsPrefilled] = useState(false);
 
-  // 🚀 v2.1: 글러브 user 정보 자동 인입 — nickname/email/phone
+  // 🚀 v2.1: 글러브 user 정보 자동 인입 — nickname/email
+  //   📞 전번은 보안 정책상 평문 미저장(Sprint 7) — phoneHash만 있어 자동 인입 불가, 수동 입력
   useEffect(() => {
     const uid = auth.currentUser?.uid;
     const authEmail = auth.currentUser?.email || '';
@@ -42,12 +43,11 @@ const AdvertiserRegister = ({ type, onComplete, onCancel }: Props) => {
     (async () => {
       try {
         const snap = await getDoc(doc(db, 'users', uid));
-        const u = snap.exists() ? (snap.data() as { nickname?: string; phoneNumber?: string; phone?: string }) : {};
+        const u = snap.exists() ? (snap.data() as { nickname?: string }) : {};
         setForm(prev => ({
           ...prev,
           contactName: prev.contactName || u.nickname || '',
           email: prev.email || authEmail || '',
-          phone: prev.phone || u.phoneNumber || u.phone || '',
         }));
         setIsPrefilled(true);
       } catch { /* ignore */ }
@@ -123,7 +123,8 @@ const AdvertiserRegister = ({ type, onComplete, onCancel }: Props) => {
       </p>
       {isPrefilled && (
         <p className="text-[10px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2 mb-6">
-          ✅ 글러브 가입 정보(닉네임·이메일·연락처)를 자동으로 가져왔어요. 필요 시 수정 가능합니다.
+          ✅ 글러브 가입 정보(닉네임·이메일)를 자동으로 가져왔어요. 필요 시 수정 가능합니다.
+          <br /><span className="text-emerald-700/80">📞 연락처는 개인정보 보호 정책상 직접 입력해주세요.</span>
         </p>
       )}
 
