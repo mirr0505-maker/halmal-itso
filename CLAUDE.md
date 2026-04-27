@@ -98,10 +98,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `kanbuPromo.js` — `registerKanbuPromo`: 깐부 홍보 카드 등록 (Lv2+, 기간제). 차감 트랜잭션 내부에 `kanbu_promo_history/{uid}_{ts}` 영수증 동시 기록(`uid/cost/plan/days/paidAt`) — ballAudit 크로스체크용(2026-04-23).
 - `kanbuPaid.js` — `joinPaidKanbuRoom`: 깐부방 유료 게시판 결제(1회/구독, 수수료 Lv별 20~30%, pendingRevenue 누적). `checkKanbuSubscriptionExpiry`: 매일 09:00 월 구독 만료 처리
 - `auction.js` / `revenue.js` / `fraud.js` / `settlement.js` — ADSMARKET 광고 시스템
-- `auction.js` v2 (2026-04-26): eventType 분기 — `impression`(매칭+카운트), `viewable`(IAB 50%·1초+ → CPM 차감), `click`(CPC 차감). 매칭 단계에 빈도 캡(viewerUid+adId 24h N회) + 일/총 예산 가드 + Brand Safety(blockedCategories) 적용
+- `auction.js` v2.1 (2026-04-26): eventType 분기 — `impression`(매칭+카운트), `directMatch impression`(selectedAdId 광고 카운트만), `viewable`(IAB 50%·1초+ → CPM 차감), `click`(CPC 차감). 매칭 단계에 빈도 캡(viewerUid+adId 24h N회) + 일/총 예산 가드 + Brand Safety(blockedCategories) 적용. 카운터는 단일 진실원(트리거 중복 증가 제거).
 - `budgetEnforcer.js` (신설 v2) — `enforceBudgetLimits`(매시간) 일/총 예산 도달 시 자동 일시정지(pausedReason='budget_daily'/'budget_total') + 알림. `releaseDailyBudgetPause`(매일 04:00 KST) 일예산 정지 ad 재개 + todaySpent=0 리셋
 - `aggregateAdStats.js` (신설 v2) — 매일 04:30 KST 전일 adEvents 광고별 집계 → `ad_stats_daily/{adId}_{yyyymmdd}` 작성 (impressions/viewableImpressions/clicks/spent/uniqueViewers + bySlot/byMenu/byRegion/byHour 분해)
 - `estimateAdReach.js` (신설 v2) — `estimateAdReach` callable: 7일 ad_stats_daily 평균 + 단가 가중으로 일 예상 노출 추정. AdCampaignForm 슬라이더 실시간 표시
+- `reviewNotify.js` (신설 v2.1) — `onAdPendingReview`(ads.status='pending_review' 진입 시) + `onAdvertiserPendingReview`(advertiserAccounts.status='pending_review' 진입 시): Auth Admin SDK listUsers로 admin Custom Claims 보유자 자동 조회 → notifications/{adminUid}/items에 알림 발송
+- `adTriggers.js` v2.1 (2026-04-26): `updateAdMetrics` — 카운터 증가 코드 제거(이중 합산 방지). ctr 재계산(0~1 clamp) + adBids 동기화 + 예산 소진 처리만 담당
 - `contentLength.js` — `validateContentLength`: 신포도와 여우 100자 제한
 - `inkwell.js` — `unlockEpisode`(유료 회차 결제, 수수료 11%), `createEpisode`(서버측 episodeNumber), `onEpisodeCreate`(구독자 알림), `onInkwellPostDelete`(고아 알림+영수증 cleanup)
 - `gloveBot.js` — `activateInfoBot`/`deactivateInfoBot`/`updateInfoBot`: 정보봇 활성화·중지·수정 (주식 장갑 전용, 대장 월 20볼)
@@ -218,6 +220,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | `advertiser/AdCampaignForm.tsx` | 📢 광고 등록/수정. v2 P0-2 빈도 캡 섹션 + P0-1 노출 추정 카드(debounce 500ms callable) + P1-7 estimateAdReach + P1-8 Brand Safety(blockedCategories default '유배·귀양지'). 17개 시·도 + 6개 빠른 선택 묶음(수도권/영남/호남/충청/강원/제주). |
 | `advertiser/AdCampaignList.tsx` | 📢 내 광고 목록. v2 P0-1 예산 게이지(일/총, 80%↑ amber, 95%↑ rose) + P0-4 viewableRate 표시 + P0-3 [📊 통계] 진입 버튼. paused.budget_daily 시 📊 예산소진 배지. |
 | `advertiser/AdStatsModal.tsx` | 📢 광고주 통계 대시보드 (v2 P0-3). KPI 4종(노출·가시·클릭·소진) + 일별 SVG 라인(노출 violet · 클릭 amber) + 분해 3종(슬롯·메뉴·지역) + 24h 시간대 히트맵. 라이브러리 없이 SVG 직접. ad_stats_daily onSnapshot. |
+| `advertiser/AdvertiserRegister.tsx` | 📢 광고주 등록 폼 (v2.1). 모든 type(personal/individual_business/corporate) status='pending_review' 등록 의무. 글러브 user 정보(닉네임·이메일) 자동 인입 (전번은 Sprint 7 보안상 평문 미저장). |
+| `advertiser/AdvertiserCenter.tsx` | 📢 광고주 센터 (v2.1). pending_review/rejected 상태 시 [+ 새 광고] 잠금 + amber/rose 안내 배너 (검수 대기 / 거절 사유 표시). |
+| `admin/AdvertiserReviewQueue.tsx` | 🏢 관리자 광고주 검수 큐 (신설 v2.1). advertiserAccounts.status='pending_review' 카드형 큐 + ✅ 승인/❌ 거절(사유 입력) + 광고주 측에 advertiser_approved/advertiser_rejected 알림 발송. AdAdminPage '🏢 광고주 검수' 탭. |
 
 ---
 

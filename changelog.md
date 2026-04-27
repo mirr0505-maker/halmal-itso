@@ -1,5 +1,66 @@
 ## 8. 현재 구현 상태 (2026-03-24 기준, 코드 실측)
 
+### 📊 ADSMARKET v2.1 — 광고주 검수 의무화 + 안정화 일괄 (2026-04-26, 커밋 adb67bc~67506c3)
+
+> v2 P0~P1 7항목 도입 직후, 광고주 검수 의무화 + 운영 안정성 보강 + 다수 버그 수정 일괄.
+
+**[1] 광고주 검수 의무화 (커밋 adb67bc / 0f9e3f6)**
+- [x] AdvertiserAccount.status 'pending_review' | 'active' | 'rejected' | 'suspended' | 'dormant' (rejectionReason / reviewedAt / reviewedBy)
+- [x] AdvertiserRegister: status='pending_review' 의무화 + user 정보(닉네임·이메일) 자동 인입
+- [x] AdvertiserCenter: pending_review/rejected 상태 시 [+ 새 광고] 잠금 + amber/rose 안내 배너
+- [x] **AdvertiserReviewQueue 신설**: AdAdminPage '🏢 광고주 검수' 탭 + 카드형 큐 + 승인/거절(사유)
+- [x] firestore.rules: 검수 필드(status/rejectionReason/reviewedAt/reviewedBy/isVerified) 본인 수정 차단, 관리자만 변경. read는 본인 또는 admin
+- [x] firestore.indexes: advertiserAccounts (status, createdAt) 복합 색인
+
+**[2] 검수 요청 알림 + NotificationBell 분기 (커밋 adb67bc / 0f9e3f6)**
+- [x] **functions/reviewNotify.js 신설**: onAdPendingReview / onAdvertiserPendingReview Firestore Trigger. Auth Admin SDK listUsers로 admin Custom Claims 자동 조회 → 일괄 알림
+- [x] NotificationBell type 5종 추가 + isAdReviewNotif 분기 (이전 fallback "X님이 볼을 보냈어요" 해소): ad_pending_review / advertiser_pending_review / advertiser_approved / advertiser_rejected / ad_budget_paused
+- [x] 아이콘 매핑 (📋/🏢/✅/❌/📊)
+
+**[3] 광고 경매시장 모달 개선 (커밋 48c8c2a)**
+- [x] 슬롯 필터 제거 — 모든 활성 광고 표시
+- [x] 매칭 광고 우선 정렬 → 비매칭 광고는 회색 + 🚫 다른 슬롯 배지 + 클릭 시 안내 alert
+- [x] 헤더 카운트: 📌 이 슬롯 매칭 X개 / 전체 활성 Y개
+
+**[4] 슬롯 라벨 + 12개 작성 폼 picker 적용 (커밋 479f4b0)**
+- [x] AdSlotSetting SLOT_UNLOCK_LEVEL 매트릭스 일치 (top:7/middle:5/bottom:9 — 이전 middle:9/bottom:5 잘못됨)
+- [x] 10개 작성 폼에 selectedAds + onSelectAd + postCategory props 일괄 적용 (CreateBoneHitting / CreateDebate / CreateExile / CreateGiantTree / CreateKnowledge / CreateLocalNews / CreateMarathonHerald / CreateMarket / CreateNakedKing / CreateOneCutBox)
+
+**[5] 작성 폼 입력 영역 확장 + AdSlotSetting 외부 분리 (커밋 827e48f / 1fd4abe)**
+- [x] 12개 작성 폼 외곽 패딩 py-8→py-4 + maxHeight calc(100vh-80px)→calc(100vh-32px) — 약 80px 확장
+- [x] AdSlotSetting을 폼 카드 외부로 분리 — 광고 슬롯 picker 잘림 완전 해소 (옵션 B)
+
+**[6] 헤더 라벨·가시성 정리 (커밋 c8bf34f / b76c26b)**
+- [x] 광고 ON/끄기 토글을 정보 옆(좌측)으로 이동 — 가시성 ↑
+- [x] '📢 광고 ON' → '📢 광고 켜기', '▼ 자세히' → '▼ 열기'
+- [x] ▼ 열기 버튼: 흰 배경 + 보라 테두리 + 그림자 (강조) / ▲ 닫기는 회색
+
+**[7] 이미지 잘림 수정 (커밋 adb67bc)**
+- [x] AdBanner 가로형 + AdCampaignForm 업로드 박스 모두 object-cover → object-contain (1500×500 외 비율도 잘림 0)
+
+**[8] 광고 클릭 랜딩 URL protocol 자동 부착 (커밋 ad1b8f1)**
+- [x] AdBanner: ensureProtocol() — http(s):// 없으면 자동 https:// 부착 (런타임 보정)
+- [x] AdCampaignForm: 등록·수정 시점에도 safeLandingUrl 저장 (재발 방지)
+
+**[9] 광고 수정 권한 에러 해소 (커밋 ea5ca73)**
+- [x] AdCampaignForm 수정 모드 setDoc { merge: true } — Rules 차단 필드(pausedReason/todaySpent 등) 페이로드 누락으로 affectedKeys 거부되던 문제 해소
+
+**[10] TDZ + adEvents 색인 (커밋 8cd911b)**
+- [x] AdSlot handleAdClick 호이스팅 fix (Cannot access _ before initialization 해소)
+- [x] adEvents 색인 (adId, eventType, viewerUid, createdAt ASC)로 순서 정정 — 빈도 캡 쿼리 500 에러 해소
+
+**[11] 카운터 이중 증가 + selectedAd impression 누락 (커밋 965754e)**
+- [x] **updateAdMetrics 트리거 카운터 증가 코드 제거** — auction.js가 단일 진실원 (이전 트리거+auction.js 중복으로 totalClicks +2씩 누적되던 버그 해소)
+- [x] AdSlot directAd useEffect에 impression POST 추가 (광고당 1회 impressionFiredRef 중복 차단)
+- [x] auction.js directMatch impression 분기 신설 — selectedAdId 광고도 totalImpressions 정상 카운트
+
+**[12] 비율 표시 clamp (커밋 67506c3)**
+- [x] AdCampaignList viewableRate / CTR 100% 상한 clamp (비정상 데이터 방어)
+- [x] updateAdMetrics 트리거 ctr 0~1 clamp
+
+**[13] 검증 시나리오 정리 (커밋 17d02a7)**
+- [x] **AdsTestScenarios.md 신설** — 18 시나리오 self-contained (즉시 검증 13 / D+1 2 / D+7 3) + 진단 명령어 + Firestore 핵심 문서 + 알림 type 5종
+
 ### 📊 ADSMARKET v2 — P0~P1 7항목 일괄 도입 (2026-04-26, 커밋 2f47252)
 
 > AdsRoadmap.md 7건 일괄 — 광고주 신뢰·사용자 보호·UX 고도화 패키지.

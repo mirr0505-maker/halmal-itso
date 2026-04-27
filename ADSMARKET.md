@@ -3,7 +3,10 @@
 > **문서 목적**: VS Code에서 AI(Claude) 또는 휴먼 개발자가 코딩 작업을 수행할 때 **단일 진실 소스(Single Source of Truth)**로 사용하는 기획서.
 > 모든 컬렉션 · 인터페이스 · 비즈니스 로직 · UI 컴포넌트를 이 문서 하나로 확정한다.
 >
-> 최종 갱신: 2026-04-26 v2.0 | 기술 스택: React 19 + TS + Vite · Tailwind 4 · Firebase (Firestore + Auth + Cloud Functions) · Cloudflare R2/Workers
+> 최종 갱신: 2026-04-26 v2.1 | 기술 스택: React 19 + TS + Vite · Tailwind 4 · Firebase (Firestore + Auth + Cloud Functions) · Cloudflare R2/Workers
+>
+> **v2.1 (2026-04-26) 변경 요약** — 광고주 검수 의무화 + 안정화 일괄.
+>   ① 광고주 등록 status='pending_review' 의무화 + 자동 인입(닉네임·이메일) ② AdvertiserReviewQueue 신설 + AdAdminPage '🏢 광고주 검수' 탭 ③ 검수 요청 알림 CF 2종(`onAdPendingReview` / `onAdvertiserPendingReview`) ④ 알림 NotificationBell 5종 type 분기(advertiser_pending_review / advertiser_approved / advertiser_rejected / ad_pending_review / ad_budget_paused) ⑤ AdMarketplaceModal 모든 활성 광고 표시 + 슬롯 매칭 시각 구분 + 비매칭 안내 ⑥ AdSlotSetting 폼 외부 분리(maxHeight 제약 회피) + 헤더 가시성(광고 켜기 강조) ⑦ 광고 이미지 object-contain 일관 적용(잘림 0) ⑧ 슬롯 라벨 매트릭스 일치(top:7/middle:5/bottom:9) + 12개 작성 폼 광고 picker 일괄 적용 ⑨ landingUrl protocol 자동 부착(http/https 누락 보정) ⑩ 카운터 이중 증가 해소(트리거 제거) + selectedAd impression 누락 보강 + 비율 100% clamp ⑪ adEvents 색인 필드 순서 정정 + 광고 수정 권한 에러 해소(setDoc merge:true).
 >
 > **v2.0 (2026-04-26) 변경 요약** — AdsRoadmap.md P0~P1 7항목 일괄 도입.
 >   ① P0-1 일/총 예산 자동 차감·정지 (`budgetEnforcer.js` 매시간 + 04:00 KST 재개) ②  P0-2 빈도 캡 (`ads.frequencyCap` default 24h 3회) ③ P0-3 광고주 통계 대시보드 (`ad_stats_daily` + `aggregateAdStats` 04:30 KST + AdStatsModal SVG 시각화) ④ P0-4 Viewable Impressions IAB 표준 (50%·1초+, 차감은 viewable 기준) ⑤ P1-5 UTM 자동 부착 ⑥ P1-7 예상 일 노출 추정 (`estimateAdReach` callable + 슬라이더) ⑦ P1-8 Brand Safety (`blockedCategories` default '유배·귀양지'). 자세한 진행 상황은 [AdsRoadmap.md](./AdsRoadmap.md).

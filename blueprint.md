@@ -92,6 +92,7 @@
 ├── budgetEnforcer.js        # 📊 v2 P0-1 — enforceBudgetLimits(매시간) + releaseDailyBudgetPause(04:00 KST)
 ├── aggregateAdStats.js      # 📊 v2 P0-3 — 매일 04:30 KST 전일 adEvents 광고별 집계 → ad_stats_daily
 ├── estimateAdReach.js       # 📊 v2 P1-7 — estimateAdReach callable (예상 일 노출 추정)
+├── reviewNotify.js          # 🏢 v2.1 — onAdPendingReview / onAdvertiserPendingReview (검수 요청 시 admin 자동 알림)
 ├── kanbuPromo.js            # registerKanbuPromo — 깐부 홍보 카드 등록 (Lv2+, 기간제 과금) → KANBU.md
 ├── kanbuPaid.js             # joinPaidKanbuRoom + checkKanbuSubscriptionExpiry — 유료 게시판 결제·만료 → KANBU.md
 ├── livePresence.js          # cleanupLivePresence — 🔴 라이브 좀비 참가자 정리 → KANBU.md §5
@@ -520,6 +521,7 @@ creatorScore = (reputation × activity × trust) / 1000
   - 📊 `enforceBudgetLimits` (매시간) / `releaseDailyBudgetPause` (매일 04:00 KST): ADSMARKET v2 예산 자동 정지·재개
   - 📊 `aggregateAdStats` (매일 04:30 KST): ADSMARKET v2 일별 통계 집계
   - 📊 `estimateAdReach` (callable): ADSMARKET v2 등록 시 예상 노출 추정
+  - 🏢 `onAdPendingReview` / `onAdvertiserPendingReview` (Firestore Trigger): ADSMARKET v2.1 검수 요청 시 admin 자동 알림
   - `validateContentLength`: 신포도와 여우 100자 제한
   - 🏅 `snapshotUserDaily`: Sprint 3 — 매일 03:30 KST 유저 활동 스냅샷 (`user_snapshots/{yyyyMMdd}_{uid}`)
   - 🏅 `reputationCache`: Sprint 3 — 매일 04:45 KST V2 평판 전체 재계산 (변화 없으면 쓰기 생략)
