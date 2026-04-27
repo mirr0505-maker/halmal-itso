@@ -92,8 +92,8 @@ const CreateNakedKing = ({ userData, editingPost, onSubmit, onClose }: Props) =>
   ];
 
   return (
-    <div className="w-full max-w-[1024px] mx-auto py-8 animate-in fade-in duration-200">
-      <div className="bg-white border border-slate-200 rounded-xl overflow-hidden flex flex-col shadow-sm" style={{ maxHeight: 'calc(100vh - 80px)' }}>
+    <div className="w-full max-w-[1024px] mx-auto py-4 animate-in fade-in duration-200">
+      <div className="bg-white border border-slate-200 rounded-xl overflow-hidden flex flex-col shadow-sm" style={{ maxHeight: 'calc(100vh - 32px)' }}>
 
         {/* 헤더 */}
         <div className="flex items-center justify-between px-5 h-12 border-b border-slate-100 shrink-0">

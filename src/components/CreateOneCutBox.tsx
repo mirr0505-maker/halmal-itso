@@ -138,7 +138,7 @@ const CreateOneCutBox = ({ userData, editingPost, allPosts, onSubmit, onClose }:
   };
 
   return (
-    <div className="w-full max-w-[720px] mx-auto py-6 animate-in fade-in slide-in-from-bottom-4 duration-500" onPaste={handlePaste}>
+    <div className="w-full max-w-[720px] mx-auto py-3 animate-in fade-in slide-in-from-bottom-4 duration-500" onPaste={handlePaste}>
       <div className="bg-white rounded-[2.5rem] shadow-2xl border border-slate-100 overflow-hidden flex flex-col max-h-[90vh]">
         {/* Header - Fixed */}
         <div className="px-10 py-7 flex justify-between items-center border-b border-slate-50 bg-white z-[60] shrink-0">
