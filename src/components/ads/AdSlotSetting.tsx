@@ -51,7 +51,7 @@ const AdSlotSetting = ({ userLevel, adSlotEnabled, adSlotType, onChange, selecte
           <span className="text-[11px] font-[1000] text-slate-400">
             📢 광고 슬롯 <span className="text-slate-300">(Lv5+ 활성)</span>
           </span>
-          <span className="text-[10px] font-bold text-slate-300">{expanded ? '▲ 닫기' : '▼ 자세히'}</span>
+          <span className="text-[10px] font-bold text-slate-300">{expanded ? '▲ 닫기' : '▼ 열기'}</span>
         </button>
         {expanded && (
           <div className="px-3 pb-2.5 border-t border-slate-100 pt-2.5">
@@ -65,8 +65,8 @@ const AdSlotSetting = ({ userLevel, adSlotEnabled, adSlotType, onChange, selecte
     );
   }
 
-  // 토글 버튼: OFF면 [광고 ON] 강조 (누르면 켜짐 = 다음 행동 표시) / ON이면 [광고 끄기] 회색
-  const toggleLabel = adSlotEnabled ? '광고 끄기' : '📢 광고 ON';
+  // 토글 버튼: OFF면 [광고 켜기] 강조 (누르면 켜짐 = 다음 행동 표시) / ON이면 [광고 끄기] 회색
+  const toggleLabel = adSlotEnabled ? '광고 끄기' : '📢 광고 켜기';
   const toggleClass = adSlotEnabled
     ? 'bg-slate-200 text-slate-600 hover:bg-slate-300'
     : 'bg-violet-600 text-white shadow-sm hover:bg-violet-700';
@@ -92,12 +92,16 @@ const AdSlotSetting = ({ userLevel, adSlotEnabled, adSlotType, onChange, selecte
             {toggleLabel}
           </button>
         </div>
-        {/* 우측: ▼ 자세히 / ▲ 닫기 (보조) */}
+        {/* 우측: ▼ 열기 / ▲ 닫기 — 가시성 확보 (테두리·배경 강조) */}
         <button
           onClick={() => setExpanded(v => !v)}
-          className="shrink-0 text-[10px] font-bold text-slate-400 hover:text-slate-700 hover:bg-violet-50 rounded-md px-2 py-1.5 transition-colors"
+          className={`shrink-0 px-3 py-1.5 rounded-full text-[11px] font-[1000] border-2 transition-all ${
+            expanded
+              ? 'bg-slate-100 text-slate-600 border-slate-300 hover:bg-slate-200'
+              : 'bg-white text-violet-600 border-violet-300 hover:bg-violet-50 hover:border-violet-500 shadow-sm'
+          }`}
         >
-          {expanded ? '▲ 닫기' : '▼ 자세히'}
+          {expanded ? '▲ 닫기' : '▼ 열기'}
         </button>
       </div>
 
