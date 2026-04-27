@@ -20,7 +20,7 @@ const CreateGiantTree = ({ currentNickname, currentUserData, onBack, onCreated }
   const [content, setContent] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   // 🚀 ADSMARKET: 광고 슬롯 설정
-  const { adSlotFields, adSlotEnabled, adSlotType, onAdSlotChange } = useAdSlotSetting();
+  const { adSlotFields, adSlotEnabled, adSlotType, selectedAds, onAdSlotChange, onSelectAd } = useAdSlotSetting();
 
   const reputation = getReputationLabel(currentUserData ? getReputation(currentUserData) : 0);
   const maxSpread = MAX_SPREAD_BY_REPUTATION[reputation] || 0;
@@ -105,7 +105,9 @@ const CreateGiantTree = ({ currentNickname, currentUserData, onBack, onCreated }
       {/* 🚀 ADSMARKET: 광고 슬롯 설정 (Lv5+) */}
       <div className="mb-4 border border-slate-100 rounded-xl overflow-hidden">
         <AdSlotSetting userLevel={calculateLevel(currentUserData?.exp || 0)} adSlotEnabled={adSlotEnabled} adSlotType={adSlotType}
-          onChange={onAdSlotChange} />
+          onChange={onAdSlotChange}
+          selectedAds={selectedAds} onSelectAd={onSelectAd}
+          postCategory="거대나무" />
       </div>
 
       {/* 제출 */}

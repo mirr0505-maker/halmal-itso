@@ -31,7 +31,7 @@ const CreateLocalNews = ({ userData, editingPost, onSubmit, onClose }: Props) =>
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   // 🚀 ADSMARKET: 광고 슬롯 설정
-  const { adSlotFields, adSlotEnabled, adSlotType, onAdSlotChange } = useAdSlotSetting();
+  const { adSlotFields, adSlotEnabled, adSlotType, selectedAds, onAdSlotChange, onSelectAd } = useAdSlotSetting();
 
   // 🚀 국내 입력 시: 해외 잠금, location + tags[3] 자동 업데이트
   // Array.from으로 5칸 보장 — tags가 5개 미만이면 중간에 undefined 구멍이 생겨 .trim() 에러 발생
@@ -152,7 +152,9 @@ const CreateLocalNews = ({ userData, editingPost, onSubmit, onClose }: Props) =>
 
         {/* 🚀 ADSMARKET: 광고 슬롯 설정 (Lv5+) */}
         <AdSlotSetting userLevel={calculateLevel(userData?.exp || 0)} adSlotEnabled={adSlotEnabled} adSlotType={adSlotType}
-          onChange={onAdSlotChange} />
+          onChange={onAdSlotChange}
+          selectedAds={selectedAds} onSelectAd={onSelectAd}
+          postCategory={postData.category} />
       </div>
     </div>
   );

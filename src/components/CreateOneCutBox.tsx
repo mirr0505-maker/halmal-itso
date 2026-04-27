@@ -40,7 +40,7 @@ const CreateOneCutBox = ({ userData, editingPost, allPosts, onSubmit, onClose }:
   // 슬롯별 업로드 진행 상태 (인덱스)
   const [uploadingSlot, setUploadingSlot] = useState<number | null>(null);
   // 🚀 ADSMARKET: 광고 슬롯 설정
-  const { adSlotFields, adSlotEnabled, adSlotType, onAdSlotChange } = useAdSlotSetting();
+  const { adSlotFields, adSlotEnabled, adSlotType, selectedAds, onAdSlotChange, onSelectAd } = useAdSlotSetting();
   const fileInputRefs = useRef<Array<HTMLInputElement | null>>([]);
 
   // 지정 슬롯 이미지 업데이트 (imageUrls + imageUrl[0] 동기화)
@@ -296,7 +296,9 @@ const CreateOneCutBox = ({ userData, editingPost, allPosts, onSubmit, onClose }:
 
               {/* 🚀 ADSMARKET: 광고 슬롯 설정 (Lv5+) */}
               <AdSlotSetting userLevel={calculateLevel(userData?.exp || 0)} adSlotEnabled={adSlotEnabled} adSlotType={adSlotType}
-                onChange={onAdSlotChange} />
+                onChange={onAdSlotChange}
+                selectedAds={selectedAds} onSelectAd={onSelectAd}
+                postCategory={postData.category} />
             </div>
           </div>
         </div>

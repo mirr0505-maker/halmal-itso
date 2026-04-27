@@ -20,10 +20,12 @@ interface Props {
   postCategory?: string;  // 매칭 우선 정렬용 (선택)
 }
 
+// 🔧 v2.1 (2026-04-26): 매트릭스(constants.ts CREATOR_AD_SLOTS)와 라벨 동기화
+//   Lv5~6 → middle / Lv7~8 → top+middle / Lv9~10 → top+middle+bottom
 const SLOT_UNLOCK_LEVEL: Record<'top' | 'middle' | 'bottom', number> = {
   top: 7,
-  middle: 9,
-  bottom: 5,
+  middle: 5,
+  bottom: 9,
 };
 
 const POSITION_LABEL_KO: Record<'top' | 'middle' | 'bottom', string> = {

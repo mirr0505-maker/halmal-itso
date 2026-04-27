@@ -38,7 +38,7 @@ const CreateKnowledge = ({ userData, editingPost, onSubmit, onClose }: Props) =>
   const [isUploading, setIsUploading] = useState(false);
   const [activeGroupIdx, setActiveGroupIdx] = useState(0);
   // 🚀 ADSMARKET: 광고 슬롯 설정
-  const { adSlotFields, adSlotEnabled, adSlotType, onAdSlotChange } = useAdSlotSetting();
+  const { adSlotFields, adSlotEnabled, adSlotType, selectedAds, onAdSlotChange, onSelectAd } = useAdSlotSetting();
 
   // 🚀 분야 칩 토글 — 최대 2개, 선택 시 tags[0]/[1]에 자동 반영 (tags[2]~[4]는 유저 직접 입력용 유지)
   const toggleField = (field: string) => {
@@ -189,7 +189,9 @@ const CreateKnowledge = ({ userData, editingPost, onSubmit, onClose }: Props) =>
 
         {/* 🚀 ADSMARKET: 광고 슬롯 설정 (Lv5+) */}
         <AdSlotSetting userLevel={calculateLevel(userData?.exp || 0)} adSlotEnabled={adSlotEnabled} adSlotType={adSlotType}
-          onChange={onAdSlotChange} />
+          onChange={onAdSlotChange}
+          selectedAds={selectedAds} onSelectAd={onSelectAd}
+          postCategory={postData.category} />
       </div>
     </div>
   );
