@@ -40,17 +40,17 @@ const AdMarketplaceModal = ({ slot, currentSelectedAdId, postCategory, onSelect,
   const sentinelRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    // Why: orderBy 제거 — 정렬은 useMemo에서 클라가 처리. (status, bidAmount) 복합 색인 미존재로 빈 결과 방지
+    // 🔧 v2.1 (2026-04-26): 슬롯 필터 제거 — 모든 활성 광고 표시
+    //   매칭/비매칭은 카드 단계에서 시각 구분 (slotMatch 배지 + 회색 처리)
+    //   비매칭 광고 선택 시 안내 후 자동매칭으로 fallback (광고주 슬롯 의도 보호)
     const q = query(collection(db, 'ads'), where('status', '==', 'active'));
     const unsub = onSnapshot(q, snap => {
-      const list = snap.docs
-        .map(d => ({ id: d.id, ...d.data() } as Ad))
-        .filter(ad => ad.targetSlots?.includes(slot));
+      const list = snap.docs.map(d => ({ id: d.id, ...d.data() } as Ad));
       setAds(list);
       setLoading(false);
     }, err => { console.error('[AdMarketplaceModal]', err); setLoading(false); });
     return () => unsub();
-  }, [slot]);
+  }, []);
 
   // 정렬·검색·메뉴 일치 필터
   const filtered = useMemo(() => {
@@ -81,8 +81,17 @@ const AdMarketplaceModal = ({ slot, currentSelectedAdId, postCategory, onSelect,
         return Number(bMatch) - Number(aMatch);
       });
     }
+    // 🔧 v2.1: 이 슬롯 매칭 광고를 최우선 정렬 (다른 슬롯 광고는 아래로)
+    list.sort((a, b) => {
+      const aSlot = !!a.targetSlots?.includes(slot);
+      const bSlot = !!b.targetSlots?.includes(slot);
+      return Number(bSlot) - Number(aSlot);
+    });
     return list;
-  }, [ads, sortMode, postCategory, search, menuMatchOnly]);
+  }, [ads, sortMode, postCategory, search, menuMatchOnly, slot]);
+
+  // 🔧 v2.1: 슬롯 매칭/비매칭 카운트 (헤더 안내용)
+  const slotMatchCount = useMemo(() => ads.filter(a => a.targetSlots?.includes(slot)).length, [ads, slot]);
 
   const displayed = useMemo(() => filtered.slice(0, pageCount * PAGE_SIZE), [filtered, pageCount]);
   const hasMore = displayed.length < filtered.length;
@@ -115,6 +124,14 @@ const AdMarketplaceModal = ({ slot, currentSelectedAdId, postCategory, onSelect,
   };
   const handleConfirmAd = (adId: string) => { onSelect(adId); onClose(); };
   const handleConfirmAuto = () => { onSelect('auto'); onClose(); };
+  // 🔧 v2.1: 다른 슬롯 광고 선택 안내 — 광고주가 이 슬롯에 등록 안 했으므로 자동매칭 fallback
+  const handleNonMatchClick = (ad: Ad) => {
+    alert(
+      `📌 안내\n\n"${ad.headline}" 광고는 광고주가 [${ad.targetSlots?.map(s => SLOT_LABEL[s] || s).join(', ') || '미지정'}] 슬롯에 등록한 광고예요.\n\n` +
+      `현재 ${SLOT_LABEL[slot]} 슬롯에는 노출되지 않으므로 자동 매칭으로 결정됩니다.\n` +
+      `이 광고를 노출하려면 광고주에게 ${SLOT_LABEL[slot]} 슬롯 추가를 요청해주세요.`
+    );
+  };
 
   return (
     <div className="fixed inset-0 z-[100] bg-black/60 flex items-center justify-center px-2 sm:px-4 animate-in fade-in" onClick={onClose}>
@@ -125,6 +142,10 @@ const AdMarketplaceModal = ({ slot, currentSelectedAdId, postCategory, onSelect,
             <h2 className="text-[16px] font-[1000] text-slate-900">📢 광고 경매시장</h2>
             <p className="text-[10px] font-bold text-slate-400 mt-0.5 truncate">
               <span className="text-violet-600">{SLOT_LABEL[slot]}</span> 슬롯 · 카드 클릭 → 우측 미리보기 → [✓ 선택]으로 확정
+            </p>
+            <p className="text-[9px] font-[1000] mt-0.5">
+              <span className="text-emerald-600">📌 이 슬롯 매칭 {slotMatchCount}개</span>
+              <span className="text-slate-400"> / 전체 활성 {ads.length}개</span>
             </p>
           </div>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-700 text-[18px] font-bold w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-100 shrink-0">✕</button>
@@ -185,7 +206,7 @@ const AdMarketplaceModal = ({ slot, currentSelectedAdId, postCategory, onSelect,
               <p className="py-12 text-center text-slate-300 font-bold text-[12px]">불러오는 중...</p>
             ) : displayed.length === 0 ? (
               <p className="py-12 text-center text-slate-300 font-bold text-[12px]">
-                {search.trim() || menuMatchOnly ? '조건에 맞는 광고가 없습니다' : `${SLOT_LABEL[slot]} 슬롯에 노출 가능한 활성 광고가 없습니다`}
+                {search.trim() || menuMatchOnly ? '조건에 맞는 광고가 없습니다' : `등록된 활성 광고가 없습니다`}
               </p>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
@@ -194,11 +215,14 @@ const AdMarketplaceModal = ({ slot, currentSelectedAdId, postCategory, onSelect,
                   const isPreviewing = preview === ad.id;
                   const isExpanded = expandedAdId === ad.id;
                   const menuMatch = isMenuMatch(ad);
+                  // 🔧 v2.1: 슬롯 매칭 여부 — 비매칭 카드는 회색 + 클릭 시 안내
+                  const slotMatch = !!ad.targetSlots?.includes(slot);
                   return (
                     <div key={ad.id} className="flex flex-col">
                       <button
-                        onClick={() => setPreview(ad.id)}
+                        onClick={() => { if (slotMatch) setPreview(ad.id); else handleNonMatchClick(ad); }}
                         className={`w-full p-2.5 rounded-xl border-2 transition-colors text-left ${
+                          !slotMatch ? 'border-slate-200 bg-slate-50 opacity-70 hover:opacity-100' :
                           isPreviewing ? 'border-violet-500 bg-violet-50' :
                           'border-slate-200 bg-white hover:border-violet-300'
                         }`}
@@ -221,6 +245,9 @@ const AdMarketplaceModal = ({ slot, currentSelectedAdId, postCategory, onSelect,
                             <div className="flex items-center gap-1 mt-1 flex-wrap">
                               <span className="text-[10px] font-[1000] text-amber-600">⚾ {ad.bidAmount}볼</span>
                               <span className="text-[8px] font-bold text-slate-400">{(ad.bidType || '').toUpperCase()}</span>
+                              {!slotMatch && (
+                                <span className="text-[8px] font-[1000] bg-rose-100 text-rose-600 px-1.5 py-0.5 rounded">🚫 다른 슬롯</span>
+                              )}
                               {menuMatch && <span className="text-[8px] font-[1000] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded">📍 일치</span>}
                               <span className="text-[8px] font-[1000] bg-sky-100 text-sky-700 px-1.5 py-0.5 rounded truncate max-w-[120px]" title={ad.targetRegions?.length ? ad.targetRegions.join(', ') : '전국'}>
                                 🌏 {ad.targetRegions?.length ? (ad.targetRegions.length <= 2 ? ad.targetRegions.join('·') : `${ad.targetRegions[0]} 외 ${ad.targetRegions.length - 1}`) : '전국'}
