@@ -73,25 +73,31 @@ const AdSlotSetting = ({ userLevel, adSlotEnabled, adSlotType, onChange, selecte
 
   return (
     <div className="mx-5 my-2 rounded-xl border-2 border-violet-200 bg-gradient-to-br from-violet-50 to-white shrink-0 overflow-hidden">
-      {/* 헤더 — 평소엔 이 한 줄만 노출 (60px) */}
+      {/* 헤더 — 평소엔 이 한 줄만 노출 (60px)
+          🔧 v2.1 (2026-04-26): 광고 ON/끄기 토글을 정보 옆(좌측)으로 이동해 가시성 확보,
+                                ▼ 자세히/닫기는 우측으로 이동 (보조 액션) */}
       <div className="flex items-center justify-between px-3 py-2.5 gap-2">
-        <button
-          onClick={() => setExpanded(v => !v)}
-          className="flex items-center gap-2 flex-1 min-w-0 text-left hover:bg-violet-50 rounded-md px-1 py-1 transition-colors"
-        >
+        {/* 좌측: 정보 + 광고 ON/끄기 토글 (강조) */}
+        <div className="flex items-center gap-2 flex-1 min-w-0 flex-wrap">
           <span className="text-[14px] shrink-0">📢</span>
           <span className="text-[12px] font-[1000] text-violet-700 shrink-0">광고 슬롯</span>
           <span className="text-[10px] font-bold text-slate-400 shrink-0">·</span>
           <span className="text-[10px] font-[1000] text-slate-600 shrink-0">Lv{userLevel}</span>
           <span className="text-[10px] font-bold text-slate-400 shrink-0">·</span>
           <span className="text-[10px] font-[1000] text-violet-600 shrink-0">{rs.slots}슬롯 활성</span>
-          <span className="text-[10px] font-bold text-slate-300 ml-1.5 shrink-0">{expanded ? '▲ 닫기' : '▼ 자세히'}</span>
-        </button>
+          <button
+            onClick={() => onChange(!adSlotEnabled, adSlotType)}
+            className={`shrink-0 px-3.5 py-1.5 rounded-full text-[11px] font-[1000] transition-all ${toggleClass}`}
+          >
+            {toggleLabel}
+          </button>
+        </div>
+        {/* 우측: ▼ 자세히 / ▲ 닫기 (보조) */}
         <button
-          onClick={() => onChange(!adSlotEnabled, adSlotType)}
-          className={`shrink-0 px-3.5 py-1.5 rounded-full text-[11px] font-[1000] transition-all ${toggleClass}`}
+          onClick={() => setExpanded(v => !v)}
+          className="shrink-0 text-[10px] font-bold text-slate-400 hover:text-slate-700 hover:bg-violet-50 rounded-md px-2 py-1.5 transition-colors"
         >
-          {toggleLabel}
+          {expanded ? '▲ 닫기' : '▼ 자세히'}
         </button>
       </div>
 
