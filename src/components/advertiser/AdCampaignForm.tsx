@@ -190,28 +190,19 @@ const AdCampaignForm = ({ advertiserId, advertiserName, editingAd, onBack }: Pro
     setIsSubmitting(true);
     try {
       if (isEditMode && editingAd) {
-        // 🔧 수정 모드: 기존 ID 유지, 누적 통계(impressions/clicks/spent)·createdAt·advertiser 정보 보존
+        // 🔧 수정 모드: 기존 ID 유지, 누적 통계·createdAt·advertiser 정보 보존
         //   소재/타겟팅 변경이 있으면 status='pending_review' 강제 (재검수). draft 그대로 저장은 status 유지.
+        // 🔧 v2.1 (2026-04-26): { merge: true } — Rules 차단 필드(pausedReason·todaySpent·viewable 등)
+        //   페이로드 누락으로 affectedKeys에 잡혀 거부되던 문제 해소. 폼 입력 필드만 변경.
         const newStatus = status === 'draft' ? 'draft' : 'pending_review';
         await setDoc(doc(db, 'ads', editingAd.id), {
           ...form,
           ctaText: safeCtaText,
           landingUrl: safeLandingUrl,
           targetCreatorId: form.targetCreatorId || null,
-          id: editingAd.id,
-          advertiserId,
-          advertiserName,
           status: newStatus,
-          // 누적 통계 보존
-          totalImpressions: editingAd.totalImpressions || 0,
-          totalClicks: editingAd.totalClicks || 0,
-          totalSpent: editingAd.totalSpent || 0,
-          ctr: editingAd.ctr || 0,
-          startDate: editingAd.startDate,
-          endDate: editingAd.endDate,
-          createdAt: editingAd.createdAt,
           updatedAt: serverTimestamp(),
-        });
+        }, { merge: true });
         alert(newStatus === 'pending_review' ? '✅ 수정 완료 — 재검수 대기 상태로 전환됐어요' : '✅ 임시저장 완료');
       } else {
         // 신규 등록 — endDate default 30일 후 (만료 자동 처리에 사용)
