@@ -3,7 +3,10 @@
 > **문서 목적**: VS Code에서 AI(Claude) 또는 휴먼 개발자가 코딩 작업을 수행할 때 **단일 진실 소스(Single Source of Truth)**로 사용하는 기획서.
 > 모든 컬렉션 · 인터페이스 · 비즈니스 로직 · UI 컴포넌트를 이 문서 하나로 확정한다.
 >
-> 최종 갱신: 2026-04-28 v2.1+ | 기술 스택: React 19 + TS + Vite · Tailwind 4 · Firebase (Firestore + Auth + Cloud Functions) · Cloudflare R2/Workers
+> 최종 갱신: 2026-04-28 v2.1++ | 기술 스택: React 19 + TS + Vite · Tailwind 4 · Firebase (Firestore + Auth + Cloud Functions) · Cloudflare R2/Workers
+>
+> **v2.1++ (2026-04-28 후속) 추가 변경** — S-9~S-15 검증 + 광고주 의도 강제 + byRegion 보강.
+>   ① AdMarketplaceModal Brand Safety/메뉴/region 차단 시각 구분 + 안내 alert ② AdSlot directAd 분기에도 광고주 의도(blockedCategories/targetMenuCategories) 강제 ③ region은 viewer IP 기반이라 차단 X — 정보 confirm 다이얼로그 ④ adEvents 4개 분기에 viewerRegion 저장 → byRegion 집계 누락 해소 ⑤ TODO: users.region 자동 채움, 카카오 비즈 앱 이메일 수집. 검증 트래커 [AdsTestScenarios.md](./AdsTestScenarios.md) — 즉시 13/13 + D+1 2/2 ✅, D+7 3건 잔여.
 >
 > **v2.1+ (2026-04-28) 추가 변경** — S-8 빈도 캡 검증 통과 + 후속 버그 3종 수정.
 >   ① selectedAd 광고도 빈도 캡 적용 (옵션 A — 사용자 보호 우선) — AdSlot directAd useEffect에서 24h viewable count 검사 ② selectedAd impression 이중 누적 해소 — 매칭 useEffect에서 selectedAdId 광고ID 시 매칭 fetch skip ③ 신규 등록 alert 누락 보강 — 검수 대기 진입 피드백 (수정 모드와 일관). 검증 결과는 [AdsTestScenarios.md](./AdsTestScenarios.md) S-8.

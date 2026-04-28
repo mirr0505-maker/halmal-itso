@@ -630,3 +630,4 @@
 | 2026-04-26 | P0-1~P0-4 + P1-5/7/8 일괄 배포 완료 (커밋 2f47252) — 7/13 완료 |
 | 2026-04-26 | v2.1 안정화 일괄 (커밋 adb67bc~67506c3): 광고주 검수 의무화 + 검수 알림 CF + 카운터 이중 증가 해소 + 모달 전체 광고 표시 + 폼 외부 분리 + protocol 자동 부착 + 비율 clamp 등. AdsTestScenarios.md 18 시나리오 정리 (커밋 17d02a7). |
 | 2026-04-28 | v2.1+ S-8 빈도 캡 검증 통과 + 후속 버그 3종 수정 (커밋 707b2e2~0f07aee): selectedAd 빈도 캡 적용(옵션 A) / impression 이중 누적 해소 / 신규 등록 alert 보강. AdsTestScenarios 트래커 8/13 완료. |
+| 2026-04-28 | v2.1++ S-9~S-15 검증 + 광고주 의도 강제 + byRegion 보강 (커밋 1158a06~9a201a2): AdMarketplaceModal Brand Safety/메뉴/region 시각 구분 + 안내 alert / AdSlot directAd 광고주 의도 강제 / adEvents viewerRegion 저장 / TODO 등록(users.region · 카카오 이메일). 즉시 13/13 + D+1 2/2 ✅, D+7 3건 잔여. |

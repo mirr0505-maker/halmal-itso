@@ -1,5 +1,29 @@
 ## 8. 현재 구현 상태 (2026-03-24 기준, 코드 실측)
 
+### 📊 ADSMARKET v2.1++ — S-9~S-15 검증 + 광고주 의도 강제 + byRegion 보강 (2026-04-28, 커밋 1158a06~9a201a2)
+
+> AdsTestScenarios.md 즉시 검증 13/13 + D+1 검증 2/2 통과. 검증 중 발견된 갭 일괄 수정.
+
+**[1] AdMarketplaceModal — 광고주 의도 강제 (S-9, S-10, S-11)**
+- [x] **Brand Safety 차단 picker UI**: `isBrandSafe(ad)` 검사 — 글 카테고리가 광고 `blockedCategories` 포함 시 회색 카드 + `🚫 카테고리 차단` 배지 + 안내 alert (커밋 `1158a06`).
+- [x] **메뉴 매칭 강제**: `isMenuAllowed(ad)` 검사 — `targetMenuCategories` 외 카테고리 글에서 `🚫 메뉴 비매칭` 배지 + 안내. AdSlot directAd 분기에도 적용 — selectedAd라도 광고주 의도 위반 시 차단 (커밋 `628f684`).
+- [x] **다른 슬롯 광고 안내 (S-10)**: S-9 수정 시 함께 검증 통과.
+- [x] **region 정보 안내 (S-11)**: region은 viewer IP 기반이라 차단 X — `viewerRegionRef` mount 시 fetch + amber `ℹ️ 내 지역 미노출` 배지 + 클릭 시 confirm 다이얼로그 (커밋 `98a4ab5`).
+
+**[2] adEvents 파이프라인 — viewerRegion 누락 해소 (S-14 후속)**
+- [x] AdSlot의 모든 POST(viewable/click/directMatch impression)에 `viewerRegion` 포함 — viewerRegionRef로 mount 시 1회 fetch
+- [x] auction.js의 4개 adEvents.add 분기 모두에 viewerRegion 저장
+- [x] 효과: 다음 04:30 KST aggregateAdStats 실행 시 byRegion 정상 집계 → AdStatsModal 지역별 분해 표시 (커밋 `9a201a2`)
+
+**[3] TODO 추가**
+- [x] `users.region` 자동 채움 — PASS 본인인증 또는 IP 기반 + 마이페이지 수동 수정
+- [x] 카카오 가입 시 이메일 미수집 — 비즈 앱 전환 또는 추가 입력 폼 (Sprint 8+)
+
+**[4] 검증 결과 — AdsTestScenarios.md 트래커**
+- [x] 즉시 검증 13/13 완료 (S-1~S-13)
+- [x] D+1 검증 2/2 완료 (S-14, S-15) — byRegion만 D+2부터 정상화
+- [ ] D+7 검증 0/3 (S-16, S-17, S-18) — 2026-05-03 안정성 데이터 누적 후
+
 ### 📊 ADSMARKET v2.1+ — S-8 빈도 캡 통과 + 후속 버그 3종 (2026-04-28, 커밋 707b2e2~0f07aee)
 
 > AdsTestScenarios.md S-8 검증 진행 중 발견된 버그 3종 일괄 수정.
