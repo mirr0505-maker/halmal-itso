@@ -81,21 +81,23 @@ const AdMarketplaceModal = ({ slot, currentSelectedAdId, postCategory, onSelect,
         return Number(bMatch) - Number(aMatch);
       });
     }
-    // 🔧 v2.1+: 노출 가능 광고(슬롯 매칭 + Brand Safety 통과)를 최우선 정렬
-    list.sort((a, b) => {
-      const aSafe = !a.blockedCategories?.length || !postCategory || !a.blockedCategories.includes(postCategory);
-      const bSafe = !b.blockedCategories?.length || !postCategory || !b.blockedCategories.includes(postCategory);
-      const aUsable = !!a.targetSlots?.includes(slot) && aSafe;
-      const bUsable = !!b.targetSlots?.includes(slot) && bSafe;
-      return Number(bUsable) - Number(aUsable);
-    });
+    // 🔧 v2.1+: 노출 가능 광고(슬롯 매칭 + Brand Safety + 메뉴 허용)를 최우선 정렬
+    const usableCheck = (ad: Ad) => {
+      const slotOk = !!ad.targetSlots?.includes(slot);
+      const safeOk = !ad.blockedCategories?.length || !postCategory || !ad.blockedCategories.includes(postCategory);
+      const menuOk = !ad.targetMenuCategories?.length || (postCategory ? ad.targetMenuCategories.includes(postCategory) : true);
+      return slotOk && safeOk && menuOk;
+    };
+    list.sort((a, b) => Number(usableCheck(b)) - Number(usableCheck(a)));
     return list;
   }, [ads, sortMode, postCategory, search, menuMatchOnly, slot]);
 
-  // 🔧 v2.1+: 노출 가능 광고 카운트 (헤더 안내용) — 슬롯 매칭 + Brand Safety 통과
+  // 🔧 v2.1+: 노출 가능 광고 카운트 (헤더 안내용) — 슬롯 매칭 + Brand Safety + 메뉴 허용
   const slotMatchCount = useMemo(() => ads.filter(a => {
-    const safe = !a.blockedCategories?.length || !postCategory || !a.blockedCategories.includes(postCategory);
-    return a.targetSlots?.includes(slot) && safe;
+    const slotOk = !!a.targetSlots?.includes(slot);
+    const safeOk = !a.blockedCategories?.length || !postCategory || !a.blockedCategories.includes(postCategory);
+    const menuOk = !a.targetMenuCategories?.length || (postCategory ? a.targetMenuCategories.includes(postCategory) : true);
+    return slotOk && safeOk && menuOk;
   }).length, [ads, slot, postCategory]);
 
   const displayed = useMemo(() => filtered.slice(0, pageCount * PAGE_SIZE), [filtered, pageCount]);
@@ -123,6 +125,9 @@ const AdMarketplaceModal = ({ slot, currentSelectedAdId, postCategory, onSelect,
   // 🔧 v2.1+ (2026-04-28): Brand Safety 차단 검사 — 글 카테고리가 광고의 차단 목록에 있으면 노출 불가
   const isBrandSafe = (ad: Ad) =>
     !ad.blockedCategories?.length || !postCategory || !ad.blockedCategories.includes(postCategory);
+  // 🔧 v2.1+ (2026-04-28): 광고주 메뉴 매칭 강제 — 광고주가 특정 메뉴만 타겟팅한 경우 그 외 카테고리는 노출 불가
+  const isMenuAllowed = (ad: Ad) =>
+    !ad.targetMenuCategories?.length || (postCategory ? ad.targetMenuCategories.includes(postCategory) : true);
 
   // 최종 적용 — 우측 [✓ 선택] 버튼 또는 모바일 카드 내부 [✓ 선택] 버튼
   // Why: 자동 매칭 결정 시 'auto' 명시값 저장 (default 미선택과 구분 — picker UI 피드백용)
@@ -147,6 +152,14 @@ const AdMarketplaceModal = ({ slot, currentSelectedAdId, postCategory, onSelect,
       `🚫 노출 불가\n\n"${ad.headline}" 광고는 광고주가 [${(ad.blockedCategories || []).join(', ')}] 카테고리를 차단했어요.\n\n` +
       `현재 글 카테고리(${postCategory})에는 노출되지 않습니다. 자동 매칭으로 결정됩니다.\n` +
       `이 광고를 노출하려면 광고주가 차단 카테고리에서 제외하도록 요청해주세요.`
+    );
+  };
+  // 🔧 v2.1+ (2026-04-28): 메뉴 비매칭 광고 선택 안내 — 광고주가 특정 메뉴만 타겟팅
+  const handleMenuMismatchClick = (ad: Ad) => {
+    alert(
+      `🚫 노출 불가\n\n"${ad.headline}" 광고는 광고주가 [${(ad.targetMenuCategories || []).join(', ')}] 메뉴에만 노출되도록 설정했어요.\n\n` +
+      `현재 글 카테고리(${postCategory})에는 노출되지 않습니다. 자동 매칭으로 결정됩니다.\n` +
+      `이 광고를 노출하려면 광고주가 노출 메뉴를 추가하도록 요청해주세요.`
     );
   };
 
@@ -236,12 +249,15 @@ const AdMarketplaceModal = ({ slot, currentSelectedAdId, postCategory, onSelect,
                   const slotMatch = !!ad.targetSlots?.includes(slot);
                   // 🔧 v2.1+: Brand Safety 차단 여부 — 차단 카테고리에 글이 들어가면 노출 불가
                   const brandSafe = isBrandSafe(ad);
-                  const usable = slotMatch && brandSafe;
+                  // 🔧 v2.1+: 메뉴 매칭 강제 — 광고주 targetMenuCategories 외 카테고리 차단
+                  const menuAllowed = isMenuAllowed(ad);
+                  const usable = slotMatch && brandSafe && menuAllowed;
                   return (
                     <div key={ad.id} className="flex flex-col">
                       <button
                         onClick={() => {
                           if (!brandSafe) handleBlockedClick(ad);
+                          else if (!menuAllowed) handleMenuMismatchClick(ad);
                           else if (!slotMatch) handleNonMatchClick(ad);
                           else setPreview(ad.id);
                         }}
@@ -272,10 +288,13 @@ const AdMarketplaceModal = ({ slot, currentSelectedAdId, postCategory, onSelect,
                               {!brandSafe && (
                                 <span className="text-[8px] font-[1000] bg-rose-100 text-rose-600 px-1.5 py-0.5 rounded">🚫 카테고리 차단</span>
                               )}
-                              {!slotMatch && brandSafe && (
+                              {!menuAllowed && brandSafe && (
+                                <span className="text-[8px] font-[1000] bg-rose-100 text-rose-600 px-1.5 py-0.5 rounded">🚫 메뉴 비매칭</span>
+                              )}
+                              {!slotMatch && brandSafe && menuAllowed && (
                                 <span className="text-[8px] font-[1000] bg-rose-100 text-rose-600 px-1.5 py-0.5 rounded">🚫 다른 슬롯</span>
                               )}
-                              {menuMatch && <span className="text-[8px] font-[1000] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded">📍 일치</span>}
+                              {menuMatch && menuAllowed && <span className="text-[8px] font-[1000] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded">📍 일치</span>}
                               <span className="text-[8px] font-[1000] bg-sky-100 text-sky-700 px-1.5 py-0.5 rounded truncate max-w-[120px]" title={ad.targetRegions?.length ? ad.targetRegions.join(', ') : '전국'}>
                                 🌏 {ad.targetRegions?.length ? (ad.targetRegions.length <= 2 ? ad.targetRegions.join('·') : `${ad.targetRegions[0]} 외 ${ad.targetRegions.length - 1}`) : '전국'}
                               </span>

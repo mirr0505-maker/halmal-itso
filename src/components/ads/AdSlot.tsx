@@ -63,6 +63,18 @@ const AdSlot = ({ position, postCategory, postId, postAuthorId, postAuthorLevel,
           setDirectAd(null);
           return;
         }
+        // 🔧 v2.1+ (2026-04-28): 광고주 의도 강제 — Brand Safety + 메뉴 매칭 검사
+        //   selectedAd 직접 매칭이라도 광고주가 차단·미허용 카테고리에는 노출 안 됨 (auction.js 매칭과 일관)
+        if (data.blockedCategories?.length && postCategory && data.blockedCategories.includes(postCategory)) {
+          console.log(`[AdSlot] Brand Safety 차단 — selectedAd ${selectedAdId} (cat=${postCategory})`);
+          setDirectAd(null);
+          return;
+        }
+        if (data.targetMenuCategories?.length && postCategory && !data.targetMenuCategories.includes(postCategory)) {
+          console.log(`[AdSlot] 메뉴 비매칭 차단 — selectedAd ${selectedAdId} (cat=${postCategory}, target=${data.targetMenuCategories.join(',')})`);
+          setDirectAd(null);
+          return;
+        }
         // 빈도 캡 검사 — viewerUid 있을 때만 (비로그인은 캡 미적용)
         const viewerUid = auth.currentUser?.uid;
         if (viewerUid) {
@@ -87,7 +99,7 @@ const AdSlot = ({ position, postCategory, postId, postAuthorId, postAuthorLevel,
       } catch (err) { console.warn('[AdSlot direct fetch]', err); }
     })();
     return () => { cancelled = true; };
-  }, [selectedAdId, position]);
+  }, [selectedAdId, position, postCategory]);
 
   // 경매 엔진 호출
   // 🔧 v2.1+ (2026-04-28): selectedAdId가 광고 ID이면 매칭 분기 자체를 skip
