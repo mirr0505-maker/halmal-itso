@@ -24,8 +24,8 @@
 - [x] **S-9 Brand Safety 차단** ✅ 2026-04-28 통과 (커밋 1158a06 — picker UI 차단 시각 구분 / 628f684 — 메뉴 매칭 누락 추가 발견·해소: AdMarketplaceModal isMenuAllowed + AdSlot directAd 광고주 의도 강제)
 - [x] **S-10 다른 슬롯 광고 안내 alert** ✅ 2026-04-28 통과 (S-9 수정 시 함께 검증 완료)
 - [x] **S-11 광고 노출 지역 매칭** (Cloudflare cf.region) ✅ 2026-04-28 통과 (커밋 98a4ab5 — region은 viewer 기반이라 차단 X. amber 배지 'ℹ️ 내 지역 미노출' + 클릭 시 confirm)
-- [ ] **S-12 노출 추정값 슬라이더 갱신** ← 다음 진행
-- [ ] **S-13 자동매칭 명시 결정 — selectedAds[pos]='auto'**
+- [x] **S-12 노출 추정값 슬라이더 갱신** ✅ 2026-04-28 통과 (estimateAdReach callable + debounce 500ms 정상)
+- [ ] **S-13 자동매칭 명시 결정 — selectedAds[pos]='auto'** ← 다음 진행
 
 ### D+1 (2026-04-28) 이후 검증
 
