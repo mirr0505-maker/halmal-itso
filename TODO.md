@@ -61,6 +61,8 @@
 |------|------|
 | **REPUTATION Prestige 3단계** | legend / awe / mythic 토글 조건·경계값·grandfathered 로직. 현재 미활성. Creator Score와 독립 트랙. |
 | **ADSMARKET v2 잔여 항목** | P1-6 A/B 다중 소재(다음 우선) + P2-9~13(Smart Bidding/리타게팅/후불 정산/작성자 floor/부정 클릭 ML). 진행 트래커 [AdsRoadmap.md](./AdsRoadmap.md) — 13항목 중 7건 완료(2026-04-26). |
+| **users.region 자동 채움** | 광고 region 매칭 + 마이페이지 표시용. SMS 인증만으론 불가 — PASS 본인인증(NICE/KCB) 도입 시 자동 또는 IP 기반(Cloudflare cf.region) + 마이페이지 수동 수정 조합. Sprint 7 휴대폰 인증 후속 또는 카드 PG와 묶음. |
+| **카카오 가입 시 이메일 미수집** | 카카오 OAuth scope 'account_email'은 비즈 앱 전환(사업자 검수) 후 가능. 임시: 카카오 가입자 한정 회원가입 후 이메일 입력 폼 또는 광고주 등록 시 직접 입력. 정식 오픈 시 비즈 앱 전환 진행. |
 | **userCode 참조 전환** | `friendList`/`likedBy`/`author`의 uid → userCode 무중단 4단계. Sprint 8+ 이월. |
 | **추천코드 + Lv20 로드맵** | LEVEL_TABLE은 현재 코드(10000) 확정. Sprint 1 이후 별도 설계. |
 | **syncUserLevel CF 후속** | 옵션 B 부분 커버리지. Phase C Gate blocker 해제 완료 — 추가 보강 필요 시 검토. |
