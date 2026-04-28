@@ -102,17 +102,25 @@
 
 ### 0단계 — 베타 직전 데이터 cleaning (1h)
 
-**삭제 대상**:
+**모든 콘텐츠 삭제** (작성자 무관):
 - `posts` / `comments` (모든 글·댓글)
 - `ads` / `adEvents` / `ad_stats_daily` (광고 + 통계)
 - `notifications` (모든 알림)
 - `giant_trees` / `community_posts` / `series` / `unlocked_episodes` / `market_items` (콘텐츠 전부)
-- `users` (테스트 계정 모두 — 깐부1~10호, 불량깐부, 봉이 등)
-- `advertiserAccounts` (광고주 등록 정보)
 - `kanbu_rooms` / `communities` (필요 시)
 
-**보존**:
-- ⚠️ **흑무영 admin 계정** — Custom Claims `admin: true` 락아웃 방지. 또는 uid·이메일 기록 후 Firebase Auth Console에서 재생성 + Custom Claims 재부여
+**테스트 계정만 삭제** (`constants.ts TEST_ACCOUNTS` 닉네임 기준):
+- 깐부1~10호 / 불량깐부1~3호 / 봉이(광고주) — `FRIENDS_MENU_ALLOWED_NICKNAMES` 참조
+- `users/{uid}` 문서 + Firebase Auth user 둘 다 삭제 (`auth.deleteUsers([uid])`)
+- 해당 계정의 `advertiserAccounts/{uid}` (있으면)
+
+**일반 사용자 보존**:
+- 베타 중 가입한 실제 사용자 계정·users 문서·advertiserAccounts 유지
+- 다만 그들이 작성한 글·댓글·광고는 위 콘텐츠 삭제로 함께 사라짐
+  → 사전 안내 권장 ("베타 정식 오픈 전 모든 글 초기화. 글 다시 작성 부탁")
+
+**관리자 보존**:
+- ⚠️ **흑무영 admin 계정** — Custom Claims `admin: true` 락아웃 방지. 절대 삭제 X
 - 정적 컬렉션 (`dart_corp_map`, `banned_phones` 등 운영 데이터)
 
 **실행 방식**:
