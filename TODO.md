@@ -74,7 +74,7 @@
 | 작업 | 상태 |
 |------|------|
 | **docs/step1-design 잔여 4개 처리** | MAPAE_AND_TITLES_V1(블로커 해제 ✓ 슬림 승격 권장) / ADMIN(Sprint 8 블로커) / ANTI_ABUSE(Sprint 3 Phase C 블로커) / TUNING_SCHEDULE(Prestige 착수 시 또는 폐기) |
-| **레거시 메뉴명 일괄 정리** | DB `post.category="너와 나의 이야기"` (구) ↔ 표시명 "참새들의 방앗간" (신) 등 미스매치. 광고/필터 매칭 사고 위험. 추정 6~7시간 일괄. 정식 서비스 전 |
+| **레거시 메뉴명 일괄 정리** | DB `post.category="너와 나의 이야기"` (구) ↔ 표시명 "참새들의 방앗간" (신) 등 미스매치. 광고/필터 매칭 사고 위험. **베타 테스트 전 등록글 일괄 삭제 후 진행 권장** (마이그레이션 단계 생략 → 5~7h → 3~4h로 단축). 상세는 [📚 레거시 메뉴명 정리 상세 계획](#-레거시-메뉴명-정리-상세-계획) 참조. |
 | **정보봇 스케줄 30분 복원** | 현재 베타 1시간(비용 절감). 정식 서비스 오픈 시 `fetchBotNews`/`fetchBotDart` 30분 복원 |
 | **refactor_plan.md 등 오래된 메모리** | 2026-04-05 작성. 현재 무관. 삭제 |
 
@@ -93,6 +93,79 @@
 | 추천코드 악용 방어 | device_fp 즉시차단 / /24 3+ same_ip / 1h 5+ rapid_redeem | `functions/redeemReferralCode` |
 
 **튜닝 원칙**: Phase C 4건은 서로 영향. 같은 사이클에 일괄 재조정. 변경 후 +7일 재관찰.
+
+---
+
+## 📚 레거시 메뉴명 정리 상세 계획
+
+> 베타 테스트 직전 zero-state cleaning과 결합해 진행. 마이그레이션 단계 생략 → **3~4시간**.
+
+### 0단계 — 베타 직전 데이터 cleaning (1h)
+
+**삭제 대상**:
+- `posts` / `comments` (모든 글·댓글)
+- `ads` / `adEvents` / `ad_stats_daily` (광고 + 통계)
+- `notifications` (모든 알림)
+- `giant_trees` / `community_posts` / `series` / `unlocked_episodes` / `market_items` (콘텐츠 전부)
+- `users` (테스트 계정 모두 — 깐부1~10호, 불량깐부, 봉이 등)
+- `advertiserAccounts` (광고주 등록 정보)
+- `kanbu_rooms` / `communities` (필요 시)
+
+**보존**:
+- ⚠️ **흑무영 admin 계정** — Custom Claims `admin: true` 락아웃 방지. 또는 uid·이메일 기록 후 Firebase Auth Console에서 재생성 + Custom Claims 재부여
+- 정적 컬렉션 (`dart_corp_map`, `banned_phones` 등 운영 데이터)
+
+**실행 방식**:
+- Firebase Console에서 직접 컬렉션 삭제 (가장 단순) 또는 admin onCall CF + assertAdmin
+- Firebase Auth users 일괄 삭제 — Auth Admin SDK `auth.deleteUsers(uids)` (1회 1000명까지)
+
+### 1단계 — 코드 하드코드 정리 (2h)
+
+**핵심 치환**:
+```
+'너와 나의 이야기'  → '참새들의 방앗간'
+'한컷'             → '헨젤의 빵부스러기'
+```
+
+**영향 파일** (~20개):
+- `src/constants.ts` — `AD_MENU_CATEGORIES` value를 label과 동일하게
+- `src/components/CreateMyStory.tsx` — `category: '참새들의 방앗간'`
+- `src/components/CreateOneCutBox.tsx` — `category: '헨젤의 빵부스러기'`
+- `src/components/DiscussionView.tsx` — `CATEGORY_RULES` / `CATEGORY_COMMENT_MAP` 키 변경
+- `src/components/DebateBoard.tsx` — 카테고리 분기 조건
+- `src/components/CategoryHeader.tsx` — 표시명 매핑 제거
+- `src/App.tsx` — 필터/라우팅 분기 (myStory, OneCut 판정 등)
+- `src/types.ts` — 주석 갱신
+- 그 외 grep `너와 나의 이야기`·`한컷` 결과 100% 정리
+
+### 2단계 — Backward-compat 헬퍼 제거 (30m)
+
+- `src/utils.ts` `CATEGORY_DISPLAY_MAP` 객체 제거
+- `getCategoryDisplayName()` 단순 pass-through 또는 함수 자체 제거
+- 호출부 일괄 정리 — `getCategoryDisplayName(post.category)` → `post.category`
+
+### 3단계 — 검증 + 배포 (30m)
+
+- `npm run build` 통과
+- 모든 카테고리 글 작성/조회 smoke test
+- 광고 등록 시 `targetMenuCategories` 신규 이름 확인
+- commit + hosting deploy
+
+### 위험 + 대응
+- 흑무영 admin 락아웃 → 시작 전 Custom Claims 백업·복구 절차 명시
+- 광고주가 광고 다시 등록 — 광고주(봉이/깐부6호 등)에게 미리 알림 (베타 시작 전)
+- 코드 누락 — `grep` 결과 0건 확인 후 commit
+
+### 분량 요약
+- 0단계 cleaning: 1h
+- 1단계 코드: 2h
+- 2단계 헬퍼 제거: 30m
+- 3단계 검증·배포: 30m
+- **총 4h**
+
+### 진행 시점
+- 베타 테스트 직전 (날짜 미정)
+- 또는 D+7 ADSMARKET 안정성 검증(2026-05-03) 통과 직후
 
 ---
 
