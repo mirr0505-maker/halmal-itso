@@ -228,6 +228,10 @@ const AdCampaignForm = ({ advertiserId, advertiserName, editingAd, onBack }: Pro
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
         });
+        // 🔧 v2.1+ (2026-04-28): 신규 등록 alert — 검수 대기 진입 피드백 (수정 모드와 일관)
+        alert(status === 'pending_review'
+          ? '✅ 광고 등록 완료 — 검수 요청이 접수됐어요. 관리자 승인 후 노출 시작됩니다.'
+          : '✅ 임시저장 완료 — 본인만 볼 수 있어요. 검수 요청 시 노출 가능합니다.');
       }
       onBack();
     } catch (err) {
