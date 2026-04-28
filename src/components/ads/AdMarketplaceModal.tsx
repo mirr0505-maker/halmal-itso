@@ -12,6 +12,7 @@ import { db } from '../../firebase';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import type { Ad } from '../../types';
 import AdBanner from './AdBanner';
+import { getViewerRegion } from '../../utils/getViewerRegion';
 
 interface Props {
   slot: 'top' | 'middle' | 'bottom';
@@ -37,7 +38,13 @@ const AdMarketplaceModal = ({ slot, currentSelectedAdId, postCategory, onSelect,
   const [preview, setPreview] = useState<PreviewState>(currentSelectedAdId ?? 'auto');
   const [expandedAdId, setExpandedAdId] = useState<string | null>(null);
   const [pageCount, setPageCount] = useState(1);
+  // 🔧 v2.1+ (2026-04-28): 작성자 본인 region — region 비매칭 광고 정보 안내용 (차단 X)
+  const [viewerRegion, setViewerRegion] = useState<string>('');
   const sentinelRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    getViewerRegion().then(setViewerRegion).catch(() => {});
+  }, []);
 
   useEffect(() => {
     // 🔧 v2.1 (2026-04-26): 슬롯 필터 제거 — 모든 활성 광고 표시
@@ -128,6 +135,10 @@ const AdMarketplaceModal = ({ slot, currentSelectedAdId, postCategory, onSelect,
   // 🔧 v2.1+ (2026-04-28): 광고주 메뉴 매칭 강제 — 광고주가 특정 메뉴만 타겟팅한 경우 그 외 카테고리는 노출 불가
   const isMenuAllowed = (ad: Ad) =>
     !ad.targetMenuCategories?.length || (postCategory ? ad.targetMenuCategories.includes(postCategory) : true);
+  // 🔧 v2.1+ (2026-04-28): region은 viewer IP 기반이라 작성자 본인이 차단되어도 다른 지역 독자에겐 노출 가능
+  //   따라서 차단 X — 작성자 본인 region 비매칭 시 정보 안내(confirm)만
+  const isRegionMatchForViewer = (ad: Ad) =>
+    !ad.targetRegions?.length || !viewerRegion || ad.targetRegions.includes(viewerRegion);
 
   // 최종 적용 — 우측 [✓ 선택] 버튼 또는 모바일 카드 내부 [✓ 선택] 버튼
   // Why: 자동 매칭 결정 시 'auto' 명시값 저장 (default 미선택과 구분 — picker UI 피드백용)
@@ -160,6 +171,14 @@ const AdMarketplaceModal = ({ slot, currentSelectedAdId, postCategory, onSelect,
       `🚫 노출 불가\n\n"${ad.headline}" 광고는 광고주가 [${(ad.targetMenuCategories || []).join(', ')}] 메뉴에만 노출되도록 설정했어요.\n\n` +
       `현재 글 카테고리(${postCategory})에는 노출되지 않습니다. 자동 매칭으로 결정됩니다.\n` +
       `이 광고를 노출하려면 광고주가 노출 메뉴를 추가하도록 요청해주세요.`
+    );
+  };
+  // 🔧 v2.1+ (2026-04-28): region 비매칭 정보 안내 — 차단 X, 다른 지역 독자엔 정상 노출
+  const handleRegionInfoConfirm = (ad: Ad): boolean => {
+    return window.confirm(
+      `ℹ️ 알림\n\n"${ad.headline}" 광고는 광고주가 [${(ad.targetRegions || []).join(', ')}] 지역만 타겟팅했어요.\n\n` +
+      `당신의 IP 지역(${viewerRegion || '미확인'})에선 노출되지 않지만, 해당 지역 독자에게는 정상 노출됩니다.\n` +
+      `선택하시겠습니까?`
     );
   };
 
@@ -251,6 +270,8 @@ const AdMarketplaceModal = ({ slot, currentSelectedAdId, postCategory, onSelect,
                   const brandSafe = isBrandSafe(ad);
                   // 🔧 v2.1+: 메뉴 매칭 강제 — 광고주 targetMenuCategories 외 카테고리 차단
                   const menuAllowed = isMenuAllowed(ad);
+                  // 🔧 v2.1+: region은 viewer 기반이라 차단 X — 작성자 본인 region 비매칭 정보 안내만
+                  const regionMatchSelf = isRegionMatchForViewer(ad);
                   const usable = slotMatch && brandSafe && menuAllowed;
                   return (
                     <div key={ad.id} className="flex flex-col">
@@ -259,7 +280,9 @@ const AdMarketplaceModal = ({ slot, currentSelectedAdId, postCategory, onSelect,
                           if (!brandSafe) handleBlockedClick(ad);
                           else if (!menuAllowed) handleMenuMismatchClick(ad);
                           else if (!slotMatch) handleNonMatchClick(ad);
-                          else setPreview(ad.id);
+                          else if (!regionMatchSelf) {
+                            if (handleRegionInfoConfirm(ad)) setPreview(ad.id);
+                          } else setPreview(ad.id);
                         }}
                         className={`w-full p-2.5 rounded-xl border-2 transition-colors text-left ${
                           !usable ? 'border-slate-200 bg-slate-50 opacity-70 hover:opacity-100' :
@@ -293,6 +316,9 @@ const AdMarketplaceModal = ({ slot, currentSelectedAdId, postCategory, onSelect,
                               )}
                               {!slotMatch && brandSafe && menuAllowed && (
                                 <span className="text-[8px] font-[1000] bg-rose-100 text-rose-600 px-1.5 py-0.5 rounded">🚫 다른 슬롯</span>
+                              )}
+                              {!regionMatchSelf && usable && (
+                                <span className="text-[8px] font-[1000] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded" title="다른 지역 독자에게 노출">ℹ️ 내 지역 미노출</span>
                               )}
                               {menuMatch && menuAllowed && <span className="text-[8px] font-[1000] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded">📍 일치</span>}
                               <span className="text-[8px] font-[1000] bg-sky-100 text-sky-700 px-1.5 py-0.5 rounded truncate max-w-[120px]" title={ad.targetRegions?.length ? ad.targetRegions.join(', ') : '전국'}>
