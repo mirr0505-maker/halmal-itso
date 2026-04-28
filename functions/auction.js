@@ -54,7 +54,7 @@ exports.adAuction = onRequest(
     //   AdSlot directAd 분기에서 광고당 1회 호출 (impressionFiredRef로 중복 차단)
     // ────────────────────────────────────────────────
     if (eventType === 'impression' && body.directMatch) {
-      const { adId, postId, postAuthorId, viewerUid, postCategory, slotPosition, bidAmount, bidType } = body;
+      const { adId, postId, postAuthorId, viewerUid, postCategory, slotPosition, bidAmount, bidType, viewerRegion } = body;
       if (!adId || !postId) return res.status(400).json({ error: 'adId, postId 필수' });
       try {
         await db.collection('adEvents').add({
@@ -66,6 +66,7 @@ exports.adAuction = onRequest(
           bidType: bidType || 'cpm',
           bidAmount: bidAmount || 0,
           viewerUid: viewerUid || 'anonymous',
+          viewerRegion: viewerRegion || '',
           sessionId: `session_${Date.now()}`,
           isSuspicious: false,
           createdAt: Timestamp.now(),
@@ -84,7 +85,7 @@ exports.adAuction = onRequest(
     // 🔄 viewable / click — 별도 처리 (경매 X, 차감만)
     // ────────────────────────────────────────────────
     if (eventType === 'viewable' || eventType === 'click') {
-      const { adId, postId, postAuthorId, viewerUid, postCategory, slotPosition, bidAmount, bidType } = body;
+      const { adId, postId, postAuthorId, viewerUid, postCategory, slotPosition, bidAmount, bidType, viewerRegion } = body;
       if (!adId || !postId) return res.status(400).json({ error: 'adId, postId 필수' });
       try {
         // 광고 데이터 조회 (차감액 산정)
@@ -106,6 +107,7 @@ exports.adAuction = onRequest(
           bidType: bidType || ad.bidType,
           bidAmount: charge,
           viewerUid: viewerUid || 'anonymous',
+          viewerRegion: viewerRegion || '',
           sessionId: `session_${Date.now()}`,
           isSuspicious: false,
           createdAt: Timestamp.now(),
@@ -205,6 +207,7 @@ exports.adAuction = onRequest(
         winnerScoreWeight: winner._scoreWeight,
         winnerEffectiveBid: winner._effectiveBid,
         viewerUid: viewerUid || "anonymous",
+        viewerRegion: viewerRegion || "",
         sessionId: `session_${Date.now()}`,
         isSuspicious: false, createdAt: Timestamp.now(),
       });

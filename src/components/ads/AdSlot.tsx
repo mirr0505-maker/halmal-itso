@@ -45,6 +45,12 @@ const AdSlot = ({ position, postCategory, postId, postAuthorId, postAuthorLevel,
   const viewableFiredRef = useRef<Set<string>>(new Set());
   // 🔧 v2.1: directAd impression 이벤트 — 광고당 1회 발사 (스크롤 재마운트 중복 차단)
   const impressionFiredRef = useRef<Set<string>>(new Set());
+  // 🔧 v2.1+ (2026-04-28): viewerRegion ref — 모든 adEvents POST에 포함 (byRegion 집계용)
+  const viewerRegionRef = useRef<string>('');
+
+  useEffect(() => {
+    getViewerRegion().then(r => { viewerRegionRef.current = r; }).catch(() => {});
+  }, []);
 
   // selectedAdId 직접 fetch
   // 🔧 v2.1+ (2026-04-28): 빈도 캡 검사 추가 — selectedAd 광고도 사용자 보호 적용
@@ -151,6 +157,7 @@ const AdSlot = ({ position, postCategory, postId, postAuthorId, postAuthorLevel,
         eventType: 'impression', adId: directAd.id, postId, postAuthorId,
         postCategory, slotPosition: position,
         bidAmount: directAd.bidAmount, bidType: directAd.bidType, viewerUid,
+        viewerRegion: viewerRegionRef.current,
         directMatch: true,
       }),
     }).catch(() => {});
@@ -180,6 +187,7 @@ const AdSlot = ({ position, postCategory, postId, postAuthorId, postAuthorLevel,
           eventType: 'viewable', adId, postId, postAuthorId,
           postCategory, slotPosition: position,
           bidAmount, bidType, viewerUid,
+          viewerRegion: viewerRegionRef.current,
         }),
       }).catch(() => {});
     };
@@ -228,6 +236,7 @@ const AdSlot = ({ position, postCategory, postId, postAuthorId, postAuthorLevel,
         eventType: 'click', adId, postId, postAuthorId,
         postCategory, slotPosition: position,
         bidAmount, bidType, viewerUid,
+        viewerRegion: viewerRegionRef.current,
       }),
     }).catch(() => {});
   };
