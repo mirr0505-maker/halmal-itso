@@ -6,7 +6,7 @@
 //   - 클릭 시 viewerUid 포함
 import { useState, useEffect, useRef } from 'react';
 import { db, auth } from '../../firebase';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, getDocs, Timestamp, limit as fbLimit } from 'firebase/firestore';
 import { getCreatorAdSlots, PLATFORM_AD_MIN_LEVEL } from '../../constants';
 import type { Ad } from '../../types';
 import AdBanner from './AdBanner';
@@ -47,6 +47,9 @@ const AdSlot = ({ position, postCategory, postId, postAuthorId, postAuthorLevel,
   const impressionFiredRef = useRef<Set<string>>(new Set());
 
   // selectedAdId 직접 fetch
+  // 🔧 v2.1+ (2026-04-28): 빈도 캡 검사 추가 — selectedAd 광고도 사용자 보호 적용
+  //   24h 같은 사용자 viewable count >= limit 시 directAd=null → 매칭 분기로 fallthrough
+  //   매칭 분기에서도 빈도 캡 통과 못 하면 fallback 'adsense' 또는 빈 슬롯
   useEffect(() => {
     if (!selectedAdId || selectedAdId === 'auto') { setDirectAd(null); return; }
     let cancelled = false;
@@ -54,16 +57,33 @@ const AdSlot = ({ position, postCategory, postId, postAuthorId, postAuthorLevel,
       try {
         const snap = await getDoc(doc(db, 'ads', selectedAdId));
         if (cancelled) return;
-        if (snap.exists()) {
-          const data = snap.data() as Ad;
-          if (data.status === 'active' && data.targetSlots?.includes(position)) {
-            setDirectAd({ ...data, id: snap.id });
-          } else {
-            setDirectAd(null);
-          }
-        } else {
+        if (!snap.exists()) { setDirectAd(null); return; }
+        const data = snap.data() as Ad;
+        if (data.status !== 'active' || !data.targetSlots?.includes(position)) {
           setDirectAd(null);
+          return;
         }
+        // 빈도 캡 검사 — viewerUid 있을 때만 (비로그인은 캡 미적용)
+        const viewerUid = auth.currentUser?.uid;
+        if (viewerUid) {
+          const cap = data.frequencyCap || { limit: 3, periodHours: 24 };
+          const since = Timestamp.fromMillis(Date.now() - cap.periodHours * 3600 * 1000);
+          const evtSnap = await getDocs(query(
+            collection(db, 'adEvents'),
+            where('adId', '==', selectedAdId),
+            where('eventType', '==', 'viewable'),
+            where('viewerUid', '==', viewerUid),
+            where('createdAt', '>=', since),
+            fbLimit(cap.limit),
+          ));
+          if (cancelled) return;
+          if (evtSnap.size >= cap.limit) {
+            console.log(`[AdSlot] 빈도 캡 도달 — selectedAd ${selectedAdId} 차단 (count=${evtSnap.size}/${cap.limit})`);
+            setDirectAd(null);
+            return;
+          }
+        }
+        setDirectAd({ ...data, id: snap.id });
       } catch (err) { console.warn('[AdSlot direct fetch]', err); }
     })();
     return () => { cancelled = true; };
