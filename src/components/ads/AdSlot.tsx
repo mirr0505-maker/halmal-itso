@@ -90,10 +90,18 @@ const AdSlot = ({ position, postCategory, postId, postAuthorId, postAuthorLevel,
   }, [selectedAdId, position]);
 
   // 경매 엔진 호출
+  // 🔧 v2.1+ (2026-04-28): selectedAdId가 광고 ID이면 매칭 분기 자체를 skip
+  //   기존 — directAd가 비동기로 set되기 전에 매칭 fetch가 발생해 같은 광고에 impression +1 추가 누적
+  //   수정 — selectedAdId 광고 ID면 매칭 안 거침. directAd가 빈도 캡 등으로 null이면 빈 슬롯 표시.
+  //   'auto' 또는 undefined일 때만 매칭 fetch 실행.
   useEffect(() => {
     if (type !== 'creator') return;
     if (!adSlotEnabled) return;
-    if (selectedAdId && directAd) return;
+    if (selectedAdId && selectedAdId !== 'auto') {
+      // selectedAd 광고가 있으면 매칭 fetch skip + loaded=true (directAd null 시 빈 슬롯 메시지 표시)
+      setLoaded(true);
+      return;
+    }
     if (!postId) { setFallback('promo'); setLoaded(true); return; }
     let cancelled = false;
     (async () => {
