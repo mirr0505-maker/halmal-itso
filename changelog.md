@@ -1,5 +1,14 @@
 ## 8. 현재 구현 상태 (2026-03-24 기준, 코드 실측)
 
+### 📊 ADSMARKET v2.1+ — S-8 빈도 캡 통과 + 후속 버그 3종 (2026-04-28, 커밋 707b2e2~0f07aee)
+
+> AdsTestScenarios.md S-8 검증 진행 중 발견된 버그 3종 일괄 수정.
+
+- [x] **S-8 빈도 캡 검증 — 옵션 A 적용**: AdSlot directAd useEffect에 24h viewable count 검사 추가 (`adEvents` 쿼리, viewerUid+adId+eventType+createdAt). count >= limit 시 setDirectAd(null) → 매칭 분기 fallthrough → 다른 광고 또는 빈 슬롯 (커밋 `707b2e2`).
+- [x] **selectedAd impression 이중 누적 해소**: 매칭 useEffect에서 `selectedAdId && selectedAdId !== 'auto'`이면 매칭 fetch skip + setLoaded(true). 기존 directAd 비동기 set 사이에 매칭 분기가 실행되어 같은 광고가 또 매칭되던 버그 해소 (커밋 `fb96806`).
+- [x] **신규 등록 alert 누락 보강**: AdCampaignForm 신규 등록 분기에 검수 대기 안내 alert 추가 (수정 모드와 일관). pending_review/draft별 메시지 분기 (커밋 `0f07aee`).
+- [x] **검증 결과 정리**: AdsTestScenarios.md S-8 통과 표시 + 후속 버그 3종 정리 ✅ 2026-04-28.
+
 ### 📊 ADSMARKET v2.1 — 광고주 검수 의무화 + 안정화 일괄 (2026-04-26, 커밋 adb67bc~67506c3)
 
 > v2 P0~P1 7항목 도입 직후, 광고주 검수 의무화 + 운영 안정성 보강 + 다수 버그 수정 일괄.

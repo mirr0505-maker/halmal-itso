@@ -20,8 +20,8 @@
 - [x] S-5 광고 클릭 → 새 탭 이동 + UTM
 - [x] S-6 광고주 검수 흐름 (pending → active/rejected + 알림)
 - [x] S-7 광고 수정 → 재검수 (Rules merge 통과)
-- [ ] **S-8 빈도 캡 4번째 차단** ← 다음 세션 진행
-- [ ] **S-9 Brand Safety 차단**
+- [x] **S-8 빈도 캡 4번째 차단** ✅ 2026-04-28 통과 (커밋 707b2e2 — selectedAd 빈도 캡 적용 후 / fb96806 — impression 이중 누적 해소 / 0f07aee — 신규 등록 alert 보강)
+- [ ] **S-9 Brand Safety 차단** ← 다음 진행
 - [ ] **S-10 다른 슬롯 광고 안내 alert**
 - [ ] **S-11 광고 노출 지역 매칭** (Cloudflare cf.region)
 - [ ] **S-12 노출 추정값 슬라이더 갱신**
@@ -65,6 +65,24 @@
 **검증 위치**:
 - Firebase Console > Firestore > `adEvents` (viewerUid + adId 필터)
 - `firebase functions:log --only adAuction --lines 10` — 매칭 로그
+
+**✅ 2026-04-28 검증 통과 + 추가 버그 수정 3종**:
+
+1차 시도 — middle 슬롯의 selectedAd 광고에 빈도 캡 미적용 발견 → **옵션 A 적용** (selectedAd도 빈도 캡 검사). [AdSlot.tsx](src/components/ads/AdSlot.tsx) directAd useEffect에 viewerUid+adId 24h viewable count 검사 추가 (커밋 `707b2e2`).
+
+2차 시도 — 빈도 캡 정상 동작 ✅ but impression이 1회 진입에 +2씩 누적되는 추가 버그 발견:
+| 차수 | viewableImpressions | totalImpressions |
+|------|--------------------:|----------------:|
+| 1 | 1 | +2 |
+| 2 | 2 | +4 |
+| 3 | 3 | +6 |
+| **4** | **3 (불변, 차단)** | +6 |
+
+원인 — selectedAdId가 광고 ID일 때 directAd useEffect와 매칭 useEffect가 동시 실행되어 같은 광고가 매칭 분기에서도 매칭되면서 impression 추가 +1.
+
+수정 — 매칭 useEffect에서 `selectedAdId && selectedAdId !== 'auto'`이면 매칭 fetch skip + setLoaded(true)로 빈 슬롯 메시지 표시 보장 (커밋 `fb96806`).
+
+3차 — 신규 등록 시 alert 누락 발견. 수정 모드는 alert 있는데 신규는 setDoc 후 바로 onBack(). 추가 — `✅ 광고 등록 완료 — 검수 요청이 접수됐어요...` (커밋 `0f07aee`).
 
 ---
 
