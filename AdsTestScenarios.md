@@ -29,8 +29,8 @@
 
 ### D+1 (2026-04-28) 이후 검증
 
-- [ ] **S-14 aggregateAdStats 첫 일치 데이터** (04:30 KST 이후)
-- [ ] **S-15 AdStatsModal 데이터 노출**
+- [x] **S-14 aggregateAdStats 첫 일치 데이터** ✅ 2026-04-28 통과 (ad_stats_daily 문서 생성 + KPI/슬롯/메뉴 필드 정상. byRegion만 누락 → 커밋 9a201a2로 viewerRegion 파이프라인 보강 — 내일 04:30 KST 이후 정상 집계)
+- [x] **S-15 AdStatsModal 데이터 노출** ✅ 2026-04-28 통과 (모달 정상 / KPI 4종 / 일별 트렌드 / 슬롯·메뉴 분해 / 24h 히트맵 표시. 지역별 분해는 D+2부터)
 
 ### D+7 (2026-05-03) 안정성 검증
 
