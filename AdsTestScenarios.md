@@ -21,9 +21,9 @@
 - [x] S-6 광고주 검수 흐름 (pending → active/rejected + 알림)
 - [x] S-7 광고 수정 → 재검수 (Rules merge 통과)
 - [x] **S-8 빈도 캡 4번째 차단** ✅ 2026-04-28 통과 (커밋 707b2e2 — selectedAd 빈도 캡 적용 후 / fb96806 — impression 이중 누적 해소 / 0f07aee — 신규 등록 alert 보강)
-- [ ] **S-9 Brand Safety 차단** ← 다음 진행
-- [ ] **S-10 다른 슬롯 광고 안내 alert**
-- [ ] **S-11 광고 노출 지역 매칭** (Cloudflare cf.region)
+- [x] **S-9 Brand Safety 차단** ✅ 2026-04-28 통과 (커밋 1158a06 — picker UI 차단 시각 구분 / 628f684 — 메뉴 매칭 누락 추가 발견·해소: AdMarketplaceModal isMenuAllowed + AdSlot directAd 광고주 의도 강제)
+- [x] **S-10 다른 슬롯 광고 안내 alert** ✅ 2026-04-28 통과 (S-9 수정 시 함께 검증 완료)
+- [ ] **S-11 광고 노출 지역 매칭** (Cloudflare cf.region) ← 다음 진행
 - [ ] **S-12 노출 추정값 슬라이더 갱신**
 - [ ] **S-13 자동매칭 명시 결정 — selectedAds[pos]='auto'**
 
