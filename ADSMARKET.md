@@ -3,7 +3,10 @@
 > **문서 목적**: VS Code에서 AI(Claude) 또는 휴먼 개발자가 코딩 작업을 수행할 때 **단일 진실 소스(Single Source of Truth)**로 사용하는 기획서.
 > 모든 컬렉션 · 인터페이스 · 비즈니스 로직 · UI 컴포넌트를 이 문서 하나로 확정한다.
 >
-> 최종 갱신: 2026-04-28 v2.1++ | 기술 스택: React 19 + TS + Vite · Tailwind 4 · Firebase (Firestore + Auth + Cloud Functions) · Cloudflare R2/Workers
+> 최종 갱신: 2026-04-30 v3 | 기술 스택: React 19 + TS + Vite · Tailwind 4 · Firebase (Firestore + Auth + Cloud Functions) · Cloudflare R2/Workers
+>
+> **v3 (2026-04-30) 변경 요약** — 피드 인라인 광고 (Native In-feed Ad) 도입.
+>   ① `targetSlots`/`slotPosition`에 `'feed'` 추가 — 글 목록 그리드 인라인 카드 ② AdFeedCard 신규 컴포넌트 (글카드 형태 + violet 톤 + 좌상단 📢 광고 배지) ③ AnyTalkList 청크 4번째 다음 인서트 (8글당 1광고, 베타 후 4:1 조정 검토) ④ 매칭 분기 `postId='feed-{categoryKey}'` 합성, `postAuthorLevel` 게이팅 무시 (글 작성자 무관, 100% 플랫폼 수익) ⑤ AdCampaignForm 본문/피드 슬롯 그룹 분리 + feed 미리보기 정적 렌더 ⑥ 노출 영역: 카테고리 뷰 무조건 ON / 홈 'recent' 탭 ON / 새글·인기글·최고글·깐부글·구독글 OFF / 공개 프로필 OFF (사적 영역 보호) ⑦ Brand Safety / 빈도 캡 / 예산 가드 / Viewable IO 모두 기존 v2 정책 그대로 적용. 다음 P3 잔여: A/B 다중 소재 + 피드 빈도 캡 별도 limit + 4:1 밀도 조정 (D+7 안정성 후).
 >
 > **v2.1++ (2026-04-28 후속) 추가 변경** — S-9~S-15 검증 + 광고주 의도 강제 + byRegion 보강.
 >   ① AdMarketplaceModal Brand Safety/메뉴/region 차단 시각 구분 + 안내 alert ② AdSlot directAd 분기에도 광고주 의도(blockedCategories/targetMenuCategories) 강제 ③ region은 viewer IP 기반이라 차단 X — 정보 confirm 다이얼로그 ④ adEvents 4개 분기에 viewerRegion 저장 → byRegion 집계 누락 해소 ⑤ TODO: users.region 자동 채움, 카카오 비즈 앱 이메일 수집. 검증 트래커 [AdsTestScenarios.md](./AdsTestScenarios.md) — 즉시 13/13 + D+1 2/2 ✅, D+7 3건 잔여.

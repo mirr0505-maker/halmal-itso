@@ -1,5 +1,52 @@
 ## 8. 현재 구현 상태 (2026-03-24 기준, 코드 실측)
 
+### 📢 ADSMARKET v3 — 피드 인라인 광고 (Native In-feed Ad) 도입 (2026-04-30)
+
+> 글 목록 그리드에 글카드 형태 광고 인라인 — 글 작성자 RS 0%, 100% 플랫폼 수익. 등록글·카테고리 뷰만 노출 (사적 영역 보호).
+
+**[1] 타입 + 백엔드 'feed' 슬롯 추가**
+- [x] `src/types.ts`: `Ad.targetSlots` / `AdEvent.slotPosition`에 `'feed'` 추가
+- [x] `functions/auction.js`: feed 슬롯은 `postAuthorLevel < 5` 게이팅 무시 (피드는 글 작성자 무관)
+- [x] `functions/aggregateAdStats.js`: `bySlot` 초기화에 `feed: 0` 추가
+
+**[2] AdFeedCard 신규 컴포넌트** ([src/components/ads/AdFeedCard.tsx](src/components/ads/AdFeedCard.tsx))
+- [x] 일반 PostCard와 시각적 일관 (rounded-xl border-violet-200, hover 효과) + violet 톤 차별화
+- [x] 좌상단 📢 광고 배지 (Brand Safety 정책 — 광고임을 명확 표시)
+- [x] 16:9 이미지 + 헤드라인 + 설명 + 하단 광고주명/CTA 버튼
+- [x] 매칭: `slotPosition='feed'`, `postId='feed-{categoryKey}'` 합성, `postAuthorId=''`, `postAuthorLevel=0`
+- [x] 이벤트: IntersectionObserver 50%·1초+ → viewable / click → window.open + UTM(`utm_medium=feed`)
+- [x] `previewAd` prop — 광고주 작성 폼 미리보기용 정적 렌더 (매칭/이벤트 모두 skip)
+- [x] 광고 매칭 실패 시 null 반환 → 그리드 셀 자연 비움 (auto-fill로 다른 카드 채움)
+
+**[3] AnyTalkList 청크 인터리브** ([src/components/AnyTalkList.tsx](src/components/AnyTalkList.tsx))
+- [x] 청크 4번째 글(idx===3) 다음에 AdFeedCard 1장 인서트 (chunk.length > 4 가드)
+- [x] React.Fragment wrapping으로 카드 + 광고를 그리드 셀로 동시 렌더
+- [x] feedKey에 청크 인덱스 포함(`{feedKey}-{ci}`) → 청크별 매칭 fetch 분리 → 빈도 캡 자동 적용
+- [x] 광고 밀도: 8글당 1광고 (12.5%) — 권장안 4:1보다 보수적, 베타 후 4:1 조정 검토 (P3-17)
+
+**[4] 광고 노출 매트릭스** ([src/App.tsx](src/App.tsx))
+- [x] 카테고리 뷰 (line 1218): `showAds={true}` `feedKey={category-${categoryKey}}` `feedCategory={categoryKey}`
+- [x] 홈 피드 (line 1409): `showAds={activeTab === 'recent'}` `feedKey={home-${activeTab}}` (등록글 탭만 ON)
+- [x] 공개 프로필 (line 1339): default `showAds=false` (특정 작성자 글 모음, 광고 OFF)
+- [x] 새글/인기글/최고글/깐부글/구독글 OFF — 신선도/사적 영역 보호
+
+**[5] 광고주 등록 UI 강화** ([src/components/advertiser/AdCampaignForm.tsx](src/components/advertiser/AdCampaignForm.tsx))
+- [x] SLOT_OPTIONS에 `'feed'` 추가 + `group: 'body' | 'list'` 분류
+- [x] 슬롯 위치 UI 본문/피드 그룹 분리 + 설명 텍스트 강화 ("본문은 작성자 RS, 피드는 100% 플랫폼")
+- [x] 미리보기 — 본문 슬롯은 AdBanner / 피드 슬롯은 AdFeedCard 정적 렌더 (max-w 320px, pointer-events-none)
+- [x] `targetSlots` 타입 캐스트 4곳 일괄 확장
+
+**[6] 정책 결정 (베타 후 재검토)**
+- 광고 밀도 4:1 → 첫 베타엔 8:1 (청크 8글 + 광고 1장)
+- 작성자 광고 picker는 본문 슬롯만 (피드는 광고주 직접 광고 전용)
+- 노출 화면: (a) 등록글·카테고리 뷰만 — 새글/인기글/최고글 제외
+
+**[7] firestore.rules·indexes 영향**
+- Rules 변경 0 (`targetSlots` 값 검증 없음, write 차단 필드 추가 없음)
+- indexes 변경 0 (기존 `adEvents` 색인이 'feed' slotPosition 자동 커버)
+
+**다음 P3 잔여**: P3-15 피드 빈도 캡 별도 limit / P3-16 단가 책정 / P3-17 4:1 조정 / P3-18 통계 분해 — D+7 안정성 검증 후 단계 진행. 진행 트래커 [AdsRoadmap.md](./AdsRoadmap.md) §P3.
+
 ### 📊 ADSMARKET v2.1++ — S-9~S-15 검증 + 광고주 의도 강제 + byRegion 보강 (2026-04-28, 커밋 1158a06~9a201a2)
 
 > AdsTestScenarios.md 즉시 검증 13/13 + D+1 검증 2/2 통과. 검증 중 발견된 갭 일괄 수정.
