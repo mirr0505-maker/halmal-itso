@@ -108,6 +108,11 @@ const AdCampaignForm = ({ advertiserId, advertiserName, editingAd, onBack }: Pro
   const [isUploading, setIsUploading] = useState(false);
   // 🚀 미리보기 폭 모드 (PC vs 모바일)
   const [previewMode, setPreviewMode] = useState<'pc' | 'mobile'>('pc');
+  // 🚀 ADSMARKET v3 (2026-04-30): 슬롯 위치 본문/피드 탭 — 의도 명확화
+  //   편집 모드에서 feed 단독 선택돼 있으면 'list' 탭으로 진입, 그 외엔 'body' default
+  const [slotTab, setSlotTab] = useState<'body' | 'list'>(() =>
+    editingAd?.targetSlots?.length === 1 && editingAd.targetSlots[0] === 'feed' ? 'list' : 'body'
+  );
 
   const update = (key: string, value: unknown) => setForm(prev => ({ ...prev, [key]: value }));
 
@@ -375,40 +380,64 @@ const AdCampaignForm = ({ advertiserId, advertiserName, editingAd, onBack }: Pro
               ))}
             </div>
           </div>
-          {/* 🚀 ADSMARKET v3 (2026-04-30): 본문 슬롯 / 피드 슬롯 그룹 분리 */}
+          {/* 🚀 ADSMARKET v3 (2026-04-30): 본문 슬롯 / 피드 슬롯 탭 분리 — 의도 명확화 + 카운트 배지 */}
           <div>
             <p className="text-[10px] font-bold text-slate-500 mb-1">슬롯 위치</p>
-            <p className="text-[9px] font-bold text-slate-400 mb-2">📄 <b>본문 슬롯</b>은 글 상세 페이지 안에 노출(작성자 수익 분배). 📋 <b>피드 슬롯</b>은 등록글·카테고리 목록 그리드 사이 글카드 형태로 인라인 노출(100% 플랫폼 수익).</p>
+            <p className="text-[9px] font-bold text-slate-400 mb-2">📄 <b>본문 슬롯</b>(작성자 RS 분배) ↔ 📋 <b>피드 슬롯</b>(100% 플랫폼). 별개 매체 — 각 탭에서 선택, 둘 다 가능.</p>
 
-            {/* 본문 슬롯 */}
-            <div className="mb-2">
-              <p className="text-[9px] font-[1000] text-slate-500 mb-1 flex items-center gap-1.5">
-                📄 본문 슬롯 <span className="text-[8px] font-bold text-slate-400">— 글 상세 페이지 내부</span>
-              </p>
-              <div className="flex gap-2 flex-wrap">
-                {SLOT_OPTIONS.filter(o => o.group === 'body').map(opt => (
-                  <button key={opt.value} type="button" onClick={() => toggleSlot(opt.value)}
-                    className={`px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all ${form.targetSlots.includes(opt.value) ? 'bg-violet-600 text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}>
-                    {opt.label}
+            {/* 탭 헤더 — 카운트 배지 포함 */}
+            {(() => {
+              const bodyCount = form.targetSlots.filter(s => s !== 'feed').length;
+              const feedCount = form.targetSlots.filter(s => s === 'feed').length;
+              return (
+                <div className="flex gap-1 mb-2 border-b border-slate-200">
+                  <button type="button" onClick={() => setSlotTab('body')}
+                    className={`px-3 py-1.5 text-[11px] font-[1000] transition-all border-b-2 -mb-px flex items-center gap-1.5 ${slotTab === 'body' ? 'text-violet-600 border-violet-600' : 'text-slate-400 border-transparent hover:text-slate-600'}`}>
+                    📄 본문 슬롯
+                    {bodyCount > 0 && (
+                      <span className={`text-[9px] font-black px-1.5 py-0.5 rounded ${slotTab === 'body' ? 'bg-violet-100 text-violet-700' : 'bg-slate-100 text-slate-500'}`}>{bodyCount}</span>
+                    )}
                   </button>
-                ))}
-              </div>
-            </div>
+                  <button type="button" onClick={() => setSlotTab('list')}
+                    className={`px-3 py-1.5 text-[11px] font-[1000] transition-all border-b-2 -mb-px flex items-center gap-1.5 ${slotTab === 'list' ? 'text-violet-600 border-violet-600' : 'text-slate-400 border-transparent hover:text-slate-600'}`}>
+                    📋 피드 슬롯
+                    {feedCount > 0 && (
+                      <span className={`text-[9px] font-black px-1.5 py-0.5 rounded ${slotTab === 'list' ? 'bg-violet-100 text-violet-700' : 'bg-slate-100 text-slate-500'}`}>{feedCount}</span>
+                    )}
+                  </button>
+                </div>
+              );
+            })()}
 
-            {/* 피드 슬롯 */}
-            <div>
-              <p className="text-[9px] font-[1000] text-violet-500 mb-1 flex items-center gap-1.5">
-                📋 피드 슬롯 <span className="text-[8px] font-bold text-violet-400">— 등록글·카테고리 목록 인라인 (4글당 1광고)</span>
-              </p>
-              <div className="flex gap-2 flex-wrap">
-                {SLOT_OPTIONS.filter(o => o.group === 'list').map(opt => (
-                  <button key={opt.value} type="button" onClick={() => toggleSlot(opt.value)}
-                    className={`px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all ${form.targetSlots.includes(opt.value) ? 'bg-violet-600 text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}>
-                    {opt.label}
-                  </button>
-                ))}
+            {/* 본문 슬롯 콘텐츠 */}
+            {slotTab === 'body' && (
+              <div>
+                <p className="text-[9px] font-bold text-slate-400 mb-1.5">글 상세 페이지 내부 — 작성자 Lv별 수익 분배 (RS)</p>
+                <div className="flex gap-2 flex-wrap">
+                  {SLOT_OPTIONS.filter(o => o.group === 'body').map(opt => (
+                    <button key={opt.value} type="button" onClick={() => toggleSlot(opt.value)}
+                      className={`px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all ${form.targetSlots.includes(opt.value) ? 'bg-violet-600 text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}>
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
+
+            {/* 피드 슬롯 콘텐츠 */}
+            {slotTab === 'list' && (
+              <div>
+                <p className="text-[9px] font-bold text-violet-400 mb-1.5">등록글·카테고리 목록 그리드 인라인 — 100% 플랫폼 수익 (글 작성자 무관)</p>
+                <div className="flex gap-2 flex-wrap">
+                  {SLOT_OPTIONS.filter(o => o.group === 'list').map(opt => (
+                    <button key={opt.value} type="button" onClick={() => toggleSlot(opt.value)}
+                      className={`px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all ${form.targetSlots.includes(opt.value) ? 'bg-violet-600 text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}>
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* 🌏 노출 지역 — 전국 default / 특정 시·도 선택 */}
