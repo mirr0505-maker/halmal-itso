@@ -45,13 +45,10 @@ const AdSlot = ({ position, postCategory, postId, postAuthorId, postAuthorLevel,
   const viewableFiredRef = useRef<Set<string>>(new Set());
   // 🔧 v2.1: directAd impression 이벤트 — 광고당 1회 발사 (스크롤 재마운트 중복 차단)
   const impressionFiredRef = useRef<Set<string>>(new Set());
-  // 🔧 v2.1+ (2026-04-28): viewerRegion ref — 모든 adEvents POST에 포함 (byRegion 집계용)
-  const viewerRegionRef = useRef<string>('');
-
-  useEffect(() => {
-    getViewerRegion().then(r => { viewerRegionRef.current = r; }).catch(() => {});
-  }, []);
-
+  // 🔧 2026-04-30: viewerRegion ref + mount fetch 제거 — 각 POST 분기에서 await getViewerRegion() 직접 호출
+  //   기존 — ref 비동기 set 도착 전에 directMatch impression / viewable / click이 발사되면 viewerRegion=''로 적재
+  //   결과 — byRegion 집계 누락 (광고별 일부 viewer 세션 빈 문자열)
+  //   수정 — getViewerRegion() in-flight singleton + sessionStorage 30분 캐시라 페이지당 fetch 1회만 발생, race 0
   // selectedAdId 직접 fetch
   // 🔧 v2.1+ (2026-04-28): 빈도 캡 검사 추가 — selectedAd 광고도 사용자 보호 적용
   //   24h 같은 사용자 viewable count >= limit 시 directAd=null → 매칭 분기로 fallthrough
@@ -149,18 +146,22 @@ const AdSlot = ({ position, postCategory, postId, postAuthorId, postAuthorLevel,
     if (!directAd?.id || !postId) return;
     if (impressionFiredRef.current.has(directAd.id)) return;
     impressionFiredRef.current.add(directAd.id);
-    const viewerUid = auth.currentUser?.uid || 'anonymous';
-    fetch(AD_AUCTION_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        eventType: 'impression', adId: directAd.id, postId, postAuthorId,
-        postCategory, slotPosition: position,
-        bidAmount: directAd.bidAmount, bidType: directAd.bidType, viewerUid,
-        viewerRegion: viewerRegionRef.current,
-        directMatch: true,
-      }),
-    }).catch(() => {});
+    // 🔧 2026-04-30: ref 동기 읽기 → await 직접 호출 (byRegion race 차단)
+    (async () => {
+      const viewerRegion = await getViewerRegion();
+      const viewerUid = auth.currentUser?.uid || 'anonymous';
+      fetch(AD_AUCTION_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          eventType: 'impression', adId: directAd.id, postId, postAuthorId,
+          postCategory, slotPosition: position,
+          bidAmount: directAd.bidAmount, bidType: directAd.bidType, viewerUid,
+          viewerRegion,
+          directMatch: true,
+        }),
+      }).catch(() => {});
+    })();
   }, [directAd, postId, postAuthorId, postCategory, position]);
 
   // 🚀 P0-4: IntersectionObserver — 50% 가시성 1초+ 충족 시 viewable 이벤트
@@ -173,9 +174,11 @@ const AdSlot = ({ position, postCategory, postId, postAuthorId, postAuthorLevel,
     const target = containerRef.current;
     let timer: ReturnType<typeof setTimeout> | null = null;
 
-    const fireViewable = () => {
+    const fireViewable = async () => {
       if (viewableFiredRef.current.has(adId)) return;
       viewableFiredRef.current.add(adId);
+      // 🔧 2026-04-30: ref 동기 읽기 → await 직접 호출 (byRegion race 차단)
+      const viewerRegion = await getViewerRegion();
       const viewerUid = auth.currentUser?.uid || 'anonymous';
       const ad = directAd || auctionAd;
       const bidAmount = directAd ? directAd.bidAmount : auctionAd?.chargeAmount;
@@ -187,7 +190,7 @@ const AdSlot = ({ position, postCategory, postId, postAuthorId, postAuthorLevel,
           eventType: 'viewable', adId, postId, postAuthorId,
           postCategory, slotPosition: position,
           bidAmount, bidType, viewerUid,
-          viewerRegion: viewerRegionRef.current,
+          viewerRegion,
         }),
       }).catch(() => {});
     };
@@ -226,8 +229,11 @@ const AdSlot = ({ position, postCategory, postId, postAuthorId, postAuthorLevel,
 
   // 🔧 v2.1 (2026-04-26): handleAdClick을 directAd 분기보다 앞으로 이동 — TDZ(Temporal Dead Zone) 회피
   //   기존: const 선언이 directAd 분기 뒤에 있어 minified 빌드에서 'Cannot access _ before initialization' 에러
-  const handleAdClick = (adId: string, bidAmount?: number, bidType?: 'cpm' | 'cpc') => {
+  const handleAdClick = async (adId: string, bidAmount?: number, bidType?: 'cpm' | 'cpc') => {
     if (!postId) return;
+    // 🔧 2026-04-30: ref 동기 읽기 → await 직접 호출 (byRegion race 차단)
+    //   AdBanner.handleClick은 onClick?.()을 fire-and-forget으로 호출 후 즉시 window.open — popup blocker 회피 OK
+    const viewerRegion = await getViewerRegion();
     const viewerUid = auth.currentUser?.uid || 'anonymous';
     fetch(AD_AUCTION_URL, {
       method: 'POST',
@@ -236,7 +242,7 @@ const AdSlot = ({ position, postCategory, postId, postAuthorId, postAuthorLevel,
         eventType: 'click', adId, postId, postAuthorId,
         postCategory, slotPosition: position,
         bidAmount, bidType, viewerUid,
-        viewerRegion: viewerRegionRef.current,
+        viewerRegion,
       }),
     }).catch(() => {});
   };
