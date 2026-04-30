@@ -52,7 +52,11 @@ const AdMarketplaceModal = ({ slot, currentSelectedAdId, postCategory, onSelect,
     //   비매칭 광고 선택 시 안내 후 자동매칭으로 fallback (광고주 슬롯 의도 보호)
     const q = query(collection(db, 'ads'), where('status', '==', 'active'));
     const unsub = onSnapshot(q, snap => {
-      const list = snap.docs.map(d => ({ id: d.id, ...d.data() } as Ad));
+      // 🚀 ADSMARKET v3 (2026-04-30): 피드 광고는 작성자 picker에서 제외 — 글 작성자 무관 광고이므로
+      //   targetSlots = ['feed'] 단독 광고만 제외 (혼합 광고는 향후 차단되지만 과거 데이터 호환)
+      const list = snap.docs
+        .map(d => ({ id: d.id, ...d.data() } as Ad))
+        .filter(ad => !(ad.targetSlots?.length === 1 && ad.targetSlots[0] === 'feed'));
       setAds(list);
       setLoading(false);
     }, err => { console.error('[AdMarketplaceModal]', err); setLoading(false); });

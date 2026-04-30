@@ -63,7 +63,15 @@ const AdCampaignList = ({ ads, onCreateNew, onEdit, onToggleStatus }: Props) => 
             <div key={ad.id} className="bg-white rounded-2xl border border-slate-100 p-4 hover:shadow-sm transition-all">
               <div className="flex items-start justify-between mb-2">
                 <div className="min-w-0 flex-1">
-                  <h4 className="text-[14px] font-[1000] text-slate-900 truncate">{ad.title}</h4>
+                  <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
+                    {/* 🚀 ADSMARKET v3 (2026-04-30): 광고 종류 배지 — targetSlots 단독성으로 추론 */}
+                    {ad.targetSlots?.length === 1 && ad.targetSlots[0] === 'feed' ? (
+                      <span className="text-[8px] font-[1000] text-violet-700 bg-violet-100 border border-violet-200 px-1.5 py-0.5 rounded">📋 피드</span>
+                    ) : (
+                      <span className="text-[8px] font-[1000] text-slate-600 bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded">📄 본문</span>
+                    )}
+                    <h4 className="text-[14px] font-[1000] text-slate-900 truncate">{ad.title}</h4>
+                  </div>
                   <p className="text-[11px] font-bold text-slate-400">{ad.headline}</p>
                 </div>
                 <div className="flex items-center gap-1 shrink-0 ml-2">

@@ -26,6 +26,10 @@ interface Props {
   advertiserId: string;
   advertiserName: string;
   editingAd?: Ad;  // 🚀 2026-04-25: 수정 모드 — 있으면 기존 데이터로 폼 초기화 + update
+  // 🚀 ADSMARKET v3 (2026-04-30): 광고 종류 — 본문/피드 별개 매체로 분리 등록
+  //   'body': 글 상세 페이지 내부 슬롯 (top/middle/bottom 선택, 가로/세로 스타일, 작성자 타겟팅, RS 분배)
+  //   'feed': 글 목록 그리드 인라인 카드 (targetSlots=['feed'] 자동, 글카드 형태 고정, 100% 플랫폼 수익)
+  adType?: 'body' | 'feed';
   onBack: () => void;
 }
 
@@ -37,8 +41,10 @@ const SLOT_OPTIONS: { value: 'top' | 'middle' | 'bottom' | 'feed'; label: string
   { value: 'feed', label: '📋 피드 인라인 (NEW)', group: 'list' },
 ];
 
-const AdCampaignForm = ({ advertiserId, advertiserName, editingAd, onBack }: Props) => {
+const AdCampaignForm = ({ advertiserId, advertiserName, editingAd, adType = 'body', onBack }: Props) => {
   const isEditMode = !!editingAd;
+  // 🚀 ADSMARKET v3 (2026-04-30): 피드 광고 모드 — 본문 전용 필드 숨김 + targetSlots 자동 ['feed']
+  const isFeedAd = adType === 'feed';
   // 수정 모드면 기존 광고 값으로 초기화, 신규면 default
   const [form, setForm] = useState(() => editingAd ? {
     title: editingAd.title || '',
@@ -69,7 +75,8 @@ const AdCampaignForm = ({ advertiserId, advertiserName, editingAd, onBack }: Pro
     imagePosition: 'left' as 'left' | 'right',
     targetCategories: [] as string[],
     targetMenuCategories: [] as string[],
-    targetSlots: ['bottom'] as ('top' | 'middle' | 'bottom' | 'feed')[],
+    // 🚀 ADSMARKET v3 (2026-04-30): 피드 광고는 ['feed'] 자동, 본문 광고는 ['bottom'] default
+    targetSlots: (adType === 'feed' ? ['feed'] : ['bottom']) as ('top' | 'middle' | 'bottom' | 'feed')[],
     targetRegions: [] as string[],
     targetCreatorId: '',
     targetCreatorNickname: '',
@@ -108,11 +115,7 @@ const AdCampaignForm = ({ advertiserId, advertiserName, editingAd, onBack }: Pro
   const [isUploading, setIsUploading] = useState(false);
   // 🚀 미리보기 폭 모드 (PC vs 모바일)
   const [previewMode, setPreviewMode] = useState<'pc' | 'mobile'>('pc');
-  // 🚀 ADSMARKET v3 (2026-04-30): 슬롯 위치 본문/피드 탭 — 의도 명확화
-  //   편집 모드에서 feed 단독 선택돼 있으면 'list' 탭으로 진입, 그 외엔 'body' default
-  const [slotTab, setSlotTab] = useState<'body' | 'list'>(() =>
-    editingAd?.targetSlots?.length === 1 && editingAd.targetSlots[0] === 'feed' ? 'list' : 'body'
-  );
+  // 🚀 ADSMARKET v3 (2026-04-30): 본문/피드 탭은 진입 시 분리(AdTypeSelector)로 이관 — 폼 내 슬롯 탭 제거
 
   const update = (key: string, value: unknown) => setForm(prev => ({ ...prev, [key]: value }));
 
@@ -197,6 +200,14 @@ const AdCampaignForm = ({ advertiserId, advertiserName, editingAd, onBack }: Pro
       : rawUrl.startsWith('//') ? 'https:' + rawUrl
       : 'https://' + rawUrl;
     setIsSubmitting(true);
+    // 🚀 ADSMARKET v3 (2026-04-30): 피드 광고 데이터 무결성 — 본문 전용 필드 강제 정리
+    //   targetSlots = ['feed'] 단독 / targetCreatorId, targetCreatorNickname 비움 (글 작성자 무관)
+    const finalForm = isFeedAd ? {
+      ...form,
+      targetSlots: ['feed'] as ('top' | 'middle' | 'bottom' | 'feed')[],
+      targetCreatorId: '',
+      targetCreatorNickname: '',
+    } : form;
     try {
       if (isEditMode && editingAd) {
         // 🔧 수정 모드: 기존 ID 유지, 누적 통계·createdAt·advertiser 정보 보존
@@ -205,10 +216,10 @@ const AdCampaignForm = ({ advertiserId, advertiserName, editingAd, onBack }: Pro
         //   페이로드 누락으로 affectedKeys에 잡혀 거부되던 문제 해소. 폼 입력 필드만 변경.
         const newStatus = status === 'draft' ? 'draft' : 'pending_review';
         await setDoc(doc(db, 'ads', editingAd.id), {
-          ...form,
+          ...finalForm,
           ctaText: safeCtaText,
           landingUrl: safeLandingUrl,
-          targetCreatorId: form.targetCreatorId || null,
+          targetCreatorId: finalForm.targetCreatorId || null,
           status: newStatus,
           updatedAt: serverTimestamp(),
         }, { merge: true });
@@ -220,10 +231,10 @@ const AdCampaignForm = ({ advertiserId, advertiserName, editingAd, onBack }: Pro
         const now = Date.now();
         const thirtyDaysLater = new Date(now + 30 * 86400 * 1000);
         await setDoc(doc(db, 'ads', adId), {
-          ...form,
+          ...finalForm,
           ctaText: safeCtaText,
           landingUrl: safeLandingUrl,
-          targetCreatorId: form.targetCreatorId || null,
+          targetCreatorId: finalForm.targetCreatorId || null,
           id: adId,
           advertiserId,
           advertiserName,
@@ -254,7 +265,13 @@ const AdCampaignForm = ({ advertiserId, advertiserName, editingAd, onBack }: Pro
     <div className="max-w-2xl mx-auto py-6 px-4 animate-in fade-in">
       <div className="flex items-center gap-3 mb-6">
         <button onClick={onBack} className="text-[11px] font-black text-slate-400 hover:text-slate-700">← 돌아가기</button>
-        <h2 className="text-[18px] font-[1000] text-slate-900">{isEditMode ? '✏️ 광고 수정' : '📢 새 광고 등록'}</h2>
+        <h2 className="text-[18px] font-[1000] text-slate-900">
+          {isEditMode ? '✏️ 광고 수정' : '📢 새 광고 등록'}
+          {/* 🚀 ADSMARKET v3 (2026-04-30): 헤더에 광고 종류 배지 — 본문/피드 명시 */}
+          <span className={`ml-2 px-2 py-0.5 text-[11px] font-[1000] rounded-md align-middle ${isFeedAd ? 'bg-violet-100 text-violet-700 border border-violet-200' : 'bg-slate-100 text-slate-600 border border-slate-200'}`}>
+            {isFeedAd ? '📋 피드 광고' : '📄 본문 광고'}
+          </span>
+        </h2>
         {isEditMode && (
           <span className="text-[10px] font-[1000] bg-amber-100 text-amber-700 px-2 py-0.5 rounded">수정 시 재검수 필요</span>
         )}
@@ -280,7 +297,8 @@ const AdCampaignForm = ({ advertiserId, advertiserName, editingAd, onBack }: Pro
           <input value={form.landingUrl} onChange={e => update('landingUrl', e.target.value)} placeholder="랜딩 URL (https://...)"
             className="border border-slate-200 rounded-xl px-3 py-2.5 text-[13px] font-bold outline-none focus:border-violet-400" />
 
-          {/* 🎨 광고 스타일 선택 — 가로 플래카드형 vs 세로형 */}
+          {/* 🎨 광고 스타일 선택 — 가로 플래카드형 vs 세로형 (🚀 ADSMARKET v3: 본문 광고 전용, 피드는 글카드 비율 고정) */}
+          {!isFeedAd && (
           <div>
             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">🎨 광고 스타일</p>
             <div className="grid grid-cols-2 gap-2">
@@ -310,6 +328,14 @@ const AdCampaignForm = ({ advertiserId, advertiserName, editingAd, onBack }: Pro
               </div>
             )}
           </div>
+          )}
+          {/* 🚀 ADSMARKET v3 (2026-04-30): 피드 광고는 스타일 선택 없음 — 글카드 비율 고정 안내 */}
+          {isFeedAd && (
+            <div className="rounded-xl border border-violet-200 bg-violet-50/40 px-3 py-2.5">
+              <p className="text-[10px] font-[1000] text-violet-600 mb-0.5">📋 피드 광고 — 글카드 형태 고정</p>
+              <p className="text-[9px] font-bold text-slate-500">이미지는 16:9 비율 권장, 텍스트는 글카드 형태로 자동 배치됩니다. (가로/세로 선택 없음)</p>
+            </div>
+          )}
 
           {/* 📸 배너 이미지 — 스타일별 비율 분기 */}
           <div>
@@ -380,65 +406,27 @@ const AdCampaignForm = ({ advertiserId, advertiserName, editingAd, onBack }: Pro
               ))}
             </div>
           </div>
-          {/* 🚀 ADSMARKET v3 (2026-04-30): 본문 슬롯 / 피드 슬롯 탭 분리 — 의도 명확화 + 카운트 배지 */}
-          <div>
-            <p className="text-[10px] font-bold text-slate-500 mb-1">슬롯 위치</p>
-            <p className="text-[9px] font-bold text-slate-400 mb-2">📄 <b>본문 슬롯</b>(작성자 RS 분배) ↔ 📋 <b>피드 슬롯</b>(100% 플랫폼). 별개 매체 — 각 탭에서 선택, 둘 다 가능.</p>
-
-            {/* 탭 헤더 — 카운트 배지 포함 */}
-            {(() => {
-              const bodyCount = form.targetSlots.filter(s => s !== 'feed').length;
-              const feedCount = form.targetSlots.filter(s => s === 'feed').length;
-              return (
-                <div className="flex gap-1 mb-2 border-b border-slate-200">
-                  <button type="button" onClick={() => setSlotTab('body')}
-                    className={`px-3 py-1.5 text-[11px] font-[1000] transition-all border-b-2 -mb-px flex items-center gap-1.5 ${slotTab === 'body' ? 'text-violet-600 border-violet-600' : 'text-slate-400 border-transparent hover:text-slate-600'}`}>
-                    📄 본문 슬롯
-                    {bodyCount > 0 && (
-                      <span className={`text-[9px] font-black px-1.5 py-0.5 rounded ${slotTab === 'body' ? 'bg-violet-100 text-violet-700' : 'bg-slate-100 text-slate-500'}`}>{bodyCount}</span>
-                    )}
+          {/* 🚀 ADSMARKET v3 (2026-04-30): 슬롯 위치 — 본문 광고만 선택 UI / 피드 광고는 자동 안내 */}
+          {!isFeedAd && (
+            <div>
+              <p className="text-[10px] font-bold text-slate-500 mb-1">📄 본문 슬롯 위치</p>
+              <p className="text-[9px] font-bold text-slate-400 mb-1.5">글 상세 페이지 내부 노출 위치 — 1개 이상 선택 (다중 선택 시 입찰 매칭 우선순위 ↑)</p>
+              <div className="flex gap-2 flex-wrap">
+                {SLOT_OPTIONS.filter(o => o.group === 'body').map(opt => (
+                  <button key={opt.value} type="button" onClick={() => toggleSlot(opt.value)}
+                    className={`px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all ${form.targetSlots.includes(opt.value) ? 'bg-violet-600 text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}>
+                    {opt.label}
                   </button>
-                  <button type="button" onClick={() => setSlotTab('list')}
-                    className={`px-3 py-1.5 text-[11px] font-[1000] transition-all border-b-2 -mb-px flex items-center gap-1.5 ${slotTab === 'list' ? 'text-violet-600 border-violet-600' : 'text-slate-400 border-transparent hover:text-slate-600'}`}>
-                    📋 피드 슬롯
-                    {feedCount > 0 && (
-                      <span className={`text-[9px] font-black px-1.5 py-0.5 rounded ${slotTab === 'list' ? 'bg-violet-100 text-violet-700' : 'bg-slate-100 text-slate-500'}`}>{feedCount}</span>
-                    )}
-                  </button>
-                </div>
-              );
-            })()}
-
-            {/* 본문 슬롯 콘텐츠 */}
-            {slotTab === 'body' && (
-              <div>
-                <p className="text-[9px] font-bold text-slate-400 mb-1.5">글 상세 페이지 내부 — 작성자 Lv별 수익 분배 (RS)</p>
-                <div className="flex gap-2 flex-wrap">
-                  {SLOT_OPTIONS.filter(o => o.group === 'body').map(opt => (
-                    <button key={opt.value} type="button" onClick={() => toggleSlot(opt.value)}
-                      className={`px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all ${form.targetSlots.includes(opt.value) ? 'bg-violet-600 text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}>
-                      {opt.label}
-                    </button>
-                  ))}
-                </div>
+                ))}
               </div>
-            )}
-
-            {/* 피드 슬롯 콘텐츠 */}
-            {slotTab === 'list' && (
-              <div>
-                <p className="text-[9px] font-bold text-violet-400 mb-1.5">등록글·카테고리 목록 그리드 인라인 — 100% 플랫폼 수익 (글 작성자 무관)</p>
-                <div className="flex gap-2 flex-wrap">
-                  {SLOT_OPTIONS.filter(o => o.group === 'list').map(opt => (
-                    <button key={opt.value} type="button" onClick={() => toggleSlot(opt.value)}
-                      className={`px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all ${form.targetSlots.includes(opt.value) ? 'bg-violet-600 text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}>
-                      {opt.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
+            </div>
+          )}
+          {isFeedAd && (
+            <div className="rounded-xl border border-violet-200 bg-violet-50/40 px-3 py-2.5">
+              <p className="text-[10px] font-[1000] text-violet-600 mb-0.5">📋 피드 인라인 슬롯 — 자동 적용</p>
+              <p className="text-[9px] font-bold text-slate-500">등록글·카테고리 목록 그리드 4글당 1광고로 자연 노출. 슬롯 위치 선택 없음.</p>
+            </div>
+          )}
 
           {/* 🌏 노출 지역 — 전국 default / 특정 시·도 선택 */}
           <div>
@@ -488,7 +476,8 @@ const AdCampaignForm = ({ advertiserId, advertiserName, editingAd, onBack }: Pro
             )}
           </div>
 
-          {/* 🏪 크리에이터 지면 타겟팅 */}
+          {/* 🏪 크리에이터 지면 타겟팅 — 🚀 ADSMARKET v3 (2026-04-30): 본문 광고 전용. 피드 광고는 글 작성자 무관 */}
+          {!isFeedAd && (
           <div>
             <p className="text-[10px] font-bold text-slate-500 mb-2">크리에이터 타겟팅 (선택)</p>
             <p className="text-[9px] font-bold text-slate-400 mb-1.5">특정 크리에이터의 콘텐츠에만 광고를 노출합니다. 비워두면 전체 노출.</p>
@@ -520,6 +509,7 @@ const AdCampaignForm = ({ advertiserId, advertiserName, editingAd, onBack }: Pro
               </div>
             )}
           </div>
+          )}
         </div>
 
         {/* 📍 미리보기 — 실제 슬롯에 어떻게 노출될지 시각화 */}
@@ -539,11 +529,11 @@ const AdCampaignForm = ({ advertiserId, advertiserName, editingAd, onBack }: Pro
           </div>
           {form.targetSlots.length === 0 ? (
             <p className="text-[11px] font-bold text-slate-400 text-center py-6 bg-slate-50 rounded-lg">
-              위에서 슬롯 위치를 1개 이상 선택하면 미리보기가 표시됩니다
+              {isFeedAd ? '피드 광고는 자동으로 슬롯이 적용됩니다' : '위에서 슬롯 위치를 1개 이상 선택하면 미리보기가 표시됩니다'}
             </p>
           ) : (
             <div className={`mx-auto bg-slate-50 rounded-xl p-3 space-y-3 transition-all ${previewMode === 'mobile' ? 'max-w-[360px]' : 'max-w-[600px]'}`}>
-              <p className="text-[9px] font-bold text-slate-400 text-center">실제 글 상세 페이지에 노출되는 모습 ({previewMode === 'mobile' ? '모바일' : 'PC'} 폭)</p>
+              <p className="text-[9px] font-bold text-slate-400 text-center">{isFeedAd ? '실제 등록글·카테고리 목록 그리드 한 칸에 노출되는 모습' : `실제 글 상세 페이지에 노출되는 모습 (${previewMode === 'mobile' ? '모바일' : 'PC'} 폭)`}</p>
               <p className="text-[9px] font-[1000] text-emerald-600 text-center">
                 🌏 노출 대상: {form.targetRegions.length === 0 ? '전국' : form.targetRegions.join(' · ')}
               </p>

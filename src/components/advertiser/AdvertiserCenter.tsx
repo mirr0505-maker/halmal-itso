@@ -7,6 +7,8 @@ import type { AdvertiserAccount, Ad } from '../../types';
 import { formatKoreanNumber } from '../../utils';
 import AdCampaignList from './AdCampaignList';
 import AdCampaignForm from './AdCampaignForm';
+// 🚀 ADSMARKET v3 (2026-04-30): 본문/피드 광고 분리 진입
+import AdTypeSelector from './AdTypeSelector';
 
 interface Props {
   onBack: () => void;
@@ -18,6 +20,10 @@ const AdvertiserCenter = ({ onBack }: Props) => {
   const [ads, setAds] = useState<Ad[]>([]);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [editingAd, setEditingAd] = useState<Ad | null>(null);  // 🚀 2026-04-25: 수정 모드
+  // 🚀 ADSMARKET v3 (2026-04-30): 광고 종류 선택 단계 — 'select' (종류 선택) | 'form' (실제 폼)
+  //   신규 등록: select → form 순서, 편집: targetSlots로 자동 추론 후 form 직접
+  const [creationStep, setCreationStep] = useState<'select' | 'form'>('select');
+  const [adType, setAdType] = useState<'body' | 'feed'>('body');
   // 🚀 임시 땡스볼 충전 — 정식 PG 도입 전까지 운영 (testChargeBall CF 호출)
   const [ballBalance, setBallBalance] = useState(0);
   const [charging, setCharging] = useState(false);
@@ -79,13 +85,27 @@ const AdvertiserCenter = ({ onBack }: Props) => {
     if (isReviewBlocked) {
       // 검수 미통과 상태에서 직접 URL이나 버튼 우회로 폼 진입한 경우 차단
       setShowCreateForm(false);
+      setCreationStep('select');
       return null;
     }
+    // 🚀 ADSMARKET v3 (2026-04-30): 신규 등록 시 종류 선택 단계 먼저
+    //   편집 모드는 editingAd.targetSlots로 자동 추론 → form 직접 진입
+    if (!editingAd && creationStep === 'select') {
+      return <AdTypeSelector
+        onSelect={(type) => { setAdType(type); setCreationStep('form'); }}
+        onBack={() => { setShowCreateForm(false); setCreationStep('select'); }}
+      />;
+    }
+    // 편집 모드: targetSlots에 'feed' 단독이면 피드 광고, 그 외는 본문 광고
+    const inferredAdType: 'body' | 'feed' = editingAd
+      ? (editingAd.targetSlots?.length === 1 && editingAd.targetSlots[0] === 'feed' ? 'feed' : 'body')
+      : adType;
     return <AdCampaignForm
       advertiserId={uid!}
       advertiserName={account.businessName}
       editingAd={editingAd || undefined}
-      onBack={() => { setShowCreateForm(false); setEditingAd(null); }}
+      adType={inferredAdType}
+      onBack={() => { setShowCreateForm(false); setEditingAd(null); setCreationStep('select'); }}
     />;
   }
 
