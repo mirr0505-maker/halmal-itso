@@ -5,6 +5,8 @@ import { formatKoreanNumber, getReputationLabel, getReputation, getCategoryDispl
 import { sanitizeHtml, extractText, extractFirstImage } from '../sanitize';
 import KanbuPromoCard from './KanbuPromoCard';
 import KanbuPromoModal from './KanbuPromoModal';
+// 🚀 ADSMARKET v3 (2026-04-30): 피드 인라인 광고 카드 (청크 4번째 다음에 인서트, 4:1 비율)
+import AdFeedCard from './ads/AdFeedCard';
 
 interface Props {
   posts: Post[];
@@ -30,12 +32,17 @@ interface Props {
   onInkwellMoreClick?: () => void;
   // 🚀 공유수 카운트: URL 복사 버튼 클릭 시 호출 → posts.shareCount + users.totalShares +1
   onShareCount?: (postId: string, authorId?: string) => void;
+  // 🚀 ADSMARKET v3 (2026-04-30): 피드 인라인 광고 — 카테고리 뷰·홈 등록글 탭에만 ON
+  showAds?: boolean;
+  feedKey?: string;          // postId 합성용 ('home-recent' / 카테고리명 등)
+  feedCategory?: string;     // 광고 매칭 postCategory (홈 mixed=빈문자열, 카테고리 뷰=카테고리명)
 }
 
 const AnyTalkList = ({
   posts, onTopicClick, onLikeClick, commentCounts = {}, currentNickname, currentUserData, allUsers = {}, followerCounts = {}, tab, onAuthorClick, onShareCount,
   allPosts = [], oneCutPosts, onOneCutMoreClick, onFriendsMoreClick, friends = [], onToggleFriend,
   inkwellPosts, onInkwellMoreClick,
+  showAds = false, feedKey = 'home', feedCategory = '',
 }: Props) => {
   const isNewTab = tab === 'any';
 
@@ -92,7 +99,7 @@ const AnyTalkList = ({
             {chunk.length === 0 && ci === 0 ? (
               <div className={`col-span-full text-center text-slate-500 font-bold text-sm italic ${oneCutPosts && oneCutPosts.length > 0 ? 'py-10' : 'py-40'}`}>첫 번째 이야기를 기다리고 있어요!</div>
             ) : (
-              chunk.map((post) => {
+              chunk.map((post, idx) => {
           const promoLevel = Math.min(post.likes || 0, 3);
           const commentCount = commentCounts[post.id] || 0;
           const isLikedByMe = currentNickname && post.likedBy?.includes(currentNickname);
@@ -118,8 +125,8 @@ const AnyTalkList = ({
           const isDark = !!(post.bgColor && DARK_BG.has(post.bgColor));
 
           return (
+            <React.Fragment key={post.id}>
             <div
-              key={post.id}
               onClick={() => onTopicClick(post)}
               className="border border-slate-300 rounded-xl px-3.5 py-2 cursor-pointer hover:border-blue-400 hover:shadow-xl transition-all group flex flex-col shadow-sm"
               style={{ backgroundColor: post.bgColor || '#ffffff' }}
@@ -240,6 +247,11 @@ const AnyTalkList = ({
                 </div>
               </div>
             </div>
+            {/* 🚀 ADSMARKET v3 (2026-04-30): 청크 4번째 글 다음에 피드 인라인 광고 카드 (4:1 비율) */}
+            {showAds && idx === 3 && chunk.length > 4 && (
+              <AdFeedCard postCategory={feedCategory} feedKey={`${feedKey}-${ci}`} />
+            )}
+            </React.Fragment>
           );
               })
             )}

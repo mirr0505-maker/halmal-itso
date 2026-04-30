@@ -41,7 +41,7 @@ exports.aggregateAdStats = onSchedule(
         stats[adId] = {
           impressions: 0, viewableImpressions: 0, clicks: 0, spent: 0,
           viewers: new Set(),
-          bySlot: { top: 0, middle: 0, bottom: 0 },
+          bySlot: { top: 0, middle: 0, bottom: 0, feed: 0 },
           byMenu: {}, byRegion: {},
           byHour: new Array(24).fill(0),
         };

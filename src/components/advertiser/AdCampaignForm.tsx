@@ -8,6 +8,8 @@ import { uploadToR2 } from '../../uploadToR2';
 import { AD_CATEGORIES, AD_MENU_CATEGORIES } from '../../constants';
 import { REGIONS } from '../../data/regions';
 import AdBanner from '../ads/AdBanner';
+// 🚀 ADSMARKET v3 (2026-04-30): 피드 인라인 광고 미리보기용
+import AdFeedCard from '../ads/AdFeedCard';
 import type { Ad } from '../../types';
 
 // 🌏 지역 빠른 선택 묶음 — shortName 기준
@@ -27,10 +29,12 @@ interface Props {
   onBack: () => void;
 }
 
-const SLOT_OPTIONS: { value: 'top' | 'middle' | 'bottom'; label: string }[] = [
-  { value: 'top', label: '상단' },
-  { value: 'middle', label: '중단' },
-  { value: 'bottom', label: '하단' },
+// 🚀 ADSMARKET v3 (2026-04-30): 'feed' 슬롯 추가 — 글 목록 그리드 인라인 카드 (글 작성자 무관)
+const SLOT_OPTIONS: { value: 'top' | 'middle' | 'bottom' | 'feed'; label: string; group: 'body' | 'list' }[] = [
+  { value: 'top', label: '본문 상단', group: 'body' },
+  { value: 'middle', label: '본문 중단', group: 'body' },
+  { value: 'bottom', label: '본문 하단', group: 'body' },
+  { value: 'feed', label: '📋 피드 인라인 (NEW)', group: 'list' },
 ];
 
 const AdCampaignForm = ({ advertiserId, advertiserName, editingAd, onBack }: Props) => {
@@ -47,7 +51,7 @@ const AdCampaignForm = ({ advertiserId, advertiserName, editingAd, onBack }: Pro
     imagePosition: (editingAd.imagePosition || 'left') as 'left' | 'right',
     targetCategories: editingAd.targetCategories || [],
     targetMenuCategories: editingAd.targetMenuCategories || [],
-    targetSlots: (editingAd.targetSlots || ['bottom']) as ('top' | 'middle' | 'bottom')[],
+    targetSlots: (editingAd.targetSlots || ['bottom']) as ('top' | 'middle' | 'bottom' | 'feed')[],
     targetRegions: editingAd.targetRegions || [],
     targetCreatorId: editingAd.targetCreatorId || '',
     targetCreatorNickname: editingAd.targetCreatorNickname || '',
@@ -65,7 +69,7 @@ const AdCampaignForm = ({ advertiserId, advertiserName, editingAd, onBack }: Pro
     imagePosition: 'left' as 'left' | 'right',
     targetCategories: [] as string[],
     targetMenuCategories: [] as string[],
-    targetSlots: ['bottom'] as ('top' | 'middle' | 'bottom')[],
+    targetSlots: ['bottom'] as ('top' | 'middle' | 'bottom' | 'feed')[],
     targetRegions: [] as string[],
     targetCreatorId: '',
     targetCreatorNickname: '',
@@ -125,7 +129,7 @@ const AdCampaignForm = ({ advertiserId, advertiserName, editingAd, onBack }: Pro
     }));
   };
 
-  const toggleSlot = (slot: 'top' | 'middle' | 'bottom') => {
+  const toggleSlot = (slot: 'top' | 'middle' | 'bottom' | 'feed') => {
     setForm(prev => ({
       ...prev,
       targetSlots: prev.targetSlots.includes(slot)
@@ -371,15 +375,39 @@ const AdCampaignForm = ({ advertiserId, advertiserName, editingAd, onBack }: Pro
               ))}
             </div>
           </div>
+          {/* 🚀 ADSMARKET v3 (2026-04-30): 본문 슬롯 / 피드 슬롯 그룹 분리 */}
           <div>
-            <p className="text-[10px] font-bold text-slate-500 mb-2">슬롯 위치</p>
-            <div className="flex gap-2">
-              {SLOT_OPTIONS.map(opt => (
-                <button key={opt.value} onClick={() => toggleSlot(opt.value)}
-                  className={`px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all ${form.targetSlots.includes(opt.value) ? 'bg-violet-600 text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}>
-                  {opt.label}
-                </button>
-              ))}
+            <p className="text-[10px] font-bold text-slate-500 mb-1">슬롯 위치</p>
+            <p className="text-[9px] font-bold text-slate-400 mb-2">📄 <b>본문 슬롯</b>은 글 상세 페이지 안에 노출(작성자 수익 분배). 📋 <b>피드 슬롯</b>은 등록글·카테고리 목록 그리드 사이 글카드 형태로 인라인 노출(100% 플랫폼 수익).</p>
+
+            {/* 본문 슬롯 */}
+            <div className="mb-2">
+              <p className="text-[9px] font-[1000] text-slate-500 mb-1 flex items-center gap-1.5">
+                📄 본문 슬롯 <span className="text-[8px] font-bold text-slate-400">— 글 상세 페이지 내부</span>
+              </p>
+              <div className="flex gap-2 flex-wrap">
+                {SLOT_OPTIONS.filter(o => o.group === 'body').map(opt => (
+                  <button key={opt.value} type="button" onClick={() => toggleSlot(opt.value)}
+                    className={`px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all ${form.targetSlots.includes(opt.value) ? 'bg-violet-600 text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}>
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* 피드 슬롯 */}
+            <div>
+              <p className="text-[9px] font-[1000] text-violet-500 mb-1 flex items-center gap-1.5">
+                📋 피드 슬롯 <span className="text-[8px] font-bold text-violet-400">— 등록글·카테고리 목록 인라인 (4글당 1광고)</span>
+              </p>
+              <div className="flex gap-2 flex-wrap">
+                {SLOT_OPTIONS.filter(o => o.group === 'list').map(opt => (
+                  <button key={opt.value} type="button" onClick={() => toggleSlot(opt.value)}
+                    className={`px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all ${form.targetSlots.includes(opt.value) ? 'bg-violet-600 text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}>
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
 
@@ -525,6 +553,25 @@ const AdCampaignForm = ({ advertiserId, advertiserName, editingAd, onBack }: Pro
                     </div>
                   );
                 })}
+              {/* 🚀 ADSMARKET v3 (2026-04-30): 피드 인라인 슬롯 미리보기 — AdFeedCard 정적 렌더 (글 목록 그리드 한 칸) */}
+              {form.targetSlots.includes('feed') && (
+                <div>
+                  <p className="text-[9px] font-[1000] text-violet-500 mb-1">📋 피드 인라인 슬롯 <span className="text-[8px] font-bold text-violet-400">— 등록글·카테고리 목록 그리드 한 칸</span></p>
+                  <div className="pointer-events-none mx-auto" style={{ maxWidth: '320px' }}>
+                    <AdFeedCard
+                      postCategory=""
+                      feedKey="preview"
+                      previewAd={{
+                        headline: form.headline || '(헤드라인을 입력하세요)',
+                        description: form.description || '(설명을 입력하세요)',
+                        imageUrl: form.imageUrl,
+                        ctaText: form.ctaText || '자세히 보기',
+                        advertiserName: advertiserName || '',
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>

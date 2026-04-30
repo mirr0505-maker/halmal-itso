@@ -141,7 +141,9 @@ exports.adAuction = onRequest(
     // ────────────────────────────────────────────────
     const { slotPosition, postCategory, postId, postAuthorId, postAuthorLevel, viewerRegion, viewerUid } = body;
     if (!slotPosition || !postId) return res.status(400).json({ error: "slotPosition, postId 필수" });
-    if ((postAuthorLevel || 0) < 5) return res.json({ success: true, ad: null, fallback: "promo" });
+    // 🚀 ADSMARKET v3 (2026-04-30): feed 슬롯은 글 작성자 무관 (피드 인라인 광고) — postAuthorLevel 게이팅 무시
+    //   본문 슬롯(top/middle/bottom)은 작성자 Lv5+ 게이팅 유지 (작성자 RS 발생 조건)
+    if (slotPosition !== 'feed' && (postAuthorLevel || 0) < 5) return res.json({ success: true, ad: null, fallback: "promo" });
 
     try {
       const snap = await db.collection("ads").where("status", "==", "active").get();

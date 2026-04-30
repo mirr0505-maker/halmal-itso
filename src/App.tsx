@@ -1215,7 +1215,7 @@ function App() {
       const searchedPosts = filterBySearch(categoryPosts);
       return (
         <div className="w-full animate-in fade-in">
-          <AnyTalkList posts={searchedPosts} onTopicClick={handleViewPost} onLikeClick={handleLike} commentCounts={commentCounts} currentNickname={userData?.nickname} currentUserData={userData} allUsers={allUsers} followerCounts={followerCounts} onShareCount={handleShareCount} />
+          <AnyTalkList posts={searchedPosts} onTopicClick={handleViewPost} onLikeClick={handleLike} commentCounts={commentCounts} currentNickname={userData?.nickname} currentUserData={userData} allUsers={allUsers} followerCounts={followerCounts} onShareCount={handleShareCount} showAds={true} feedKey={`category-${categoryKey}`} feedCategory={categoryKey} />
         </div>
       );
     }
@@ -1406,7 +1406,7 @@ function App() {
             ))}
           </div>
         )}
-        <AnyTalkList posts={searchedPosts} onTopicClick={handleViewPost} onLikeClick={handleLike} commentCounts={commentCounts} currentNickname={userData?.nickname} currentUserData={userData} allUsers={allUsers} followerCounts={followerCounts} tab={activeTab} onAuthorClick={setPublicProfileNick} onShareCount={handleShareCount} allPosts={allRootPosts} oneCutPosts={onecutTabPosts} onOneCutMoreClick={() => setActiveMenu('onecut')} onFriendsMoreClick={() => setActiveMenu('friends')} friends={friends} onToggleFriend={toggleFriend} inkwellPosts={inkwellTabPosts} onInkwellMoreClick={() => { setActiveMenu('inkwell'); setSelectedSeriesId(null); setSelectedEpisodeId(null); setInkwellMode('list'); }} />
+        <AnyTalkList posts={searchedPosts} onTopicClick={handleViewPost} onLikeClick={handleLike} commentCounts={commentCounts} currentNickname={userData?.nickname} currentUserData={userData} allUsers={allUsers} followerCounts={followerCounts} tab={activeTab} onAuthorClick={setPublicProfileNick} onShareCount={handleShareCount} allPosts={allRootPosts} oneCutPosts={onecutTabPosts} onOneCutMoreClick={() => setActiveMenu('onecut')} onFriendsMoreClick={() => setActiveMenu('friends')} friends={friends} onToggleFriend={toggleFriend} inkwellPosts={inkwellTabPosts} onInkwellMoreClick={() => { setActiveMenu('inkwell'); setSelectedSeriesId(null); setSelectedEpisodeId(null); setInkwellMode('list'); }} showAds={activeTab === 'recent'} feedKey={`home-${activeTab}`} />
       </div>
     );
   };

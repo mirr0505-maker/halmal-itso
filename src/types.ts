@@ -895,7 +895,8 @@ export interface Ad {
   targetRegions: string[];           // 노출 대상 지역 (빈 배열 = 전국)
   targetCreatorId?: string | null;       // 🏪 크리에이터 지면 타겟팅 (특정 크리에이터 글에만 노출, null=전체)
   targetCreatorNickname?: string;        // UI 표시용
-  targetSlots: ('top' | 'middle' | 'bottom')[];
+  // 🚀 ADSMARKET v3 (2026-04-30): 'feed' — 글 목록 그리드 인라인 카드 (글 작성자 무관, 100% 플랫폼 수익)
+  targetSlots: ('top' | 'middle' | 'bottom' | 'feed')[];
   bidType: 'cpm' | 'cpc';
   bidAmount: number;                 // 입찰가 (원)
   dailyBudget: number;
@@ -931,7 +932,7 @@ export interface AdEvent {
   postId: string;
   postAuthorId: string;
   postCategory: string;
-  slotPosition: 'top' | 'middle' | 'bottom';
+  slotPosition: 'top' | 'middle' | 'bottom' | 'feed';
   eventType: 'impression' | 'viewable' | 'click';
   bidType: 'cpm' | 'cpc';
   bidAmount: number;
