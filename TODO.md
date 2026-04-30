@@ -2,7 +2,7 @@
 
 > **목적**: 메모리 폴더에 분산된 18개 백로그/튜닝 메모리를 단일 파일로 통합. 새 백로그가 생기면 이 파일에만 추가.
 > **범위**: 완료 아카이브·운영 가이드(feedback)·배포 이력은 메모리 폴더에 별도 유지. 본 파일은 "앞으로 할 일"만.
-> 최종 갱신: 2026-04-29 (docs/step1-design 4개 백로그 통합)
+> 최종 갱신: 2026-04-30 (ADSMARKET v3·v3.1 도입 + S-14 byRegion fix + 시간 박힘 정리)
 
 ---
 
@@ -10,13 +10,11 @@
 
 | 날짜 | 작업 | 무엇을 |
 |------|------|--------|
-| **2026-04-27** | ADSMARKET v2 첫 데이터 (D+1) | 04:30 KST `aggregateAdStats` 스케줄 실행 → `ad_stats_daily` 첫 일치 데이터 생성 확인 + AdStatsModal 데이터 노출 |
-| **2026-04-29** | Phase C 분포 첫 실측 (D+7) | `users.creatorScoreCached` P50/P75/P90 + `creatorScoreTier` 분포 + `reportsUniqueReporters` + Gate 4종 통과율 + `adEvents.winnerScoreWeight` 히스토그램 |
-| **2026-04-30 06:00 KST** | S-14 byRegion 최종 확인 | `ad_stats_daily/{adId}_20260429.byRegion`에 `{서울: N, ...}` 채워졌는지 확인. 04:30 KST 자동 집계 후. ✅ 시 AdsTestScenarios.md 주석 정리 → S-14 완전 종결. ❌ 시 AdSlot `getViewerRegion()` 파이프라인 재진단 |
+| **2026-05-01 04:30 KST 이후** | S-14 byRegion 재검증 (D+1, fix 후) | `ad_stats_daily/{adId}_20260430.byRegion`에 모든 어제 적재 광고가 `{서울: N, ...}` 채워졌는지 확인. AdSlot ref→await fix(커밋 fa76fd1) 배포 후 첫 사이클. ✅ 시 AdsTestScenarios.md S-14 종결 + 본 항목 제거. ❌ 시 viewer 세션별 `adEvents.viewerRegion` 직접 점검 |
 | **2026-05-03** | ADSMARKET v2 안정성 검증 (D+7) | viewableRate 분포 + 빈도 캡 도달률 + 일예산 자동 정지 빈도 + Brand Safety 차단 비율. **이후 P1-6 A/B 다중 소재 착수 가능**. |
-| **2026-05-06** | Phase C 일괄 튜닝 (D+14) | Gate / consumer / REPORT_PENALTIES 3건 동일 사이클 재조정 (개별 조정 금지) |
+| **2026-05-06** | Phase C 일괄 튜닝 (D+14) — 분포 실측 + 튜닝 동시 | `users.creatorScoreCached` P50/P75/P90 + `creatorScoreTier` 분포 + `reportsUniqueReporters` + Gate 4종 통과율 + `adEvents.winnerScoreWeight` 히스토그램 측정 → Gate / consumer / REPORT_PENALTIES 3건 동일 사이클 재조정 (개별 조정 금지) |
 | **2026-05-07** | 추천코드 임계 재조정 (배포 2주 후) | 활성 기준 "글 1+ OR 댓글 3+" / 악용 방어 device_fp · /24 3+ same_ip · 1h 5+ rapid_redeem |
-| **2026-05-07** | ADSMARKET v3 D+7 안정성 검증 | 피드 광고 viewableRate 분포 + click-through rate + 광고주 만족도(피드 vs 본문 단가 비교) + 4:1 밀도 조정 검토. ad_stats_daily.bySlot.feed 누적치 확인 |
+| **2026-05-07** | ADSMARKET v3 D+7 안정성 검증 | 피드 광고 viewableRate 분포 + click-through rate + 광고주 만족도(피드 vs 본문 단가 비교) + 4:1 밀도 조정(P3-17) 검토. ad_stats_daily.bySlot.feed 누적치 확인. ✅ 시 P3-15(피드 빈도 캡 별도)·P3-16(피드 단가) 착수 |
 | **2026-05-08** | FLAGGING 7항목 직접 쿼리 (D+13) | reportsUniqueReporters · reportState · creatorScoreCached · Gate 통과율 · audit_anomalies · 이의제기 처리율. Firebase Console 직접 |
 | **2026-05-10** | ADSMARKET v2 재구매 가설 검증 (D+14) | 광고주 카드 통계 사용 비율 + AdStatsModal 도달률 + 재등록률(P0-3 효과 측정) |
 | **Phase B 진입 시 (베타 종료 + 정식 출시 D-90)** | 대규모 경계값 재조정 절차 | D-90 공지 / D-60 데이터 분석 / D-45 새 경계값 설계 / D-Day 일괄 배포. 상세 절차는 [TUNING_SCHEDULE.md §3.3](./docs/step1-design/TUNING_SCHEDULE.md) |
@@ -94,7 +92,8 @@
 |------|------|
 | **REPUTATION Prestige 3단계** | legend / awe / mythic 토글 조건·경계값·grandfathered 로직. 현재 미활성. Creator Score와 독립 트랙. |
 | **ADSMARKET v2 잔여 항목** | P1-6 A/B 다중 소재(다음 우선) + P2-9~13(Smart Bidding/리타게팅/후불 정산/작성자 floor/부정 클릭 ML). 진행 트래커 [AdsRoadmap.md](./AdsRoadmap.md) — 13항목 중 7건 완료(2026-04-26). |
-| **ADSMARKET v3 잔여 항목** | P3-15 피드 빈도 캡 별도 limit / P3-16 피드 단가 책정 (D+7 후) / P3-17 4:1 밀도 조정 (현재 8:1) / P3-18 AdStatsModal 본문·피드 분해. 2026-04-30 P3-14(피드 인라인) + P3-14b(본문/피드 진입 분리) 도입 완료. |
+| **ADSMARKET v3 잔여 항목** | P3-15 피드 빈도 캡 별도 limit (default 24h 5회 등) / P3-16 피드 단가 책정 (D+7 후 본문 대비 ±N%) / P3-17 4:1 밀도 조정 (현재 8:1, 청크 패턴 재설계 필요) / P3-18 AdStatsModal 본문·피드 분해 + `aggregateDailyRevenue`에 피드 이벤트 가드 추가 (postAuthorId 빈 문자열 영수증 노이즈 제거). 2026-04-30 P3-14(피드 인라인) + P3-14b(본문/피드 진입 분리) 도입 완료. |
+| **광고 출금(환급) 시스템** | 작성자가 누적된 `users.pendingRevenue` / `dailyAdRevenue` 정산 영수증을 실제 ⚾볼 → 원화 환급 신청. 카드 PG 도입과 묶음(Sprint 8). 전자금융업 등록 검토 필요. 현재 ballBalance 즉시 환원만 — 플랫폼 내 사용 가능, 외부 인출 불가. |
 | **users.region 자동 채움** | 광고 region 매칭 + 마이페이지 표시용. SMS 인증만으론 불가 — PASS 본인인증(NICE/KCB) 도입 시 자동 또는 IP 기반(Cloudflare cf.region) + 마이페이지 수동 수정 조합. Sprint 7 휴대폰 인증 후속 또는 카드 PG와 묶음. |
 | **카카오 가입 시 이메일 미수집** | 카카오 OAuth scope 'account_email'은 비즈 앱 전환(사업자 검수) 후 가능. 임시: 카카오 가입자 한정 회원가입 후 이메일 입력 폼 또는 광고주 등록 시 직접 입력. 정식 오픈 시 비즈 앱 전환 진행. |
 | **userCode 참조 전환** | `friendList`/`likedBy`/`author`의 uid → userCode 무중단 4단계. Sprint 8+ 이월. |
