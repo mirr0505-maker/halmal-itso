@@ -94,7 +94,7 @@
 |------|------|
 | **REPUTATION Prestige 3단계** | legend / awe / mythic 토글 조건·경계값·grandfathered 로직. 현재 미활성. Creator Score와 독립 트랙. |
 | **ADSMARKET v2 잔여 항목** | P1-6 A/B 다중 소재(다음 우선) + P2-9~13(Smart Bidding/리타게팅/후불 정산/작성자 floor/부정 클릭 ML). 진행 트래커 [AdsRoadmap.md](./AdsRoadmap.md) — 13항목 중 7건 완료(2026-04-26). |
-| **ADSMARKET v3 잔여 항목** | P3-15 피드 빈도 캡 별도 limit / P3-16 피드 단가 책정 (D+7 후) / P3-17 4:1 밀도 조정 (현재 8:1) / P3-18 AdStatsModal 본문·피드 분해. 2026-04-30 P3-14(피드 인라인) 도입 완료. |
+| **ADSMARKET v3 잔여 항목** | P3-15 피드 빈도 캡 별도 limit / P3-16 피드 단가 책정 (D+7 후) / P3-17 4:1 밀도 조정 (현재 8:1) / P3-18 AdStatsModal 본문·피드 분해. 2026-04-30 P3-14(피드 인라인) + P3-14b(본문/피드 진입 분리) 도입 완료. |
 | **users.region 자동 채움** | 광고 region 매칭 + 마이페이지 표시용. SMS 인증만으론 불가 — PASS 본인인증(NICE/KCB) 도입 시 자동 또는 IP 기반(Cloudflare cf.region) + 마이페이지 수동 수정 조합. Sprint 7 휴대폰 인증 후속 또는 카드 PG와 묶음. |
 | **카카오 가입 시 이메일 미수집** | 카카오 OAuth scope 'account_email'은 비즈 앱 전환(사업자 검수) 후 가능. 임시: 카카오 가입자 한정 회원가입 후 이메일 입력 폼 또는 광고주 등록 시 직접 입력. 정식 오픈 시 비즈 앱 전환 진행. |
 | **userCode 참조 전환** | `friendList`/`likedBy`/`author`의 uid → userCode 무중단 4단계. Sprint 8+ 이월. |

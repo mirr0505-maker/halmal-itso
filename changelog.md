@@ -1,5 +1,44 @@
 ## 8. 현재 구현 상태 (2026-03-24 기준, 코드 실측)
 
+### 📢 ADSMARKET v3.1 — 본문/피드 광고 진입 분리 (2026-04-30)
+
+> v3 도입 직후 사용자 피드백 반영 — 본문/피드는 별개 매체이므로 광고 등록 진입부터 분리. 폼 내 슬롯 탭 UI를 제거하고 진입 단계에서 종류를 명확히 선택.
+
+**[1] AdTypeSelector 신규 컴포넌트** ([src/components/advertiser/AdTypeSelector.tsx](src/components/advertiser/AdTypeSelector.tsx))
+- [x] 새 광고 등록 진입 시 큰 카드 2개 좌우 배치 (모바일 세로)
+- [x] 각 카드에 차이점 4줄 명시: 슬롯/이미지/타겟팅/수익 분배 정책
+- [x] 피드 카드에 NEW 배지 (violet-600)
+- [x] 본문 광고는 작성자 RS 분배 / 피드 광고는 100% 플랫폼 수익 강조
+
+**[2] AdvertiserCenter 진입 흐름**
+- [x] `creationStep` state 추가 — 'select' (종류 선택) | 'form' (실제 폼)
+- [x] 신규 등록: select → form 순서, 편집은 자동 adType 추론 후 form 직접
+- [x] 편집 모드: editingAd.targetSlots 단독성으로 자동 추론 (`['feed']` 단독이면 'feed', 그 외 'body')
+
+**[3] AdCampaignForm `adType` prop 분기** ([src/components/advertiser/AdCampaignForm.tsx](src/components/advertiser/AdCampaignForm.tsx))
+- [x] `adType: 'body' | 'feed'` prop 추가, default 'body'
+- [x] `isFeedAd` 가드로 본문 전용 4섹션 조건부 렌더:
+  - 광고 스타일 (imageStyle/imagePosition) → 피드 모드 시 숨김 + 글카드 비율 안내 박스
+  - 슬롯 위치 (top/middle/bottom 버튼) → 피드 모드 시 숨김 + "📋 피드 인라인 슬롯 자동 적용" 안내
+  - 크리에이터 타겟팅 (targetCreatorId) → 피드 모드 시 숨김
+- [x] form 초기값 분기: 신규 등록 시 isFeedAd면 `targetSlots = ['feed']`
+- [x] 헤더에 [📄 본문 광고]/[📋 피드 광고] 종류 배지
+- [x] 폼 제출 시 `finalForm` — isFeedAd면 targetSlots/targetCreatorId/Nickname 강제 정리 (서버 일관성)
+- [x] 미리보기 분기: 본문 모드는 AdBanner 다중 슬롯 / 피드 모드는 AdFeedCard 단독
+- [x] 폼 내 본문/피드 슬롯 탭 UI 제거 (`slotTab` state 제거 — 진입 분리로 불필요)
+
+**[4] AdMarketplaceModal — 피드 광고 자동 제외**
+- [x] 작성자 picker fetch 직후 클라이언트 필터: `!(targetSlots.length === 1 && targetSlots[0] === 'feed')`
+- [x] 글 작성자 무관 광고이므로 작성자가 자기 글에 직접 선택 불가 (의도 일관)
+
+**[5] AdCampaignList 카드 종류 배지**
+- [x] 카드 좌상단 제목 옆에 [📄 본문]/[📋 피드] 배지 추가 (targetSlots 단독성 추론)
+- [x] 광고주가 자기 광고 목록에서 종류 한눈에 식별
+
+**[6] 데이터 모델 영향 0**
+- [x] targetSlots 단독성으로 광고 종류 구분 — 옵션 X 채택 (필드 추가 없음)
+- [x] 기존 광고 마이그레이션 불필요
+
 ### 📢 ADSMARKET v3 — 피드 인라인 광고 (Native In-feed Ad) 도입 (2026-04-30)
 
 > 글 목록 그리드에 글카드 형태 광고 인라인 — 글 작성자 RS 0%, 100% 플랫폼 수익. 등록글·카테고리 뷰만 노출 (사적 영역 보호).

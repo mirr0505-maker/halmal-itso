@@ -3,7 +3,10 @@
 > **문서 목적**: VS Code에서 AI(Claude) 또는 휴먼 개발자가 코딩 작업을 수행할 때 **단일 진실 소스(Single Source of Truth)**로 사용하는 기획서.
 > 모든 컬렉션 · 인터페이스 · 비즈니스 로직 · UI 컴포넌트를 이 문서 하나로 확정한다.
 >
-> 최종 갱신: 2026-04-30 v3 | 기술 스택: React 19 + TS + Vite · Tailwind 4 · Firebase (Firestore + Auth + Cloud Functions) · Cloudflare R2/Workers
+> 최종 갱신: 2026-04-30 v3.1 | 기술 스택: React 19 + TS + Vite · Tailwind 4 · Firebase (Firestore + Auth + Cloud Functions) · Cloudflare R2/Workers
+>
+> **v3.1 (2026-04-30 후속) 추가 변경** — 본문/피드 광고 진입부터 분리.
+>   ① **AdTypeSelector** 신규 — 새 광고 등록 진입 시 [📄 본문] / [📋 피드] 카드 2개 선택 ② AdCampaignForm `adType` prop 분기 — 본문 모드/피드 모드 별개 폼 노출 ③ 본문 전용 필드(imageStyle, imagePosition, targetCreatorId, targetSlots top/middle/bottom 선택)는 피드 모드에서 모두 숨김 ④ 피드 모드는 targetSlots=['feed'] 자동 적용 + "📋 피드 인라인 슬롯 자동 적용" 안내 + 글카드 비율 안내 ⑤ 헤더에 [📄 본문 광고]/[📋 피드 광고] 종류 배지 ⑥ 폼 제출 시 isFeedAd면 finalForm으로 본문 전용 필드(targetCreatorId/Nickname) 강제 정리 ⑦ 편집 모드는 editingAd.targetSlots 단독성으로 자동 adType 추론 ⑧ AdvertiserCenter creationStep state — 'select'(종류 선택) → 'form' 단계 흐름 ⑨ AdMarketplaceModal 작성자 picker에서 피드 광고 자동 제외 (글 작성자 무관 광고이므로) ⑩ AdCampaignList 카드 좌상단에 [📄 본문]/[📋 피드] 배지 ⑪ 폼 내 본문/피드 슬롯 탭 UI 제거 (진입부터 분리되므로 불필요) ⑫ 데이터 모델 변경 0 (targetSlots 단독성으로 구분, ads.adType 새 필드 없음).
 >
 > **v3 (2026-04-30) 변경 요약** — 피드 인라인 광고 (Native In-feed Ad) 도입.
 >   ① `targetSlots`/`slotPosition`에 `'feed'` 추가 — 글 목록 그리드 인라인 카드 ② AdFeedCard 신규 컴포넌트 (글카드 형태 + violet 톤 + 좌상단 📢 광고 배지) ③ AnyTalkList 청크 4번째 다음 인서트 (8글당 1광고, 베타 후 4:1 조정 검토) ④ 매칭 분기 `postId='feed-{categoryKey}'` 합성, `postAuthorLevel` 게이팅 무시 (글 작성자 무관, 100% 플랫폼 수익) ⑤ AdCampaignForm 본문/피드 슬롯 그룹 분리 + feed 미리보기 정적 렌더 ⑥ 노출 영역: 카테고리 뷰 무조건 ON / 홈 'recent' 탭 ON / 새글·인기글·최고글·깐부글·구독글 OFF / 공개 프로필 OFF (사적 영역 보호) ⑦ Brand Safety / 빈도 캡 / 예산 가드 / Viewable IO 모두 기존 v2 정책 그대로 적용. 다음 P3 잔여: A/B 다중 소재 + 피드 빈도 캡 별도 limit + 4:1 밀도 조정 (D+7 안정성 후).
