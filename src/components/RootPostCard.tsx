@@ -229,6 +229,15 @@ const RootPostCard = ({
             {post.debatePosition === 'neutral' && <span className="text-[11px] font-black text-slate-500 bg-slate-50 border border-slate-200 px-2.5 py-0.5 rounded-lg">🤝 중립</span>}
           </div>
         )}
+        {/* 🚀 2026-04-30: 솔로몬 재판 단독 글 입장 배지 — 연계글 아닌 경우만 (이중 노출 방지) */}
+        {/*   왜: 작성자가 새 글 작성 폼에서 찬/반/중립 선택하면 어딘가 노출되어야 의도 보존 */}
+        {post.category === '솔로몬의 재판' && !post.linkedPostId && post.debatePosition && (
+          <div className="flex items-center gap-2 mb-3 flex-wrap">
+            {post.debatePosition === 'pro'     && <span className="text-[11px] font-black text-blue-700 bg-blue-50 border border-blue-200 px-2.5 py-0.5 rounded-lg">👍 동의</span>}
+            {post.debatePosition === 'con'     && <span className="text-[11px] font-black text-rose-700 bg-rose-50 border border-rose-200 px-2.5 py-0.5 rounded-lg">👎 비동의</span>}
+            {post.debatePosition === 'neutral' && <span className="text-[11px] font-black text-slate-500 bg-slate-50 border border-slate-200 px-2.5 py-0.5 rounded-lg">🤝 중립</span>}
+          </div>
+        )}
 
         {/* 🚀 마법 수정 구슬 지역 배지 — 제목 바로 아래 표시 */}
         {post.location && (
