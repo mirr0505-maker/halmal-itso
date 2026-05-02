@@ -354,7 +354,7 @@ export const SANCTION_POLICIES: SanctionPolicy[] = [
 
 // 🚀 홈 피드 필터링 기준값 — blueprint.md "필터링 로직 (절대 불변)" 과 반드시 동기화
 export const POST_FILTER = {
-  NEW_POST_WINDOW_MS: 2 * 60 * 60 * 1000, // 새글 노출 시간: 2시간(ms)
+  NEW_POST_WINDOW_MS: 3 * 60 * 60 * 1000, // 새글 노출 시간: 3시간(ms) — 2026-04-30 베타 환경 글 부족 대응 (2h → 3h, "1시간당 좋아요 1개" 비율)
   REGISTERED_MIN_LIKES: 3,                 // 등록글 진입 최소 좋아요 수
   BEST_MIN_LIKES: 10,                      // 인기글 최소 좋아요 수
   RANK_MIN_LIKES: 30,                      // 최고글 최소 좋아요 수

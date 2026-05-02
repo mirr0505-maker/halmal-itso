@@ -184,9 +184,11 @@ const AnyTalkList = ({
                   <span className="text-[8px] font-[1000] text-blue-500 bg-blue-50 px-2 py-0.5 rounded-md uppercase tracking-widest border border-blue-100/30">
                     {getCategoryDisplayName(post.category)}
                   </span>
-                  {post.linkedPostId && post.debatePosition === 'pro'     && <span className="text-[8px] font-[1000] text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-md">👍 동의</span>}
-                  {post.linkedPostId && post.debatePosition === 'con'     && <span className="text-[8px] font-[1000] text-rose-700 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded-md">👎 비동의</span>}
-                  {post.linkedPostId && post.debatePosition === 'neutral' && <span className="text-[8px] font-[1000] text-slate-500 bg-slate-50 border border-slate-300 px-2 py-0.5 rounded-md">🤝 중립</span>}
+                  {/* 🚀 2026-04-30: 솔로몬 재판 입장 배지 — verdict/infoFields/location/newsType 등 다른 카테고리 작성자 태그와 일관 */}
+                  {/*   카드엔 연계글/원본글 정보가 없으므로 linkedPostId 가드 의미 없음 → 카테고리 가드로 단독·연계글 모두 노출 */}
+                  {post.category === '솔로몬의 재판' && post.debatePosition === 'pro'     && <span className="text-[8px] font-[1000] text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-md">👍 동의</span>}
+                  {post.category === '솔로몬의 재판' && post.debatePosition === 'con'     && <span className="text-[8px] font-[1000] text-rose-700 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded-md">👎 비동의</span>}
+                  {post.category === '솔로몬의 재판' && post.debatePosition === 'neutral' && <span className="text-[8px] font-[1000] text-slate-500 bg-slate-50 border border-slate-300 px-2 py-0.5 rounded-md">🤝 중립</span>}
                   {post.verdict === 'fact'      && <span className="text-[8px] font-[1000] text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md">✅ 사실 확인</span>}
                   {post.verdict === 'false'     && <span className="text-[8px] font-[1000] text-rose-600    bg-rose-50    border border-rose-200    px-2 py-0.5 rounded-md">❌ 허위 판명</span>}
                   {post.verdict === 'uncertain' && <span className="text-[8px] font-[1000] text-slate-500   bg-slate-50   border border-slate-300   px-2 py-0.5 rounded-md">🔍 미정.보류</span>}
