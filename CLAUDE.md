@@ -246,13 +246,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 | 탭 | 조건 |
 |----|------|
-| any (새글) | 게시 후 **2시간** 이내 |
-| recent (등록글) | **2시간 경과** + 좋아요 **3개** 이상 |
+| any (새글) | 게시 후 **3시간** 이내 |
+| recent (등록글) | **3시간 경과** + 좋아요 **3개** 이상 |
 | best (인기글) | 좋아요 10개 이상 |
 | rank (최고글) | 좋아요 30개 이상 |
 | friend (깐부글) | 좋아요 3개 이상 + 팔로우 유저 (시간 제한 없음) |
 | 카테고리 뷰 | 좋아요 3개 이상 |
-| RelatedPostsSidebar | 2시간 경과 + 좋아요 3개 이상 (등록글 기준 동일) |
+| RelatedPostsSidebar | 3시간 경과 + 좋아요 3개 이상 (등록글 기준 동일) |
 | RelatedPostsSidebar (🏚️ 유배·귀양지) | 좋아요·시간 필터 스킵, `isHiddenByExile`만 제외. 사이드바 제목 "게시글 더보기" |
 
 ---
