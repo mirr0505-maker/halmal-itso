@@ -69,6 +69,9 @@ function appendUTM(landingUrl: string, adId: string): string {
 
 const AdFeedCard = ({ postCategory = '', feedKey, previewAd, prefetchedAd }: Props) => {
   const [auctionAd, setAuctionAd] = useState<AuctionResult | null>(null);
+  // ⚡ 성능(스켈레톤) 2026-07-02: prefetchedAd === undefined = 경매 fetch 진행 중(로딩) / null = 매칭 실패(fallback).
+  //   미리보기 모드(previewAd)는 즉시 렌더라 로딩 아님. isLoading이면 아래 스켈레톤을 fallback보다 먼저 렌더.
+  const isLoading = !previewAd && prefetchedAd === undefined;
   const containerRef = useRef<HTMLDivElement | null>(null);
   const viewableFiredRef = useRef<Set<string>>(new Set());
 
@@ -148,6 +151,27 @@ const AdFeedCard = ({ postCategory = '', feedKey, previewAd, prefetchedAd }: Pro
   // ✨ 2026-05-16 v3.4: 광고 매칭 실패 시 자체 홍보 fallback 카드 (slate 톤, 차분한 디자인)
   //   → invisible 슬롯이 시각적 빈 공백으로 노출되는 문제 차단 + 광고주 자체 모객 효과
   //   → cursor-default로 클릭 비활성 (광고주 진입은 별 메뉴에서). 디자인은 광고 카드 동일 레이아웃 차용.
+  // ⚡ 성능(스켈레톤) 2026-07-02: 경매 fetch 진행 중 — 실제 카드와 동일한 outer 컨테이너 치수(border/rounded/px/py/flex)로
+  //   펄스 스켈레톤 렌더. 그리드 셀 크기 불변 유지 → 로딩→광고 교체 시 레이아웃 점프 없음. onClick/ref/이벤트 없음(회계 무관).
+  if (isLoading) {
+    return (
+      <div className="border border-violet-100 rounded-xl px-3.5 py-2 flex flex-col shadow-sm bg-white animate-pulse">
+        {/* 배지 라인 */}
+        <div className="h-2.5 w-12 bg-slate-200 rounded mb-2 shrink-0" />
+        {/* 제목 2줄 */}
+        <div className="h-3.5 w-full bg-slate-200 rounded mb-1.5 shrink-0" />
+        <div className="h-3.5 w-3/4 bg-slate-200 rounded mb-2 shrink-0" />
+        {/* 본문 블록 */}
+        <div className="h-12 w-full bg-slate-100 rounded mb-2" />
+        {/* 하단 행 (광고주명 + CTA) */}
+        <div className="pt-1 border-t mt-auto flex items-center justify-between gap-1.5 shrink-0 border-violet-100">
+          <div className="h-2.5 w-20 bg-slate-200 rounded" />
+          <div className="h-4 w-14 bg-slate-200 rounded-lg" />
+        </div>
+      </div>
+    );
+  }
+
   if (!auctionAd) {
     return (
       <div className="border border-slate-200 rounded-xl px-3.5 py-2 flex flex-col shadow-sm bg-slate-50/40">

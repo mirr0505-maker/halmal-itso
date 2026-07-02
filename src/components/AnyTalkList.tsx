@@ -119,11 +119,17 @@ const AnyTalkList = ({
     return count;
   })();
   const [feedAds, setFeedAds] = useState<(PrefetchedAd | null)[]>([]);
+  // ⚡ 성능(스켈레톤) 2026-07-02: 경매 prefetch 진행 중 여부 — true면 AdFeedCard에 undefined를 전달해 스켈레톤 렌더.
+  //   fetch 완료 후 false로 내려 실제 광고(또는 null=fallback 카드)로 교체 → 로딩과 "광고 없음"을 시각적으로 구분.
+  const [adsLoading, setAdsLoading] = useState(false);
   useEffect(() => {
     if (!showAds || adSlotCount === 0) {
       setFeedAds([]);
+      setAdsLoading(false);
       return;
     }
+    // ⚡ 성능(스켈레톤) 2026-07-02: async prefetch 루프 시작 직전에 로딩 플래그 ON
+    setAdsLoading(true);
     let cancelled = false;
     (async () => {
       const viewerRegion = await getViewerRegion();
@@ -156,7 +162,8 @@ const AnyTalkList = ({
           ads.push(null); // 매칭 실패 시 빈 슬롯
         }
       }
-      if (!cancelled) setFeedAds(ads);
+      // ⚡ 성능(스켈레톤) 2026-07-02: 성공 완료 경로 — 결과 반영과 동시에 로딩 플래그 OFF
+      if (!cancelled) { setFeedAds(ads); setAdsLoading(false); }
     })();
     return () => { cancelled = true; };
   }, [showAds, adSlotCount, feedKey, feedCategory]);
@@ -270,7 +277,7 @@ const AnyTalkList = ({
               <AdFeedCard
                 postCategory={feedCategory}
                 feedKey={`${feedKey}-${ci}`}
-                prefetchedAd={feedAds[ci] !== undefined ? feedAds[ci] : null}
+                prefetchedAd={adsLoading ? undefined : (feedAds[ci] !== undefined ? feedAds[ci] : null)}
               />
             )}
             </React.Fragment>

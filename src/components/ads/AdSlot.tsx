@@ -286,10 +286,23 @@ const AdSlot = ({ position, postCategory, postId, postAuthorId, postAuthorLevel,
     );
   }
 
-  // ⚡ 성능 2026-07-02: 로드 전(경매/빈도캡 미실행)에는 높이 0 sentinel을 렌더 → 로드 게이트 IO가 이 위치를 관찰.
+  // ⚡ 성능 2026-07-02: 뷰포트 진입 전(off-screen)에는 높이 0 sentinel을 렌더 → 로드 게이트 IO가 이 위치를 관찰.
   //   기존 `return null`은 관찰 대상 DOM이 없어 뷰포트 진입 감지가 불가(교착) → 반드시 요소를 마운트해야 함.
-  //   클래스 없는 빈 div라 세로 공간 0(기존 null과 레이아웃 동일). 진입 후 loaded=true 되면 아래 실제 슬롯으로 교체.
-  if (!loaded) return <div ref={gateRef} aria-hidden />;
+  //   클래스 없는 빈 div라 세로 공간 0(기존 null과 레이아웃 동일). off-screen엔 스켈레톤을 그리지 않음(불필요 페인트 방지).
+  if (!hasEnteredViewport) return <div ref={gateRef} aria-hidden />;
+
+  // ⚡ 성능(스켈레톤) 2026-07-02: 뷰포트 진입 후 ~ 경매 fetch 완료 전(loaded=false)에는 펄스 스켈레톤 렌더.
+  //   AdBanner 높이(h-20) 근사 → 로딩→광고 교체 시 레이아웃 점프 최소화. gateRef 미부착(로드 게이트 IO는 이미 발사됨).
+  //   회계 이벤트(impression/viewable/click) 없음 — 순수 시각 placeholder.
+  if (!loaded) {
+    return (
+      <div className="my-4">
+        <div className="h-20 w-full rounded-xl bg-slate-100 border border-slate-200 animate-pulse flex items-center px-4">
+          <div className="h-10 w-full bg-slate-200/70 rounded-lg" />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div ref={containerRef} className="my-4">
