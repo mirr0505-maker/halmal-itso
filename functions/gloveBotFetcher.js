@@ -1,8 +1,9 @@
 // functions/gloveBotFetcher.js — 🤖 정보봇 데이터 수집기
 // 🚀 fetchBotNews: Google News RSS → 키워드 매칭 → community_posts 자동 게시
 // 🚀 fetchBotDart: DART OpenAPI → corpCode별 공시 → community_posts 자동 게시
-// 스케줄: 각각 매 1시간 실행 (enabled=true이고 만료 전인 장갑만 대상)
-// ⚠️ 정식 서비스 시 30분으로 단축 검토 — 베타 기간 글 유입 속도 완화 목적
+// 스케줄: 각각 매 2시간 실행 (2026-05-13 Perf Phase C — 1h→2h 완화)
+// ⚠️ 정식 서비스 시 30분~1시간 단축 검토 — 베타 기간 글 유입 속도 완화 목적
+// 키워드당 5건 → 3건 / DART page_count 10 → 5 (Phase C 동시 적용)
 // 중복 방지: glove_bot_dedup/{communityId}/items/{hash}
 const { onSchedule } = require("firebase-functions/v2/scheduler");
 const { getFirestore, Timestamp } = require("firebase-admin/firestore");
@@ -52,7 +53,7 @@ async function fetchGoogleNewsRss(keyword) {
 // 🚀 fetchBotNews — 매 1시간 실행: 활성 봇 커뮤니티에 뉴스 자동 게시
 // ════════════════════════════════════════════════════════════
 exports.fetchBotNews = onSchedule(
-  { schedule: "every 1 hours", region: "asia-northeast3", timeoutSeconds: 120 },
+  { schedule: "every 2 hours", region: "asia-northeast3", timeoutSeconds: 120 },
   async () => {
     const now = Timestamp.now();
 
@@ -90,8 +91,8 @@ exports.fetchBotNews = onSchedule(
       for (const keyword of keywords) {
         try {
           const articles = await fetchGoogleNewsRss(keyword);
-          // 최신 5개만 처리 (봇이 너무 많이 올리지 않도록)
-          const recent = articles.slice(0, 5);
+          // 2026-05-13 Perf Phase C: 5건 → 3건 완화 (커뮤니티 누적 글 폭증 차단)
+          const recent = articles.slice(0, 3);
 
           for (const article of recent) {
             const link = article.link || "";
@@ -157,7 +158,7 @@ exports.fetchBotNews = onSchedule(
 // 파라미터: crtfc_key, corp_code, bgn_de(시작일), end_de(종료일), page_count
 // 반환: { list: [{ corp_name, report_nm, rcept_no, rcept_dt, ... }] }
 exports.fetchBotDart = onSchedule(
-  { schedule: "every 1 hours", region: "asia-northeast3", timeoutSeconds: 120 },
+  { schedule: "every 2 hours", region: "asia-northeast3", timeoutSeconds: 120 },
   async () => {
     // DART API 키 — functions/.env 파일에서 로드
     const DART_API_KEY = process.env.DART_API_KEY;
@@ -206,7 +207,8 @@ exports.fetchBotDart = onSchedule(
 
       try {
         // 2. DART API 호출
-        const apiUrl = `https://opendart.fss.or.kr/api/list.json?crtfc_key=${DART_API_KEY}&corp_code=${infoBot.corpCode}&bgn_de=${startDate}&end_de=${endDate}&page_count=10&sort=date&sort_mth=desc`;
+        // 2026-05-13 Perf Phase C: page_count 10 → 5 (DART 공시 글 유입 완화)
+        const apiUrl = `https://opendart.fss.or.kr/api/list.json?crtfc_key=${DART_API_KEY}&corp_code=${infoBot.corpCode}&bgn_de=${startDate}&end_de=${endDate}&page_count=5&sort=date&sort_mth=desc`;
         const response = await fetch(apiUrl, {
           headers: { "User-Agent": "GeuLove-InfoBot/1.0" },
           signal: AbortSignal.timeout(15000),

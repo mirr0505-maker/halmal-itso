@@ -40,6 +40,9 @@ interface Props {
     ctaText: string;
     advertiserName?: string;
   };
+  // 🚀 ADSMARKET v3.2 (per-page de-dup): AnyTalkList가 순차 prefetch한 광고 주입
+  //   undefined: 자체 fetch (legacy fallback) / null: 빈 슬롯 (광고 풀 부족) / AuctionResult: 사용
+  prefetchedAd?: AuctionResult | null;
 }
 
 // 광고주 landingUrl protocol 자동 부착 + UTM 자동 부착 (AdBanner와 동일 정책)
@@ -64,13 +67,15 @@ function appendUTM(landingUrl: string, adId: string): string {
   }
 }
 
-const AdFeedCard = ({ postCategory = '', feedKey, previewAd }: Props) => {
+const AdFeedCard = ({ postCategory = '', feedKey, previewAd, prefetchedAd }: Props) => {
   const [auctionAd, setAuctionAd] = useState<AuctionResult | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const viewableFiredRef = useRef<Set<string>>(new Set());
 
-  // 🚀 매칭 — slotPosition='feed' 분기로 auction.js 호출
-  //   previewAd 있으면 fetch 없이 정적 광고로 즉시 set (광고주 작성 폼 미리보기 전용)
+  // 🚀 매칭 — slotPosition='feed' 분기. 우선순위: previewAd > prefetchedAd
+  //   ✨ 2026-05-16 v3.4: legacy 자체 fetch 제거. AnyTalkList prefetch 결과를 단일 진실원으로.
+  //     - 이중 fetch로 인한 버벅거림 차단 (페이지당 호출 N + N → N)
+  //     - prefetchedAd === null이면 매칭 실패로 확정 → fallback 카드 표시 (아래 렌더 분기)
   useEffect(() => {
     if (previewAd) {
       setAuctionAd({
@@ -86,34 +91,9 @@ const AdFeedCard = ({ postCategory = '', feedKey, previewAd }: Props) => {
       });
       return;
     }
-    let cancelled = false;
-    (async () => {
-      const viewerRegion = await getViewerRegion();
-      const viewerUid = auth.currentUser?.uid || 'anonymous';
-      const postId = `feed-${feedKey}`;
-      try {
-        const r = await fetch(AD_AUCTION_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            slotPosition: 'feed',
-            postCategory,
-            postId,
-            postAuthorId: '',
-            postAuthorLevel: 0,
-            viewerRegion,
-            viewerUid,
-          }),
-        });
-        const data = await r.json();
-        if (cancelled) return;
-        if (data.ad) setAuctionAd(data.ad);
-      } catch {
-        // 광고 매칭 실패 — null 유지 (그리드 셀 자연 비움)
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [postCategory, feedKey, previewAd]);
+    // prefetchedAd가 AuctionResult면 사용, null/undefined면 매칭 실패 → fallback 카드
+    setAuctionAd(prefetchedAd ?? null);
+  }, [previewAd, prefetchedAd]);
 
   // 🚀 IntersectionObserver — 50% 가시성 1초+ → viewable 이벤트 (광고당 1회)
   //   previewAd 있으면 미리보기 모드 — IO 등록 skip (이벤트 발사 차단)
@@ -165,7 +145,36 @@ const AdFeedCard = ({ postCategory = '', feedKey, previewAd }: Props) => {
     };
   }, [auctionAd, postCategory, feedKey, previewAd]);
 
-  if (!auctionAd) return null;
+  // ✨ 2026-05-16 v3.4: 광고 매칭 실패 시 자체 홍보 fallback 카드 (slate 톤, 차분한 디자인)
+  //   → invisible 슬롯이 시각적 빈 공백으로 노출되는 문제 차단 + 광고주 자체 모객 효과
+  //   → cursor-default로 클릭 비활성 (광고주 진입은 별 메뉴에서). 디자인은 광고 카드 동일 레이아웃 차용.
+  if (!auctionAd) {
+    return (
+      <div className="border border-slate-200 rounded-xl px-3.5 py-2 flex flex-col shadow-sm bg-slate-50/40">
+        <div className="flex justify-between items-start mb-1 shrink-0">
+          <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+            <span className="text-[9px] font-black uppercase tracking-tighter text-slate-400">📢 광고 공간</span>
+            <h3 className="text-[15px] font-[1000] line-clamp-2 leading-tight tracking-tight text-slate-600">
+              이 자리에 광고를 게재하실 수 있습니다
+            </h3>
+          </div>
+        </div>
+        <div className="overflow-hidden mb-1 text-[13px] leading-relaxed font-medium text-slate-400 line-clamp-3">
+          광고주 센터에서 손쉽게 광고를 등록하고 글러브 사용자에게 노출하세요.
+        </div>
+        <div className="pt-1 border-t mt-auto flex flex-col gap-0.5 shrink-0 border-slate-100">
+          <div className="flex items-center justify-between gap-1.5">
+            <span className="text-[9px] font-bold truncate tracking-tight text-slate-400 min-w-0">
+              글러브 광고주 센터 안내
+            </span>
+            <span className="text-[10px] font-black text-slate-500 bg-slate-100 px-2 py-0.5 rounded-lg border border-slate-200 shrink-0">
+              광고 문의
+            </span>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const handleClick = async () => {
     const viewerRegion = await getViewerRegion();
@@ -217,7 +226,7 @@ const AdFeedCard = ({ postCategory = '', feedKey, previewAd }: Props) => {
       {/* 3. 이미지 — 광고주 imageUrl (있을 때만) */}
       {auctionAd.imageUrl && (
         <div className="w-full aspect-video rounded-lg overflow-hidden shrink-0 bg-slate-50 border border-violet-100 mb-1">
-          <img src={auctionAd.imageUrl} alt="" className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500" />
+          <img src={auctionAd.imageUrl} alt="" loading="lazy" decoding="async" className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500" />
         </div>
       )}
 

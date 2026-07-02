@@ -30,7 +30,7 @@ const getDeepLinkParams = (() => {
     return cached;
   };
 })();
-import { useState, useEffect, lazy, Suspense } from 'react';
+import { useState, useEffect, useMemo, lazy, Suspense } from 'react';
 import { db, auth, functions } from './firebase';
 import { collection, onSnapshot, query, where, orderBy, limit, updateDoc, doc } from 'firebase/firestore';
 import { signInWithCustomToken } from 'firebase/auth';
@@ -538,10 +538,11 @@ function App() {
     return filtered.filter(p => (p.title?.toLowerCase().includes(query)) || (p.content.toLowerCase().includes(query)));
   };
 
-  const commentCounts = allRootPosts.reduce((acc, post) => {
+  // ✨ 2026-05-15: allRootPosts 변경 시만 재계산 (이전엔 매 render마다 reduce 실행 → 200건+ 시 부하)
+  const commentCounts = useMemo(() => allRootPosts.reduce((acc, post) => {
     acc[post.id] = post.commentCount || 0;
     return acc;
-  }, {} as Record<string, number>);
+  }, {} as Record<string, number>), [allRootPosts]);
 
   const renderContent = () => {
     // 🚀 공유 링크 로딩 중: 글을 찾는 동안 로딩 스피너 표시 (10초 타임아웃)
@@ -777,7 +778,7 @@ function App() {
       return (
         <div className="w-full animate-in fade-in">
           {/* 🚀 상단 바 — 타이틀 + 탭 2개 + 장갑 만들기 버튼 한 줄에 통합 */}
-          <div className="sticky top-0 z-30 bg-[#F8FAFC]/80 backdrop-blur-md pt-2">
+          <div className="sticky top-0 z-30 bg-[#F8FAFC] pt-2">
             <div className="flex items-center justify-between border-b border-slate-200 h-[44px] px-4 gap-3">
               {/* 좌: 타이틀 */}
               <div className="flex items-center gap-1.5 shrink-0">
@@ -900,7 +901,7 @@ function App() {
       return (
         <div className="w-full animate-in fade-in">
           {/* 헤더: # 깐부방 + 탭 + 만들기 */}
-          <div className="sticky top-0 z-30 bg-[#F8FAFC]/80 backdrop-blur-md pt-2">
+          <div className="sticky top-0 z-30 bg-[#F8FAFC] pt-2">
             <div className="flex items-center justify-between border-b border-slate-200 h-[44px] px-4 gap-3">
               <div className="flex items-center gap-1.5 shrink-0">
                 <span className="text-blue-600 font-black text-[15px]">#</span>
@@ -1209,8 +1210,10 @@ function App() {
       ));
       // 🚀 카테고리별 보기: 살아남은 글(좋아요 3개 이상)만 노출
       // 단, 마라톤의 전령(뉴스 봇 게시글)은 좋아요 임계값 없이 즉시 전체 노출
+      // ⚡ 2026-05-13 Perf Phase 1: 전령 누적 글 폭증으로 카드 1000+개 렌더 시 브라우저 다운 → 최신 200건으로 제한.
+      //   basePosts는 createdAt 시간 역순 정렬이므로 slice(0, 200)이 최신 200건. 옛 글은 추후 Phase 2 TTL CF로 삭제 예정.
       const categoryPosts = activeMenu === 'marathon_herald'
-        ? basePosts
+        ? basePosts.slice(0, 200)
         : basePosts.filter(p => (p.likes || 0) >= 3);
       const searchedPosts = filterBySearch(categoryPosts);
       return (

@@ -5,6 +5,7 @@ import { doc, deleteDoc } from 'firebase/firestore';
 import type { Post, UserData } from '../types';
 import { EXILE_CATEGORY } from '../types';
 import { getReputationLabel, getReputation, formatKoreanNumber, getCategoryDisplayName, calculateLevel } from '../utils';
+import { safeExternalUrl } from '../utils/safeUrl'; // 🔒 P1: linkUrl 스킴 검증
 import { CATEGORY_RULES } from './DiscussionView';
 import LinkPreviewCard from './LinkPreviewCard';
 import type { OgData } from './LinkPreviewCard';
@@ -269,7 +270,7 @@ const RootPostCard = ({
           </div>
         )}
         {post.linkUrl && !(showLinkPreview && (ogLoading || ogData)) && (
-          <a href={post.linkUrl} target="_blank" rel="noopener noreferrer" className="text-[13px] font-bold text-blue-500 hover:text-blue-600 hover:underline transition-all mb-6 block">
+          <a href={safeExternalUrl(post.linkUrl) ?? undefined} target="_blank" rel="noopener noreferrer" className="text-[13px] font-bold text-blue-500 hover:text-blue-600 hover:underline transition-all mb-6 block">
             {post.linkUrl}
           </a>
         )}

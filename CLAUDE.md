@@ -99,6 +99,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `kanbuPaid.js` — `joinPaidKanbuRoom`: 깐부방 유료 게시판 결제(1회/구독, 수수료 Lv별 20~30%, pendingRevenue 누적). `checkKanbuSubscriptionExpiry`: 매일 09:00 월 구독 만료 처리
 - `auction.js` / `revenue.js` / `fraud.js` / `settlement.js` — ADSMARKET 광고 시스템
 - `auction.js` v2.1 (2026-04-26): eventType 분기 — `impression`(매칭+카운트), `directMatch impression`(selectedAdId 광고 카운트만), `viewable`(IAB 50%·1초+ → CPM 차감), `click`(CPC 차감). 매칭 단계에 빈도 캡(viewerUid+adId 24h N회) + 일/총 예산 가드 + Brand Safety(blockedCategories) 적용. 카운터는 단일 진실원(트리거 중복 증가 제거).
+- `auction.js` v3.2 (2026-05-16): `excludeAdIds` 처리 추가 — AnyTalkList가 슬롯 N개 순차 호출 시 직전 winner를 누적 전달 → 페이지 내 광고 중복 차단. body excludeAdIds(배열) 필터링을 baseFiltered 단계에 합류. 단일 슬롯(본문)은 영향 없음(빈 배열 default).
+- `auction.js` v3.3 (2026-07-02 🔒 보안 하드닝): 무인증 HTTP 엔드포인트이므로 **결제 근거값을 서버 권위값으로만** 사용. `resolvePostAuthorId(postId)`가 실제 `posts/{postId}.author_id`만 신뢰(피드 합성 postId는 '' → 크리에이터 미지급). directMatch/viewable/click 차감액·bidType·advertiserId는 body 대신 `ads/{adId}` 문서에서 조회. Why: 기존엔 body `bidAmount`/`postAuthorId` 위조로 무한 볼 발행·경쟁사 예산 소진 가능. 잔여(빈도 캡 우회 예산 drain)는 TODO 코드 품질 후속.
 - `budgetEnforcer.js` (신설 v2) — `enforceBudgetLimits`(매시간) 일/총 예산 도달 시 자동 일시정지(pausedReason='budget_daily'/'budget_total') + 알림. `releaseDailyBudgetPause`(매일 04:00 KST) 일예산 정지 ad 재개 + todaySpent=0 리셋
 - `aggregateAdStats.js` (신설 v2) — 매일 04:30 KST 전일 adEvents 광고별 집계 → `ad_stats_daily/{adId}_{yyyymmdd}` 작성 (impressions/viewableImpressions/clicks/spent/uniqueViewers + bySlot/byMenu/byRegion/byHour 분해)
 - `estimateAdReach.js` (신설 v2) — `estimateAdReach` callable: 7일 ad_stats_daily 평균 + 단가 가중으로 일 예상 노출 추정. AdCampaignForm 슬라이더 실시간 표시
@@ -107,7 +109,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `contentLength.js` — `validateContentLength`: 신포도와 여우 100자 제한
 - `inkwell.js` — `unlockEpisode`(유료 회차 결제, 수수료 11%), `createEpisode`(서버측 episodeNumber), `onEpisodeCreate`(구독자 알림), `onInkwellPostDelete`(고아 알림+영수증 cleanup)
 - `gloveBot.js` — `activateInfoBot`/`deactivateInfoBot`/`updateInfoBot`: 정보봇 활성화·중지·수정 (주식 장갑 전용, 대장 월 20볼)
-- `gloveBotFetcher.js` — `fetchBotNews`(Google News RSS), `fetchBotDart`(DART 공시): 매 1시간 스케줄 (2026-04-23 베타 완화 — 정식 서비스 시 30분 복원 예정, `memory/project_info_bot_schedule.md`)
+- `gloveBotFetcher.js` — `fetchBotNews`(Google News RSS), `fetchBotDart`(DART 공시): 매 2시간 스케줄 + 키워드당 5→3건 / DART page_count 10→5 (2026-05-13 Perf Phase C 완화). 정식 서비스 시 30분~1시간 복원 검토.
+- `purgeBotPosts.js` — 🧹 봇 글 TTL 자동 삭제 (Perf Phase B, 2026-05-13 신설). 매일 04:00 KST → `posts.category='마라톤의 전령'` + `community_posts.isBot=true` 30일 초과 일괄 삭제(연관 comments/community_post_comments도 정리) + `glove_bot_dedup/{communityId}/items/*` 30일 dedup 마커 cleanup. 400건 배치, timeoutSeconds 540, memory 512MiB. 유저 작성 글은 isBot 플래그 없어 자동 보존.
 - `dartCorpMap.js` — `syncDartCorpMap`(월 1회)/`triggerSyncDartCorpMap`(수동): DART 종목코드→고유번호 매핑. `lookupCorpCode`: 조회
 - `adTriggers.js` — `syncAdBids`/`updateAdMetrics`: ADSMARKET 광고 트리거
 - `market.js` — `purchaseMarketItem`(가판대 구매, 레벨별 수수료 30/25/20%), `subscribeMarketShop`(단골장부 구독), `checkSubscriptionExpiry`(매일 09:00 만료 체크+알림+차감)
@@ -153,6 +156,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | 파일 | 주의 |
 |------|------|
 | `App.tsx` | 전역 상태·리스너 중심. props drilling이 많으므로 함부로 리팩터링 금지. 헤더 `+ 새 글` 버튼은 `activeMenu === 'exile_place' && !isExiled`일 때 `setActiveMenu('home')` 선행(비유배자가 유배글 폼 진입 방지). |
+| `AnyTalkList.tsx` | 홈·카테고리·작가글 글 카드 그리드. **빈 공백 fix v5 (2026-05-16)**: chunk 크기·광고 위치를 ResizeObserver로 측정한 `columnCount`에 맞춰 동적 결정 — `showAds=true`면 `POST_CHUNK = columnCount*2-1`(광고 1개 포함 시 정확히 2 row), 광고는 `idx === columnCount-1` (첫 row 끝). 4-col이면 7글+광고=8 cell·2 row / 5-col이면 9글+광고=10 cell·2 row / 빈 공백 0. invisible placeholder 루프 제거(불필요). 광고 prefetch는 슬롯 수만큼 순차 fetch + 직전 winner를 `excludeAdIds`로 누적 전달(페이지 내 중복 차단, auction.js v3.2 동기). 입력 `posts`는 `maxPosts`(default 200) 상한(Perf Phase 1.5). |
 | `TiptapEditor.tsx` | 스티키 툴바 + 버블 메뉴 로직 손대지 않기. 커서 위치 유지 로직 보호. |
 | `CreatePostBox.tsx` | 카테고리 목록에서 "한컷" 제외 유지. |
 | `DiscussionView.tsx` | `CATEGORY_RULES` 객체 — 카테고리별 댓글 규칙 정의. 임의 변경 금지. 🏚️ 유배·귀양지는 `boardType: 'pandora'` (좌/우 지그재그 + 각 컬럼 하단 인라인 입력) + `hideAttachment: true`. |
@@ -214,7 +218,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | `CreatorScoreInfo.tsx` | 🏅 PublicProfile 상세 박스. 최종 Score + 마패 라벨 + 3축 브레이크다운(평판·30일 활동·신뢰) + 활동 세부(글/댓글/좋아요) + override 배지(🔧 관리자 보정 중). 캐시 없으면 "집계 전" placeholder. |
 | `Sidebar.tsx` | `isExiled` prop — 유배자는 유배지+내정보만 노출. `activeMenu` 강제 이동은 App.tsx useEffect 가드. |
 | `ads/AdSlot.tsx` | 📢 광고 슬롯. 모든 useState/useEffect를 early return 앞으로 (Hooks 규칙). v2 P0-2: viewerUid prop 전달 / P0-4: IntersectionObserver 50%·1초+ 충족 시 viewable 이벤트 fire (광고당 1회 ref). selectedAdId 'auto'면 directAd fetch skip. 2026-04-30: viewerRegion ref → `await getViewerRegion()` 직접 호출(byRegion race 차단). |
-| `ads/AdFeedCard.tsx` | 📢 ADSMARKET v3 (2026-04-30) 피드 인라인 광고 카드 (글 목록 그리드 한 칸). 글카드 형태 + violet 톤 + 좌상단 📢 광고 배지. 매칭: `slotPosition='feed'`, `postId='feed-{categoryKey}'` 합성, `postAuthorLevel=0`(게이팅 무시). 이벤트: IO 50%·1초+ viewable + click(window.open + UTM `utm_medium=feed`). `previewAd` prop으로 광고주 AdCampaignForm 미리보기 정적 렌더 (매칭/이벤트 skip). 광고 매칭 실패 시 null 반환 → 그리드 셀 자연 비움(auto-fill). |
+| `ads/AdFeedCard.tsx` | 📢 ADSMARKET v3 (2026-04-30) 피드 인라인 광고 카드 (글 목록 그리드 한 칸). 글카드 형태 + violet 톤 + 좌상단 📢 광고 배지. 매칭: `slotPosition='feed'`, `postId='feed-{categoryKey}-{ci}'` 합성, `postAuthorLevel=0`(게이팅 무시). 이벤트: IO 50%·1초+ viewable + click(window.open + UTM `utm_medium=feed`). `previewAd` prop으로 광고주 AdCampaignForm 미리보기 정적 렌더 (매칭/이벤트 skip). **v3.4 (2026-05-16)**: ① legacy 자체 fetch fallback 제거 — AnyTalkList prefetch 단일 진실원으로 이중 호출 차단(버벅거림 완화). ② 광고 매칭 실패 시(`!auctionAd`) invisible 슬롯 → **자체 홍보 fallback 카드**(slate 톤 "📢 광고 공간 · 이 자리에 광고를 게재하실 수 있습니다") 표시 → 빈 공백 시각 완전 제거 + 광고주 자체 모객. |
 | `ads/AdBanner.tsx` | 📢 단일 광고 배너. imageStyle 2종(horizontal 3:1 / vertical 9:16). v2 P1-5: 클릭 시 UTM 자동 부착 (`?utm_source=geulove&utm_medium={slot}&utm_campaign={adId}`). ctaText 빈 입력 시 '자세히 보기' fallback. |
 | `ads/AdMarketplaceModal.tsx` | 📢 광고 경매시장 모달. 좌(2열 그리드) + 우(미리보기 sticky). 검색·메뉴 일치·정렬·무한 스크롤(20개/페이지). 카드 hover 갱신 제거(떨림 차단). 카드 클릭 = preview만, 우측 [✓ 선택] = 최종 적용. 자동 매칭도 동일 패턴(onSelect('auto')). |
 | `ads/AdSlotSetting.tsx` | 📢 작성 폼 광고 슬롯 ON/OFF + 슬롯별 광고 직접 선택. picker 라벨 3분기 — undefined: 🎲 자동 매칭(default), 'auto': ✅ 자동 매칭 결정됨, 광고ID: ✅ 광고 선택됨. |

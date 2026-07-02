@@ -3,6 +3,7 @@ import React, { useRef, useState, useEffect } from 'react';
 import PostCard from './PostCard';
 import ThanksballModal from './ThanksballModal';
 import type { Post, UserData } from '../types';
+import { safeExternalUrl } from '../utils/safeUrl'; // 🔒 P1: linkUrl 스킴 검증
 import { CATEGORY_RULES } from './DiscussionView';
 import { db } from '../firebase';
 import { doc, updateDoc, deleteDoc, collection, query, where, onSnapshot } from 'firebase/firestore';
@@ -216,9 +217,16 @@ const DebateBoard = ({
     const pandoraSubmit = async (side: 'left' | 'right') => {
       if (!inlineContent.trim() || isInlineSubmitting) return;
       setIsInlineSubmitting(true);
-      await onInlineReply?.(inlineContent, null, side, pandoraImageUrl || undefined, pandoraLinkUrl || undefined);
-      setInlineContent(''); setActiveId(null); setIsInlineSubmitting(false);
-      resetPandoraAttach();
+      // 🔒 P1 2026-07-02: onInlineReply가 실패 시 re-throw → try/finally 없으면 버튼이 영구 비활성. 성공 시에만 입력 초기화.
+      try {
+        await onInlineReply?.(inlineContent, null, side, pandoraImageUrl || undefined, pandoraLinkUrl || undefined);
+        setInlineContent(''); setActiveId(null);
+        resetPandoraAttach();
+      } catch (e) {
+        console.error('[DebateBoard pandoraSubmit]', e);
+      } finally {
+        setIsInlineSubmitting(false);
+      }
     };
 
     const formatTime = (ts: { seconds: number } | null | undefined) => {
@@ -400,7 +408,7 @@ const DebateBoard = ({
                     </div>
                   )}
                   {post.linkUrl && (
-                    <a href={post.linkUrl} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()}
+                    <a href={safeExternalUrl(post.linkUrl) ?? undefined} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()}
                       className={`mt-2 flex items-center gap-1 text-[11px] font-bold truncate ${isLeft ? 'text-blue-500 hover:text-blue-700' : 'text-rose-500 hover:text-rose-700'}`}>
                       <svg className="w-3 h-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>
                       {post.linkUrl}

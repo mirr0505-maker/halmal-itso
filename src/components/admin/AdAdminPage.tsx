@@ -13,6 +13,8 @@ import ExileManagement from './ExileManagement';
 import AppealReview from './AppealReview';
 import SystemPanel from './SystemPanel';
 import ReportManagement from './ReportManagement';
+// 📊 2026-05-15 Codef 정식 전환 의사결정 보조 — 주식 카테고리 활성도 통계
+import ShareholderStatsPanel from './ShareholderStatsPanel';
 // 🛡️ Sprint 6 A-1: Custom Claims + 닉네임 이중 체크 훅
 import { useAdminAuth } from './AdminGuard';
 
@@ -21,19 +23,20 @@ interface Props {
   onBack?: () => void;
 }
 
-type AdminTab = 'revenue' | 'advertiser_review' | 'review' | 'settlement' | 'fraud' | 'tax' | 'report' | 'exile' | 'appeal' | 'system';
+type AdminTab = 'revenue' | 'advertiser_review' | 'review' | 'settlement' | 'fraud' | 'tax' | 'report' | 'exile' | 'appeal' | 'shareholder' | 'system';
 
 const TABS: { id: AdminTab; label: string }[] = [
   { id: 'revenue',           label: '💵 플랫폼 수익' },
   { id: 'advertiser_review', label: '🏢 광고주 검수' },
   { id: 'review',            label: '📋 광고 검수' },
-  { id: 'settlement', label: '💰 정산' },
-  { id: 'fraud',      label: '🚨 부정행위' },
-  { id: 'tax',        label: '📊 세무' },
-  { id: 'report',     label: '🚨 신고 관리' },
-  { id: 'exile',      label: '🏚️ 유배 관리' },
-  { id: 'appeal',     label: '⚖️ 이의 제기' },
-  { id: 'system',     label: '🔧 시스템' },
+  { id: 'settlement',  label: '💰 정산' },
+  { id: 'fraud',       label: '🚨 부정행위' },
+  { id: 'tax',         label: '📊 세무' },
+  { id: 'report',      label: '🚨 신고 관리' },
+  { id: 'exile',       label: '🏚️ 유배 관리' },
+  { id: 'appeal',      label: '⚖️ 이의 제기' },
+  { id: 'shareholder', label: '📊 주식방 통계' },
+  { id: 'system',      label: '🔧 시스템' },
 ];
 
 const AdAdminPage = ({ currentUser, onBack }: Props) => {
@@ -112,6 +115,7 @@ const AdAdminPage = ({ currentUser, onBack }: Props) => {
         {tab === 'report' && <ReportManagement />}
         {tab === 'exile' && <ExileManagement />}
         {tab === 'appeal' && <AppealReview />}
+        {tab === 'shareholder' && <ShareholderStatsPanel />}
         {tab === 'system' && <SystemPanel />}
       </div>
     </div>

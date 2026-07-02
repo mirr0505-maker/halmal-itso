@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from 'react';
 import type { Post, UserData } from '../types';
 import { formatKoreanNumber, getReputationLabel, getReputation, calculateLevel } from '../utils';
 import OneCutListSidebar from './OneCutListSidebar';
+import { safeExternalUrl } from '../utils/safeUrl'; // 🔒 P1: linkUrl 스킴 검증
 import AdSlot from './ads/AdSlot';
 import ThanksballModal from './ThanksballModal';
 import { db } from '../firebase';
@@ -165,7 +166,8 @@ const OneCutDetailView = ({
   const hasCta = !!(linkedPost || rootPost.linkUrl);
   const handleCtaClick = () => {
     if (linkedPost) { onTopicChange(linkedPost); return; }
-    if (rootPost.linkUrl) { window.open(rootPost.linkUrl, '_blank', 'noopener,noreferrer'); }
+    const safe = safeExternalUrl(rootPost.linkUrl);
+    if (safe) { window.open(safe, '_blank', 'noopener,noreferrer'); }
   };
   // 키보드 ←/→ 네비게이션
   useEffect(() => {
@@ -275,7 +277,7 @@ const OneCutDetailView = ({
             )}
             {!linkedPost && rootPost.linkUrl && (
               <a
-                href={rootPost.linkUrl}
+                href={safeExternalUrl(rootPost.linkUrl) ?? undefined}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="group flex items-center gap-2 mb-5 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-all shadow-sm w-fit max-w-full"

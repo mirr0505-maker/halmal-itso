@@ -198,10 +198,11 @@ const GiantTreeDetail = ({ tree: treeProp, currentNickname, currentUserData, all
       // 4. 루트 트리 집계 업데이트 + 서킷 브레이커 판정
       const newAgree = tree.agreeCount + (selectedSide === 'agree' ? 1 : 0);
       const newOppose = tree.opposeCount + (selectedSide === 'oppose' ? 1 : 0);
+      // 🔒 P1 2026-07-02: 비선택 카운터에 stale 절대값(tree.agreeCount)을 쓰면 동시 참여자의 increment가 덮여 투표 손상.
+      //   선택한 쪽만 increment 포함하도록 조건부 필드 구성.
       await updateDoc(doc(db, 'giant_trees', tree.id), {
         totalNodes: increment(1),
-        agreeCount: selectedSide === 'agree' ? increment(1) : tree.agreeCount,
-        opposeCount: selectedSide === 'oppose' ? increment(1) : tree.opposeCount,
+        ...(selectedSide === 'agree' ? { agreeCount: increment(1) } : { opposeCount: increment(1) }),
         ...(shouldBreakCircuit(newAgree, newOppose) ? { circuitBroken: true } : {}),
       });
 

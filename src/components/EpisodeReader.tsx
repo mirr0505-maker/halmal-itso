@@ -322,8 +322,9 @@ const EpisodeReader = ({ postId, currentUserUid, currentUserNickname, onBack, on
 
     try {
       // 1. 회차 좋아요 토글
+      // 🔒 P1 2026-07-02: 절대값 write → increment(diff) (동시 좋아요 레이스 카운트 유실 차단)
       await updateDoc(doc(db, 'posts', episode.id), {
-        likes: Math.max(0, (episode.likes || 0) + diff),
+        likes: increment(diff),
         likedBy: isLiked ? arrayRemove(currentUserNickname) : arrayUnion(currentUserNickname),
       });
 

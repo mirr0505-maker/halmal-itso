@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import type { Post, UserData } from '../types';
 import { formatKoreanNumber, getReputationLabel, getReputation, calculateLevel } from '../utils';
+import { safeExternalUrl, safeHostname } from '../utils/safeUrl'; // 🔒 P1: linkUrl 스킴 검증 + 크래시 방지
 
 interface Props {
   posts: Post[];
@@ -105,10 +106,10 @@ const OneCutList = ({ posts, allPosts, onTopicClick, onLikeClick, currentNicknam
                     <span className="text-[8px] font-black truncate tracking-tighter">{linkedPost.title}</span>
                   </div>
                 ) : post.linkUrl ? (
-                  <a href={post.linkUrl} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()}
+                  <a href={safeExternalUrl(post.linkUrl) ?? undefined} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()}
                     className="flex items-center gap-1 text-blue-600 bg-blue-50/50 px-2 py-0.5 rounded-[2px] border border-blue-100/20 hover:bg-blue-50 transition-colors">
                     <span className="text-[8px]">🔗</span>
-                    <span className="text-[8px] font-black truncate tracking-tighter">{new URL(post.linkUrl).hostname}</span>
+                    <span className="text-[8px] font-black truncate tracking-tighter">{safeHostname(post.linkUrl) || '원본글'}</span>
                   </a>
                 ) : null}
               </div>

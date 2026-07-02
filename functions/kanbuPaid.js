@@ -2,6 +2,7 @@
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const { onSchedule } = require("firebase-functions/v2/scheduler");
 const { getFirestore, FieldValue, Timestamp } = require("firebase-admin/firestore");
+const { calculateLevel } = require("./utils/levelSync");
 
 const db = getFirestore();
 
@@ -39,6 +40,11 @@ exports.joinPaidKanbuRoom = onCall(
       if (!roomSnap.exists) throw new HttpsError("not-found", "깐부방을 찾을 수 없습니다.");
       const room = roomSnap.data();
 
+      // 🔒 P1 2026-07-02: 자기 게시판 결제 차단 (market/inkwell은 차단하는데 여기만 누락되어 평판·정산매출 세탁 가능했음)
+      if (room.creatorId === buyerUid) {
+        throw new HttpsError("failed-precondition", "본인 게시판은 결제할 수 없습니다.");
+      }
+
       const board = type === 'once' ? room.paidBoards?.once : room.paidBoards?.monthly;
       if (!board?.enabled) throw new HttpsError("failed-precondition", "유료 게시판이 활성화되지 않았습니다.");
 
@@ -56,8 +62,11 @@ exports.joinPaidKanbuRoom = onCall(
       const balance = buyerSnap.data()?.ballBalance || 0;
       if (balance < price) throw new HttpsError("failed-precondition", `잔액 부족 (보유: ${balance}볼, 필요: ${price}볼)`);
 
-      // 수수료 계산
-      const creatorLevel = room.creatorLevel || 1;
+      // 🔒 P1 2026-07-02: 수수료율을 클라 조작 가능 필드(room.creatorLevel) 대신 개설자 exp→level(서버 권위값)으로 산정.
+      //   Firestore 트랜잭션 규칙상 모든 read는 write 이전에 수행 (creatorRef read를 차감 write 전으로 이동).
+      const creatorRef = db.collection("users").doc(room.creatorId);
+      const creatorSnap = await tx.get(creatorRef);
+      const creatorLevel = calculateLevel(creatorSnap.data()?.exp || 0);
       const feeRate = getFeeRate(creatorLevel);
       const platformFee = Math.floor(price * feeRate);
       const creatorEarning = price - platformFee;
@@ -66,7 +75,6 @@ exports.joinPaidKanbuRoom = onCall(
       tx.update(buyerRef, { ballBalance: FieldValue.increment(-price) });
 
       // 개설자 수익 — ballBalance(즉시 사용) + ballReceived(평판) + pendingRevenue(정산 신청 가능 금액)
-      const creatorRef = db.collection("users").doc(room.creatorId);
       tx.update(creatorRef, {
         ballBalance: FieldValue.increment(creatorEarning),
         ballReceived: FieldValue.increment(creatorEarning),

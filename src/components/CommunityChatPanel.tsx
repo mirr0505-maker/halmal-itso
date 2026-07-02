@@ -1,5 +1,6 @@
 // src/components/CommunityChatPanel.tsx — 🚀 Phase 7 Step 6: 채팅 완성 (삭제 + 페이징 + Rules)
-import { useState, useEffect, useRef, useCallback } from 'react';
+// ✨ 2026-05-15 UI/UX 풀세트 Phase 1: Discord식 좌측 정렬 + 메시지 그룹화 + 날짜 구분 + 액션 floating + 타이포 확대
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { db } from '../firebase';
 import { collection, doc, setDoc, updateDoc, arrayUnion, arrayRemove, query, orderBy, limit, startAfter, getDocs, onSnapshot, serverTimestamp } from 'firebase/firestore';
 import type { QueryDocumentSnapshot, DocumentData } from 'firebase/firestore';
@@ -18,6 +19,15 @@ interface Props {
 }
 
 const REACTION_EMOJIS = ['👍', '❤️', '😂', '🔥', '🤔', '💯'] as const;
+
+// ✨ Phase 3: 이모지 피커 — 자주 쓰는 50종 (Discord 표준 우선순위)
+const PICKER_EMOJIS = [
+  '😀','😂','❤️','🔥','👍','👎','👏','🙏','💯','😍',
+  '🥰','😭','😎','🤔','😅','🙄','😴','🤯','🥺','😱',
+  '🤣','😡','😢','🤗','🤝','🎉','✨','⭐','🌟','⚾',
+  '💪','👀','🚀','⚡','💎','🎯','📌','✅','❌','⚠️',
+  '🤖','🍞','🧤','🏆','🎁','☕','🌈','🎵','📚','💝',
+] as const;
 
 // 🧤 finger 역할 한글 라벨
 const FINGER_LABEL: Record<string, string> = {
@@ -82,13 +92,75 @@ function ChatAuthorLine({ message, community, members }: { message: ChatMessage;
   );
 }
 
-// 🚀 메시지 한 개 렌더링
-function ChatMessageItem({ message, currentUid, isAdmin, community, members, onReply, onToggleReaction, reactionPickerFor, setReactionPickerFor, onImageClick, onSendThanksball, onDelete }: {
+// ✨ 날짜 구분선 라벨 — Discord/Slack/카카오톡 표준 ("오늘"/"어제"/"M월 D일")
+function formatDateDivider(timestamp: { toDate?: () => Date; seconds?: number } | undefined | null): string {
+  if (!timestamp) return '';
+  const date = timestamp.toDate ? timestamp.toDate() : new Date((timestamp.seconds || 0) * 1000);
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const yesterday = new Date(today); yesterday.setDate(yesterday.getDate() - 1);
+  const target = new Date(date); target.setHours(0, 0, 0, 0);
+  if (target.getTime() === today.getTime()) return '오늘';
+  if (target.getTime() === yesterday.getTime()) return '어제';
+  return `${target.getFullYear()}년 ${target.getMonth() + 1}월 ${target.getDate()}일`;
+}
+
+// ✨ Phase 4: 메시지 본문 포맷 — URL autolink + 마크다운(**bold** *italic* `code`) + @멘션 강조
+//   순서: escapeHtml → URL autolink (placeholder) → markdown → @mention → placeholder 복원
+//   plain text를 안전하게 HTML로 변환 (DOMPurify 추가 적용 불필요 — 사용자 입력 escape 후 정해진 패턴만 치환)
+function escapeHtml(text: string): string {
+  return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+function formatChatContent(text: string): string {
+  let html = escapeHtml(text);
+  // URL autolink (이미 escape됨 → http 그대로 유지)
+  html = html.replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer" class="text-blue-600 underline decoration-1 underline-offset-2 hover:text-blue-700">$1</a>');
+  // 굵게 **bold**
+  html = html.replace(/\*\*([^*\n]+)\*\*/g, '<strong class="font-[1000] text-slate-900">$1</strong>');
+  // 인라인 코드 `code`
+  html = html.replace(/`([^`\n]+)`/g, '<code class="bg-slate-100 text-rose-600 px-1.5 py-0.5 rounded text-[13px] font-mono mx-0.5">$1</code>');
+  // 기울임 *italic* — bold 처리 후 단일 * 매칭
+  html = html.replace(/(^|[^*\w])\*([^*\n]+)\*([^*\w]|$)/g, '$1<em class="italic">$2</em>$3');
+  // @멘션 강조
+  html = html.replace(/(^|\s)@([^\s@<]{1,12})/g, '$1<span class="text-blue-600 font-[1000] bg-blue-50 px-1 rounded">@$2</span>');
+  return html;
+}
+
+// ✨ 시각 포맷 — "오전 11:23"
+function formatMessageTime(timestamp: { toDate?: () => Date; seconds?: number } | undefined | null): string {
+  if (!timestamp) return '';
+  const date = timestamp.toDate ? timestamp.toDate() : new Date((timestamp.seconds || 0) * 1000);
+  const h = date.getHours();
+  const m = date.getMinutes();
+  const ampm = h < 12 ? '오전' : '오후';
+  const h12 = h % 12 || 12;
+  return `${ampm} ${h12}:${String(m).padStart(2, '0')}`;
+}
+
+// ✨ 날짜 구분 배지 컴포넌트 — Discord 패턴: 양 옆 hairline + 중앙 pill
+function DateDivider({ label }: { label: string }) {
+  return (
+    <div className="flex items-center gap-2 py-3 select-none">
+      <div className="flex-1 h-px bg-slate-200" />
+      <span className="text-[10px] font-[1000] text-slate-500 px-2.5 py-0.5 bg-slate-100 border border-slate-200 rounded-full shrink-0">{label}</span>
+      <div className="flex-1 h-px bg-slate-200" />
+    </div>
+  );
+}
+
+// 🚀 메시지 한 개 렌더링 — Discord식 좌측 정렬 + 그룹화
+function ChatMessageItem({
+  message, currentUid, isAdmin, community, members,
+  isGroupHead, authorAvatarUrl, refSetter,
+  onReply, onToggleReaction, reactionPickerFor, setReactionPickerFor, onImageClick, onSendThanksball, onDelete, onJumpTo,
+}: {
   message: ChatMessage;
   currentUid: string;
   isAdmin: boolean;
   community: Community;
   members: CommunityMember[];
+  isGroupHead: boolean;
+  authorAvatarUrl: string;
+  refSetter: (el: HTMLDivElement | null) => void;   // ✨ Phase 4: 답장 점프용 ref 등록
   onReply: (msg: ChatMessage) => void;
   onToggleReaction: (msg: ChatMessage, emoji: string) => void;
   reactionPickerFor: string | null;
@@ -96,140 +168,101 @@ function ChatMessageItem({ message, currentUid, isAdmin, community, members, onR
   onImageClick: (url: string) => void;
   onSendThanksball: (msg: ChatMessage) => void;
   onDelete: (msg: ChatMessage) => void;
+  onJumpTo: (messageId: string) => void;             // ✨ Phase 4: 답장 인용 클릭 시 원본 점프
 }) {
   const isMine = message.author_id === currentUid;
-
-  const timeStr = (() => {
-    if (!message.createdAt) return '';
-    const ts = message.createdAt;
-    const date = ts.toDate ? ts.toDate() : new Date(ts.seconds * 1000);
-    const h = date.getHours();
-    const m = date.getMinutes();
-    const ampm = h < 12 ? '오전' : '오후';
-    const h12 = h % 12 || 12;
-    return `${ampm} ${h12}:${String(m).padStart(2, '0')}`;
-  })();
-
+  const timeStr = formatMessageTime(message.createdAt);
   const activeReactions = message.reactions
     ? Object.entries(message.reactions).filter(([, users]) => users.length > 0)
     : [];
 
   return (
-    <div className={`flex ${isMine ? 'justify-end' : 'justify-start'} group`}>
-      <div className={`max-w-[75%] flex flex-col ${isMine ? 'items-end' : 'items-start'}`}>
-        {/* 작성자 정보 (내 메시지는 생략) */}
-        {!isMine && (
-          <ChatAuthorLine message={message} community={community} members={members} />
+    <div ref={refSetter} className={`flex gap-2.5 group relative px-1 py-0.5 hover:bg-slate-50/60 transition-colors rounded-lg animate-in fade-in slide-in-from-bottom-1 ${isGroupHead ? 'mt-2' : 'mt-0'}`}>
+      {/* ✨ Phase 1: 좌측 — 아바타 (그룹 헤드만) 또는 시각 (연속 메시지) */}
+      <div className="w-10 shrink-0 flex flex-col items-center pt-0.5">
+        {isGroupHead ? (
+          <img src={authorAvatarUrl} alt={message.author}
+            className="w-10 h-10 rounded-full bg-slate-100 border border-slate-200 object-cover shrink-0" />
+        ) : (
+          // 연속 메시지: hover 시 작은 시각만 노출
+          <span className="text-[9px] font-bold text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity pt-1">
+            {timeStr.replace('오전 ', '').replace('오후 ', '')}
+          </span>
         )}
+      </div>
 
-        {/* 🚀 답장 인용 미리보기 */}
-        {message.replyTo && (
-          <div className={`mb-1 px-2.5 py-1.5 rounded-lg border-l-2 text-[11px] max-w-full ${
-            isMine ? 'bg-emerald-50 border-emerald-300' : 'bg-slate-100 border-slate-300'
-          }`}>
-            <p className="font-[1000] text-slate-500 text-[10px]">↩ {message.replyTo.author}</p>
-            <p className="text-slate-500 truncate">{message.replyTo.snippet}</p>
+      {/* 우측 — 작성자 라인 + 본문 */}
+      <div className="flex-1 min-w-0">
+        {/* 작성자 라인 (그룹 헤드만) */}
+        {isGroupHead && (
+          <div className="flex items-baseline gap-1.5 mb-0.5 flex-wrap">
+            <ChatAuthorLine message={message} community={community} members={members} />
+            <span className="text-[11px] font-bold text-slate-400 shrink-0">{timeStr}</span>
+            {isMine && <span className="text-[9px] font-[1000] text-emerald-600 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded shrink-0">나</span>}
           </div>
         )}
 
-        {/* 🚀 이미지 (본문 위) */}
-        {message.imageUrl && !message.deleted && (
-          <button
-            onClick={() => onImageClick(message.imageUrl!)}
-            className="block mb-1 max-w-[280px] rounded-xl overflow-hidden border border-slate-200 hover:opacity-90 transition-opacity"
+        {/* 답장 인용 — ✨ Phase 4: 클릭 시 원본 점프 + 하이라이트 */}
+        {message.replyTo && (
+          <button type="button"
+            onClick={() => onJumpTo(message.replyTo!.messageId)}
+            className="mb-1 px-2.5 py-1.5 rounded-lg border-l-2 border-slate-300 bg-slate-50 hover:bg-slate-100 hover:border-emerald-400 text-[11px] max-w-[420px] text-left transition-colors block"
+            title="원본 메시지로 이동"
           >
-            <img src={message.imageUrl} alt="첨부 이미지" className="w-full h-auto max-h-[300px] object-contain bg-slate-100" loading="lazy" />
+            <p className="font-[1000] text-slate-500 text-[10px]">↩ {message.replyTo.author}</p>
+            <p className="text-slate-500 truncate">{message.replyTo.snippet}</p>
           </button>
         )}
-        {/* 🚀 문서 파일 첨부 (PDF/DOC/XLSX/PPTX) */}
+
+        {/* 이미지 */}
+        {message.imageUrl && !message.deleted && (
+          <button onClick={() => onImageClick(message.imageUrl!)}
+            className="block mb-1 max-w-[380px] rounded-xl overflow-hidden border border-slate-200 hover:opacity-90 transition-opacity">
+            <img src={message.imageUrl} alt="첨부 이미지" className="w-full h-auto max-h-[360px] object-contain bg-slate-100" loading="lazy" />
+          </button>
+        )}
+
+        {/* 문서 파일 */}
         {message.fileUrl && !message.deleted && (
-          <a
-            href={message.fileUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={(e) => e.stopPropagation()}
-            className={`flex items-center gap-2 mb-1 px-3 py-2 rounded-xl border max-w-[280px] transition-colors ${
-              isMine ? 'bg-emerald-400/80 border-emerald-300 text-white hover:bg-emerald-400' : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
-            }`}
-          >
-            <span className="text-[20px] shrink-0">{(() => { const ext = (message.fileName || '').split('.').pop()?.toLowerCase() || ''; const icons: Record<string, string> = { pdf: '📄', doc: '📝', docx: '📝', xls: '📊', xlsx: '📊', ppt: '📑', pptx: '📑' }; return icons[ext] || '📎'; })()}</span>
+          <a href={message.fileUrl} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}
+            className="flex items-center gap-2 mb-1 px-3 py-2 rounded-xl border max-w-[380px] bg-white border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors">
+            <span className="text-[22px] shrink-0">{(() => { const ext = (message.fileName || '').split('.').pop()?.toLowerCase() || ''; const icons: Record<string, string> = { pdf: '📄', doc: '📝', docx: '📝', xls: '📊', xlsx: '📊', ppt: '📑', pptx: '📑' }; return icons[ext] || '📎'; })()}</span>
             <div className="flex flex-col min-w-0">
-              <span className="text-[12px] font-bold truncate">{message.fileName || '파일'}</span>
-              <span className={`text-[9px] ${isMine ? 'text-emerald-100' : 'text-slate-400'}`}>다운로드</span>
+              <span className="text-[13px] font-bold truncate">{message.fileName || '파일'}</span>
+              <span className="text-[10px] text-slate-400">다운로드</span>
             </div>
           </a>
         )}
 
-        {/* 메시지 본문 + 시간 + 액션 버튼 */}
-        <div className={`flex items-end gap-1 ${isMine ? 'flex-row-reverse' : 'flex-row'}`}>
-          {/* 텍스트가 있을 때만 본문 박스 렌더링 */}
-          {(message.content || message.deleted) && (
-            <div className={`px-3 py-2 rounded-2xl text-[13px] font-medium whitespace-pre-wrap break-words leading-relaxed ${
-              isMine
-                ? 'bg-emerald-500 text-white rounded-br-sm'
-                : 'bg-white text-slate-800 rounded-bl-sm border border-slate-200'
-            }`}>
-              {message.deleted ? (
-                <span className="italic text-slate-400">삭제된 메시지입니다</span>
-              ) : message.content}
-            </div>
-          )}
-          <div className="flex flex-col items-center gap-0.5 shrink-0">
-            <span className="text-[9px] text-slate-300">{timeStr}</span>
-            {!message.deleted && (
-              <div className="flex items-center gap-1">
-                {!isMine && (
-                  <button onClick={() => onReply(message)} className="w-7 h-7 flex items-center justify-center rounded-full bg-slate-100 hover:bg-emerald-100 text-slate-400 hover:text-emerald-600 text-[13px] transition-colors" title="답장">↩</button>
-                )}
-                {!isMine && (
-                  <button onClick={() => onSendThanksball(message)} className="w-7 h-7 flex items-center justify-center rounded-full bg-slate-100 hover:bg-amber-100 text-slate-400 hover:text-amber-600 text-[13px] transition-colors" title="땡스볼">⚾</button>
-                )}
-                <div className="relative">
-                  <button onClick={() => setReactionPickerFor(reactionPickerFor === message.id ? null : message.id)}
-                    className="w-7 h-7 flex items-center justify-center rounded-full bg-slate-100 hover:bg-blue-100 text-slate-400 hover:text-blue-600 text-[15px] font-[1000] transition-colors" title="반응">+</button>
-                  {reactionPickerFor === message.id && (
-                    <div
-                      className="absolute z-20 bg-white border border-slate-200 rounded-full shadow-lg px-1.5 py-1 flex gap-0.5 bottom-full mb-1 left-1/2 -translate-x-1/2"
-                      onMouseLeave={() => setReactionPickerFor(null)}
-                    >
-                      {REACTION_EMOJIS.map(emoji => (
-                        <button key={emoji}
-                          onClick={() => { onToggleReaction(message, emoji); setReactionPickerFor(null); }}
-                          className="text-[16px] hover:scale-125 transition-transform px-0.5"
-                        >{emoji}</button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-                {/* 🚀 Step 6: 삭제 버튼 (본인 또는 대장/부대장) */}
-                {(isMine || isAdmin) && (
-                  <button onClick={() => onDelete(message)} className="text-[12px] text-slate-300 hover:text-rose-500 px-0.5" title="삭제">🗑</button>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
+        {/* 메시지 본문 — 타이포 13→15px, Discord식. Phase 4: URL/마크다운/@멘션 포맷 적용 */}
+        {(message.content || message.deleted) && (
+          message.deleted ? (
+            <div className="text-[15px] font-medium italic text-slate-400 leading-[1.55]">삭제된 메시지입니다</div>
+          ) : (
+            <div
+              className="text-[15px] font-medium whitespace-pre-wrap break-words leading-[1.55] text-slate-800"
+              dangerouslySetInnerHTML={{ __html: formatChatContent(message.content || '') }}
+            />
+          )
+        )}
 
-        {/* 🚀 이모지 반응 표시 */}
-        {/* 이모지 반응 + 땡스볼 누적 */}
+        {/* 반응·땡스볼 표시 (메시지 아래) */}
         {(activeReactions.length > 0 || (message.thanksballTotal ?? 0) > 0) && (
-          <div className={`flex flex-wrap items-center gap-1 mt-0.5 ${isMine ? 'justify-end' : 'justify-start'}`}>
+          <div className="flex flex-wrap items-center gap-1 mt-1">
             {activeReactions.map(([emoji, users]) => {
               const reacted = users.includes(currentUid);
               return (
                 <button key={emoji} onClick={() => onToggleReaction(message, emoji)}
-                  className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[11px] border transition-colors ${
+                  className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[11px] border transition-all ${
                     reacted
-                      ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
-                      : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'
-                  }`}
-                >
+                      ? 'bg-emerald-50 border-emerald-300 text-emerald-700 scale-105'
+                      : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50 hover:scale-105'
+                  }`}>
                   <span>{emoji}</span>
                   <span className="font-[1000] text-[10px]">{users.length}</span>
                 </button>
               );
             })}
-            {/* 🚀 땡스볼 누적 표시 */}
             {(message.thanksballTotal ?? 0) > 0 && (
               <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[11px] bg-amber-50 border border-amber-200 text-amber-700">
                 <span>⚾</span>
@@ -245,6 +278,34 @@ function ChatMessageItem({ message, currentUid, isAdmin, community, members, onR
           </div>
         )}
       </div>
+
+      {/* ✨ Phase 1: 우상단 floating action toolbar — 메시지 hover 시만 노출 (Discord 패턴) */}
+      {!message.deleted && (
+        <div className="absolute -top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity bg-white border border-slate-200 rounded-lg shadow-sm flex items-center gap-0.5 px-1 py-0.5">
+          {!isMine && (
+            <button onClick={() => onReply(message)} className="w-7 h-7 flex items-center justify-center text-slate-400 hover:text-emerald-600 text-[14px] transition-colors" title="답장">↩</button>
+          )}
+          {!isMine && (
+            <button onClick={() => onSendThanksball(message)} className="w-7 h-7 flex items-center justify-center text-slate-400 hover:text-amber-500 transition-colors" title="땡스볼">⚾</button>
+          )}
+          <div className="relative">
+            <button onClick={() => setReactionPickerFor(reactionPickerFor === message.id ? null : message.id)}
+              className="w-7 h-7 flex items-center justify-center text-slate-400 hover:text-blue-600 text-[15px] transition-colors" title="반응">😀</button>
+            {reactionPickerFor === message.id && (
+              <div className="absolute z-30 bg-white border border-slate-200 rounded-full shadow-lg px-1.5 py-1 flex gap-0.5 top-full mt-1 right-0"
+                onMouseLeave={() => setReactionPickerFor(null)}>
+                {REACTION_EMOJIS.map(emoji => (
+                  <button key={emoji} onClick={() => { onToggleReaction(message, emoji); setReactionPickerFor(null); }}
+                    className="text-[18px] hover:scale-125 transition-transform px-0.5">{emoji}</button>
+                ))}
+              </div>
+            )}
+          </div>
+          {(isMine || isAdmin) && (
+            <button onClick={() => onDelete(message)} className="w-7 h-7 flex items-center justify-center text-slate-400 hover:text-rose-500 text-[12px] transition-colors" title="삭제">🗑</button>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -276,6 +337,26 @@ const CommunityChatPanel = ({ community, currentUser, members, allUsers = {} }: 
   const [oldestDoc, setOldestDoc] = useState<QueryDocumentSnapshot<DocumentData> | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
+  // ✨ Phase 3: 이모지 피커 + 멘션 자동완성
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [mentionQuery, setMentionQuery] = useState<string | null>(null); // null = 비활성, '' 또는 'kim' = 검색어
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  // ✨ Phase 4: 답장 점프용 메시지별 DOM ref 맵 + 스크롤 to-bottom 버튼
+  const messageRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const [showScrollToBottom, setShowScrollToBottom] = useState(false);
+  const handleJumpTo = useCallback((messageId: string) => {
+    const el = messageRefs.current[messageId];
+    if (!el) return;
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    // 1.5초 동안 emerald ring 강조
+    el.classList.add('ring-2', 'ring-emerald-400', 'bg-emerald-50/50');
+    setTimeout(() => {
+      el.classList.remove('ring-2', 'ring-emerald-400', 'bg-emerald-50/50');
+    }, 1500);
+  }, []);
+  const scrollToBottom = useCallback(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, []);
 
   // 🚀 onSnapshot 실시간 구독 — 최근 50개
   useEffect(() => {
@@ -332,7 +413,10 @@ const CommunityChatPanel = ({ community, currentUser, members, allUsers = {} }: 
   const trackScroll = useCallback(() => {
     const el = messagesContainerRef.current;
     if (!el) return;
-    isNearBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 100;
+    const distance = el.scrollHeight - el.scrollTop - el.clientHeight;
+    isNearBottom.current = distance < 100;
+    // ✨ Phase 4: 아래로부터 200px 이상 떨어졌을 때 ↓ 버튼 노출
+    setShowScrollToBottom(distance > 200);
     handleScroll();
   }, [handleScroll]);
 
@@ -463,7 +547,101 @@ const CommunityChatPanel = ({ community, currentUser, members, allUsers = {} }: 
   // Enter 전송, Shift+Enter 줄바꿈, IME 보호
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); handleSend(); }
+    if (e.key === 'Escape') { setShowEmojiPicker(false); setMentionQuery(null); }
   };
+
+  // ✨ Phase 3: 이모지 삽입 — textarea 커서 위치에 삽입 + 포커스 유지
+  const insertAtCursor = (text: string) => {
+    const ta = textareaRef.current;
+    if (!ta) { setInput(prev => prev + text); return; }
+    const start = ta.selectionStart ?? input.length;
+    const end = ta.selectionEnd ?? input.length;
+    const next = input.slice(0, start) + text + input.slice(end);
+    setInput(next);
+    // 다음 tick에 커서 재위치
+    setTimeout(() => {
+      ta.focus();
+      const pos = start + text.length;
+      ta.setSelectionRange(pos, pos);
+    }, 0);
+  };
+
+  // ✨ Phase 3: 입력 변경 시 멘션 트리거 감지 (@ 다음 한글/영문 0~12자)
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const val = e.target.value;
+    setInput(val);
+    const caret = e.target.selectionStart ?? val.length;
+    const before = val.slice(0, caret);
+    // 직전 @ 위치 (공백/줄바꿈 없는 구간)
+    const at = before.lastIndexOf('@');
+    if (at === -1) { setMentionQuery(null); return; }
+    const between = before.slice(at + 1);
+    // @ 직전이 공백·줄바꿈·문장 시작이면 멘션 모드
+    const prevChar = at > 0 ? before[at - 1] : '';
+    const isStartOk = at === 0 || /\s/.test(prevChar);
+    if (isStartOk && /^[^\s]{0,12}$/.test(between)) {
+      setMentionQuery(between);
+    } else {
+      setMentionQuery(null);
+    }
+  };
+
+  // ✨ Phase 3: 멘션 후보 (현재 멤버 중 mentionQuery 매칭)
+  const mentionCandidates = useMemo(() => {
+    if (mentionQuery === null) return [];
+    const q = mentionQuery.toLowerCase();
+    return members
+      .filter(m => (m.joinStatus ?? 'active') === 'active')
+      .filter(m => m.nickname.toLowerCase().includes(q))
+      .slice(0, 6);
+  }, [mentionQuery, members]);
+
+  // ✨ Phase 3: 멘션 삽입 — 현재 @쿼리를 @닉네임으로 치환
+  const insertMention = (nickname: string) => {
+    const ta = textareaRef.current;
+    if (!ta) return;
+    const caret = ta.selectionStart ?? input.length;
+    const before = input.slice(0, caret);
+    const at = before.lastIndexOf('@');
+    if (at === -1) return;
+    const next = input.slice(0, at) + `@${nickname} ` + input.slice(caret);
+    setInput(next);
+    setMentionQuery(null);
+    setTimeout(() => {
+      ta.focus();
+      const pos = at + nickname.length + 2; // @ + name + space
+      ta.setSelectionRange(pos, pos);
+    }, 0);
+  };
+
+  // ✨ Phase 1: 메시지 그룹화 + 날짜 구분선 렌더 항목 빌드
+  //   규칙: 같은 author_id + 5분 이내 → 연속 그룹 / 날짜 바뀌면 구분선 삽입
+  //   아바타: allUsers nickname_* 룩업 → 없으면 dicebear fallback
+  type RenderItem =
+    | { type: 'date'; key: string; label: string }
+    | { type: 'msg'; key: string; msg: ChatMessage; isGroupHead: boolean; authorAvatarUrl: string };
+  const renderItems: RenderItem[] = useMemo(() => {
+    const items: RenderItem[] = [];
+    let prevMsg: ChatMessage | null = null;
+    let prevDateLabel = '';
+    for (const msg of messages) {
+      const dateLabel = formatDateDivider(msg.createdAt);
+      if (dateLabel && dateLabel !== prevDateLabel) {
+        items.push({ type: 'date', key: 'date_' + msg.id, label: dateLabel });
+        prevDateLabel = dateLabel;
+      }
+      const prevTs = prevMsg?.createdAt?.seconds || 0;
+      const curTs = msg.createdAt?.seconds || 0;
+      const isGroupHead = !prevMsg
+        || prevMsg.author_id !== msg.author_id
+        || (curTs - prevTs) > 300; // 5분
+      const authorAvatarUrl = allUsers[`nickname_${msg.author}`]?.avatarUrl
+        || `https://api.dicebear.com/7.x/adventurer/svg?seed=${msg.author}`;
+      items.push({ type: 'msg', key: msg.id, msg, isGroupHead, authorAvatarUrl });
+      prevMsg = msg;
+    }
+    return items;
+  }, [messages, allUsers]);
 
   // 🚀 50명 초과
   if (!isAvailable) {
@@ -488,8 +666,14 @@ const CommunityChatPanel = ({ community, currentUser, members, allUsers = {} }: 
   }
 
   // 🚀 채팅 UI
+  // ✨ 2026-05-15 UX v2 미세조정:
+  //   v1 (h-[calc(100vh-220px)] max-h-[900px]) → 큰 viewport에서 max-h가 viewport 초과 발생.
+  //     상단 stack: Sidebar(~50px) + App.tsx 헤더(~50px) + Community sticky 헤더(~160px) = ~260px
+  //     컨테이너 외부 padding pb-20(80px) 합산 → 채팅 max 900px일 때 총 1240px > 1080px viewport
+  //   해결: viewport 단위를 dvh로 (모바일 키보드 대응) + 차감 260px + max-h 660px + pb-2로 축소
+  //   결과: 1080viewport → 채팅 = 660px(max에 걸림) / 800viewport → 540px / 600viewport → 340px
   return (
-    <div className="flex flex-col h-[calc(100vh-380px)] min-h-[420px] max-h-[720px] bg-white border-t border-slate-100 mt-3 overflow-hidden">
+    <div className="flex flex-col h-[calc(100dvh-260px)] min-h-[340px] max-h-[660px] bg-white border border-slate-200 rounded-xl mt-2 overflow-hidden shadow-sm">
       {/* 메시지 영역 (드래그&드롭 수신) */}
       <div
         ref={messagesContainerRef}
@@ -516,8 +700,20 @@ const CommunityChatPanel = ({ community, currentUser, members, allUsers = {} }: 
         {isDragging && (
           <div className="text-center py-8 text-emerald-500 font-[1000] text-[13px]">📎 여기에 이미지를 놓으세요</div>
         )}
+        {/* ✨ Phase 4: 로딩 스켈레톤 — 3개 메시지 박스 펄스 */}
         {loading && (
-          <div className="text-center text-slate-300 text-[12px] font-bold py-8">채팅을 불러오는 중...</div>
+          <div className="space-y-3 py-3">
+            {[1, 2, 3].map(i => (
+              <div key={i} className="flex gap-2.5 px-1 animate-pulse">
+                <div className="w-10 h-10 rounded-full bg-slate-200 shrink-0" />
+                <div className="flex-1 space-y-1.5">
+                  <div className="h-3 bg-slate-200 rounded w-24" />
+                  <div className="h-4 bg-slate-200 rounded w-2/3" />
+                  <div className="h-4 bg-slate-200 rounded w-1/2" />
+                </div>
+              </div>
+            ))}
+          </div>
         )}
         {!loading && messages.length === 0 && !isDragging && (
           <div className="text-center text-slate-300 py-16">
@@ -526,24 +722,45 @@ const CommunityChatPanel = ({ community, currentUser, members, allUsers = {} }: 
             <p className="text-[10px] font-bold mt-1">첫 메시지를 남겨보세요!</p>
           </div>
         )}
-        {!loading && messages.map((msg) => (
-          <ChatMessageItem
-            key={msg.id}
-            message={msg}
-            currentUid={currentUser!.uid}
-            isAdmin={!!isAdmin}
-            community={community}
-            members={members}
-            onReply={(m) => setReplyTarget(m)}
-            onToggleReaction={handleToggleReaction}
-            reactionPickerFor={reactionPickerFor}
-            setReactionPickerFor={setReactionPickerFor}
-            onImageClick={setLightboxImage}
-            onSendThanksball={(m) => setThanksballTarget(m)}
-            onDelete={handleDeleteMessage}
-          />
+        {/* ✨ Phase 1: 날짜 구분선 + 메시지 그룹화 렌더 / Phase 4: refSetter + onJumpTo */}
+        {!loading && renderItems.map((item) => (
+          item.type === 'date'
+            ? <DateDivider key={item.key} label={item.label} />
+            : <ChatMessageItem
+                key={item.key}
+                message={item.msg}
+                currentUid={currentUser!.uid}
+                isAdmin={!!isAdmin}
+                community={community}
+                members={members}
+                isGroupHead={item.isGroupHead}
+                authorAvatarUrl={item.authorAvatarUrl}
+                refSetter={(el) => { messageRefs.current[item.key] = el; }}
+                onReply={(m) => setReplyTarget(m)}
+                onToggleReaction={handleToggleReaction}
+                reactionPickerFor={reactionPickerFor}
+                setReactionPickerFor={setReactionPickerFor}
+                onImageClick={setLightboxImage}
+                onSendThanksball={(m) => setThanksballTarget(m)}
+                onDelete={handleDeleteMessage}
+                onJumpTo={handleJumpTo}
+              />
         ))}
         <div ref={messagesEndRef} />
+
+        {/* ✨ Phase 4: 스크롤 to-bottom 버튼 — 아래로부터 200px+ 떨어졌을 때만 노출 */}
+        {showScrollToBottom && (
+          <button
+            onClick={scrollToBottom}
+            className="sticky bottom-4 ml-auto block w-10 h-10 bg-slate-900 hover:bg-blue-600 text-white rounded-full shadow-lg flex items-center justify-center transition-all animate-in fade-in zoom-in"
+            title="맨 아래로"
+            style={{ marginRight: '8px' }}
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+            </svg>
+          </button>
+        )}
       </div>
 
       {/* 🚀 답장 미리보기 */}
@@ -575,22 +792,70 @@ const CommunityChatPanel = ({ community, currentUser, members, allUsers = {} }: 
       )}
 
       {/* 입력 영역 */}
-      <div className="border-t border-slate-200 bg-white px-3 py-2.5 shrink-0">
+      <div className="border-t border-slate-200 bg-white px-3 py-2.5 shrink-0 relative">
+        {/* ✨ Phase 3: 멘션 자동완성 드롭다운 */}
+        {mentionCandidates.length > 0 && (
+          <div className="absolute bottom-full left-3 right-3 mb-2 bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden z-30 max-h-[240px] overflow-y-auto">
+            <div className="px-3 py-1.5 bg-slate-50 border-b border-slate-200 text-[10px] font-[1000] text-slate-500">@ 멤버 선택</div>
+            {mentionCandidates.map(m => (
+              <button
+                key={m.userId}
+                type="button"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => insertMention(m.nickname)}
+                className="w-full px-3 py-2 flex items-center gap-2 hover:bg-blue-50 transition-colors text-left"
+              >
+                <img
+                  src={allUsers[`nickname_${m.nickname}`]?.avatarUrl || `https://api.dicebear.com/7.x/adventurer/svg?seed=${m.nickname}`}
+                  className="w-7 h-7 rounded-full bg-slate-100 border border-slate-200 object-cover shrink-0" alt=""
+                />
+                <div className="flex-1 min-w-0">
+                  <p className="text-[13px] font-[1000] text-slate-800 truncate">{m.nickname}</p>
+                  <p className="text-[10px] font-bold text-slate-400">{FINGER_LABEL[m.finger || 'ring'] || '멤버'}</p>
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* ✨ Phase 3: 이모지 피커 팝업 (50종 5×10) */}
+        {showEmojiPicker && (
+          <div className="absolute bottom-full right-3 mb-2 bg-white border border-slate-200 rounded-xl shadow-xl p-2 z-30 w-[280px]"
+            onMouseLeave={() => setShowEmojiPicker(false)}>
+            <div className="grid grid-cols-10 gap-0.5">
+              {PICKER_EMOJIS.map(emoji => (
+                <button key={emoji} type="button"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => { insertAtCursor(emoji); }}
+                  className="text-[18px] hover:bg-slate-100 rounded p-0.5 transition-colors leading-none"
+                >{emoji}</button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* 숨겨진 파일 input */}
         <input ref={fileInputRef} type="file" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx" className="hidden"
           onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFileSelect(f); e.target.value = ''; }} />
         <div className="flex gap-2 items-end">
           <textarea
+            ref={textareaRef}
             value={input}
-            onChange={(e) => setInput(e.target.value)}
+            onChange={handleInputChange}
             onKeyDown={handleKeyDown}
             onPaste={handlePaste}
-            placeholder={replyTarget ? `${replyTarget.author}님에게 답장...` : '메시지를 입력하세요... (Enter 전송)'}
+            placeholder={replyTarget ? `${replyTarget.author}님에게 답장...` : '메시지를 입력하세요 — @ 로 멤버 멘션 (Enter 전송)'}
             maxLength={500}
             rows={2}
-            className="flex-1 resize-none px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-slate-400 text-[13px] font-medium text-slate-900 placeholder:text-slate-300"
+            className="flex-1 resize-none px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-slate-400 text-[14px] font-medium text-slate-900 placeholder:text-slate-300"
             disabled={sending}
           />
+          {/* ✨ Phase 3: 이모지 피커 토글 */}
+          <button onClick={() => setShowEmojiPicker(s => !s)} disabled={sending} type="button"
+            className={`px-2 py-2 rounded-lg transition-colors shrink-0 border ${showEmojiPicker ? 'bg-amber-50 text-amber-500 border-amber-200' : 'text-slate-400 hover:text-amber-500 hover:bg-amber-50 border-slate-200'}`}
+            title="이모지">
+            <span className="text-[16px] leading-none">😀</span>
+          </button>
           {/* 파일 첨부 버튼 (이미지+문서) */}
           <button onClick={() => fileInputRef.current?.click()} disabled={sending}
             className="px-2 py-2 rounded-lg text-slate-400 hover:text-emerald-500 hover:bg-emerald-50 transition-colors shrink-0 border border-slate-200" title="파일 첨부 (이미지·PDF·DOC·XLSX·PPTX)">

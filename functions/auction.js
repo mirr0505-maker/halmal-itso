@@ -32,6 +32,20 @@ async function checkFrequencyCap(viewerUid, adId, periodHours, limit) {
   return snap.size < limit;
 }
 
+// 🔒 P0-2 2026-07-02: 결제 근거가 되는 postAuthorId를 서버에서만 확정.
+//   Why: adEvents의 postAuthorId·bidAmount는 aggregateDailyRevenue가 크리에이터에게 실제 볼을 지급하는 근거다.
+//        무인증 엔드포인트라 클라 body 값을 그대로 믿으면 "postAuthorId=내UID, bidAmount=거액" 위조로 무한 볼 발행 가능.
+//   실제 posts/{postId} 문서의 author_id만 신뢰. 피드 인라인 광고(합성 postId)는 문서가 없어 '' 반환(크리에이터 미지급 = 플랫폼 인벤토리).
+async function resolvePostAuthorId(postId) {
+  if (!postId || typeof postId !== 'string') return '';
+  try {
+    const snap = await db.collection('posts').doc(postId).get();
+    return snap.exists ? (snap.data().author_id || '') : '';
+  } catch {
+    return '';
+  }
+}
+
 // 💰 예산 가드 — 일/총 예산 도달 시 매칭에서 제외
 function isWithinBudget(ad, expectedCharge) {
   const todaySpent = ad.todaySpent || 0;
@@ -54,17 +68,22 @@ exports.adAuction = onRequest(
     //   AdSlot directAd 분기에서 광고당 1회 호출 (impressionFiredRef로 중복 차단)
     // ────────────────────────────────────────────────
     if (eventType === 'impression' && body.directMatch) {
-      const { adId, postId, postAuthorId, viewerUid, postCategory, slotPosition, bidAmount, bidType, viewerRegion } = body;
+      const { adId, postId, viewerUid, postCategory, slotPosition, viewerRegion } = body;
       if (!adId || !postId) return res.status(400).json({ error: 'adId, postId 필수' });
       try {
+        // 🔒 P0-2: ad 문서 존재 검증 + bidAmount/bidType/advertiserId를 서버 값으로만 기록 (body 위조 차단)
+        const adSnap = await db.collection('ads').doc(adId).get();
+        if (!adSnap.exists) return res.json({ success: false });
+        const ad = adSnap.data();
+        const postAuthorId = await resolvePostAuthorId(postId);
         await db.collection('adEvents').add({
-          adId, advertiserId: '', postId,
-          postAuthorId: postAuthorId || '',
+          adId, advertiserId: ad.advertiserId || '', postId,
+          postAuthorId,
           postCategory: postCategory || '',
           slotPosition: slotPosition || 'bottom',
           eventType: 'impression',
-          bidType: bidType || 'cpm',
-          bidAmount: bidAmount || 0,
+          bidType: ad.bidType || 'cpm',
+          bidAmount: ad.bidAmount || 0,
           viewerUid: viewerUid || 'anonymous',
           viewerRegion: viewerRegion || '',
           sessionId: `session_${Date.now()}`,
@@ -85,7 +104,7 @@ exports.adAuction = onRequest(
     // 🔄 viewable / click — 별도 처리 (경매 X, 차감만)
     // ────────────────────────────────────────────────
     if (eventType === 'viewable' || eventType === 'click') {
-      const { adId, postId, postAuthorId, viewerUid, postCategory, slotPosition, bidAmount, bidType, viewerRegion } = body;
+      const { adId, postId, viewerUid, postCategory, slotPosition, viewerRegion } = body;
       if (!adId || !postId) return res.status(400).json({ error: 'adId, postId 필수' });
       try {
         // 광고 데이터 조회 (차감액 산정)
@@ -93,18 +112,20 @@ exports.adAuction = onRequest(
         if (!adSnap.exists) return res.json({ success: false });
         const ad = adSnap.data();
 
-        // 차감액: viewable=CPM*1/1000 / click=CPC 1회. bidAmount 미전달 시 ad doc 기준
+        // 🔒 P0-2: 차감액은 오직 ad 문서의 bidAmount로 산정 (body bidAmount 위조 → 예산/수익 조작 차단)
+        //   viewable=CPM*1/1000 / click=CPC 1회
         const charge = eventType === 'viewable'
-          ? (ad.bidType === 'cpm' ? (bidAmount || ad.bidAmount) / 1000 : 0)
-          : (ad.bidType === 'cpc' ? (bidAmount || ad.bidAmount) : 0);
+          ? (ad.bidType === 'cpm' ? (ad.bidAmount || 0) / 1000 : 0)
+          : (ad.bidType === 'cpc' ? (ad.bidAmount || 0) : 0);
+        const postAuthorId = await resolvePostAuthorId(postId);
 
         await db.collection('adEvents').add({
           adId, advertiserId: ad.advertiserId, postId,
-          postAuthorId: postAuthorId || '',
+          postAuthorId,
           postCategory: postCategory || '',
           slotPosition: slotPosition || 'bottom',
           eventType,
-          bidType: bidType || ad.bidType,
+          bidType: ad.bidType,
           bidAmount: charge,
           viewerUid: viewerUid || 'anonymous',
           viewerRegion: viewerRegion || '',
@@ -139,11 +160,13 @@ exports.adAuction = onRequest(
     // ────────────────────────────────────────────────
     // 🎯 impression 경매 매칭
     // ────────────────────────────────────────────────
-    const { slotPosition, postCategory, postId, postAuthorId, postAuthorLevel, viewerRegion, viewerUid } = body;
+    const { slotPosition, postCategory, postId, postAuthorLevel, viewerRegion, viewerUid, excludeAdIds } = body;
     if (!slotPosition || !postId) return res.status(400).json({ error: "slotPosition, postId 필수" });
     // 🚀 ADSMARKET v3 (2026-04-30): feed 슬롯은 글 작성자 무관 (피드 인라인 광고) — postAuthorLevel 게이팅 무시
     //   본문 슬롯(top/middle/bottom)은 작성자 Lv5+ 게이팅 유지 (작성자 RS 발생 조건)
     if (slotPosition !== 'feed' && (postAuthorLevel || 0) < 5) return res.json({ success: true, ad: null, fallback: "promo" });
+    // 🔒 P0-2: 결제 귀속 대상은 서버에서 확정한 실제 글 작성자만 사용 (body postAuthorId 위조 → 수익 탈취 차단)
+    const postAuthorId = await resolvePostAuthorId(postId);
 
     try {
       const snap = await db.collection("ads").where("status", "==", "active").get();
@@ -153,6 +176,9 @@ exports.adAuction = onRequest(
       const baseFiltered = snap.docs
         .map(d => ({ id: d.id, ...d.data() }))
         .filter(ad => {
+          // 🚀 ADSMARKET v3.2 (per-page de-dup): 같은 페이지 내 이미 선택된 광고 제외
+          //   AnyTalkList가 슬롯 수만큼 순차 호출하며 누적 exclude 전달 → 페이지 내 광고 중복 차단
+          if (Array.isArray(excludeAdIds) && excludeAdIds.includes(ad.id)) return false;
           if (!ad.targetSlots?.includes(slotPosition)) return false;
           if (ad.targetMenuCategories?.length > 0 && !ad.targetMenuCategories.includes(postCategory)) return false;
           if (ad.targetRegions?.length > 0 && viewerRegion && !ad.targetRegions.includes(viewerRegion)) return false;

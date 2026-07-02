@@ -1,7 +1,8 @@
 // src/components/CommunityView.tsx — 개별 커뮤니티 상세: 글 목록 + 글 작성
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { db } from '../firebase';
-import { collection, onSnapshot, query, where, orderBy, limit, doc, updateDoc, deleteDoc, deleteField, increment, arrayUnion, arrayRemove, serverTimestamp } from 'firebase/firestore';
+import { collection, onSnapshot, query, where, orderBy, limit, startAfter, getDocs, doc, updateDoc, deleteDoc, deleteField, increment, arrayUnion, arrayRemove, serverTimestamp } from 'firebase/firestore';
+import type { QueryDocumentSnapshot, DocumentData } from 'firebase/firestore';
 import type { Community, CommunityPost, CommunityMember, FingerRole, UserData, PromotionRules } from '../types';
 import { DEFAULT_PROMOTION_RULES, TIER_CONFIG } from '../types';
 import { CHAT_MEMBER_LIMIT } from '../types';
@@ -14,7 +15,8 @@ import CommunityPostDetail from './CommunityPostDetail';
 import JoinAnswersDisplay from './JoinAnswersDisplay';
 import ShareholderVerifyScreen from './ShareholderVerifyScreen';
 import VerifyShareholderPanel from './VerifyShareholderPanel';
-import { sanitizeHtml } from '../sanitize';
+// ⚡ 2026-05-13 Perf Phase E-light: sanitize 결과 useMemo 캐시 — 100개 카드 매번 DOMPurify 호출 차단
+import MemoizedSanitizedHTML from './MemoizedSanitizedHTML';
 import { uploadToR2 } from '../uploadToR2';
 import { calculateLevel, getReputationLabel, getReputation, formatKoreanNumber, buildExpLevelUpdate, calculateExpForPost } from '../utils';
 
@@ -52,17 +54,53 @@ const CommunityView = ({ community, currentUserData, allUsers, followerCounts = 
   const isNotifying = currentUserData && (community.notifyMembers ?? []).includes(currentUserData.uid);
 
   // 🚀 커뮤니티 글 실시간 구독 — selectedCommunity 변경 시마다 갱신
+  // ⚡ 2026-05-13 Perf Phase A: 봇 커뮤니티 누적 폭증 → limit(100) 최신만 실시간 구독
+  // ✨ 2026-05-15 UI/UX Phase 3: limit 너머는 무한 스크롤(startAfter)로 점진 로드.
+  //   최신 100건은 onSnapshot 실시간, 이전 청크는 getDocs 1회성 (실시간 구독 비용 절감).
+  const [oldestSnapshot, setOldestSnapshot] = useState<QueryDocumentSnapshot<DocumentData> | null>(null);
+  const [olderPosts, setOlderPosts] = useState<CommunityPost[]>([]);
+  const [loadingOlder, setLoadingOlder] = useState(false);
+  const [hasOlder, setHasOlder] = useState(true);
   useEffect(() => {
+    // 커뮤니티 변경 시 더보기 상태 초기화
+    setOldestSnapshot(null);
+    setOlderPosts([]);
+    setHasOlder(true);
     const q = query(
       collection(db, 'community_posts'),
       where('communityId', '==', community.id),
-      orderBy('createdAt', 'desc')
+      orderBy('createdAt', 'desc'),
+      limit(100)
     );
     const unsub = onSnapshot(q, (snap) => {
       setPosts(snap.docs.map(d => ({ id: d.id, ...d.data() } as CommunityPost)));
+      // 가장 오래된 문서 = startAfter 커서
+      if (snap.docs.length > 0) setOldestSnapshot(snap.docs[snap.docs.length - 1]);
+      if (snap.docs.length < 100) setHasOlder(false); // 100건 미만이면 그게 전부
     }, (err) => console.error('[community_posts onSnapshot]', err));
     return () => unsub();
   }, [community.id]);
+
+  // ✨ Phase 3: 무한 스크롤 더보기 (startAfter 30건씩)
+  const loadOlderPosts = useCallback(async () => {
+    if (!oldestSnapshot || loadingOlder || !hasOlder) return;
+    setLoadingOlder(true);
+    try {
+      const q = query(
+        collection(db, 'community_posts'),
+        where('communityId', '==', community.id),
+        orderBy('createdAt', 'desc'),
+        startAfter(oldestSnapshot),
+        limit(30)
+      );
+      const snap = await getDocs(q);
+      const more = snap.docs.map(d => ({ id: d.id, ...d.data() } as CommunityPost));
+      setOlderPosts(prev => [...prev, ...more]);
+      if (snap.docs.length > 0) setOldestSnapshot(snap.docs[snap.docs.length - 1]);
+      if (snap.docs.length < 30) setHasOlder(false);
+    } catch (e) { console.error('[loadOlderPosts]', e); }
+    finally { setLoadingOlder(false); }
+  }, [community.id, oldestSnapshot, loadingOlder, hasOlder]);
 
   // 🚀 다섯 손가락 Phase 2 — 커뮤니티 멤버 실시간 구독
   useEffect(() => {
@@ -137,7 +175,8 @@ const CommunityView = ({ community, currentUserData, allUsers, followerCounts = 
   const pinnedPost = community.pinnedPostId ? posts.find(p => p.id === community.pinnedPostId) : null;
   // 공지 제외한 일반 글 목록 (블라인드 필터링 포함)
   // 🚀 관리자는 블라인드 글도 볼 수 있음 (해제하려면 보여야 하니까)
-  const visiblePosts = posts.filter(p => p.id !== community.pinnedPostId && (!p.isBlinded || isAdmin));
+  // ✨ Phase 3: 최신 posts (100건) + olderPosts (무한 스크롤 청크) 병합
+  const visiblePosts = [...posts, ...olderPosts].filter(p => p.id !== community.pinnedPostId && (!p.isBlinded || isAdmin));
 
   // 🚀 Phase 3 — 공지 고정 핸들러 (thumb/index만)
   const handlePinPost = async (postId: string) => {
@@ -401,6 +440,10 @@ const CommunityView = ({ community, currentUserData, allUsers, followerCounts = 
       // 🚀 Phase 5 — 중지 자동 산정 (비동기, 실패 무시 — batch 외부 처리)
       checkPromotion().catch(console.error);
       setNewTitle(''); setNewContent(''); setIsWriting(false);
+    } catch (e) {
+      // 🔒 P1 2026-07-02: catch 누락 → 실패 시 글이 조용히 사라지고 폼이 멈춤. 사용자에게 명시 + 입력 보존.
+      console.error('[CommunityView handleSubmit]', e);
+      alert('글 등록에 실패했습니다: ' + ((e as Error)?.message || '알 수 없는 오류'));
     } finally { setIsSubmitting(false); }
   };
 
@@ -415,8 +458,9 @@ const CommunityView = ({ community, currentUserData, allUsers, followerCounts = 
       likes: Math.max(0, (p.likes || 0) + diff),
       likedBy: isLiked ? (p.likedBy || []).filter(n => n !== currentUserData.nickname) : [...(p.likedBy || []), currentUserData.nickname],
     } : p));
+    // 🔒 P1 2026-07-02: DB write는 increment(diff) (동시 좋아요 레이스 카운트 유실 차단, 낙관적 로컬 표시는 유지)
     await updateDoc(doc(db, 'community_posts', post.id), {
-      likes: Math.max(0, (post.likes || 0) + diff),
+      likes: increment(diff),
       likedBy: isLiked ? arrayRemove(currentUserData.nickname) : arrayUnion(currentUserData.nickname),
     });
     // 🛡️ Anti-Abuse Commit 5b: 좋아요 취소(diff=-1) 시 타인 users.likes 업데이트 스킵
@@ -429,116 +473,135 @@ const CommunityView = ({ community, currentUserData, allUsers, followerCounts = 
 
 
   return (
-    <div className="w-full max-w-[860px] mx-auto pb-20 animate-in fade-in">
-      {/* 커뮤니티 헤더 */}
-      <div className="rounded-xl overflow-hidden border border-slate-100 mb-4 bg-white shadow-sm">
-        {community.thumbnailUrl ? (
-          <div className="aspect-[16/9] max-h-48 w-full bg-slate-100 overflow-hidden">
-            <img src={community.thumbnailUrl} alt="" className="w-full h-full object-cover" />
-          </div>
-        ) : (
-          <div className="h-3 w-full" style={{ backgroundColor: community.coverColor || '#3b82f6' }} />
-        )}
-        <div className="px-5 py-4">
-          <div className="flex items-center justify-between">
-            <button
-              onClick={onBack}
-              className="text-[10px] font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded-sm hover:bg-blue-100 transition-colors"
-            >
-              ← 커뮤니티 목록
-            </button>
-            {currentUserData && isMember && (
-              <div className="flex items-center gap-2">
-                {/* 🚀 Phase 4 — 알림 토글 버튼 */}
-                {currentMembership && (
-                  <button
-                    onClick={handleToggleNotify}
-                    className={`px-3 h-7 rounded-lg text-[11px] font-black transition-colors ${isNotifying ? 'bg-amber-100 text-amber-700 hover:bg-amber-200' : 'bg-slate-100 text-slate-400 hover:bg-slate-200'}`}
-                    title={isNotifying ? '새 글 알림 켜짐 — 클릭하면 끄기' : '새 글 알림 받기'}
-                  >
-                    {isNotifying ? '🔔 알림 ON' : '🔕 알림'}
-                  </button>
-                )}
-                <button
-                  onClick={() => setIsWriting(true)}
-                  className="px-4 h-7 rounded-lg text-[12px] font-bold bg-slate-900 text-white hover:bg-blue-600 transition-colors"
-                >
-                  + 글 쓰기
-                </button>
+    // ✨ 2026-05-15 v2 UX 미세조정: pb-20(80px) → pb-2(8px) — 채팅 컨테이너가 viewport 하단까지 정확히 닿도록
+    <div className="w-full max-w-[860px] mx-auto pb-2 animate-in fade-in">
+      {/* ✨ 2026-05-15 UX 개선: 헤더 컴팩트 + sticky — 좌 80×80 이미지, 우 정보, 탭 같이 sticky.
+          기존 16:9 큰 썸네일(192px) + 풀세트 정보 → ~144px(이미지+패딩+탭)로 축소 → 하단 채팅·피드 영역 확보.
+          isBlocked/isPending/isReadOnly 안내는 sticky 밖으로 분리. */}
+      <div className="sticky top-0 z-20 mb-3 bg-[#F8FAFC]/95 backdrop-blur-sm -mx-2 px-2 pt-2">
+        <div className="rounded-xl overflow-hidden border border-slate-200 bg-white shadow-sm">
+          <div className="px-3 py-2.5 flex gap-3 items-center">
+            {/* 좌측: 80×80 이미지 (또는 색 박스) */}
+            {community.thumbnailUrl ? (
+              <div className="w-20 h-20 shrink-0 rounded-lg bg-slate-100 overflow-hidden border border-slate-100">
+                <img src={community.thumbnailUrl} alt="" className="w-full h-full object-cover" />
+              </div>
+            ) : (
+              <div
+                className="w-20 h-20 shrink-0 rounded-lg flex items-center justify-center text-[28px] text-white/90 font-[1000]"
+                style={{ backgroundColor: community.coverColor || '#3b82f6' }}
+              >
+                🧤
               </div>
             )}
+
+            {/* 우측: 정보 + 액션 버튼 */}
+            <div className="flex-1 min-w-0 flex flex-col gap-1">
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <h2 className="text-[17px] font-[1000] text-slate-900 truncate">{community.name}</h2>
+                    {community.joinType && community.joinType !== 'open' && (
+                      <span className="text-[9px] font-black text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded shrink-0">
+                        {community.joinType === 'password' ? '🔒 초대코드' : '🔵 승인제'}
+                      </span>
+                    )}
+                    {myFinger && (
+                      <span className={`text-[9px] font-black px-1.5 py-0.5 rounded shrink-0 ${FINGER_META[myFinger].colorCls}`}>
+                        {FINGER_META[myFinger].emoji} {FINGER_META[myFinger].label}
+                      </span>
+                    )}
+                  </div>
+                  {community.description && (
+                    <p className="text-[11px] font-bold text-slate-400 truncate mt-0.5">{community.description}</p>
+                  )}
+                  <div className="flex items-center gap-2 mt-1 flex-wrap">
+                    <span className="text-[10px] font-[1000] text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">{community.category}</span>
+                    <span className="text-[10px] font-bold text-slate-400">멤버 {community.memberCount}</span>
+                    <span className="text-[10px] font-bold text-slate-400">글 {community.postCount}</span>
+                    <span className="text-[10px] font-bold text-slate-400 truncate">개설 {community.creatorNickname}</span>
+                  </div>
+                </div>
+
+                {/* 액션 버튼 묶음 (← 목록 + 알림 + 글쓰기) */}
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <button
+                    onClick={onBack}
+                    className="text-[10px] font-black text-blue-600 bg-blue-50 px-2 py-1 rounded hover:bg-blue-100 transition-colors whitespace-nowrap"
+                  >
+                    ← 목록
+                  </button>
+                  {currentUserData && isMember && currentMembership && (
+                    <button
+                      onClick={handleToggleNotify}
+                      className={`px-2 h-7 rounded text-[10px] font-black transition-colors whitespace-nowrap ${isNotifying ? 'bg-amber-100 text-amber-700 hover:bg-amber-200' : 'bg-slate-100 text-slate-400 hover:bg-slate-200'}`}
+                      title={isNotifying ? '새 글 알림 켜짐 — 클릭하면 끄기' : '새 글 알림 받기'}
+                    >
+                      {isNotifying ? '🔔' : '🔕'}
+                    </button>
+                  )}
+                  {currentUserData && isMember && (
+                    <button
+                      onClick={() => setIsWriting(true)}
+                      className="px-3 h-7 rounded text-[11px] font-[1000] bg-slate-900 text-white hover:bg-blue-600 transition-colors whitespace-nowrap"
+                    >
+                      + 글
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
           </div>
-          <div className="mt-3">
-            <div className="flex items-center gap-2">
-              <h2 className="text-[20px] font-[1000] text-slate-900">{community.name}</h2>
-              {community.joinType && community.joinType !== 'open' && (
-                <span className="text-[10px] font-black text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
-                  {community.joinType === 'password' ? '🔒 초대코드' : '🔵 승인제'}
-                </span>
-              )}
-              {myFinger && (
-                <span className={`text-[10px] font-black px-2 py-0.5 rounded ${FINGER_META[myFinger].colorCls}`}>
-                  {FINGER_META[myFinger].emoji} {FINGER_META[myFinger].label}
-                </span>
-              )}
-            </div>
-            {community.description && <p className="text-[13px] font-bold text-slate-400 mt-1">{community.description}</p>}
-            <div className="flex items-center gap-3 mt-2">
-              <span className="text-[11px] font-[1000] text-blue-600 bg-blue-50 px-2.5 py-0.5 rounded-full">{community.category}</span>
-              <span className="text-[11px] font-bold text-slate-400">멤버 {community.memberCount}명</span>
-              <span className="text-[11px] font-bold text-slate-400">글 {community.postCount}개</span>
-              <span className="text-[11px] font-bold text-slate-400">개설자 {community.creatorNickname}</span>
-            </div>
-          </div>
-          {/* 🚀 Phase 6: 비가입자 접근 제한 — 승인제 완전 차단 */}
-          {isBlocked && (
-            <div className="mt-4 py-16 text-center">
-              <p className="text-[32px] mb-3">🔒</p>
-              <p className="text-[14px] font-[1000] text-slate-700 mb-1">승인제 장갑입니다</p>
-              <p className="text-[11px] font-bold text-slate-400 mb-4">가입 신청 후 관리자 승인이 필요합니다</p>
-              {community.description && <p className="text-[12px] font-bold text-slate-500 mb-6">"{community.description}"</p>}
+
+          {/* 탭 바 — 헤더 카드 내부, sticky와 함께 */}
+          {!isBlocked && !isPending && (
+            <div className="flex gap-0 border-t border-slate-100 px-2 overflow-x-auto">
+              {([
+                'posts', 'chat', 'members',
+                ...(isMember && community.category === '주식' ? ['verify'] : []),
+                ...(isAdmin ? ['admin'] : []),
+              ] as Array<'posts' | 'chat' | 'members' | 'admin' | 'verify'>).map((tab) => {
+                const chatBadge = isChatAvailable && unreadChatCount > 0 && activeTab !== 'chat' ? ` (${unreadChatCount > 99 ? '99+' : unreadChatCount})` : '';
+                const chatLabel = isChatAvailable ? `💭 채팅${chatBadge}` : '💭 채팅 (50명+)';
+                const pendingVerifyCount = members.filter(m => m.verifyRequest?.status === 'pending').length;
+                const labels: Record<string, string> = { posts: '💬 소곤소곤', chat: chatLabel, members: `🤝 멤버 ${activeMembers.length}`, verify: `🛡️ 주주 인증${pendingVerifyCount > 0 ? ` (${pendingVerifyCount})` : ''}`, admin: `⚙️ 관리${pendingMembers.length > 0 ? ` (${pendingMembers.length})` : ''}` };
+                return (
+                  <button
+                    key={tab}
+                    onClick={() => setActiveTab(tab)}
+                    className={`px-3 py-2 text-[12px] font-black transition-colors border-b-2 -mb-px whitespace-nowrap ${activeTab === tab ? 'border-blue-500 text-blue-600' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
+                  >
+                    {labels[tab]}
+                  </button>
+                );
+              })}
             </div>
           )}
-          {/* 🚀 Phase 6: pending 상태 안내 */}
-          {isPending && (
-            <div className="mt-4 py-10 text-center bg-amber-50/50 rounded-xl border border-amber-100">
-              <p className="text-[28px] mb-2">⏳</p>
-              <p className="text-[13px] font-[1000] text-amber-700">가입 승인 대기 중</p>
-              <p className="text-[11px] font-bold text-amber-500 mt-1">관리자가 승인하면 활동할 수 있습니다</p>
-            </div>
-          )}
-          {/* 🚀 Phase 6: open/password 비가입자 — 글 목록만 표시, 읽기 전용 안내 */}
-          {isReadOnly && !isBlocked && (
-            <div className="mt-3 flex items-center gap-2 bg-blue-50/50 border border-blue-100 rounded-lg px-3 py-2">
-              <span className="text-[12px]">👀</span>
-              <p className="text-[10px] font-bold text-blue-600">가입하면 글쓰기·댓글·좋아요를 할 수 있습니다</p>
-            </div>
-          )}
-          {/* 🚀 다섯 손가락 Phase 2 — 탭 바 (멤버만 표시) */}
-          {!isBlocked && !isPending && <div className="flex gap-0 mt-3 border-b border-slate-100">
-            {([
-              'posts', 'chat', 'members',
-              // 🛡️ 주주 인증 탭 — 주식 카테고리 + 멤버 전체 (방장은 관리, 멤버는 등록)
-              ...(isMember && community.category === '주식' ? ['verify'] : []),
-              ...(isAdmin ? ['admin'] : []),
-            ] as Array<'posts' | 'chat' | 'members' | 'admin' | 'verify'>).map((tab) => {
-              const chatBadge = isChatAvailable && unreadChatCount > 0 && activeTab !== 'chat' ? ` (${unreadChatCount > 99 ? '99+' : unreadChatCount})` : '';
-              const chatLabel = isChatAvailable ? `💭 채팅${chatBadge}` : '💭 채팅 (50명+)';
-              const pendingVerifyCount = members.filter(m => m.verifyRequest?.status === 'pending').length;
-              const labels: Record<string, string> = { posts: '💬 소곤소곤', chat: chatLabel, members: `🤝 멤버 ${activeMembers.length}`, verify: `🛡️ 주주 인증${pendingVerifyCount > 0 ? ` (${pendingVerifyCount})` : ''}`, admin: `⚙️ 관리${pendingMembers.length > 0 ? ` (${pendingMembers.length})` : ''}` };
-              return (
-                <button
-                  key={tab}
-                  onClick={() => setActiveTab(tab)}
-                  className={`px-4 py-2 text-[12px] font-black transition-colors border-b-2 -mb-px ${activeTab === tab ? 'border-blue-500 text-blue-600' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
-                >
-                  {labels[tab]}
-                </button>
-              );
-            })}
-          </div>}
         </div>
       </div>
+
+      {/* sticky 밖: 상태 안내 배너들 (정적 영역) */}
+      {isBlocked && (
+        <div className="bg-white rounded-xl border border-slate-200 px-5 py-16 text-center mb-4">
+          <p className="text-[32px] mb-3">🔒</p>
+          <p className="text-[14px] font-[1000] text-slate-700 mb-1">승인제 장갑입니다</p>
+          <p className="text-[11px] font-bold text-slate-400 mb-4">가입 신청 후 관리자 승인이 필요합니다</p>
+          {community.description && <p className="text-[12px] font-bold text-slate-500 mb-6">"{community.description}"</p>}
+        </div>
+      )}
+      {isPending && (
+        <div className="py-10 text-center bg-amber-50/50 rounded-xl border border-amber-100 mb-4">
+          <p className="text-[28px] mb-2">⏳</p>
+          <p className="text-[13px] font-[1000] text-amber-700">가입 승인 대기 중</p>
+          <p className="text-[11px] font-bold text-amber-500 mt-1">관리자가 승인하면 활동할 수 있습니다</p>
+        </div>
+      )}
+      {isReadOnly && !isBlocked && (
+        <div className="flex items-center gap-2 bg-blue-50/50 border border-blue-100 rounded-lg px-3 py-2 mb-3">
+          <span className="text-[12px]">👀</span>
+          <p className="text-[10px] font-bold text-blue-600">가입하면 글쓰기·댓글·좋아요를 할 수 있습니다</p>
+        </div>
+      )}
 
       {/* 🚀 Phase 7 — 채팅 탭 (멤버만) */}
       {activeTab === 'chat' && (
@@ -747,7 +810,7 @@ const CommunityView = ({ community, currentUserData, allUsers, followerCounts = 
                   <span className="text-[10px] font-black text-amber-600 bg-amber-100 px-2 py-0.5 rounded-full">📌 공지</span>
                 </div>
                 {pinnedPost.title && <h3 className="text-[15px] font-[1000] text-slate-900 group-hover:text-amber-700 transition-colors mb-1">{pinnedPost.title}</h3>}
-                <div className="text-[13px] font-medium text-slate-500 line-clamp-2 leading-relaxed [&_img]:hidden [&_p]:mb-1" dangerouslySetInnerHTML={{ __html: sanitizeHtml(pinnedPost.content) }} />
+                <MemoizedSanitizedHTML className="text-[13px] font-medium text-slate-500 line-clamp-2 leading-relaxed [&_img]:hidden [&_p]:mb-1" html={pinnedPost.content} />
                 <div className="flex items-center gap-2 mt-2 pt-2 border-t border-amber-200">
                   <img src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${pinnedPost.author}`} className="w-4 h-4 rounded-full bg-amber-100" alt="" />
                   <span className="text-[10px] font-bold text-amber-600">{pinnedPost.author}</span>
@@ -770,9 +833,9 @@ const CommunityView = ({ community, currentUserData, allUsers, followerCounts = 
                   {post.title && (
                     <h3 className="text-[15px] font-[1000] text-slate-900 group-hover:text-blue-600 transition-colors mb-1">{post.title}</h3>
                   )}
-                  <div
+                  <MemoizedSanitizedHTML
                     className="text-[13px] font-medium text-slate-500 line-clamp-3 leading-relaxed [&_img]:hidden [&_p]:mb-1"
-                    dangerouslySetInnerHTML={{ __html: sanitizeHtml(post.content) }}
+                    html={post.content}
                   />
                   {/* 🚀 하단: AnyTalkList 글카드와 동일 구조 (공유 제외) + 관리자 버튼 */}
                   <div className="flex items-center justify-between mt-3 pt-2 border-t border-slate-50">
@@ -825,6 +888,19 @@ const CommunityView = ({ community, currentUserData, allUsers, followerCounts = 
                 </div>
               );
             })}
+            {/* ✨ Phase 3: 무한 스크롤 더보기 버튼 */}
+            {visiblePosts.length > 0 && hasOlder && (
+              <button
+                onClick={loadOlderPosts}
+                disabled={loadingOlder}
+                className="self-center mt-4 px-5 py-2.5 bg-white border border-slate-200 hover:border-blue-300 hover:bg-blue-50 rounded-full text-[11px] font-[1000] text-slate-600 transition-all disabled:opacity-50"
+              >
+                {loadingOlder ? '불러오는 중...' : '↓ 이전 글 더보기'}
+              </button>
+            )}
+            {!hasOlder && visiblePosts.length >= 100 && (
+              <p className="self-center mt-4 text-[10px] font-bold text-slate-300">— 모든 글을 봤어요 —</p>
+            )}
           </div>
         )
       )}

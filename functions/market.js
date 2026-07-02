@@ -4,7 +4,7 @@
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const { onSchedule } = require("firebase-functions/v2/scheduler");
 const { getFirestore, FieldValue, Timestamp } = require("firebase-admin/firestore");
-const { buildExpLevelUpdate } = require("./utils/levelSync");
+const { buildExpLevelUpdate, calculateLevel } = require("./utils/levelSync");
 
 const db = getFirestore();
 
@@ -90,8 +90,10 @@ exports.purchaseMarketItem = onCall(
       }
 
       // 크리에이터 레벨 조회 → 수수료율 결정
+      // 🔒 P1 2026-07-02: 수수료율을 클라 조작 가능 필드(item.authorLevel) 대신 서버 권위값(작성자 exp→level)으로 산정.
+      //   Why: 판매자가 item.authorLevel=7로 위조해 플랫폼 수수료를 30%→20%로 자체 인하하는 것 차단.
       const authorSnap = await tx.get(authorRef);
-      const authorLevel = item.authorLevel || 3;
+      const authorLevel = calculateLevel(authorSnap.data()?.exp || 0);
       const feeRate = getFeeRate(authorLevel);
       const platformFee = Math.floor(price * feeRate);
       const creatorEarned = price - platformFee;
@@ -413,7 +415,34 @@ exports.processMarketAdRevenue = onSchedule(
       const platformShare = Math.floor(gross) - creatorShare;
       const recordId = `${itemId}_${yyyymmdd}`;
 
-      // market_ad_revenues 기록
+      // 🔒 P1 2026-07-02: 멱등 가드 — 이미 정산된 아이템·날짜면 스케줄러 재시도 시 이중 지급 금지.
+      const existingRec = await db.collection("market_ad_revenues").doc(recordId).get();
+      if (existingRec.exists && existingRec.data()?.settled === true) {
+        console.log(`[강변시장 광고] ${recordId} 이미 정산됨 — skip`);
+        continue;
+      }
+
+      // 크리에이터에게 수익 지급 (지급 → 기록 순: 아래 set이 settled 마커)
+      if (creatorShare > 0 && data.creatorId) {
+        await db.collection("users").doc(data.creatorId).update({
+          ballReceived: FieldValue.increment(creatorShare),
+          marketTotalEarned: FieldValue.increment(creatorShare),
+        });
+        await db.collection("market_items").doc(itemId).update({
+          adRevenueTotal: FieldValue.increment(creatorShare),
+        });
+        await db.collection("notifications").doc(data.creatorId).collection("items").add({
+          type: "market_ad_revenue",
+          amount: creatorShare,
+          itemId,
+          date: dateStr,
+          createdAt: Timestamp.now(),
+          read: false,
+        });
+        totalCreatorPaid += creatorShare;
+      }
+
+      // market_ad_revenues 기록 (settled 마커)
       await db.collection("market_ad_revenues").doc(recordId).set({
         itemId,
         creatorId: data.creatorId,
@@ -424,31 +453,6 @@ exports.processMarketAdRevenue = onSchedule(
         settled: true,
         settledAt: Timestamp.now(),
       });
-
-      // 크리에이터에게 수익 지급
-      if (creatorShare > 0 && data.creatorId) {
-        await db.collection("users").doc(data.creatorId).update({
-          ballReceived: FieldValue.increment(creatorShare),
-          marketTotalEarned: FieldValue.increment(creatorShare),
-        });
-
-        // 아이템 누적 광고 수익 갱신
-        await db.collection("market_items").doc(itemId).update({
-          adRevenueTotal: FieldValue.increment(creatorShare),
-        });
-
-        // 크리에이터에게 정산 알림
-        await db.collection("notifications").doc(data.creatorId).collection("items").add({
-          type: "market_ad_revenue",
-          amount: creatorShare,
-          itemId,
-          date: dateStr,
-          createdAt: Timestamp.now(),
-          read: false,
-        });
-
-        totalCreatorPaid += creatorShare;
-      }
     }
 
     console.log(`[강변시장 광고] ${dateStr} 정산 완료 — 아이템 ${Object.keys(itemMap).length}개, 크리에이터 지급 ${totalCreatorPaid}볼`);

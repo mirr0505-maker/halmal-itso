@@ -276,8 +276,10 @@ export function useFirestoreActions({
       const isLiked = targetPost.likedBy?.includes(userData.nickname);
       const diff = isLiked ? -1 : 1;
       const col = targetPost.rootId ? 'comments' : 'posts';
+      // 🔒 P1 2026-07-02: 절대값 write → increment(diff)로 전환 (동시 좋아요 레이스로 카운트 유실 차단)
+      //   likedBy가 진실원이며 likes는 필터 게이트(3/10/30개)라 drift가 제품에 노출됨
       await updateDoc(doc(db, col, postId), {
-        likes: Math.max(0, (targetPost.likes || 0) + diff),
+        likes: increment(diff),
         likedBy: isLiked ? arrayRemove(userData.nickname) : arrayUnion(userData.nickname),
       });
       // 🛡️ Anti-Abuse Commit 5: 좋아요 취소(diff=-1) 시 타인 users.likes 업데이트 스킵

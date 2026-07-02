@@ -53,7 +53,7 @@ const SubNavbar = ({ activeTab, onTabClick, showTabs }: Props) => {
   if (!showTabs) return null;
 
   return (
-    <div className="sticky top-0 z-30 bg-[#F8FAFC]/80 backdrop-blur-md pt-2 overflow-hidden">
+    <div className="sticky top-0 z-30 bg-[#F8FAFC] pt-2 overflow-hidden">
       {/* 가로 스크롤 fallback — 좁은 폭에서 한 줄에 안 들어갈 때 부드럽게 스와이프 가능 */}
       <div className="overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
         <div className="flex items-center border-b border-slate-200 h-[36px] px-2 md:px-4 min-w-max">

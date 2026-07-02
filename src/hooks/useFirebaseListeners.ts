@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { db, auth } from '../firebase';
 import { onAuthStateChanged, getRedirectResult } from 'firebase/auth';
-import { collection, onSnapshot, doc, setDoc, updateDoc, serverTimestamp, query, where, getDocs } from 'firebase/firestore';
+import { collection, onSnapshot, doc, setDoc, updateDoc, serverTimestamp, query, where, orderBy, limit, getDocs } from 'firebase/firestore';
 import type { Post, KanbuRoom, Community, UserData } from '../types';
 import { buildExpLevelUpdate } from '../utils';
 
@@ -46,11 +46,30 @@ export function useFirebaseListeners() {
       setKanbuRooms(rooms);
     }, (err) => console.error('[kanbu_rooms onSnapshot]', err));
 
-    const unsubPosts = onSnapshot(collection(db, "posts"), (snapshot) => {
-      const posts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Post));
-      posts.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
-      setAllRootPosts(posts);
-    }, (err) => console.error('[posts onSnapshot]', err));
+    // ⚡ 2026-06-30 Perf Phase 3: posts 리스너 분리 — 전령(봇 글 6,000+건)을 최신 N개로 제한
+    //   AS-IS: posts 컬렉션 전체(6,400+건) 무제한 구독 → 매 스냅샷 전량 map/sort (로딩·재렌더 jank 주범)
+    //   TO-BE: '마라톤의 전령'은 최신 HERALD_FEED_LIMIT건만 별도 구독, 그 외 글은 전체 구독 후 병합.
+    //   Why 200: 전령 카테고리뷰가 이미 slice(0,200)이고 새글 탭(<3h)도 200건 이내라 표시 손실 0.
+    //   ⚠️ != 쿼리는 category 필드 없는 글을 제외 → 사전 backfill로 전 글 category 보장 필요(옛 글 24건).
+    const HERALD_CATEGORY = '마라톤의 전령';
+    const HERALD_FEED_LIMIT = 200;
+    let heraldPosts: Post[] = [];
+    let otherPosts: Post[] = [];
+    const applyMergedPosts = () => {
+      const merged = [...otherPosts, ...heraldPosts];
+      merged.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+      setAllRootPosts(merged);
+    };
+    const unsubHerald = onSnapshot(
+      query(collection(db, 'posts'), where('category', '==', HERALD_CATEGORY), orderBy('createdAt', 'desc'), limit(HERALD_FEED_LIMIT)),
+      (snapshot) => { heraldPosts = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Post)); applyMergedPosts(); },
+      (err) => console.error('[posts herald onSnapshot]', err)
+    );
+    const unsubOther = onSnapshot(
+      query(collection(db, 'posts'), where('category', '!=', HERALD_CATEGORY)),
+      (snapshot) => { otherPosts = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Post)); applyMergedPosts(); },
+      (err) => console.error('[posts other onSnapshot]', err)
+    );
 
     // 🚀 인증 전용 구독 — users 컬렉션은 로그인 사용자만 읽기 가능 (개인정보 보호)
     // 로그인 시: users 전체 + 내 유저 문서 구독 시작
@@ -140,7 +159,8 @@ export function useFirebaseListeners() {
     return () => {
       unsubCommunities();
       unsubRooms();
-      unsubPosts();
+      unsubHerald();
+      unsubOther();
       if (unsubUsers) unsubUsers();
       if (unsubUserDoc) unsubUserDoc();
       unsubAuth();

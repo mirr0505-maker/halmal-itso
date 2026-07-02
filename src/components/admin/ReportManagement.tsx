@@ -572,6 +572,12 @@ const ReportManagement = () => {
 // ═══════════════════════════════════════════════════════════════
 // 조치 실행 모달
 // ═══════════════════════════════════════════════════════════════
+// 🔒 P2 2026-07-02: 동적 Tailwind 클래스(`bg-${color}-50`)는 JIT가 못 만들어 선택 하이라이트가 안 보였음 → 정적 매핑.
+const RESOLVE_ACTION_SELECTED_CLS: Record<string, string> = {
+  amber: 'bg-amber-50 border border-amber-200',
+  rose: 'bg-rose-50 border border-rose-200',
+  slate: 'bg-slate-100 border border-slate-300',
+};
 const RESOLVE_ACTIONS: { key: string; label: string; desc: string; color: string }[] = [
   { key: 'hide_content', label: '🙈 컨텐츠 숨김', desc: 'isHiddenByReport=true. 복구 가능', color: 'amber' },
   { key: 'delete_content', label: '🗑️ 컨텐츠 삭제', desc: 'isDeleted=true 영구 표식', color: 'rose' },
@@ -634,7 +640,7 @@ const ResolveModal = ({ group, onClose, onDone }: ResolveModalProps) => {
               {RESOLVE_ACTIONS.map(a => (
                 <label key={a.key}
                   className={`flex items-start gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
-                    action === a.key ? `bg-${a.color}-50 border border-${a.color}-200` : 'bg-slate-50 border border-slate-100 hover:bg-slate-100'
+                    action === a.key ? RESOLVE_ACTION_SELECTED_CLS[a.color] : 'bg-slate-50 border border-slate-100 hover:bg-slate-100'
                   }`}>
                   <input type="radio" name="act" checked={action === a.key} onChange={() => setAction(a.key)}
                     className="mt-0.5 w-3.5 h-3.5 accent-rose-500 cursor-pointer" />

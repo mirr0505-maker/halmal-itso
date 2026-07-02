@@ -2,7 +2,7 @@
 
 > **목적**: 메모리 폴더에 분산된 18개 백로그/튜닝 메모리를 단일 파일로 통합. 새 백로그가 생기면 이 파일에만 추가.
 > **범위**: 완료 아카이브·운영 가이드(feedback)·배포 이력은 메모리 폴더에 별도 유지. 본 파일은 "앞으로 할 일"만.
-> 최종 갱신: 2026-04-30 (ADSMARKET v3·v3.1 도입 + S-14 byRegion fix + 시간 박힘 정리)
+> 최종 갱신: 2026-05-16 (ADSMARKET v3.4 피드 광고 빈 공백 fix v5 + AdFeedCard fallback 카드 + legacy fetch 제거 + auction.js excludeAdIds 처리 / Perf Phase B+C functions deploy 완료)
 
 ---
 
@@ -15,11 +15,38 @@
 | **2026-05-06** | Phase C 일괄 튜닝 (D+14) — 분포 실측 + 튜닝 동시 | `users.creatorScoreCached` P50/P75/P90 + `creatorScoreTier` 분포 + `reportsUniqueReporters` + Gate 4종 통과율 + `adEvents.winnerScoreWeight` 히스토그램 측정 → Gate / consumer / REPORT_PENALTIES 3건 동일 사이클 재조정 (개별 조정 금지) |
 | **2026-05-07** | 추천코드 임계 재조정 (배포 2주 후) | 활성 기준 "글 1+ OR 댓글 3+" / 악용 방어 device_fp · /24 3+ same_ip · 1h 5+ rapid_redeem |
 | **2026-05-07** | ADSMARKET v3 D+7 안정성 검증 | 피드 광고 viewableRate 분포 + click-through rate + 광고주 만족도(피드 vs 본문 단가 비교) + 4:1 밀도 조정(P3-17) 검토. ad_stats_daily.bySlot.feed 누적치 확인. ✅ 시 P3-15(피드 빈도 캡 별도)·P3-16(피드 단가) 착수 |
+| **2026-05-17 04:00 KST 이후** | purgeBotPosts 첫 실행 검증 | Firebase Console → Cloud Functions → purgeBotPosts 실행 로그 + Firestore `posts`(전령 30일 초과) + `community_posts`(isBot=true 30일 초과) + `glove_bot_dedup` 삭제 카운트 확인. ❌ 시 권한·쿼리·collectionGroup 가드 점검 |
+| **2026-05-23** | ADSMARKET v3.4 D+7 안정성 검증 | (1) 피드 광고 매칭률 변화 — `ad_stats_daily.bySlot.feed.impressions` 5/16 이전/이후 비교 (excludeAdIds 처리 효과). (2) AdFeedCard fallback 카드 노출 빈도 — production 사용자 등록글 탭 스크린샷 또는 광고 풀 status='active' + targetSlots includes 'feed' 광고 수 확인. (3) 매칭률 60% 미만이면 광고 풀 확장(D 옵션) 또는 fallback 카드 디자인 강화 검토 |
 | **2026-05-08** | FLAGGING 7항목 직접 쿼리 (D+13) | reportsUniqueReporters · reportState · creatorScoreCached · Gate 통과율 · audit_anomalies · 이의제기 처리율. Firebase Console 직접 |
 | **2026-05-10** | ADSMARKET v2 재구매 가설 검증 (D+14) | 광고주 카드 통계 사용 비율 + AdStatsModal 도달률 + 재등록률(P0-3 효과 측정) |
 | **Phase B 진입 시 (베타 종료 + 정식 출시 D-90)** | 대규모 경계값 재조정 절차 | D-90 공지 / D-60 데이터 분석 / D-45 새 경계값 설계 / D-Day 일괄 배포. 상세 절차는 [TUNING_SCHEDULE.md §3.3](./docs/step1-design/TUNING_SCHEDULE.md) |
 
 **조기 튜닝 트리거** (위 일정 무시): 피드 역전 민원 월 3건+ / Gate 통과율 0% or 100% / REPORT_PENALTIES 5명 도달 zero / `audit_anomalies` critical 1건+
+
+---
+
+## 🔒 코드 품질 후속 (2026-07-02 감사 잔여)
+
+> [CODE_QUALITY_AUDIT_2026-07-02.md](./CODE_QUALITY_AUDIT_2026-07-02.md) 기반. P0/P1/P2 대부분 완료(changelog 2026-07-02). 아래는 리스크·설계가 필요해 미룬 항목.
+
+| 우선 | 항목 | 무엇을 / 왜 미뤘나 |
+|------|------|--------------------|
+| **P0** | upload-worker `/api/screenshot` IDOR | 방장이 멤버 주주인증 스크린샷을 여는 것이 정상 기능이라 경로만으론 권한 판별 불가. Worker 내 Firestore 조회(요청자가 해당 커뮤니티 thumb/index인지)로 host 인증 or 서명 URL 설계 필요 |
+| **P0** | `testChargeBall` 무제한 충전 | 현재 "정식 PG 도입 전" 라이브 볼 충전 경로(AdvertiserCenter/MyPage)라 admin 게이트 시 충전 UX 파손. 일일 상한 + `ball_transactions` 원장 기록 or PG 연동 시 폐기 — 제품 결정 필요 |
+| **P1** | 사약 자산 몰수 트랜잭션화 | [functions/storehouse.js](functions/storehouse.js) `runSayakLogic` 비트랜잭션 read-modify-write(몰수 직전 볼 은닉 레이스). status 전환+잔액 0화+platform_revenue 적립을 단일 runTransaction으로 — 자산 몰수 경로라 신중 리팩터 |
+| **P1** | ad_stats_daily read 소유권 | AdStatsModal이 `adId`로만 쿼리 → owner 제한하려면 `advertiserId` 필터 추가 + 복합 인덱스 필요(클라 변경 동반) |
+| **P1** | 유배/사약 글 일괄 숨김 배치 청크 | storehouse/fraud 단일 batch 500 ops 초과 시 조용히 실패 → 400건 청크(ballSnapshot 패턴) |
+| **P1** | 신고 일일 상한 원자화 | reportSubmit check-then-set 병렬 우회 → runTransaction |
+| **P1** | RSS/DART 저장형 XSS | gloveBotFetcher link/corp_name 미이스케이프 → stripHtml + encodeURI + 프로토콜 화이트리스트 |
+| **P1** | 링크프리뷰 SSRF | workers redirect follow 재검증 없음 → redirect:manual + IP/메타데이터 차단 |
+| **P2** | 중복 코드 추출 | PostCardFooter / `ads/adShared.ts`(ensureProtocol·UTM·viewable IO·AD_AUCTION_URL·AuctionResult) / `utils/time.ts`(formatRelativeTime 5중) / `utils/memoCompare.ts` |
+| **P2** | 미사용 deps 제거 | `firebase-admin`(클라!)·`@google/generative-ai`·`@editorjs/*` 7종 — src 미참조 확인됨. lockfile 대량 변경이라 별도 커밋 |
+| **P2** | lint 게이트화 | ESLint 39 error 방치(build 미차단). `lint:ci --max-warnings 0` 신설 + 에러 소진 |
+| **P2** | 타입 정리 | FirestoreTimestamp `toMillis` 누락(~10 캐스트) / `any` 8곳 / types.ts 런타임 값 분리 / Kakao Window 타입 3중복 통합 / AdSlot `{} as any` |
+| **P2** | 상수 동기화 자동화 | client↔functions 8쌍 주석 의존 → `scripts/check-constant-sync.mjs` |
+| **P2** | 번들 코드스플릿 | index 877kB → firebase/tiptap manualChunks |
+| **P2** | 프론트 성능 | App.tsx renderContent useMemo화(전 유저 리스너 렌더 결합 = 전령 잼) |
+| **P2** | SettlementQueue 낙관적 실패 | await 전 UI 제거 + catch 누락 → AdReviewQueue 패턴 |
 
 ---
 
@@ -92,7 +119,8 @@
 |------|------|
 | **REPUTATION Prestige 3단계** | legend / awe / mythic 토글 조건·경계값·grandfathered 로직. 현재 미활성. Creator Score와 독립 트랙. |
 | **ADSMARKET v2 잔여 항목** | P1-6 A/B 다중 소재(다음 우선) + P2-9~13(Smart Bidding/리타게팅/후불 정산/작성자 floor/부정 클릭 ML). 진행 트래커 [AdsRoadmap.md](./AdsRoadmap.md) — 13항목 중 7건 완료(2026-04-26). |
-| **ADSMARKET v3 잔여 항목** | P3-15 피드 빈도 캡 별도 limit (default 24h 5회 등) / P3-16 피드 단가 책정 (D+7 후 본문 대비 ±N%) / P3-17 4:1 밀도 조정 (현재 8:1, 청크 패턴 재설계 필요) / P3-18 AdStatsModal 본문·피드 분해 + `aggregateDailyRevenue`에 피드 이벤트 가드 추가 (postAuthorId 빈 문자열 영수증 노이즈 제거). 2026-04-30 P3-14(피드 인라인) + P3-14b(본문/피드 진입 분리) 도입 완료. |
+| **ADSMARKET v3 잔여 항목** | P3-15 피드 빈도 캡 별도 limit (default 24h 5회 등) / P3-16 피드 단가 책정 (D+7 후 본문 대비 ±N%) / P3-17 ~~4:1 밀도 조정 (8:1)~~ → **2026-05-16 v3.4 chunk 동적화로 columnCount 기반 자동(4-col=7:1·5-col=9:1·3-col=5:1) 적용. P3-17 종결.** / P3-18 AdStatsModal 본문·피드 분해 + `aggregateDailyRevenue`에 피드 이벤트 가드 추가 (postAuthorId 빈 문자열 영수증 노이즈 제거). 2026-04-30 P3-14(피드 인라인) + P3-14b(본문/피드 진입 분리) 도입 완료. 2026-05-16 v3.4 빈 공백 fix v5 + fallback 카드 + legacy fetch 제거 + auction excludeAdIds 도입. |
+| **ADSMARKET 광고 풀 'feed' 슬롯 호환 확장** | v3.1(2026-04-30) 신규 매체라 기존 광고는 `targetSlots: ['top','middle','bottom']`만 있는 경우 다수. 매칭 실패 시 AdFeedCard fallback 카드 표시되지만 실제 광고 노출률 저조. 옵션: ① admin SystemPanel에 "기존 광고 일괄 feed 슬롯 추가" 도구 + 광고주 사전 동의 절차 / ② AdCampaignForm 신규 등록 시 'feed' 슬롯 기본 ON / ③ 광고주 대상 v3 피드 인라인 안내 캠페인. D+7 매칭률 검증(2026-05-23) 후 결정. |
 | **광고 출금(환급) 시스템** | 작성자가 누적된 `users.pendingRevenue` / `dailyAdRevenue` 정산 영수증을 실제 ⚾볼 → 원화 환급 신청. 카드 PG 도입과 묶음(Sprint 8). 전자금융업 등록 검토 필요. 현재 ballBalance 즉시 환원만 — 플랫폼 내 사용 가능, 외부 인출 불가. |
 | **users.region 자동 채움** | 광고 region 매칭 + 마이페이지 표시용. SMS 인증만으론 불가 — PASS 본인인증(NICE/KCB) 도입 시 자동 또는 IP 기반(Cloudflare cf.region) + 마이페이지 수동 수정 조합. Sprint 7 휴대폰 인증 후속 또는 카드 PG와 묶음. |
 | **카카오 가입 시 이메일 미수집** | 카카오 OAuth scope 'account_email'은 비즈 앱 전환(사업자 검수) 후 가능. 임시: 카카오 가입자 한정 회원가입 후 이메일 입력 폼 또는 광고주 등록 시 직접 입력. 정식 오픈 시 비즈 앱 전환 진행. |
@@ -110,13 +138,42 @@
 
 ---
 
+## ⚡ 성능 개선 — 봇 콘텐츠 누적 대응
+
+> 2026-05-13 5종(Phase 1·1.5·A·B·C) 코드 작업 완료. **2026-05-16 B(purgeBotPosts CF 신설) + C(gloveBotFetcher 1h→2h) functions deploy 완료**, hosting 항목 1·1.5·A·E-light는 2026-05-13 hosting deploy로 production 반영 완료. 잔여 3종(Phase 3·D·E-full) 백로그. 상세 [project_herald_perf_phases.md](../../Users/kidoo%20kim/.claude/projects/e--halmal-itso/memory/project_herald_perf_phases.md).
+
+| Phase | 영역 | 작업 | 상태 |
+|-------|------|------|------|
+| 1 | 전령 카테고리 | App.tsx `basePosts.slice(0, 200)` | ✅ 2026-05-13 hosting |
+| 1.5 | AnyTalkList 전반 | `maxPosts` prop default 200 | ✅ 2026-05-13 hosting |
+| A | community_posts | CommunityView/Feed query `limit(100)` | ✅ 2026-05-13 hosting |
+| B | 서버 TTL | `purgeBotPosts` CF (전령 + 봇 community_posts + dedup, 30일) | ✅ 2026-05-16 functions |
+| C | 봇 페이스 | 매 1시간→2시간, 키워드당 5→3건, DART page_count 10→5 | ✅ 2026-05-16 functions |
+| E-light | 렌더 비용 | PostCardItem·CommunityFeedCard·MemoizedSanitizedHTML — 카드 분리 + React.memo + sanitize useMemo | ✅ 2026-05-13 hosting |
+| ⏳ 3 | listener 분리 | `posts` 전역 onSnapshot 폐기 → 화면별 limit+where (0.5~1일) | 미완 — 모바일 다운 / 비용 압박 시 |
+| ⏳ D | 무한 스크롤 | CommunityView/Feed/AnyTalkList `startAfter` 페이지네이션 (반나절) | 미완 — 옛 글 조회 요청 시 |
+| ⏳ E-full | 가상 스크롤 | `@tanstack/react-virtual` 도입 — viewport 외 카드 unmount (반나절) | 미완 — E-light 부족 시 |
+
+**판단 트리거** (잔여 Phase 진입 결정용):
+- 다른 봇 커뮤니티(코인·부동산) 활성화 + 다운 재발 → Phase E 가속
+- 모바일 메모리 부족 / Firestore 읽기 비용 압박 → Phase 3
+- 사용자가 100건 너머 옛 봇 글 조회 호소 → Phase D
+
+**검증 일정**:
+- 2026-05-17 04:00 KST 이후: `purgeBotPosts` 첫 실행 — Firebase Console에서 30일 초과 봇 글 삭제 로그 확인 (시간 박힘 표에 등재)
+- 1주 운영 후: 사용자 다운 보고 0건 / Firestore 읽기 비용 추이 점검
+
+**보호 범위 (2026-05-13 사용자 확정)**: **일반글(홈 6탭 + 6개 카테고리) + 봇글(전령·정보봇)만 보호**. 잉크병 회차·한컷·깐부방·유배지·일반 댓글·내 댓글 listener·RankingView·MyPage 50건 cap·검색 별도 경로는 보호 작업 불필요. 향후 해당 영역에서 다운 보고 발생 시 재검토.
+
+---
+
 ## 🧹 정리·청소
 
 | 작업 | 상태 |
 |------|------|
 | **docs/step1-design 4개 보관** | 핵심 백로그 본 TODO로 통합 완료 (2026-04-29). 본문은 설계 상세·코드 예시·테스트 시나리오·CSS 매트릭스 등 **구현 시 참조용**으로 보관. ADMIN.md(Sprint 8/12/13 의존) / ANTI_ABUSE.md(Sprint 12) / MAPAE_AND_TITLES_V1.md(Sprint 13) / TUNING_SCHEDULE.md(Phase B 진입 시 절차 가이드 + grandfathered 설계). 각 Sprint 착수 시 해당 파일 §섹션 참조. |
 | **레거시 메뉴명 일괄 정리** | DB `post.category="너와 나의 이야기"` (구) ↔ 표시명 "참새들의 방앗간" (신) 등 미스매치. 광고/필터 매칭 사고 위험. **베타 테스트 전 등록글 일괄 삭제 후 진행 권장** (마이그레이션 단계 생략 → 5~7h → 3~4h로 단축). 상세는 [📚 레거시 메뉴명 정리 상세 계획](#-레거시-메뉴명-정리-상세-계획) 참조. |
-| **정보봇 스케줄 30분 복원** | 현재 베타 1시간(비용 절감). 정식 서비스 오픈 시 `fetchBotNews`/`fetchBotDart` 30분 복원 |
+| **정보봇 스케줄 30분~1시간 복원** | 현재 베타 2시간(2026-05-16 Phase C deploy 완료 — 비용 절감 + 글 유입 완화). 키워드당 3건 / DART page_count 5. 정식 서비스 오픈 시 `fetchBotNews`/`fetchBotDart` 30분~1시간 복원 + 키워드 건수·page_count 복원 검토 |
 | **refactor_plan.md 등 오래된 메모리** | 2026-04-05 작성. 현재 무관. 삭제 |
 
 ---

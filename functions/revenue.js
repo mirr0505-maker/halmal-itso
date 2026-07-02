@@ -46,6 +46,18 @@ exports.aggregateDailyRevenue = onSchedule(
     const LEVEL_TABLE = [0, 30, 100, 250, 500, 1000, 2000, 4000, 7000, 10000];
 
     for (const [authorId, events] of Object.entries(authorMap)) {
+      // 🔒 P1 2026-07-02: postAuthorId가 빈 값(피드 인벤토리·미해결)이면 지급 대상 없음 → skip (doc('') 크래시 방지)
+      if (!authorId) continue;
+
+      // 🔒 P1 2026-07-02: 멱등 가드 — 이미 이 날짜·작성자 수익이 지급됐으면 재실행(스케줄러 재시도)해도 이중 increment 금지.
+      //   dailyAdRevenue.set은 멱등이지만 users.ballBalance는 increment라 재실행 시 중복 지급되던 문제.
+      const revIdCheck = `rev_${dateStr.replace(/-/g, "")}_${authorId}`;
+      const existingRev = await db.collection("dailyAdRevenue").doc(revIdCheck).get();
+      if (existingRev.exists && existingRev.data()?.paid === true) {
+        console.log(`[수익집계] ${authorId} 이미 지급됨 — skip`);
+        continue;
+      }
+
       const userSnap = await db.collection("users").doc(authorId).get();
       const userData = userSnap.data() || {};
       const exp = userData.exp || 0;
@@ -61,14 +73,7 @@ exports.aggregateDailyRevenue = onSchedule(
       });
 
       const creatorShare = Math.floor(gross * creatorRate);
-      const revId = `rev_${dateStr.replace(/-/g, "")}_${authorId}`;
-      await db.collection("dailyAdRevenue").doc(revId).set({
-        id: revId, date: dateStr, postAuthorId: authorId, postAuthorNickname: userData.nickname || "",
-        postBreakdown: [], totalImpressions: impressions, totalClicks: clicks,
-        grossRevenue: Math.floor(gross), creatorShare, platformShare: Math.floor(gross - creatorShare),
-        revenueShareRate: creatorRate, creatorLevel: level, status: "provisional",
-        createdAt: Timestamp.now(), updatedAt: Timestamp.now(),
-      });
+      const revId = revIdCheck;
 
       if (creatorShare > 0) {
         // 🚀 2026-04-25: pendingRevenue(통계 누적) + 작성자 ballBalance/ballReceived 즉시 환원
@@ -79,6 +84,17 @@ exports.aggregateDailyRevenue = onSchedule(
           ballReceived: FieldValue.increment(creatorShare),
         });
       }
+
+      // 🔒 P1 2026-07-02: 지급 완료 후 paid:true 마커와 함께 기록 (다음 재실행 시 멱등 가드가 감지).
+      await db.collection("dailyAdRevenue").doc(revId).set({
+        id: revId, date: dateStr, postAuthorId: authorId, postAuthorNickname: userData.nickname || "",
+        postBreakdown: [], totalImpressions: impressions, totalClicks: clicks,
+        grossRevenue: Math.floor(gross), creatorShare, platformShare: Math.floor(gross - creatorShare),
+        revenueShareRate: creatorRate, creatorLevel: level, status: "provisional",
+        paid: creatorShare > 0, paidAt: creatorShare > 0 ? Timestamp.now() : null,
+        createdAt: Timestamp.now(), updatedAt: Timestamp.now(),
+      });
+
       totalRevenue += Math.floor(gross);
     }
 

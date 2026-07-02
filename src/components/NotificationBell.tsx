@@ -142,7 +142,8 @@ const NotificationBell = ({ currentUid, onNavigate, onNavigateToEpisode }: Props
   };
 
   const markAllRead = async () => {
-    const unread = notifications.filter(n => !n.read);
+    // 🔒 P2 2026-07-02: isUnread(read+isRead 통합)로 일치 — 기존 !n.read만 보면 거대나무 알림(isRead)이 매번 재배치됨.
+    const unread = notifications.filter(isUnread);
     if (unread.length === 0) return;
     const batch = writeBatch(db);
     unread.forEach(n => {

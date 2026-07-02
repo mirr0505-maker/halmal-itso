@@ -3,7 +3,10 @@
 > **문서 목적**: VS Code에서 AI(Claude) 또는 휴먼 개발자가 코딩 작업을 수행할 때 **단일 진실 소스(Single Source of Truth)**로 사용하는 기획서.
 > 모든 컬렉션 · 인터페이스 · 비즈니스 로직 · UI 컴포넌트를 이 문서 하나로 확정한다.
 >
-> 최종 갱신: 2026-04-30 v3.1 | 기술 스택: React 19 + TS + Vite · Tailwind 4 · Firebase (Firestore + Auth + Cloud Functions) · Cloudflare R2/Workers
+> 최종 갱신: 2026-05-16 v3.4 | 기술 스택: React 19 + TS + Vite · Tailwind 4 · Firebase (Firestore + Auth + Cloud Functions) · Cloudflare R2/Workers
+>
+> **v3.4 (2026-05-16) 변경 요약** — 피드 광고 빈 공백 fix + 광고 매칭 실패 UX 개선 + 페이지 내 중복 차단.
+>   ① **AnyTalkList chunk 동적화(빈 공백 fix v5)** — chunk 크기와 광고 위치를 ResizeObserver로 측정한 `columnCount`에 맞춰 동적 결정. `showAds=true`면 `POST_CHUNK = columnCount*2-1`(광고 1개 포함 시 정확히 2 row), 광고는 `idx === columnCount-1`(첫 row 끝). 4-col=7글+광고=8 cell·2 row / 5-col=9글+광고=10 cell·2 row / 빈 공백 0. 이전 v4 invisible placeholder 루프는 시각적 빈 공백 노출 원인이라 완전 제거. ② **AdFeedCard fallback 카드(매칭 실패 UX 개선)** — 광고 매칭 실패 시 invisible 슬롯 대신 slate 톤 자체 홍보 카드("📢 광고 공간 · 이 자리에 광고를 게재하실 수 있습니다") 표시. 빈 공백 시각 완전 제거 + 광고주 자체 모객. ③ **AdFeedCard legacy fetch 제거** — AnyTalkList prefetch 결과를 단일 진실원으로. 이중 fetch 차단(페이지당 호출 N+N→N, 버벅거림 완화). ④ **auction.js v3.2 `excludeAdIds` 처리** — body 인자에 `excludeAdIds` 배열 추가, baseFiltered 단계에 합류. AnyTalkList가 슬롯 N개 순차 호출 시 직전 winner 누적 전달 → 페이지 내 광고 중복 차단. 단일 슬롯(본문)은 빈 배열 default라 영향 없음.
 >
 > **v3.1 (2026-04-30 후속) 추가 변경** — 본문/피드 광고 진입부터 분리.
 >   ① **AdTypeSelector** 신규 — 새 광고 등록 진입 시 [📄 본문] / [📋 피드] 카드 2개 선택 ② AdCampaignForm `adType` prop 분기 — 본문 모드/피드 모드 별개 폼 노출 ③ 본문 전용 필드(imageStyle, imagePosition, targetCreatorId, targetSlots top/middle/bottom 선택)는 피드 모드에서 모두 숨김 ④ 피드 모드는 targetSlots=['feed'] 자동 적용 + "📋 피드 인라인 슬롯 자동 적용" 안내 + 글카드 비율 안내 ⑤ 헤더에 [📄 본문 광고]/[📋 피드 광고] 종류 배지 ⑥ 폼 제출 시 isFeedAd면 finalForm으로 본문 전용 필드(targetCreatorId/Nickname) 강제 정리 ⑦ 편집 모드는 editingAd.targetSlots 단독성으로 자동 adType 추론 ⑧ AdvertiserCenter creationStep state — 'select'(종류 선택) → 'form' 단계 흐름 ⑨ AdMarketplaceModal 작성자 picker에서 피드 광고 자동 제외 (글 작성자 무관 광고이므로) ⑩ AdCampaignList 카드 좌상단에 [📄 본문]/[📋 피드] 배지 ⑪ 폼 내 본문/피드 슬롯 탭 UI 제거 (진입부터 분리되므로 불필요) ⑫ 데이터 모델 변경 0 (targetSlots 단독성으로 구분, ads.adType 새 필드 없음).

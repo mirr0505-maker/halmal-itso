@@ -1,11 +1,13 @@
 // src/components/ShareholderVerifyScreen.tsx — 🛡️ 멤버용 주주 인증 등록 화면
 // 2탭 구조: 📸 스크린샷 인증 / 📊 마이데이터 인증
 import { useState } from 'react';
-import { db, auth } from '../firebase';
+import { db } from '../firebase';
 import { doc, updateDoc, serverTimestamp, addDoc, collection, Timestamp } from 'firebase/firestore';
 import { uploadToR2 } from '../uploadToR2';
 import type { Community, CommunityMember, UserData } from '../types';
-import { TIER_CONFIG, getTierFromQuantity, tierRangeLabel } from '../types';
+import { TIER_CONFIG, getTierFromQuantity } from '../types';
+// ⚠️ 2026-05-15 Codef 데모 만료(2026-05-16)로 마이데이터 인증 일시 비활성화 — 정식 전환 시 git revert로 복원
+// 제거된 항목: tierRangeLabel import / MydataStep 타입 / mydataStep·mydataResult state / handleMydataQuery·handleMydataSubmit 함수
 
 interface Props {
   community: Community;
@@ -15,7 +17,6 @@ interface Props {
 }
 
 type VerifyMethod = 'screenshot' | 'mydata';
-type MydataStep = 'idle' | 'loading' | 'result' | 'submitted';
 
 const ShareholderVerifyScreen = ({ community, membership, currentUserData, onClose: _onClose }: Props) => {
   void _onClose;
@@ -24,9 +25,7 @@ const ShareholderVerifyScreen = ({ community, membership, currentUserData, onClo
   const [screenshotUrl, setScreenshotUrl] = useState('');
   const [selfReportedQty, setSelfReportedQty] = useState('');
   const [uploading, setUploading] = useState(false);
-  // 📊 마이데이터 state
-  const [mydataStep, setMydataStep] = useState<MydataStep>('idle');
-  const [mydataResult, setMydataResult] = useState<{ tier: string; tierEmoji: string; tierLabel: string; message: string; mock: boolean } | null>(null);
+  // 📊 마이데이터 state — 2026-05-15 Codef 만료로 비활성화 (정식 전환 시 git revert 복원)
   // 공통
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -74,53 +73,8 @@ const ShareholderVerifyScreen = ({ community, membership, currentUserData, onClo
     finally { setSubmitting(false); }
   };
 
-  // 📊 마이데이터 조회
-  const handleMydataQuery = async () => {
-    setMydataStep('loading'); setError(null);
-    try {
-      const token = await auth.currentUser?.getIdToken();
-      if (!token) { setError('로그인이 필요합니다.'); setMydataStep('idle'); return; }
-      const res = await fetch('https://halmal-upload-worker.mirr0505.workers.dev/api/verify-shares', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ stockCode, communityId: community.id }),
-      });
-      const data = await res.json() as { success?: boolean; tier?: string; tierEmoji?: string; tierLabel?: string; message?: string; mock?: boolean; error?: string; details?: string };
-      if (!data.success) {
-        setError(data.error || '조회에 실패했습니다.');
-        setMydataStep('idle');
-        return;
-      }
-      setMydataResult({ tier: data.tier!, tierEmoji: data.tierEmoji!, tierLabel: data.tierLabel!, message: data.message!, mock: data.mock || false });
-      setMydataStep('result');
-    } catch { setError('마이데이터 조회에 실패했습니다.'); setMydataStep('idle'); }
-  };
-
-  // 📊 마이데이터 결과 제출
-  const handleMydataSubmit = async () => {
-    if (!mydataResult) return;
-    setSubmitting(true); setError(null);
-    try {
-      await updateDoc(doc(db, 'community_memberships', membership.id), {
-        verifyRequest: {
-          screenshotUrl: '', selfReportedQty: 0, requestedAt: serverTimestamp(), status: 'pending',
-          source: 'mydata', suggestedTier: mydataResult.tier, mock: mydataResult.mock,
-        },
-        reverifyRequestedAt: null,
-      });
-      if (community.creatorId) {
-        await addDoc(collection(db, 'notifications', community.creatorId, 'items'), {
-          type: 'shareholder_verify_submitted', fromNickname: currentUserData.nickname,
-          communityId: community.id, communityName: community.name,
-          message: `${currentUserData.nickname}님이 마이데이터 인증을 요청했습니다 (${mydataResult.tierEmoji} ${mydataResult.tierLabel})`,
-          createdAt: Timestamp.now(), read: false,
-        });
-      }
-      setMydataStep('submitted');
-      setSubmitted(true);
-    } catch { setError('인증 요청에 실패했습니다.'); }
-    finally { setSubmitting(false); }
-  };
+  // 📊 마이데이터 인증 핸들러는 2026-05-15 Codef 데모 만료로 제거 — 정식 전환 시 git revert로 복원
+  // 원본: handleMydataQuery / handleMydataSubmit (verify-shares Worker 호출 + verifyRequest 제출)
 
   // ── 제출 완료 화면 ──
   if (submitted || (existingRequest?.status === 'pending' && !isReverifyRequested)) {
@@ -229,10 +183,25 @@ const ShareholderVerifyScreen = ({ community, membership, currentUserData, onClo
       )}
 
       {/* ── 📊 마이데이터 인증 ── */}
+      {/* ⚠️ 2026-05-15 Codef 데모 만료(2026-05-16)에 따라 일시 비활성화 — 정식 전환 시점에 재활성화.
+          탭은 노출하되 진입 시 안내 화면 표시. 백엔드 mock 폴백과 별개로 사용자 혼란 차단.
+          재활성화 절차: SHAREHOLDER_BACKLOG.md Phase E·F 재개 → 본 가드 제거. */}
       {method === 'mydata' && (
         <div className="space-y-4">
-          {/* Step 1: 조회 전 */}
-          {/* 등급 기준 — 마이데이터 탭에서도 표시 */}
+          {/* 🚧 준비 중 안내 화면 */}
+          <div className="p-6 bg-amber-50 border-2 border-amber-200 rounded-xl text-center">
+            <div className="text-[40px] mb-3">🚧</div>
+            <h3 className="text-[14px] font-[1000] text-amber-900 mb-2">마이데이터 인증 준비 중</h3>
+            <p className="text-[11px] font-bold text-amber-700 leading-relaxed mb-3">
+              증권사 자동 조회 기능을 정비하고 있어요.<br />
+              정식 서비스 전환 시 다시 활성화됩니다.
+            </p>
+            <p className="text-[11px] font-[1000] text-amber-800 bg-amber-100 border border-amber-300 rounded-lg px-3 py-2 inline-block">
+              📸 스크린샷 탭에서 인증을 진행해 주세요
+            </p>
+          </div>
+
+          {/* 등급 기준은 참고용으로 유지 */}
           <div className="p-3 bg-slate-50 border border-slate-100 rounded-lg">
             <p className="text-[9px] font-[1000] text-slate-400 mb-1">등급 기준</p>
             <div className="grid grid-cols-2 gap-0.5">
@@ -243,61 +212,15 @@ const ShareholderVerifyScreen = ({ community, membership, currentUserData, onClo
               ))}
             </div>
           </div>
-
-          {mydataStep === 'idle' && (
-            <>
-              <div className="p-4 bg-slate-50 border border-slate-100 rounded-lg text-center">
-                <p className="text-[12px] font-[1000] text-slate-700 mb-1">증권사 보유 현황을 자동으로 조회합니다</p>
-                <p className="text-[10px] font-bold text-slate-400">{stockName} ({stockCode}) 종목의 보유수를 확인합니다</p>
-              </div>
-              {error && <p className="text-[11px] font-bold text-red-500">{error}</p>}
-              <button
-                onClick={handleMydataQuery}
-                className="w-full py-2.5 bg-slate-900 hover:bg-slate-700 text-white rounded-lg text-[12px] font-[1000] transition-colors"
-              >
-                조회 시작
-              </button>
-            </>
-          )}
-
-          {/* Step 2: 조회 중 */}
-          {mydataStep === 'loading' && (
-            <div className="py-8 text-center">
-              <div className="w-8 h-8 border-3 border-slate-300 border-t-slate-700 rounded-full animate-spin mx-auto mb-3" />
-              <p className="text-[12px] font-[1000] text-slate-600">증권사 보유 현황을 조회하고 있습니다...</p>
-              <p className="text-[10px] font-bold text-slate-400 mt-1">잠시만 기다려주세요</p>
-            </div>
-          )}
-
-          {/* Step 3: 결과 확인 */}
-          {mydataStep === 'result' && mydataResult && (
-            <>
-              <div className="p-4 bg-slate-50 border border-slate-200 rounded-lg text-center">
-                <span className="text-[32px]">{mydataResult.tierEmoji}</span>
-                <p className="text-[14px] font-[1000] text-slate-800 mt-2">{mydataResult.tierLabel}</p>
-                <p className="text-[10px] font-bold text-slate-400 mt-1">
-                  {tierRangeLabel(mydataResult.tier as Parameters<typeof tierRangeLabel>[0])}주 보유 범위
-                  {mydataResult.mock && ' · 테스트 모드'}
-                </p>
-              </div>
-              {error && <p className="text-[11px] font-bold text-red-500">{error}</p>}
-              <button
-                onClick={handleMydataSubmit}
-                disabled={submitting}
-                className="w-full py-2.5 bg-slate-900 hover:bg-slate-700 disabled:opacity-40 text-white rounded-lg text-[12px] font-[1000] transition-colors"
-              >
-                {submitting ? '제출 중...' : '이 결과로 인증 요청'}
-              </button>
-              <button
-                onClick={() => { setMydataStep('idle'); setMydataResult(null); }}
-                className="w-full py-2 text-[11px] font-bold text-slate-400 hover:text-slate-600 transition-colors"
-              >
-                다시 조회
-              </button>
-            </>
-          )}
         </div>
       )}
+
+      {/* 🚧 2026-05-15: 마이데이터 인증 본 흐름은 Codef 데모 만료(2026-05-16)로 비활성화됨.
+          위 placeholder 블록이 사용자에게 안내 표시.
+          재활성화 절차:
+            1. Worker Secrets에 CODEF_CLIENT_ID/SECRET/PUBLIC_KEY 재주입 (정식 계약 후)
+            2. git log에서 이 커밋(비활성화) 찾아 revert → 원본 JSX·핸들러·state·import 복원
+            3. SHAREHOLDER_BACKLOG.md Phase E·F 진행 */}
     </div>
   );
 };

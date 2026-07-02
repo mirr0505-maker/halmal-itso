@@ -16,7 +16,7 @@ export interface Env {
 
 // Firebase Auth ID Token 검증 — Google 공개키로 RS256 서명 확인
 // Why: 비로그인 사용자의 업로드 차단. 토큰에서 uid 추출해 경로 검증에도 사용
-async function verifyFirebaseToken(token: string): Promise<{ uid: string } | null> {
+async function verifyFirebaseToken(token: string): Promise<{ uid: string; admin: boolean } | null> {
   try {
     // JWT 파싱 (header.payload.signature)
     const parts = token.split('.');
@@ -58,7 +58,7 @@ async function verifyFirebaseToken(token: string): Promise<{ uid: string } | nul
     const valid = await crypto.subtle.verify('RSASSA-PKCS1-v1_5', publicKey, signature, signedData);
 
     if (!valid) return null;
-    return { uid: payloadJson.sub || payloadJson.user_id };
+    return { uid: payloadJson.sub || payloadJson.user_id, admin: payloadJson.admin === true };
   } catch {
     return null;
   }
@@ -159,6 +159,14 @@ export default {
       const body = await request.json().catch(() => ({})) as { filePath?: string };
       const delPath = body.filePath || url.searchParams.get('path');
       if (!delPath) return json({ error: 'filePath가 필요합니다.' }, 400);
+
+      // 🔒 P0-5 2026-07-02: 소유권 검증 — 관리자 또는 본인 업로드 경로(uploads/{uid}/...)만 삭제 가능.
+      //   Why: 기존엔 로그인만 하면 타인 아바타·업로드·주주인증 스크린샷을 임의 삭제(IDOR)할 수 있었음.
+      //   avatars/{nickname}_{ts}는 경로에 uid가 없어 소유권 판별 불가 → 관리자 전용으로 제한.
+      const ownsUploadPath = delPath.startsWith(`uploads/${user.uid}/`);
+      if (!user.admin && !ownsUploadPath) {
+        return json({ error: '삭제 권한이 없습니다.' }, 403);
+      }
 
       const isAvatar = delPath.startsWith('avatars/');
       const bucket = isAvatar ? env.AVATARS_BUCKET : env.UPLOADS_BUCKET;

@@ -102,7 +102,7 @@ const AdvertiserCenter = ({ onBack }: Props) => {
       : adType;
     return <AdCampaignForm
       advertiserId={uid!}
-      advertiserName={account.businessName}
+      advertiserName={account.businessName || account.contactName}
       editingAd={editingAd || undefined}
       adType={inferredAdType}
       onBack={() => { setShowCreateForm(false); setEditingAd(null); setCreationStep('select'); }}

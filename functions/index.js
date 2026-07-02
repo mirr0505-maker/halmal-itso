@@ -787,3 +787,9 @@ exports.kakaoAuthCustomToken = kakaoAuthCustomToken;
 
 const { naverAuthCustomToken } = require("./naverAuth");
 exports.naverAuthCustomToken = naverAuthCustomToken;
+
+// 🧹 2026-05-13 Perf Phase B — 봇 글 TTL (30일 초과 전령 + 정보봇 일괄 삭제)
+// Why: posts 컬렉션 무한 누적 → 클라이언트 onSnapshot 폭증 → 브라우저 다운.
+//      마라톤 전령 + 봇 community_posts + glove_bot_dedup 한 CF에서 처리. 매일 04:00 KST.
+const { purgeBotPosts } = require("./purgeBotPosts");
+exports.purgeBotPosts = purgeBotPosts;

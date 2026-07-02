@@ -1,5 +1,6 @@
 // src/components/ads/AdFallback.tsx — 플랫폼 자체 프로모션 (Lv2+)
 // 🚀 클릭 시 새 창(새 탭)으로 해당 기능 페이지 열기
+import { useState } from 'react';
 
 interface Props {
   position: 'top' | 'middle' | 'bottom';
@@ -13,9 +14,9 @@ const PROMO_BANNERS = [
 ];
 
 const AdFallback = ({ position: _position }: Props) => {
-  // 🚀 2026-04-26: 매 렌더마다 4개 프로모션 중 랜덤 1개 노출 (이전: position 고정 매핑)
-  //   세션마다 다른 광고를 보여 노출 다양화. position prop은 향후 위치별 다른 풀이 필요할 때 활용.
-  const idx = Math.floor(Math.random() * PROMO_BANNERS.length);
+  // 🔒 P2 2026-07-02: 마운트 시 1회만 랜덤 선택 (기존 매 렌더 Math.random → 상세뷰 onSnapshot마다 배너가 깜빡임).
+  //   position prop은 향후 위치별 다른 풀이 필요할 때 활용.
+  const [idx] = useState(() => Math.floor(Math.random() * PROMO_BANNERS.length));
   const promo = PROMO_BANNERS[idx] || PROMO_BANNERS[0];
 
   const handleClick = () => {

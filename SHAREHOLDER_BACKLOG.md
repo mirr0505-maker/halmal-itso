@@ -3,7 +3,18 @@
 > `SHAREHOLDER_TIER.md` 설계서에서 Sprint 1(Phase A~C + H)에 포함되지 않은 숙제 목록.
 > 각 항목에 선행 조건과 착수 시점 기준을 명시.
 
-최종 갱신: 2026-04-16
+최종 갱신: 2026-05-15 (Codef 데모 만료 대응 — Worker Secret 제거 + 마이데이터 탭 안내 화면 전환)
+
+---
+
+## ⚠️ 2026-05-15 — Codef 데모 만료 안내
+
+- **데모 종료일**: 2026-05-16
+- **현 조치** (2026-05-15 배포):
+  - Worker Secrets `CODEF_CLIENT_ID` / `CODEF_CLIENT_SECRET` / `CODEF_PUBLIC_KEY` 삭제 → upload-worker 자동 mock 폴백 ([upload-worker/src/index.ts:213](../upload-worker/src/index.ts#L213) 분기)
+  - `ShareholderVerifyScreen.tsx` 마이데이터 탭 → 🚧 "준비 중" 안내 화면 (스크린샷 탭으로 유도)
+  - 핸들러·state·`tierRangeLabel` import 제거. 재활성화는 git revert로 복원 가능.
+- **재활성화 트리거**: 사용자 10+ 도달 + 정식 계약 의사결정. Phase E 진행 시 본 항목 제거.
 
 ---
 

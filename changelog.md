@@ -1,5 +1,100 @@
 ## 8. 현재 구현 상태 (2026-03-24 기준, 코드 실측)
 
+### 🔒 코드 품질·보안 하드닝 (2026-07-02)
+
+> fable 모델 5개 영역 병렬 감사([CODE_QUALITY_AUDIT_2026-07-02.md](./CODE_QUALITY_AUDIT_2026-07-02.md)) 후 Critical/High 일괄 수정. 배포 상태에서 진행형이던 금전·보안 사고 경로 차단 중심. 남은 후속은 TODO.md `코드 품질 후속` 참조.
+
+**[P0] 즉시 조치 — 금전·보안·크래시**
+- [x] **auction.js body 신뢰 하드닝** ([functions/auction.js](functions/auction.js)) — 무인증 HTTP 엔드포인트가 클라 body의 `bidAmount`·`postAuthorId`를 수익 지급 근거로 그대로 사용하던 문제(무한 볼 발행/경쟁사 예산 소진). `resolvePostAuthorId(postId)`로 실제 글 작성자만 귀속 + 차감액은 ad 문서 `bidAmount`로만 산정. directMatch/viewable/click/매칭 4경로 전부 적용
+- [x] **Firestore Rules 소유권 잠금** ([firestore.rules](firestore.rules)) — `communities`/`kanbu_rooms` `update,delete: if auth != null`(아무나 타인 방·커뮤니티 삭제·변조) → 개설자(creatorId) 전체 + 비개설자는 카운터·가입 키만 allowlist. create도 creatorId 본인 강제
+- [x] **Rules read 축소** — `chargeHistory`/`settlements`/`dailyAdRevenue`/`adEvents`가 `auth != null`(전 유저 금융·수익·viewerUid 열람) → 본인(uid/creatorId/postAuthorId/viewerUid)·관리자 한정
+- [x] **author_id 위조 차단** — `posts`/`comments`/`community_posts`/`community_post_comments` create에 `author_id == auth.uid` 강제(타인 명의 글 위조·사칭 차단, 봇은 Admin SDK 우회로 무영향)
+- [x] **upload-worker DELETE 소유권** ([upload-worker/src/index.ts](upload-worker/src/index.ts)) — 토큰에 admin claim 추출 추가, DELETE는 관리자 또는 본인 uploads 경로만(타인 파일 IDOR 삭제 차단)
+- [x] **CommunityFeed 훅 규칙 위반** ([src/components/CommunityFeed.tsx](src/components/CommunityFeed.tsx)) — early return 뒤 `useState`/`useCallback` 6개 → 상단 이동(로그인·가입수 전환 시 런타임 크래시 제거)
+
+**[P1] 데이터 정합성·보안**
+- [x] **좋아요/투표 카운트 레이스** — 절대값 write → `increment(diff)` (useFirestoreActions/CommunityView/CommunityFeed/EpisodeReader). GiantTreeDetail 투표는 비선택 카운터 stale clobber 제거(조건부 increment)
+- [x] **linkUrl 저장형 XSS** — [src/utils/safeUrl.ts](src/utils/safeUrl.ts) 신설(http/https만 허용, `javascript:` 차단), AnyTalkList/RootPostCard/OneCutList/OneCutDetailView/DebateBoard href·window.open·hostname 5곳 적용(OneCutList `new URL` 크래시도 해소)
+- [x] **수수료율 서버 권위값** — market/kanbuPaid가 클라 조작 가능 `authorLevel`/`creatorLevel` → 작성자 exp→`calculateLevel` 서버 산정
+- [x] **깐부방 자기결제 차단** ([functions/kanbuPaid.js](functions/kanbuPaid.js)) — `room.creatorId === buyerUid` 가드(평판·정산매출 세탁 차단)
+- [x] **광고수익 배치 멱등** — revenue.js/market.js가 `set`+`increment` 혼용으로 스케줄러 재시도 시 이중 지급 → `paid`/`settled` 마커 사전 체크 + 빈 authorId skip
+- [x] **제출 에러 핸들링** — CommunityView 글 제출 catch 누락(조용한 실패) + DebateBoard pandoraSubmit try/finally(버튼 영구 비활성) 보강
+
+**[P2] 품질 quick-win**
+- [x] ReportManagement 동적 Tailwind 클래스(`bg-${color}-50` JIT 미생성) → 정적 매핑(조치 선택 하이라이트 복구)
+- [x] AdFallback 매 렌더 `Math.random`(배너 깜빡임) → 마운트 1회 `useState`
+- [x] NotificationBell `markAllRead` `!n.read` → `isUnread`(거대나무 알림 재배치 방지)
+
+### 📢 ADSMARKET v3.4 — 피드 광고 빈 공백 fix + 매칭 실패 UX 개선 (2026-05-16)
+
+> 사용자 보고("등록글 9번째 글카드 이후 3 cell 공백 / 5-col에서 6번째 자리 광고 안 보임 / 버벅거림") 대응. v4 invisible placeholder가 시각적 빈 공백을 만들고 있던 점 + AdFeedCard legacy fetch 이중 호출 + 광고 매칭 실패 시 빈 슬롯 노출 — 3개 원인 동시 정리.
+
+**[1] AnyTalkList chunk 동적화 — 빈 공백 fix v5** ([src/components/AnyTalkList.tsx](src/components/AnyTalkList.tsx))
+- [x] ResizeObserver로 실제 column 수(`columnCount`) 측정 후 chunk 크기를 정수배로 동적 결정
+- [x] `showAds=true`: `POST_CHUNK = columnCount*2-1` (광고 1개 포함 시 정확히 `columnCount*2` cell = 2 row)
+- [x] `showAds=false`: `POST_CHUNK = columnCount*2` (자체로 2 row)
+- [x] 광고 위치 `idx === columnCount-1` (첫 row 끝) — 4-col이면 5번째 자리, 5-col이면 6번째 자리
+- [x] 4-col: 7글+광고=8 cell·2 row / 3-col: 5글+광고=6 cell·2 row / 2-col: 3글+광고=4 cell·2 row — 모든 폭에서 빈 공백 0
+- [x] v4 invisible placeholder 루프 완전 제거 — visibility:hidden이 시각적 빈 자리 원인이었음
+
+**[2] AdFeedCard fallback 카드 — 매칭 실패 UX 개선** ([src/components/ads/AdFeedCard.tsx](src/components/ads/AdFeedCard.tsx))
+- [x] 광고 매칭 실패 시(`!auctionAd`) invisible 슬롯 대신 slate 톤 자체 홍보 카드 표시
+- [x] 헤드라인 "이 자리에 광고를 게재하실 수 있습니다" + 본문 안내 + "광고 문의" 배지
+- [x] 광고 카드와 동일 레이아웃 차용 — chunk 정합 유지 + 빈 공백 시각 완전 제거
+- [x] cursor-default — 클릭 비활성 (광고주 진입은 별 메뉴에서)
+- [x] 부수효과: 광고 풀에 'feed' 슬롯 호환 광고가 부족한 현 상황(v3.1 신규 매체)에서 자체 모객 효과
+
+**[3] AdFeedCard legacy fetch 제거 — 버벅거림 완화** ([src/components/ads/AdFeedCard.tsx](src/components/ads/AdFeedCard.tsx))
+- [x] `prefetchedAd === null`일 때 자체 fetch fallback 분기 완전 제거
+- [x] AnyTalkList prefetch 결과를 단일 진실원으로 (`setAuctionAd(prefetchedAd ?? null)`)
+- [x] 페이지당 광고 호출 N + N → N으로 절반 감소
+- [x] useEffect 의존성 단순화 (`[previewAd, prefetchedAd]`만)
+- [x] 결과: 이중 호출로 인한 버벅거림·중복 fetch 차단
+
+**[4] auction.js v3.2 — `excludeAdIds` 처리** ([functions/auction.js](functions/auction.js))
+- [x] request body에 `excludeAdIds` 배열 받음 (Array.isArray 가드)
+- [x] `baseFiltered` 단계에서 `excludeAdIds.includes(ad.id)` 광고 필터링
+- [x] AnyTalkList가 슬롯 N개 순차 호출 시 직전 winner 누적 전달 → 페이지 내 광고 중복 차단
+- [x] 단일 슬롯(본문)은 빈 배열 default — 영향 없음
+
+**[5] 배포 (2026-05-16)**
+- [x] `firebase deploy --only hosting` (chunk fix v5 + AdFeedCard v3.4)
+- [x] `firebase deploy --only functions:adAuction` (excludeAdIds 처리)
+
+**미해결 백로그 (TODO에 등재 권장)**
+- 광고 풀에 `targetSlots: ['feed']` 포함 광고 수 부족 — 매칭률 근본 개선은 광고주 등록 분포 변화 필요
+- D 옵션(admin SystemPanel에 "기존 광고 일괄 feed 슬롯 추가" 도구) 미구현 — 필요 시 별 작업
+
+---
+
+### 🧹 Perf Phase B + C — 봇 콘텐츠 누적 대응 후속 (2026-05-13 / 2026-05-16 deploy)
+
+> Phase 1·1.5·A·E-light는 2026-05-13 hosting deploy로 반영. B(서버 TTL CF) + C(봇 페이스 완화)는 functions deploy 필요 항목이라 2026-05-16에 production 반영.
+
+**[1] purgeBotPosts CF 신설 — 30일 TTL** ([functions/purgeBotPosts.js](functions/purgeBotPosts.js))
+- [x] 스케줄: 매일 04:00 KST, region asia-northeast3, timeoutSeconds 540, memory 512MiB
+- [x] 대상 3종 일괄 처리:
+  - `posts where category=='마라톤의 전령' && createdAt < now-30d` + 연관 `comments`(rootId/parentId 매칭)
+  - `community_posts where isBot==true && createdAt < now-30d` + 연관 `community_post_comments`(postId 매칭)
+  - `glove_bot_dedup/{communityId}/items/* where postedAt < now-30d` (collectionGroup + path 가드)
+- [x] 400건 배치 commit (Firestore batch 상한 500 안전 마진)
+- [x] 댓글 조회는 `where in` 30개 청크 분할 — N+1 쿼리 회피
+- [x] 유저 작성 글은 `isBot` 플래그 없어 자동 보존
+- [x] functions/index.js export 추가
+
+**[2] gloveBotFetcher 스케줄·페이스 완화** ([functions/gloveBotFetcher.js](functions/gloveBotFetcher.js))
+- [x] `fetchBotNews` 스케줄 `every 1 hours` → `every 2 hours`
+- [x] `fetchBotDart` 스케줄 `every 1 hours` → `every 2 hours`
+- [x] 키워드당 처리 건수 5건 → 3건 (커뮤니티 누적 글 폭증 차단)
+- [x] DART API `page_count` 10 → 5
+- [x] 정식 서비스 시 30분~1시간으로 단축 검토 — 베타 기간 글 유입 속도 완화 목적
+
+**[3] 배포 (2026-05-16)**
+- [x] `firebase deploy --only functions` — purgeBotPosts(신규) + fetchBotNews/fetchBotDart(스케줄 변경) 동시 반영
+- [x] 2026-05-17 04:00 KST 이후 첫 purgeBotPosts 실행 — Firebase Console에서 30일 초과 봇 글 삭제 로그 확인 예정
+
+---
+
 ### 📢 ADSMARKET v3.1 — 본문/피드 광고 진입 분리 (2026-04-30)
 
 > v3 도입 직후 사용자 피드백 반영 — 본문/피드는 별개 매체이므로 광고 등록 진입부터 분리. 폼 내 슬롯 탭 UI를 제거하고 진입 단계에서 종류를 명확히 선택.
