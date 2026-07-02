@@ -30,7 +30,7 @@ const getDeepLinkParams = (() => {
     return cached;
   };
 })();
-import { useState, useEffect, useMemo, lazy, Suspense } from 'react';
+import { useState, useEffect, useMemo, useCallback, lazy, Suspense } from 'react';
 import { db, auth, functions } from './firebase';
 import { collection, onSnapshot, query, where, orderBy, limit, updateDoc, doc } from 'firebase/firestore';
 import { signInWithCustomToken } from 'firebase/auth';
@@ -530,19 +530,187 @@ function App() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const filterBySearch = (posts: Post[]) => {
+  // ⚡ 성능 2026-07-02: useCallback 래핑 — 매 render마다 새 함수 생성을 막아 이를 dep로 쓰는 하위 useMemo가 불필요하게 재계산되지 않도록
+  const filterBySearch = useCallback((posts: Post[]) => {
     let filtered = posts;
     if (blocks.length > 0) filtered = filtered.filter(p => !blocks.includes(p.author));
     if (!searchQuery.trim()) return filtered;
     const query = searchQuery.toLowerCase();
     return filtered.filter(p => (p.title?.toLowerCase().includes(query)) || (p.content.toLowerCase().includes(query)));
-  };
+  }, [blocks, searchQuery]);
 
   // ✨ 2026-05-15: allRootPosts 변경 시만 재계산 (이전엔 매 render마다 reduce 실행 → 200건+ 시 부하)
   const commentCounts = useMemo(() => allRootPosts.reduce((acc, post) => {
     acc[post.id] = post.commentCount || 0;
     return acc;
   }, {} as Record<string, number>), [allRootPosts]);
+
+  // ⚡ 성능 2026-07-02: 유배/사약 작성자의 글 id Set — 매 render마다 allRootPosts×allUsers 순회하던 걸 입력 변경 시로 축소
+  const exiledAuthorPostIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const p of allRootPosts) {
+      const status = allUsers[`nickname_${p.author}`]?.sanctionStatus;
+      if (status && (status.startsWith('exiled_') || status === 'banned')) ids.add(p.id);
+    }
+    return ids;
+  }, [allRootPosts, allUsers]);
+
+  // ⚡ 성능 2026-07-02: 홈 기본 피드 필터(비한컷·비잉크병·비유배·비깐부방·미신고) 메모화 — 200건+ 순회를 snapshot마다 재실행하지 않도록 (hiddenByMe는 localStorage라 비반응성 → 메모 내부에서 매 재계산 시 재조회)
+  const homeBasePosts = useMemo(() => {
+    const hiddenByMe = getHiddenByMe();
+    return allRootPosts.filter(p => !p.isOneCut && p.category !== 'magic_inkwell' && p.category !== EXILE_CATEGORY && !p.isHiddenByExile && !exiledAuthorPostIds.has(p.id) && !p.kanbuRoomId && !hiddenByMe.has(p.id) && !p.isHiddenByReport);
+  }, [allRootPosts, exiledAuthorPostIds]);
+
+  // ⚡ 성능 2026-07-02: 카테고리 뷰 기본 필터 메모화 (선택 메뉴 기준) — 홈과 별개 필터라 activeMenu를 dep에 포함
+  const categoryBasePosts = useMemo(() => {
+    const menuInfo = activeMenu !== 'home' ? MENU_MESSAGES[activeMenu] : undefined;
+    if (!menuInfo) return [] as Post[];
+    const categoryKey = menuInfo.title;
+    const hiddenByMe = getHiddenByMe();
+    return allRootPosts.filter(p => !p.isOneCut && !p.isHiddenByExile && !exiledAuthorPostIds.has(p.id) && !p.kanbuRoomId && !hiddenByMe.has(p.id) && !p.isHiddenByReport && (
+      // 🚀 참새들의 방앗간(구 너와 나의 이야기): DB category는 "너와 나의 이야기" 유지
+      activeMenu === 'my_story'
+        ? (p.category === "너와 나의 이야기" || p.category === undefined)
+        : (p.category === categoryKey)
+    ));
+  }, [allRootPosts, exiledAuthorPostIds, activeMenu]);
+
+  // ⚡ 성능 2026-07-02: 홈 탭별 필터/정렬 메모화 — best·rank는 글마다 allUsers Creator Score를 조회하므로 매 snapshot 재정렬 비용이 큼
+  const homeFilteredPosts = useMemo(() => {
+    const newPostCutoff = new Date(Date.now() - POST_FILTER.NEW_POST_WINDOW_MS); // 새글/등록글 경계 시각
+    if (activeTab === 'any') {
+      // 새글: 게시 후 NEW_POST_WINDOW_MS 이내
+      return homeBasePosts.filter(p => {
+        const createdAt = p.createdAt?.toDate ? p.createdAt.toDate() : (p.createdAt?.seconds ? new Date(p.createdAt.seconds * 1000) : null);
+        return createdAt && createdAt > newPostCutoff;
+      });
+    } else if (activeTab === 'recent') {
+      // 등록글: 새글 심사 통과 — 경계 경과 + 좋아요 REGISTERED_MIN_LIKES 이상
+      return homeBasePosts.filter(p => {
+        const createdAt = p.createdAt?.toDate ? p.createdAt.toDate() : (p.createdAt?.seconds ? new Date(p.createdAt.seconds * 1000) : null);
+        return (p.likes || 0) >= POST_FILTER.REGISTERED_MIN_LIKES && (!createdAt || createdAt <= newPostCutoff);
+      });
+    } else if (activeTab === 'best') {
+      // 🏅 인기글: 좋아요 ≥ BEST_MIN_LIKES + Creator Score 가중치 정렬 (Score 집계 전 null은 1.0 fallback)
+      return homeBasePosts
+        .filter(p => (p.likes || 0) >= POST_FILTER.BEST_MIN_LIKES)
+        .sort((a, b) => {
+          const aScore = (allUsers[a.author_id || '']?.creatorScoreCached ?? 1.0);
+          const bScore = (allUsers[b.author_id || '']?.creatorScoreCached ?? 1.0);
+          return ((b.likes || 0) * bScore) - ((a.likes || 0) * aScore);
+        });
+    } else if (activeTab === 'rank') {
+      // 🏅 최고글: 좋아요 ≥ RANK_MIN_LIKES + Creator Score 가중치 정렬
+      return homeBasePosts
+        .filter(p => (p.likes || 0) >= POST_FILTER.RANK_MIN_LIKES)
+        .sort((a, b) => {
+          const aScore = (allUsers[a.author_id || '']?.creatorScoreCached ?? 1.0);
+          const bScore = (allUsers[b.author_id || '']?.creatorScoreCached ?? 1.0);
+          return ((b.likes || 0) * bScore) - ((a.likes || 0) * aScore);
+        });
+    } else if (activeTab === 'friend') {
+      // 깐부글: 좋아요 REGISTERED_MIN_LIKES 이상 + 팔로우 유저 (시간 제한 없음)
+      let result = homeBasePosts.filter(p =>
+        friends.includes(p.author) && (p.likes || 0) >= POST_FILTER.REGISTERED_MIN_LIKES
+      );
+      // 특정 깐부 선택 시 추가 필터
+      if (selectedFriend) result = result.filter(p => p.author === selectedFriend);
+      return result;
+    } else if (activeTab === 'subscribed') {
+      // 🖋️ 구독글: 내가 구독한 작품의 모든 잉크병 회차 (임계값·시간 제한 없음, 비공개 제외)
+      return allRootPosts
+        .filter(p =>
+          p.category === 'magic_inkwell'
+          && !p.isHidden
+          && p.seriesId
+          && mySubscribedSeriesIds.has(p.seriesId)
+        )
+        .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+    }
+    return homeBasePosts;
+  }, [activeTab, homeBasePosts, allUsers, friends, selectedFriend, allRootPosts, mySubscribedSeriesIds]);
+
+  // ⚡ 성능 2026-07-02: 홈 검색·차단 필터 결과 메모화 — AnyTalkList posts prop identity 안정화(200 카드 재렌더 차단의 마지막 관문)
+  const homeSearchedPosts = useMemo(() => filterBySearch(homeFilteredPosts), [filterBySearch, homeFilteredPosts]);
+
+  // ⚡ 성능 2026-07-02: 홈 인라인 한컷 섹션 탭 필터+최신순 정렬 메모화
+  const onecutTabPosts = useMemo(() => {
+    const newPostCutoff = new Date(Date.now() - POST_FILTER.NEW_POST_WINDOW_MS);
+    const onecutAllPosts = allRootPosts.filter(p => p.isOneCut || p.category === '한컷');
+    let result: Post[] = [];
+    if (activeTab === 'any') {
+      result = onecutAllPosts.filter(p => {
+        const createdAt = p.createdAt?.toDate ? p.createdAt.toDate() : (p.createdAt?.seconds ? new Date(p.createdAt.seconds * 1000) : null);
+        return createdAt && createdAt > newPostCutoff;
+      });
+    } else if (activeTab === 'recent') {
+      result = onecutAllPosts.filter(p => {
+        const createdAt = p.createdAt?.toDate ? p.createdAt.toDate() : (p.createdAt?.seconds ? new Date(p.createdAt.seconds * 1000) : null);
+        return (p.likes || 0) >= POST_FILTER.REGISTERED_MIN_LIKES && (!createdAt || createdAt <= newPostCutoff);
+      });
+    } else if (activeTab === 'best') {
+      result = onecutAllPosts.filter(p => (p.likes || 0) >= POST_FILTER.BEST_MIN_LIKES);
+    } else if (activeTab === 'rank') {
+      result = onecutAllPosts.filter(p => (p.likes || 0) >= POST_FILTER.RANK_MIN_LIKES);
+    } else if (activeTab === 'friend') {
+      result = onecutAllPosts.filter(p =>
+        friends.includes(p.author) && (p.likes || 0) >= POST_FILTER.REGISTERED_MIN_LIKES
+      );
+    }
+    return result.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+  }, [allRootPosts, activeTab, friends]);
+
+  // ⚡ 성능 2026-07-02: 홈 인라인 잉크병 섹션 탭 필터+최신순 정렬 메모화
+  const inkwellTabPosts = useMemo(() => {
+    const newPostCutoff = new Date(Date.now() - POST_FILTER.NEW_POST_WINDOW_MS);
+    const inkwellAllPosts = allRootPosts.filter(p => p.category === 'magic_inkwell' && !p.isHidden);
+    let result: Post[] = [];
+    if (activeTab === 'any') {
+      result = inkwellAllPosts.filter(p => {
+        const createdAt = p.createdAt?.toDate ? p.createdAt.toDate() : (p.createdAt?.seconds ? new Date(p.createdAt.seconds * 1000) : null);
+        return createdAt && createdAt > newPostCutoff;
+      });
+    } else if (activeTab === 'recent') {
+      result = inkwellAllPosts.filter(p => {
+        const createdAt = p.createdAt?.toDate ? p.createdAt.toDate() : (p.createdAt?.seconds ? new Date(p.createdAt.seconds * 1000) : null);
+        return (p.likes || 0) >= POST_FILTER.REGISTERED_MIN_LIKES && (!createdAt || createdAt <= newPostCutoff);
+      });
+    } else if (activeTab === 'best') {
+      result = inkwellAllPosts.filter(p => (p.likes || 0) >= POST_FILTER.BEST_MIN_LIKES);
+    } else if (activeTab === 'rank') {
+      result = inkwellAllPosts.filter(p => (p.likes || 0) >= POST_FILTER.RANK_MIN_LIKES);
+    } else if (activeTab === 'friend') {
+      result = inkwellAllPosts.filter(p =>
+        friends.includes(p.author) && (p.likes || 0) >= POST_FILTER.REGISTERED_MIN_LIKES
+      );
+    }
+    return result.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+  }, [allRootPosts, activeTab, friends]);
+
+  // ⚡ 성능 2026-07-02: 상세뷰 자식 댓글 목록 메모화 — 선택 글/댓글 변경 시에만 재필터 (allChildPosts 순회 재사용)
+  const detailChildPosts = useMemo(
+    () => selectedTopic ? allChildPosts.filter(p => p.rootId === selectedTopic.id) : [],
+    [allChildPosts, selectedTopic?.id]
+  );
+
+  // ⚡ 성능 2026-07-02: 토론(솔로몬/너와나) 상세 사이드바 관련글 필터 메모화 — allRootPosts 200건 재순회를 선택 글 변경 시로 축소
+  const discussionOtherTopics = useMemo(() => {
+    if (!selectedTopic) return [] as Post[];
+    const livePost = allRootPosts.find(p => p.id === selectedTopic.id) || selectedTopic;
+    return allRootPosts.filter(p => {
+      if (p.id === livePost.id) return false;
+      // 🏠 깐부방 글: 같은 방 + 같은 boardType만 사이드바에 노출
+      if (livePost.kanbuRoomId) {
+        return p.kanbuRoomId === livePost.kanbuRoomId
+          && (p.kanbuBoardType || 'free') === (livePost.kanbuBoardType || 'free');
+      }
+      const myStory = ['너와 나의 이야기'];
+      const liveIsMyStory = !livePost.category || myStory.includes(livePost.category);
+      if (liveIsMyStory) return !p.category || myStory.includes(p.category || '');
+      return p.category === livePost.category;
+    });
+    // selectedTopic 전체를 dep으로 — livePost의 || selectedTopic fallback 경로까지 정확히 갱신
+  }, [allRootPosts, selectedTopic]);
 
   const renderContent = () => {
     // 🚀 공유 링크 로딩 중: 글을 찾는 동안 로딩 스피너 표시 (10초 타임아웃)
@@ -1136,20 +1304,9 @@ function App() {
       }
       // 🚀 한컷 판정 로직 강화: isOneCut 플래그 또는 카테고리명이 "한컷"인 경우
       if (livePost.isOneCut || livePost.category === "한컷") {
-        return <OneCutDetailView rootPost={livePost} allPosts={allChildPosts.filter(p => p.rootId === livePost.id)} otherTopics={allRootPosts} onTopicChange={handleViewPost} userData={userData!} onInlineReply={handleInlineReply} onLikeClick={handleLike} currentNickname={userData?.nickname} allUsers={allUsers} followerCounts={followerCounts} commentCounts={commentCounts} onEditPost={(post) => { setEditingPost(post); setIsCreateOpen(true); }} onBack={() => { setSelectedTopic(null); setReplyTarget(null); setEditingPost(null); }} isFriend={friends.includes(livePost.author)} onToggleFriend={() => toggleFriend(livePost.author)} onAuthorClick={setPublicProfileNick} />;
+        return <OneCutDetailView rootPost={livePost} allPosts={detailChildPosts} otherTopics={allRootPosts} onTopicChange={handleViewPost} userData={userData!} onInlineReply={handleInlineReply} onLikeClick={handleLike} currentNickname={userData?.nickname} allUsers={allUsers} followerCounts={followerCounts} commentCounts={commentCounts} onEditPost={(post) => { setEditingPost(post); setIsCreateOpen(true); }} onBack={() => { setSelectedTopic(null); setReplyTarget(null); setEditingPost(null); }} isFriend={friends.includes(livePost.author)} onToggleFriend={() => toggleFriend(livePost.author)} onAuthorClick={setPublicProfileNick} />;
       }
-      return <DiscussionView rootPost={livePost} allPosts={allChildPosts.filter(p => p.rootId === livePost.id)} otherTopics={allRootPosts.filter(p => {
-          if (p.id === livePost.id) return false;
-          // 🏠 깐부방 글: 같은 방 + 같은 boardType만 사이드바에 노출
-          if (livePost.kanbuRoomId) {
-            return p.kanbuRoomId === livePost.kanbuRoomId
-              && (p.kanbuBoardType || 'free') === (livePost.kanbuBoardType || 'free');
-          }
-          const myStory = ['너와 나의 이야기'];
-          const liveIsMyStory = !livePost.category || myStory.includes(livePost.category);
-          if (liveIsMyStory) return !p.category || myStory.includes(p.category || '');
-          return p.category === livePost.category;
-        })} onTopicChange={handleViewPost} userData={userData!} friends={friends} onToggleFriend={toggleFriend} onPostClick={() => {}} replyTarget={replyTarget} setReplyTarget={setReplyTarget} handleSubmit={handleCommentSubmit} selectedSide={selectedSide} setSelectedSide={setSelectedSide} selectedType={selectedType} setSelectedType={setSelectedType} newTitle={newTitle} setNewTitle={setNewTitle} newContent={newContent} setNewContent={setNewContent} isSubmitting={isSubmitting} commentCounts={commentCounts} onLikeClick={handleLike} currentNickname={userData?.nickname} allUsers={allUsers} followerCounts={followerCounts} toggleBlock={toggleBlock} onEditPost={(post) => { setEditingPost(post); setIsCreateOpen(true); }} onInlineReply={handleInlineReply} onOpenLinkedPost={(side) => { setLinkedPostSide(side); setIsCreateOpen(true); }} onNavigateToPost={(postId) => { const target = allRootPosts.find(p => p.id === postId); if (target) handleViewPost(target); }} onBack={() => { setSelectedTopic(null); setReplyTarget(null); setEditingPost(null); }} onAuthorClick={setPublicProfileNick} />;
+      return <DiscussionView rootPost={livePost} allPosts={detailChildPosts} otherTopics={discussionOtherTopics} onTopicChange={handleViewPost} userData={userData!} friends={friends} onToggleFriend={toggleFriend} onPostClick={() => {}} replyTarget={replyTarget} setReplyTarget={setReplyTarget} handleSubmit={handleCommentSubmit} selectedSide={selectedSide} setSelectedSide={setSelectedSide} selectedType={selectedType} setSelectedType={setSelectedType} newTitle={newTitle} setNewTitle={setNewTitle} newContent={newContent} setNewContent={setNewContent} isSubmitting={isSubmitting} commentCounts={commentCounts} onLikeClick={handleLike} currentNickname={userData?.nickname} allUsers={allUsers} followerCounts={followerCounts} toggleBlock={toggleBlock} onEditPost={(post) => { setEditingPost(post); setIsCreateOpen(true); }} onInlineReply={handleInlineReply} onOpenLinkedPost={(side) => { setLinkedPostSide(side); setIsCreateOpen(true); }} onNavigateToPost={(postId) => { const target = allRootPosts.find(p => p.id === postId); if (target) handleViewPost(target); }} onBack={() => { setSelectedTopic(null); setReplyTarget(null); setEditingPost(null); }} onAuthorClick={setPublicProfileNick} />;
     }
 
     if (activeMenu === 'ranking') {
@@ -1186,28 +1343,13 @@ function App() {
     }
 
     // 🚀 포스트 필터링 및 탭 처리
-    // 🚀 홈 피드: 마라톤의 전령 속보도 포함 (속보 키워드 있는 글만 Firestore에 저장되므로 전체 허용)
-    // 🖋️ 기본 피드에서 잉크병 회차 제외 (잉크병은 자체 인라인 스트립 + 사이드 메뉴에서만 노출)
-    // 🏚️ 유배 처분된 글(isHiddenByExile) + 유배자 작성 글 제외
-    const isAuthorExiled = (p: Post): boolean => {
-      const authorData = allUsers[`nickname_${p.author}`];
-      const status = authorData?.sanctionStatus;
-      return !!(status && (status.startsWith('exiled_') || status === 'banned'));
-    };
-    // 🏠 깐부방 게시판 글(kanbuRoomId 존재)은 홈/카테고리 피드(참새들의 방앗간 포함)에서 완전 제외 — 깐부방 내부에서만 노출
-    // 🚨 2026-04-24 내가 신고한 글은 이 기기에서 숨김 (서버 무관, localStorage) + 서버 isHiddenByReport 자동 숨김
-    const hiddenByMe = getHiddenByMe();
-    let basePosts = allRootPosts.filter(p => !p.isOneCut && p.category !== 'magic_inkwell' && p.category !== EXILE_CATEGORY && !p.isHiddenByExile && !isAuthorExiled(p) && !p.kanbuRoomId && !hiddenByMe.has(p.id) && !p.isHiddenByReport);
+    // ⚡ 성능 2026-07-02: 홈/카테고리 기본 필터(유배·신고·깐부방 제외)는 상단 useMemo(homeBasePosts / categoryBasePosts)로 이관 — 매 render 200건 재순회 방지
+    let basePosts = homeBasePosts;
 
     if (activeMenu !== 'home' && MENU_MESSAGES[activeMenu]) {
       const menuInfo = MENU_MESSAGES[activeMenu];
       const categoryKey = menuInfo.title;
-      basePosts = allRootPosts.filter(p => !p.isOneCut && !p.isHiddenByExile && !isAuthorExiled(p) && !p.kanbuRoomId && !hiddenByMe.has(p.id) && !p.isHiddenByReport && ( // 카테고리 뷰: 동일 필터 적용
-        // 🚀 참새들의 방앗간(구 너와 나의 이야기): DB category는 "너와 나의 이야기" 유지
-        activeMenu === 'my_story'
-          ? (p.category === "너와 나의 이야기" || p.category === undefined)
-          : (p.category === categoryKey)
-      ));
+      basePosts = categoryBasePosts;
       // 🚀 카테고리별 보기: 살아남은 글(좋아요 3개 이상)만 노출
       // 단, 마라톤의 전령(뉴스 봇 게시글)은 좋아요 임계값 없이 즉시 전체 노출
       // ⚡ 2026-05-13 Perf Phase 1: 전령 누적 글 폭증으로 카드 1000+개 렌더 시 브라우저 다운 → 최신 200건으로 제한.
@@ -1223,107 +1365,8 @@ function App() {
       );
     }
 
-    const now = new Date();
-    const newPostCutoff = new Date(now.getTime() - POST_FILTER.NEW_POST_WINDOW_MS); // 새글/등록글 경계 시각
-
-    let filteredPosts = basePosts;
-    if (activeTab === 'any') {
-      // 새글: 게시 후 NEW_POST_WINDOW_MS(2시간) 이내
-      filteredPosts = basePosts.filter(p => {
-        const createdAt = p.createdAt?.toDate ? p.createdAt.toDate() : (p.createdAt?.seconds ? new Date(p.createdAt.seconds * 1000) : null);
-        return createdAt && createdAt > newPostCutoff;
-      });
-    } else if (activeTab === 'recent') {
-      // 등록글: 새글 심사 통과 — 2시간 경과 + 좋아요 REGISTERED_MIN_LIKES(3개) 이상
-      filteredPosts = basePosts.filter(p => {
-        const createdAt = p.createdAt?.toDate ? p.createdAt.toDate() : (p.createdAt?.seconds ? new Date(p.createdAt.seconds * 1000) : null);
-        return (p.likes || 0) >= POST_FILTER.REGISTERED_MIN_LIKES && (!createdAt || createdAt <= newPostCutoff);
-      });
-    } else if (activeTab === 'best') {
-      // 🏅 인기글: 좋아요 ≥ BEST_MIN_LIKES(10) + Creator Score 가중치 정렬
-      // Why: 평판 낮은 유저의 좋아요 어뷰징 방지. Score 집계 전(null)은 1.0 fallback (신규 봉쇄 방지)
-      filteredPosts = basePosts
-        .filter(p => (p.likes || 0) >= POST_FILTER.BEST_MIN_LIKES)
-        .sort((a, b) => {
-          const aScore = (allUsers[a.author_id || '']?.creatorScoreCached ?? 1.0);
-          const bScore = (allUsers[b.author_id || '']?.creatorScoreCached ?? 1.0);
-          return ((b.likes || 0) * bScore) - ((a.likes || 0) * aScore);
-        });
-    } else if (activeTab === 'rank') {
-      // 🏅 최고글: 좋아요 ≥ RANK_MIN_LIKES(30) + Creator Score 가중치 정렬
-      filteredPosts = basePosts
-        .filter(p => (p.likes || 0) >= POST_FILTER.RANK_MIN_LIKES)
-        .sort((a, b) => {
-          const aScore = (allUsers[a.author_id || '']?.creatorScoreCached ?? 1.0);
-          const bScore = (allUsers[b.author_id || '']?.creatorScoreCached ?? 1.0);
-          return ((b.likes || 0) * bScore) - ((a.likes || 0) * aScore);
-        });
-    } else if (activeTab === 'friend') {
-      // 깐부글: 좋아요 REGISTERED_MIN_LIKES(3개) 이상 + 팔로우 유저 (시간 제한 없음)
-      filteredPosts = basePosts.filter(p =>
-        friends.includes(p.author) && (p.likes || 0) >= POST_FILTER.REGISTERED_MIN_LIKES
-      );
-      // 특정 깐부 선택 시 추가 필터
-      if (selectedFriend) filteredPosts = filteredPosts.filter(p => p.author === selectedFriend);
-    } else if (activeTab === 'subscribed') {
-      // 🖋️ 구독글: 내가 구독한 작품의 모든 잉크병 회차 (임계값 없음, 시간 제한 없음, 비공개 제외)
-      filteredPosts = allRootPosts
-        .filter(p =>
-          p.category === 'magic_inkwell'
-          && !p.isHidden
-          && p.seriesId
-          && mySubscribedSeriesIds.has(p.seriesId)
-        )
-        .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
-    }
-
-    // 🚀 한컷 인라인 섹션: 탭 기준과 동일한 필터 → 최신순 정렬 후 4개 표시
-    const onecutAllPosts = allRootPosts.filter(p => p.isOneCut || p.category === '한컷');
-    let onecutTabPosts: Post[] = [];
-    if (activeTab === 'any') {
-      onecutTabPosts = onecutAllPosts.filter(p => {
-        const createdAt = p.createdAt?.toDate ? p.createdAt.toDate() : (p.createdAt?.seconds ? new Date(p.createdAt.seconds * 1000) : null);
-        return createdAt && createdAt > newPostCutoff;
-      });
-    } else if (activeTab === 'recent') {
-      onecutTabPosts = onecutAllPosts.filter(p => {
-        const createdAt = p.createdAt?.toDate ? p.createdAt.toDate() : (p.createdAt?.seconds ? new Date(p.createdAt.seconds * 1000) : null);
-        return (p.likes || 0) >= POST_FILTER.REGISTERED_MIN_LIKES && (!createdAt || createdAt <= newPostCutoff);
-      });
-    } else if (activeTab === 'best') {
-      onecutTabPosts = onecutAllPosts.filter(p => (p.likes || 0) >= POST_FILTER.BEST_MIN_LIKES);
-    } else if (activeTab === 'rank') {
-      onecutTabPosts = onecutAllPosts.filter(p => (p.likes || 0) >= POST_FILTER.RANK_MIN_LIKES);
-    } else if (activeTab === 'friend') {
-      onecutTabPosts = onecutAllPosts.filter(p =>
-        friends.includes(p.author) && (p.likes || 0) >= POST_FILTER.REGISTERED_MIN_LIKES
-      );
-    }
-    onecutTabPosts = onecutTabPosts.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
-
-    // 🖋️ 잉크병 인라인 섹션: 탭 기준과 동일한 필터 → 최신순 정렬
-    const inkwellAllPosts = allRootPosts.filter(p => p.category === 'magic_inkwell' && !p.isHidden);
-    let inkwellTabPosts: Post[] = [];
-    if (activeTab === 'any') {
-      inkwellTabPosts = inkwellAllPosts.filter(p => {
-        const createdAt = p.createdAt?.toDate ? p.createdAt.toDate() : (p.createdAt?.seconds ? new Date(p.createdAt.seconds * 1000) : null);
-        return createdAt && createdAt > newPostCutoff;
-      });
-    } else if (activeTab === 'recent') {
-      inkwellTabPosts = inkwellAllPosts.filter(p => {
-        const createdAt = p.createdAt?.toDate ? p.createdAt.toDate() : (p.createdAt?.seconds ? new Date(p.createdAt.seconds * 1000) : null);
-        return (p.likes || 0) >= POST_FILTER.REGISTERED_MIN_LIKES && (!createdAt || createdAt <= newPostCutoff);
-      });
-    } else if (activeTab === 'best') {
-      inkwellTabPosts = inkwellAllPosts.filter(p => (p.likes || 0) >= POST_FILTER.BEST_MIN_LIKES);
-    } else if (activeTab === 'rank') {
-      inkwellTabPosts = inkwellAllPosts.filter(p => (p.likes || 0) >= POST_FILTER.RANK_MIN_LIKES);
-    } else if (activeTab === 'friend') {
-      inkwellTabPosts = inkwellAllPosts.filter(p =>
-        friends.includes(p.author) && (p.likes || 0) >= POST_FILTER.REGISTERED_MIN_LIKES
-      );
-    }
-    inkwellTabPosts = inkwellTabPosts.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+    // ⚡ 성능 2026-07-02: 홈 탭별 필터/정렬(homeFilteredPosts)과 한컷·잉크병 인라인 섹션(onecutTabPosts / inkwellTabPosts)은
+    //   상단 useMemo로 이관 — best/rank의 글별 allUsers Creator Score 조회 정렬을 매 snapshot 재실행하지 않도록.
 
     // 특정 작가 피드 보기 (A 탭 칩 또는 글카드 작가 클릭)
     if (viewingAuthor) {
@@ -1344,7 +1387,8 @@ function App() {
       );
     }
 
-    const searchedPosts = filterBySearch(filteredPosts);
+    // ⚡ 성능 2026-07-02: 홈 검색 결과는 상단 useMemo(homeSearchedPosts)에서 이미 계산 — AnyTalkList posts prop identity 안정화
+    const searchedPosts = homeSearchedPosts;
 
     // 🖋️ 구독글 탭 빈 상태 — AnyTalkList의 일반 빈 메시지 대신 친절 안내
     if (activeTab === 'subscribed' && searchedPosts.length === 0) {

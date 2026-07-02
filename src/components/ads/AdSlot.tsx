@@ -41,7 +41,14 @@ const AdSlot = ({ position, postCategory, postId, postAuthorId, postAuthorLevel,
   const [_fallback, setFallback] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [directAd, setDirectAd] = useState<Ad | null>(null);
+  // ⚡ 성능 2026-07-02: 로드 게이트 플래그 — 슬롯이 뷰포트 200px 이내로 진입하기 전까지 false 유지.
+  //   WHY: 글 상세 진입 시 DiscussionView가 4개 AdSlot을 동시 마운트하면 각자 즉시 경매 fetch +
+  //        빈도캡 getDocs를 발사(~4-8 동시 Cloud Run+Firestore 요청) → 댓글 구독·OG fetch와 경쟁해 마운트 버벅임.
+  //        middle/bottom 슬롯은 대부분 fold 아래라 진입 시점까지 요청을 미뤄도 사용자 체감 손실 없음.
+  const [hasEnteredViewport, setHasEnteredViewport] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
+  // ⚡ 성능 2026-07-02: 로드 게이트 전용 sentinel ref (viewable 회계용 containerRef와 분리) — 회계 이벤트 미발사
+  const gateRef = useRef<HTMLDivElement | null>(null);
   const viewableFiredRef = useRef<Set<string>>(new Set());
   // 🔧 v2.1: directAd impression 이벤트 — 광고당 1회 발사 (스크롤 재마운트 중복 차단)
   const impressionFiredRef = useRef<Set<string>>(new Set());
@@ -54,6 +61,9 @@ const AdSlot = ({ position, postCategory, postId, postAuthorId, postAuthorLevel,
   //   24h 같은 사용자 viewable count >= limit 시 directAd=null → 매칭 분기로 fallthrough
   //   매칭 분기에서도 빈도 캡 통과 못 하면 fallback 'adsense' 또는 빈 슬롯
   useEffect(() => {
+    // ⚡ 성능 2026-07-02: 뷰포트 진입 전에는 selectedAd getDoc + 빈도캡 getDocs를 미룸.
+    //   off-screen 슬롯은 directAd=null 유지(기본값) → 렌더에 영향 없음. 진입 시 effect 재실행으로 정상 수행.
+    if (!hasEnteredViewport) return;
     if (!selectedAdId || selectedAdId === 'auto') { setDirectAd(null); return; }
     let cancelled = false;
     (async () => {
@@ -102,7 +112,7 @@ const AdSlot = ({ position, postCategory, postId, postAuthorId, postAuthorLevel,
       } catch (err) { console.warn('[AdSlot direct fetch]', err); }
     })();
     return () => { cancelled = true; };
-  }, [selectedAdId, position, postCategory]);
+  }, [selectedAdId, position, postCategory, hasEnteredViewport]);
 
   // 경매 엔진 호출
   // 🔧 v2.1+ (2026-04-28): selectedAdId가 광고 ID이면 매칭 분기 자체를 skip
@@ -112,6 +122,9 @@ const AdSlot = ({ position, postCategory, postId, postAuthorId, postAuthorLevel,
   useEffect(() => {
     if (type !== 'creator') return;
     if (!adSlotEnabled) return;
+    // ⚡ 성능 2026-07-02: 뷰포트 진입 전에는 경매 fetch를 미룸 (loaded=false 유지 → 아래 sentinel 렌더 지속).
+    //   진입 시 hasEnteredViewport→true로 effect 재실행되어 정상 매칭. selectedAd/directAd 경로도 동일 게이트로 일관 지연.
+    if (!hasEnteredViewport) return;
     if (selectedAdId && selectedAdId !== 'auto') {
       // selectedAd 광고가 있으면 매칭 fetch skip + loaded=true (directAd null 시 빈 슬롯 메시지 표시)
       setLoaded(true);
@@ -138,7 +151,7 @@ const AdSlot = ({ position, postCategory, postId, postAuthorId, postAuthorLevel,
       }
     })();
     return () => { cancelled = true; };
-  }, [postId, position, type, adSlotEnabled, selectedAdId, directAd, postCategory, postAuthorId, postAuthorLevel]);
+  }, [postId, position, type, adSlotEnabled, selectedAdId, directAd, postCategory, postAuthorId, postAuthorLevel, hasEnteredViewport]);
 
   // 🔧 v2.1: directAd impression 이벤트 — selectedAdId 직접 매칭은 auction.js 매칭 분기를 안 거치므로
   //   여기서 명시적으로 impression 발사. 광고당 1회.
@@ -212,6 +225,24 @@ const AdSlot = ({ position, postCategory, postId, postAuthorId, postAuthorLevel,
     };
   }, [directAd, auctionAd, postId, postAuthorId, postCategory, position]);
 
+  // ⚡ 성능 2026-07-02: 로드 게이트 IntersectionObserver — sentinel(gateRef)이 뷰포트 200px 이내 진입 시
+  //   hasEnteredViewport=true로 승격하고 즉시 disconnect(1회성). 이 관찰자는 회계 이벤트를 발사하지 않으며
+  //   viewable 회계용 IO(50%·1초)와 완전히 분리됨 → viewable/impression/click 카운트 의미 불변.
+  //   above-fold top 슬롯은 200px 마진으로 마운트 직후 즉시 진입 → 지연 없이 로드.
+  useEffect(() => {
+    if (hasEnteredViewport) return;
+    const sentinel = gateRef.current;
+    if (!sentinel) return;
+    const io = new IntersectionObserver((entries) => {
+      if (entries.some((entry) => entry.isIntersecting)) {
+        setHasEnteredViewport(true);
+        io.disconnect();
+      }
+    }, { rootMargin: '200px' });
+    io.observe(sentinel);
+    return () => io.disconnect();
+  }, [hasEnteredViewport]);
+
   // ──────────────────────────────────────────────────
 
   if (type === 'platform') {
@@ -255,7 +286,10 @@ const AdSlot = ({ position, postCategory, postId, postAuthorId, postAuthorLevel,
     );
   }
 
-  if (!loaded) return null;
+  // ⚡ 성능 2026-07-02: 로드 전(경매/빈도캡 미실행)에는 높이 0 sentinel을 렌더 → 로드 게이트 IO가 이 위치를 관찰.
+  //   기존 `return null`은 관찰 대상 DOM이 없어 뷰포트 진입 감지가 불가(교착) → 반드시 요소를 마운트해야 함.
+  //   클래스 없는 빈 div라 세로 공간 0(기존 null과 레이아웃 동일). 진입 후 loaded=true 되면 아래 실제 슬롯으로 교체.
+  if (!loaded) return <div ref={gateRef} aria-hidden />;
 
   return (
     <div ref={containerRef} className="my-4">

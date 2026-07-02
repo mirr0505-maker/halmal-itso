@@ -1,5 +1,5 @@
 // src/components/AnyTalkList.tsx
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import type { Post, UserData } from '../types';
 import { formatKoreanNumber, getReputationLabel, getReputation, getCategoryDisplayName, calculateLevel } from '../utils';
 import { sanitizeHtml, extractText, extractFirstImage } from '../sanitize';
@@ -175,6 +175,35 @@ const AnyTalkList = ({
     });
   }, [posts, onShareCount]);
 
+  // ⚡ 성능 2026-07-02: goldHeartCount(좋아요 유저 레벨 스캔)를 렌더 루프 안에서 카드마다 재계산하면
+  //   PostCardItem memo가 감싸기 전 단계라 O(likedBy)×카드수 비용이 매 렌더 발생 → posts/allUsers 변할 때만 집계하는 맵으로 캐시
+  const goldHeartMap = useMemo(() => {
+    const map: Record<string, number> = {};
+    for (const post of posts) {
+      map[post.id] = (post.likedBy || []).filter(nickname => {
+        const ud = allUsers[`nickname_${nickname}`];
+        return ud && calculateLevel(ud.exp || 0) >= 5;
+      }).length;
+    }
+    return map;
+  }, [posts, allUsers]);
+
+  // ⚡ 성능 2026-07-02: 깐부맺기 홍보 대상(promoEnabled + 미만료) 스캔을 매 렌더마다 Object.entries(allUsers) 순회하지 않도록 useMemo 캐시
+  const promoUsers = useMemo(() => {
+    const now = Date.now();
+    // 🚀 nickname_ 접두사 문서 제외 (UID 키 문서만 사용) + 중복 방지
+    const seen = new Set<string>();
+    return Object.entries(allUsers).filter(([key, u]) => {
+      if (key.startsWith('nickname_')) return false;
+      const p = u as unknown as { promoEnabled?: boolean; promoExpireAt?: { seconds: number } };
+      if (!p.promoEnabled) return false;
+      if (p.promoExpireAt && p.promoExpireAt.seconds * 1000 < now) return false;
+      if (seen.has(u.nickname)) return false;
+      seen.add(u.nickname);
+      return true;
+    }).map(([, u]) => u).slice(0, 4);
+  }, [allUsers]);
+
   // 본문 텍스트 존재 확인 (한컷/잉크병 인라인 strip 카드 — PostCardItem 외부 영역에서 사용)
   const hasText = (html: string) => !!extractText(html).trim();
 
@@ -215,10 +244,8 @@ const AnyTalkList = ({
           // 실시간 사용자 데이터 바인딩 — 카드 내부 표시용
           const authorData = (post.author_id && allUsers[post.author_id]) || allUsers[`nickname_${post.author}`];
           const realFollowers = followerCounts[post.author] || 0;
-          const goldHeartCount = (post.likedBy || []).filter(nickname => {
-            const ud = allUsers[`nickname_${nickname}`];
-            return ud && calculateLevel(ud.exp || 0) >= 5;
-          }).length;
+          // ⚡ 성능 2026-07-02: 상단 goldHeartMap useMemo에서 사전 집계된 값 조회 (렌더 루프 내 재스캔 제거)
+          const goldHeartCount = goldHeartMap[post.id] || 0;
 
           return (
             <React.Fragment key={post.id}>
@@ -510,19 +537,7 @@ const AnyTalkList = ({
 
             {/* 🚀 깐부맺기 인터리브 스트립: 등록글/인기글/최고글에서만, 한컷 다음 줄 */}
             {ci === 0 && onFriendsMoreClick && ['any', 'recent', 'best', 'rank'].includes(tab || '') && (() => {
-              // promoEnabled + 만료 안 된 유저 4명
-              const now = Date.now();
-              // 🚀 nickname_ 접두사 문서 제외 (UID 키 문서만 사용) + 중복 방지
-              const seen = new Set<string>();
-              const promoUsers = Object.entries(allUsers).filter(([key, u]) => {
-                if (key.startsWith('nickname_')) return false;
-                const p = u as unknown as { promoEnabled?: boolean; promoExpireAt?: { seconds: number } };
-                if (!p.promoEnabled) return false;
-                if (p.promoExpireAt && p.promoExpireAt.seconds * 1000 < now) return false;
-                if (seen.has(u.nickname)) return false;
-                seen.add(u.nickname);
-                return true;
-              }).map(([, u]) => u).slice(0, 4);
+              // ⚡ 성능 2026-07-02: 홍보 대상 스캔은 상단 promoUsers useMemo로 승격 (매 렌더 Object.entries 순회 제거)
               if (promoUsers.length === 0) return null;
               return (
                 <div className="col-span-full my-2 py-2">
@@ -575,4 +590,5 @@ const AnyTalkList = ({
   );
 };
 
-export default AnyTalkList;
+// ⚡ 성능 2026-07-02: 상위(App/useFirestoreActions)에서 posts·콜백 참조가 안정화되면 불필요 리렌더 차단 — React.memo로 감쌈 (props 미안정 상태여도 무해)
+export default React.memo(AnyTalkList);

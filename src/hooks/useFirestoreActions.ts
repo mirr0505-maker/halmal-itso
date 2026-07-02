@@ -1,9 +1,10 @@
 // src/hooks/useFirestoreActions.ts — 게시글·댓글·좋아요·깐부·차단 Firestore 핸들러
 import { db } from '../firebase';
 import {
-  doc, setDoc, updateDoc, increment,
+  doc, setDoc, updateDoc, increment, writeBatch,
   arrayUnion, arrayRemove, serverTimestamp,
 } from 'firebase/firestore';
+import { useCallback } from 'react';
 import type { Dispatch, SetStateAction, FormEvent } from 'react';
 import type { Post, UserData } from '../types';
 import { EXILE_CATEGORY } from '../types';
@@ -17,6 +18,10 @@ const RATE_LIMIT = {
 };
 let lastPostTime = 0;
 let lastCommentTime = 0;
+
+// ⚡ 성능 2026-07-02: 상세 진입 조회수·EXP 쓰기를 클릭 임계경로에서 분리해 idle 타이밍에 커밋할 때 쓰는 상수
+const VIEW_WRITE_IDLE_TIMEOUT_MS = 2_000; // requestIdleCallback이 마냥 미뤄지지 않도록 강제 실행 상한
+const VIEW_WRITE_FALLBACK_DELAY_MS = 200;  // requestIdleCallback 미지원 브라우저(setTimeout 폴백) 지연
 
 interface FirestoreActionDeps {
   userData: UserData | null;
@@ -58,7 +63,8 @@ export function useFirestoreActions({
 }: FirestoreActionDeps) {
 
   // 게시글 제출/수정 — postId가 있으면 수정, 없으면 신규
-  const handlePostSubmit = async (postData: Partial<Post>, postId?: string) => {
+  // ⚡ 성능 2026-07-02: useCallback 래핑 — 매 render마다 새 함수 identity 생성을 막아 하위 카드 React.memo 유지
+  const handlePostSubmit = useCallback(async (postData: Partial<Post>, postId?: string) => {
     if (!userData) return;
     // 🚀 Rate Limit: 신규 글 작성 60초 쿨다운
     if (!postId && Date.now() - lastPostTime < RATE_LIMIT.POST_COOLDOWN_MS) {
@@ -105,10 +111,11 @@ export function useFirestoreActions({
     } catch (e: unknown) {
       alert(`저장 실패: ${(e as Error)?.message || '알 수 없는 오류'}`);
     }
-  };
+  }, [userData, friends, setAllRootPosts, setSelectedTopic, setIsCreateOpen, setEditingPost, setCreateMenuKey, setActiveMenu, setActiveTab]);
 
   // 🚀 솔로몬의 재판 연계글 제출: 새 글 생성 후 현재 솔로몬 글로 돌아옴 (홈으로 이동 안 함)
-  const handleLinkedPostSubmit = async (postData: Partial<Post>) => {
+  // ⚡ 성능 2026-07-02: useCallback 래핑 — 함수 identity 안정화(props로 내려가는 콜백 재생성 차단)
+  const handleLinkedPostSubmit = useCallback(async (postData: Partial<Post>) => {
     if (!userData) return;
     try {
       const customId = `topic_${Date.now()}_${userData.uid}`;
@@ -136,10 +143,11 @@ export function useFirestoreActions({
     } catch (e: unknown) {
       alert(`연계글 저장 실패: ${(e as Error)?.message || '알 수 없는 오류'}`);
     }
-  };
+  }, [userData, friends, setIsCreateOpen, setLinkedPostSide]);
 
   // 인라인 댓글 등록 (DiscussionView / OneCutDetailView 에서 호출)
-  const handleInlineReply = async (
+  // ⚡ 성능 2026-07-02: useCallback 래핑 — 상세뷰로 내려가는 콜백 identity 안정화
+  const handleInlineReply = useCallback(async (
     content: string,
     parentPost: Post | null,
     side?: 'left' | 'right',
@@ -183,10 +191,11 @@ export function useFirestoreActions({
       alert('댓글 등록에 실패했습니다: ' + (e as Error).message);
       throw e;
     }
-  };
+  }, [userData, friends, selectedTopic]);
 
   // 폼 기반 댓글 제출 (DiscussionView 하단 댓글 폼)
-  const handleCommentSubmit = async (e: FormEvent) => {
+  // ⚡ 성능 2026-07-02: useCallback 래핑 — 폼 콜백 identity 안정화
+  const handleCommentSubmit = useCallback(async (e: FormEvent) => {
     e.preventDefault();
     if (!userData || !newContent.trim() || !selectedTopic) return;
     // 🚀 Rate Limit: 댓글 15초 쿨다운
@@ -228,12 +237,13 @@ export function useFirestoreActions({
     } finally {
       setIsSubmitting(false);
     }
-  };
+  }, [userData, friends, selectedTopic, newContent, newTitle, selectedType, selectedSide, replyTarget, setIsSubmitting, setNewTitle, setNewContent, setReplyTarget]);
 
   // 깐부(팔로우) 토글 — 🛡️ Anti-Abuse Commit 7-B v2: Cloud Function 경유
   // Why: 대칭 ±2 EXP (맺기 +2, 해제 -2) + 서버측 5초 쿨다운으로 루프 어뷰징 차단
   //      클라가 friendList/exp를 직접 쓰지 않아 Rules increase-only 가드와 정합
-  const toggleFriend = async (author: string) => {
+  // ⚡ 성능 2026-07-02: useCallback 래핑 — 글카드마다 내려가는 깐부 콜백 identity 안정화(200 카드 재렌더 차단)
+  const toggleFriend = useCallback(async (author: string) => {
     if (!userData) return;
     try {
       const { getFunctions, httpsCallable } = await import('firebase/functions');
@@ -251,10 +261,11 @@ export function useFirestoreActions({
         alert('깐부 요청 실패. 잠시 후 다시 시도하세요.');
       }
     }
-  };
+  }, [userData]);
 
   // 유저 차단 토글
-  const toggleBlock = async (author: string) => {
+  // ⚡ 성능 2026-07-02: useCallback 래핑 — 차단 콜백 identity 안정화
+  const toggleBlock = useCallback(async (author: string) => {
     if (!userData) return;
     if (author === userData.nickname) { alert('본인은 차단할 수 없습니다!'); return; }
     const isBlocked = blocks.includes(author);
@@ -264,10 +275,11 @@ export function useFirestoreActions({
         blockList: isBlocked ? arrayRemove(author) : arrayUnion(author),
       });
     } catch (e) { console.error(e); }
-  };
+  }, [userData, blocks]);
 
   // 게시글/댓글 좋아요 토글 — col(posts|comments) 자동 판별
-  const handleLike = async (e: React.MouseEvent | null, postId: string) => {
+  // ⚡ 성능 2026-07-02: useCallback 래핑 — 모든 글카드 좋아요 콜백 identity 안정화(최대 레버리지: PostCardItem React.memo 복원)
+  const handleLike = useCallback(async (e: React.MouseEvent | null, postId: string) => {
     if (e) { e.preventDefault(); e.stopPropagation(); }
     if (!userData) { alert('로그인이 필요합니다!'); return; }
     try {
@@ -296,34 +308,50 @@ export function useFirestoreActions({
         await updateDoc(doc(db, 'users', targetPost.author_id), { exp: increment(5) });
       }
     } catch (e) { console.error(e); }
-  };
+  }, [userData, allRootPosts, allChildPosts]);
 
   // 게시글 상세 열기 + 조회수 증가 (자기 글·세션 중복 방지)
-  const handleViewPost = (post: Post) => {
+  // ⚡ 성능 2026-07-02: setSelectedTopic만 동기 실행(화면 즉시 전환)하고, 조회수+EXP 두 write를
+  //   단일 writeBatch(1왕복)로 묶어 requestIdleCallback로 지연 커밋 — 클릭 임계경로에서 write 제거로 상세 진입 버벅임 완화
+  const handleViewPost = useCallback((post: Post) => {
     setSelectedTopic(post);
     if (!userData || userData.nickname === post.author) return;
     const sessionKey = `viewed_${post.id}`;
     if (sessionStorage.getItem(sessionKey)) return;
     sessionStorage.setItem(sessionKey, '1');
-    updateDoc(doc(db, 'posts', post.id), { viewCount: increment(1) }).catch(() => {});
-    // 🚀 EXP: 글 조회 +1 (로그인 유저, 타인 글, 글당 1회) — level 동시 쓰기 (옵션 B)
-    updateDoc(doc(db, 'users', userData.uid), buildExpLevelUpdate(userData.exp, 1)).catch(() => {});
-  };
+    const viewerUid = userData.uid;
+    const viewerExp = userData.exp;
+    // 조회수(+1)와 EXP(+1, 옵션 B level 동시 쓰기)를 한 배치로 합쳐 네트워크 왕복 1회로 커밋
+    const commitViewWrites = () => {
+      const batch = writeBatch(db);
+      batch.update(doc(db, 'posts', post.id), { viewCount: increment(1) });
+      batch.update(doc(db, 'users', viewerUid), buildExpLevelUpdate(viewerExp, 1));
+      batch.commit().catch(() => {});
+    };
+    // 브라우저 idle 타이밍에 커밋 — 미지원(Safari 등)은 setTimeout 폴백
+    if (typeof window.requestIdleCallback === 'function') {
+      window.requestIdleCallback(commitViewWrites, { timeout: VIEW_WRITE_IDLE_TIMEOUT_MS });
+    } else {
+      setTimeout(commitViewWrites, VIEW_WRITE_FALLBACK_DELAY_MS);
+    }
+  }, [userData, setSelectedTopic]);
 
   // 🚀 공유수 카운트: URL 복사 버튼 클릭 시 두 곳 동시 +1
   // ① posts/{postId}.shareCount   — 글별 공유 횟수 (랭킹용)
   // ② users/{authorId}.totalShares — 글쓴이 누적 공유수 (평판 점수 반영)
   // 검색어: handleShareCount
-  const handleShareCount = (postId: string, authorId?: string) => {
+  // ⚡ 성능 2026-07-02: useCallback 래핑 — 글카드 공유 콜백 identity 안정화(외부 참조 없어 deps 빈 배열)
+  const handleShareCount = useCallback((postId: string, authorId?: string) => {
     updateDoc(doc(db, 'posts', postId), { shareCount: increment(1) }).catch(() => {});
     if (authorId) {
       updateDoc(doc(db, 'users', authorId), { totalShares: increment(1) }).catch(() => {});
     }
-  };
+  }, []);
 
   // 🚀 재등록: 등록글 미달 글을 새글로 다시 올리기 (1회 한정)
   // Why: 2시간 경과 + 좋아요 3개 미만 글이 영원히 묻히는 것 방지. 1회만 허용.
-  const handleRepost = async (postId: string) => {
+  // ⚡ 성능 2026-07-02: useCallback 래핑 — 재등록 콜백 identity 안정화(allRootPosts 조회 의존)
+  const handleRepost = useCallback(async (postId: string) => {
     const post = allRootPosts.find(p => p.id === postId);
     if (!post) return;
     // 이미 재등록된 글이면 차단
@@ -343,7 +371,7 @@ export function useFirestoreActions({
       console.error('[재등록 실패]', err);
       alert('재등록에 실패했습니다. 다시 시도해주세요.');
     }
-  };
+  }, [allRootPosts]);
 
   return {
     handlePostSubmit,

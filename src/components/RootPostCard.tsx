@@ -1,5 +1,5 @@
 // src/components/RootPostCard.tsx
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { db } from '../firebase';
 import { doc, deleteDoc } from 'firebase/firestore';
 import type { Post, UserData } from '../types';
@@ -10,11 +10,13 @@ import { CATEGORY_RULES } from './DiscussionView';
 import LinkPreviewCard from './LinkPreviewCard';
 import type { OgData } from './LinkPreviewCard';
 import { EXTERNAL_URLS } from '../constants';
-import { sanitizeHtml } from '../sanitize';
+// ⚡ 성능 2026-07-02: 본문 sanitize를 MemoizedSanitizedHTML로 이관하며 미사용된 sanitizeHtml import 제거
 import { sharePost } from '../utils/share';
 import { handleReport } from '../utils/reportHandler';
 import ThanksballModal from './ThanksballModal';
 import PandoraDetail from './PandoraDetail';
+// ⚡ 성능 2026-07-02: sanitizeHtml 결과를 html 미변경 시 재실행하지 않도록 memo 컴포넌트 재사용
+import MemoizedSanitizedHTML from './MemoizedSanitizedHTML';
 // 🏷️ Sprint 5 Stage 5 — 작성자 카드에 대표 칭호(primaryTitles) 최대 3개 노출
 import TitleBadge from './TitleBadge';
 
@@ -60,10 +62,11 @@ const RootPostCard = ({
     .filter((t): t is NonNullable<typeof t> => !!t && !t.suspended)
     .slice(0, 3);
   // 🚀 골드스타: Lv5 이상 유저가 좋아요한 수
-  const goldStarCount = (post.likedBy || []).filter(nickname => {
+  // ⚡ 성능 2026-07-02: likedBy 전체 스캔+calculateLevel을 매 렌더 반복하지 않도록 memo화
+  const goldStarCount = useMemo(() => (post.likedBy || []).filter(nickname => {
     const ud = allUsers[`nickname_${nickname}`];
     return ud && calculateLevel(ud.exp || 0) >= 5;
-  }).length;
+  }).length, [post.likedBy, allUsers]);
   const [showSelfMsg, setShowSelfMsg] = useState(false);
 
   // 🚀 linkUrl OG 미리보기: post.linkUrl 우선, 없으면 content HTML의 첫 번째 <a href> 추출
@@ -75,21 +78,39 @@ const RootPostCard = ({
   useEffect(() => {
     // post.linkUrl이 없으면 본문 HTML에서 첫 번째 외부 링크 추출
     if (post.linkUrl) return;
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(post.content, 'text/html');
-    const firstAnchor = doc.querySelector('a[href^="http"]');
-    if (firstAnchor) setContentLinkUrl(firstAnchor.getAttribute('href'));
+    // ⚡ 성능 2026-07-02: DOMParser 앵커 스캔을 idle로 미뤄 마운트 임계경로에서 제외(LinkPreview 동작 동일)
+    const runAnchorScan = () => {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(post.content, 'text/html');
+      const firstAnchor = doc.querySelector('a[href^="http"]');
+      if (firstAnchor) setContentLinkUrl(firstAnchor.getAttribute('href'));
+    };
+    if (typeof window.requestIdleCallback === 'function') {
+      const idleId = window.requestIdleCallback(runAnchorScan);
+      return () => window.cancelIdleCallback?.(idleId);
+    }
+    const timeoutId = setTimeout(runAnchorScan, 0);
+    return () => clearTimeout(timeoutId);
   }, [post.content, post.linkUrl]);
 
   useEffect(() => {
     const urlToFetch = post.linkUrl || contentLinkUrl;
     if (!urlToFetch) return;
-    setOgLoading(true);
-    fetch(`${EXTERNAL_URLS.LINK_PREVIEW_WORKER}?url=${encodeURIComponent(urlToFetch)}`)
-      .then(r => r.json())
-      .then((data: OgData & { error?: string }) => { if (!data.error) setOgData(data); })
-      .catch(() => {})
-      .finally(() => setOgLoading(false));
+    // ⚡ 성능 2026-07-02: OG 프리뷰 fetch를 idle로 예약해 마운트 직후 리렌더 폭주 완화(LinkPreview 기능 유지)
+    const runOgFetch = () => {
+      setOgLoading(true);
+      fetch(`${EXTERNAL_URLS.LINK_PREVIEW_WORKER}?url=${encodeURIComponent(urlToFetch)}`)
+        .then(r => r.json())
+        .then((data: OgData & { error?: string }) => { if (!data.error) setOgData(data); })
+        .catch(() => {})
+        .finally(() => setOgLoading(false));
+    };
+    if (typeof window.requestIdleCallback === 'function') {
+      const idleId = window.requestIdleCallback(runOgFetch);
+      return () => window.cancelIdleCallback?.(idleId);
+    }
+    const timeoutId = setTimeout(runOgFetch, 0);
+    return () => clearTimeout(timeoutId);
   }, [post.linkUrl, contentLinkUrl]);
   const [showThanksball, setShowThanksball] = useState(false);
   const [copied, setCopied] = useState(false); // 공유 URL 복사 완료 피드백용
@@ -252,14 +273,16 @@ const RootPostCard = ({
         {/* 🚀 광고 top — 본문 시작 직전 */}
         {topSlot && <div className="mb-4">{topSlot}</div>}
 
-        <div className={`text-[15px] mb-6 leading-[1.8] font-medium max-w-none flex-1 [&_p]:mb-4 [&_p:last-child]:mb-0 [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:mb-4 [&_ol]:list-decimal [&_ol]:pl-5 [&_ol]:mb-4 [&_li]:mb-1 [&_strong]:font-bold [&_em]:italic [&_a]:text-blue-400 [&_a]:underline [&_blockquote]:border-l-4 [&_blockquote]:border-slate-200 [&_blockquote]:pl-4 [&_blockquote]:text-slate-500 [&_h1]:text-2xl [&_h1]:font-black [&_h2]:text-xl [&_h2]:font-black [&_h3]:text-lg [&_h3]:font-black ${isDark ? 'text-slate-200' : 'text-slate-700'}`} dangerouslySetInnerHTML={{ __html: sanitizeHtml(post.content) }} />
+        {/* ⚡ 성능 2026-07-02: unmemoized sanitizeHtml(post.content)를 MemoizedSanitizedHTML로 교체 — className 원본 그대로 전달 */}
+        <MemoizedSanitizedHTML html={post.content} className={`text-[15px] mb-6 leading-[1.8] font-medium max-w-none flex-1 [&_p]:mb-4 [&_p:last-child]:mb-0 [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:mb-4 [&_ol]:list-decimal [&_ol]:pl-5 [&_ol]:mb-4 [&_li]:mb-1 [&_strong]:font-bold [&_em]:italic [&_a]:text-blue-400 [&_a]:underline [&_blockquote]:border-l-4 [&_blockquote]:border-slate-200 [&_blockquote]:pl-4 [&_blockquote]:text-slate-500 [&_h1]:text-2xl [&_h1]:font-black [&_h2]:text-xl [&_h2]:font-black [&_h3]:text-lg [&_h3]:font-black ${isDark ? 'text-slate-200' : 'text-slate-700'}`} />
 
         {/* 🚀 광고 middle — 본문 끝, 통계바 위 */}
         {middleSlot && <div className="mb-4">{middleSlot}</div>}
 
         {post.imageUrl && !hasImageInContent && (
           <div className="w-full md:w-2/3 mb-6 rounded-2xl overflow-hidden border border-slate-100 bg-slate-50">
-            <img src={post.imageUrl} alt="Post Content" className="w-full h-auto object-contain max-h-[500px]" />
+            {/* ⚡ 성능 2026-07-02: 뷰포트 밖 본문 이미지 지연 로드(loading=lazy) — 시각 크기/max-h 불변 */}
+            <img src={post.imageUrl} alt="Post Content" loading="lazy" className="w-full h-auto object-contain max-h-[500px]" />
           </div>
         )}
 

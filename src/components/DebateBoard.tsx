@@ -1,5 +1,5 @@
 // src/components/DebateBoard.tsx
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect, useMemo } from 'react';
 import PostCard from './PostCard';
 import ThanksballModal from './ThanksballModal';
 import type { Post, UserData } from '../types';
@@ -34,8 +34,9 @@ const DebateBoard = ({
 }: Props) => {
   const rule = CATEGORY_RULES[category] || CATEGORY_RULES["너와 나의 이야기"];
 
-  const leftPosts = allChildPosts.filter(p => p.side === 'left');
-  const rightPosts = allChildPosts.filter(p => p.side === 'right');
+  // ⚡ 성능 2026-07-02: 좌/우 진영 분리 필터를 매 렌더(인라인 입력 키 입력마다)마다 재계산하지 않도록 useMemo 캐시
+  const leftPosts = useMemo(() => allChildPosts.filter(p => p.side === 'left'), [allChildPosts]);
+  const rightPosts = useMemo(() => allChildPosts.filter(p => p.side === 'right'), [allChildPosts]);
 
   // 댓글 정렬 상태 (단일 리스트형에서 사용)
   const [sortBy, setSortBy] = useState<'latest' | 'likes'>('latest');
@@ -152,15 +153,23 @@ const DebateBoard = ({
 
 
   // 답글 스레드: parentId === rootId 이면 최상위 댓글, 아니면 다른 댓글의 답글
-  const topLevelComments = allChildPosts.filter(p => p.parentId === p.rootId);
+  // ⚡ 성능 2026-07-02: 최상위 댓글 필터를 매 렌더(키입력 포함)마다 재계산하지 않도록 useMemo 캐시
+  const topLevelComments = useMemo(() => allChildPosts.filter(p => p.parentId === p.rootId), [allChildPosts]);
   const getReplies = (id: string) => allChildPosts.filter(p => p.parentId === id);
-  const sortedTopLevel = [...topLevelComments].sort((a, b) => {
+  // ⚡ 성능 2026-07-02: 정렬(최신/공감 + 핀 고정) 재계산을 인라인 입력 키입력마다 하지 않도록 useMemo 캐시
+  const sortedTopLevel = useMemo(() => [...topLevelComments].sort((a, b) => {
     if (a.id === pinnedCommentId) return -1;
     if (b.id === pinnedCommentId) return 1;
     return sortBy === 'likes'
       ? (b.likes || 0) - (a.likes || 0)
       : (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0);
-  });
+  }), [topLevelComments, sortBy, pinnedCommentId]);
+  // ⚡ 성능 2026-07-02: 판도라 지그재그 정렬을 조건부 블록 내 훅 금지 규칙 때문에 최상위로 승격 + 키입력마다 재정렬 방지 (topLevel === topLevelComments 재사용)
+  const pandoraZigzag = useMemo(() => [...topLevelComments].sort((a, b) => {
+    if (a.id === pinnedCommentId) return -1;
+    if (b.id === pinnedCommentId) return 1;
+    return (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0);
+  }), [topLevelComments, pinnedCommentId]);
   const renderThread = (post: Post, depth: number) => {
     const replies = getReplies(post.id);
     return (
@@ -207,13 +216,7 @@ const DebateBoard = ({
 
   // 🚀 판도라의 상자 전용 레이아웃 — 지그재그 + 인라인 입력 + 핀 고정
   if (rule.boardType === 'pandora') {
-    const topLevel = allChildPosts.filter(p => p.parentId === p.rootId);
-    const zigzag = [...topLevel].sort((a, b) => {
-      if (a.id === pinnedCommentId) return -1;
-      if (b.id === pinnedCommentId) return 1;
-      return (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0);
-    });
-
+    // ⚡ 성능 2026-07-02: topLevel/zigzag 정렬은 상단 pandoraZigzag useMemo로 승격됨 (조건부 훅 금지 준수)
     const pandoraSubmit = async (side: 'left' | 'right') => {
       if (!inlineContent.trim() || isInlineSubmitting) return;
       setIsInlineSubmitting(true);
@@ -272,7 +275,7 @@ const DebateBoard = ({
 
         {/* 지그재그 댓글 목록 */}
         <div className="flex flex-col gap-1.5 px-4 py-1">
-          {zigzag.map(post => {
+          {pandoraZigzag.map(post => {
             const isLeft = post.side === 'left';
             const isPinned = post.id === pinnedCommentId;
             const isLiked = currentNickname && (post.likedBy || []).includes(currentNickname);

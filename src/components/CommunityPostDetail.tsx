@@ -6,7 +6,8 @@ import { db } from '../firebase';
 import { collection, doc, setDoc, addDoc, updateDoc, deleteDoc, query, where, orderBy, onSnapshot, increment, serverTimestamp, arrayUnion, arrayRemove } from 'firebase/firestore';
 import type { CommunityPost, CommunityMember, UserData, FirestoreTimestamp, ShareholderTier } from '../types';
 import { TIER_CONFIG, tierRangeLabel } from '../types';
-import { sanitizeHtml } from '../sanitize';
+// ⚡ 성능 2026-07-02: 본문 sanitize를 MemoizedSanitizedHTML로 이관하며 미사용된 sanitizeHtml import 제거
+import MemoizedSanitizedHTML from './MemoizedSanitizedHTML';
 import { calculateLevel, getReputationLabel, getReputation, formatKoreanNumber, buildExpLevelUpdate, calculateExpForPost } from '../utils';
 import { handleReport } from '../utils/reportHandler';
 import ReportStateBanner from './ReportStateBanner';
@@ -226,9 +227,10 @@ const CommunityPostDetail = ({ post, currentUserData, allUsers = {}, followerCou
             appealStatus={livePost.appealStatus}
           />
           {livePost.title && <h2 className="text-[20px] font-[1000] text-slate-900 mb-3">{livePost.title}</h2>}
-          <div
+          {/* ⚡ 성능 2026-07-02: unmemoized sanitizeHtml(livePost.content)를 MemoizedSanitizedHTML로 교체 — className 원본 그대로 전달 */}
+          <MemoizedSanitizedHTML
             className="text-[14px] font-medium text-slate-700 leading-[1.8] [&_p]:mb-3 [&_strong]:font-bold [&_em]:italic [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_img]:rounded-lg [&_img]:max-w-full [&_a]:text-blue-400 [&_a]:underline"
-            dangerouslySetInnerHTML={{ __html: sanitizeHtml(livePost.content) }}
+            html={livePost.content}
           />
           {/* 🚀 글 작성자 카드 — RootPostCard 완전 동일 패턴 */}
           {(() => {

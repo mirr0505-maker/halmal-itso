@@ -1,5 +1,5 @@
 // src/components/DiscussionView.tsx — 일반 게시글 상세 뷰 (2컬럼 레이아웃)
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { db } from '../firebase';
 import { doc, onSnapshot } from 'firebase/firestore';
 import type { Post, UserData, KanbuRoom } from '../types';
@@ -109,7 +109,6 @@ const DiscussionView = ({
     if (!rule.allowFormal && selectedType === 'formal') setSelectedType('comment');
   }, [rootPost.category, rule.allowDisagree, rule.allowFormal, selectedSide, selectedType, setSelectedSide, setSelectedType]);
 
-  const now = Date.now();
   // 🏚️ 유배·귀양지(곳간/귀양지/절해고도 3단계 공통)는 트래픽이 적어
   //    "등록글" 기준(좋아요 3+ & 1시간) 적용 시 사이드바가 비는 문제 →
   //    likes·시간 필터를 스킵하고 isHiddenByExile(문제글 soft-delete)만 제외
@@ -131,15 +130,19 @@ const DiscussionView = ({
     || kanbuRoom.creatorId === userData?.uid
     || (rootPost.kanbuBoardType === 'paid_once' && kanbuRoom.paidOnceMembers?.includes(userData?.uid || ''))
     || (rootPost.kanbuBoardType === 'paid_monthly' && kanbuRoom.paidMonthlyMembers?.includes(userData?.uid || ''));
-  const relatedPosts = otherTopics.filter(topic => {
-    if (topic.id === rootPost.id || topic.isOneCut) return false;
-    if (topic.isHiddenByExile) return false;
-    // 🏚️ 유배·귀양지 / 🏠 깐부방: 좋아요·시간 필터 스킵 (해당 범위 전체 표시)
-    if (isExile || isKanbu) return true;
-    if ((topic.likes || 0) < 3) return false;
-    const createdMs = topic.createdAt?.seconds ? topic.createdAt.seconds * 1000 : 0;
-    return (now - createdMs) >= 3600 * 1000;
-  }).slice(0, 10);
+  // ⚡ 성능 2026-07-02: 매 렌더(댓글 입력 키 입력 포함)마다 otherTopics O(N) 필터·slice 재계산을 막기 위해 useMemo 캐시. now는 내부 계산해 의존성에서 제외
+  const relatedPosts = useMemo(() => {
+    const now = Date.now();
+    return otherTopics.filter(topic => {
+      if (topic.id === rootPost.id || topic.isOneCut) return false;
+      if (topic.isHiddenByExile) return false;
+      // 🏚️ 유배·귀양지 / 🏠 깐부방: 좋아요·시간 필터 스킵 (해당 범위 전체 표시)
+      if (isExile || isKanbu) return true;
+      if ((topic.likes || 0) < 3) return false;
+      const createdMs = topic.createdAt?.seconds ? topic.createdAt.seconds * 1000 : 0;
+      return (now - createdMs) >= 3600 * 1000;
+    }).slice(0, 10);
+  }, [otherTopics, rootPost.id, isExile, isKanbu]);
 
   const authorData = (rootPost.author_id && allUsers[rootPost.author_id]) || allUsers[`nickname_${rootPost.author}`];
   const realFollowers = followerCounts[rootPost.author] || 0;
